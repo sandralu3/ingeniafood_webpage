@@ -1,3 +1,13 @@
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
 :root {
   --color-background: #fbf9f4;
   --color-on-background: #1b1c19;

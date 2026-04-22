@@ -14,3 +14,45 @@
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
+
+/* Scroll reveal: activado vía .is-visible desde JS (respeta reducción de movimiento) */
+.reveal-on-scroll {
+  opacity: 0;
+  transform: translateY(1rem);
+  transition:
+    opacity 0.7s ease,
+    transform 0.7s ease;
+  will-change: opacity, transform;
+}
+
+.reveal-on-scroll.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal-on-scroll {
+    opacity: 1;
+    transform: none;
+    transition: none;
+    will-change: auto;
+  }
+}
+
+/* Enlace de navegación con spy de sección */
+.nav-spy {
+  position: relative;
+  padding-bottom: 0.2rem;
+  border-bottom: 2px solid transparent;
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+
+.nav-spy.nav-spy--active {
+  color: #556b2f;
+  border-bottom-color: #556b2f;
+}
+
+.nav-spy.nav-spy--active:hover {
+  color: #556b2f;
+  border-bottom-color: #556b2f;
+}
