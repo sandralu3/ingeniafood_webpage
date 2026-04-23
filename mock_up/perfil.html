@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+
+<html lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Manrope:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-secondary-fixed-variant": "#505f54",
+                    "surface-container-lowest": "#ffffff",
+                    "background": "#f9faf6",
+                    "tertiary-container": "#feebd3",
+                    "secondary-fixed-dim": "#c8d9cb",
+                    "error": "#a83836",
+                    "on-primary": "#e7ffea",
+                    "on-secondary-container": "#47554b",
+                    "inverse-primary": "#dcfce2",
+                    "error-dim": "#67040d",
+                    "surface-bright": "#f9faf6",
+                    "primary-fixed": "#cbead1",
+                    "on-primary-fixed-variant": "#46624e",
+                    "surface-container-high": "#e5e9e4",
+                    "tertiary-fixed-dim": "#efddc5",
+                    "on-surface": "#2e3430",
+                    "on-secondary-fixed": "#344339",
+                    "tertiary": "#6a5d4a",
+                    "tertiary-fixed": "#feebd3",
+                    "on-error-container": "#6e0a12",
+                    "surface-variant": "#dfe4de",
+                    "on-error": "#fff7f6",
+                    "secondary-container": "#d6e7d9",
+                    "surface-dim": "#d6dbd5",
+                    "on-primary-container": "#3d5845",
+                    "on-primary-fixed": "#2a4533",
+                    "on-background": "#2e3430",
+                    "outline": "#767c77",
+                    "inverse-on-surface": "#9b9d9a",
+                    "error-container": "#fa746f",
+                    "secondary": "#546358",
+                    "primary-container": "#cbead1",
+                    "inverse-surface": "#0c0f0d",
+                    "outline-variant": "#aeb3ae",
+                    "surface-tint": "#4a6551",
+                    "surface-container-low": "#f2f4ef",
+                    "on-tertiary-fixed": "#504533",
+                    "surface-container-highest": "#dfe4de",
+                    "on-tertiary": "#fff8f2",
+                    "primary-dim": "#3e5946",
+                    "primary-fixed-dim": "#bddcc3",
+                    "tertiary-dim": "#5d513f",
+                    "on-secondary": "#edfdef",
+                    "on-tertiary-fixed-variant": "#6e614e",
+                    "secondary-dim": "#48574c",
+                    "primary": "#4a6551",
+                    "surface-container": "#ebefe9",
+                    "secondary-fixed": "#d6e7d9",
+                    "on-surface-variant": "#5b605c",
+                    "surface": "#f9faf6",
+                    "on-tertiary-container": "#635744"
+            },
+            "borderRadius": {
+                    "DEFAULT": "1rem",
+                    "lg": "2rem",
+                    "xl": "3rem",
+                    "full": "9999px"
+            },
+            "fontFamily": {
+                    "headline": ["Plus Jakarta Sans"],
+                    "body": ["Manrope"],
+                    "label": ["Manrope"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .editorial-shadow {
+            box-shadow: 0 12px 40px rgba(46, 52, 48, 0.04);
+        }
+        body {
+            font-family: 'Manrope', sans-serif;
+            background-color: #f9faf6;
+            color: #2e3430;
+        }
+        h1, h2, h3 {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background min-h-screen pb-32">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-[#f9faf6] dark:bg-[#1a1c18] flex justify-between items-center px-6 h-16 w-full">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-[#4a6551] dark:text-[#8fb397] cursor-pointer hover:opacity-80 transition-opacity">menu</span>
+<h1 class="text-xl font-bold text-[#4a6551] dark:text-[#8fb397] tracking-[-0.02em] font-['Plus_Jakarta_Sans']">Sandra Vergara</h1>
+</div>
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 rounded-full bg-secondary-container flex items-center justify-center">
+<span class="material-symbols-outlined text-sm text-on-secondary-container">notifications</span>
+</div>
+</div>
+</header>
+<main class="pt-24 px-6 max-w-2xl mx-auto space-y-12">
+<!-- Profile Hero Section -->
+<section class="flex flex-col items-center text-center space-y-4">
+<div class="relative">
+<div class="w-32 h-32 rounded-full overflow-hidden border-4 border-surface-container-low editorial-shadow">
+<img alt="Sandra Vergara Portrait" class="w-full h-full object-cover" data-alt="professional portrait of a warm friendly woman in a minimalist sunlit kitchen setting, soft natural lighting, organic aesthetic" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAl6dit-nmadhWdc77Jod1-giK7fz5Tblay5lRYqddXTkMQlEcWSEzkqUnBGo1UADXsxGp6fvx86xuwWbYHLHB_L1Nh-CVrEnTJ97cMMdTN9hK5cUBraM-XhCHXNigp7rzoCQQYetW7NkOioPkBskHFRzlRgG5Ndn7onzjgz2D3pkWJUNida77QGPtcp2Bgb6KPGQhTionq60-rkHh11LoVnL3nQhVe3bB3zdLbaj5QEqoEXX10JrExt45ktffV3N30V0UtTcqxqxEp"/>
+</div>
+<div class="absolute bottom-0 right-0 bg-primary text-on-primary p-2 rounded-full shadow-lg">
+<span class="material-symbols-outlined text-base" style="font-variation-settings: 'FILL' 1;">verified</span>
+</div>
+</div>
+<div>
+<h2 class="text-3xl font-extrabold tracking-tight text-primary">Sandra Vergara</h2>
+<p class="text-on-surface-variant font-medium mt-1">Cocina Inteligente &amp; Bienestar</p>
+</div>
+</section>
+<!-- Premium CTA Card -->
+<section class="relative overflow-hidden bg-primary rounded-lg p-8 text-on-primary editorial-shadow group">
+<div class="absolute top-0 right-0 w-48 h-48 bg-primary-container/20 rounded-full -mr-20 -mt-20 blur-3xl group-hover:scale-110 transition-transform duration-700"></div>
+<div class="relative z-10 space-y-6">
+<div class="space-y-2">
+<span class="text-xs font-bold uppercase tracking-widest text-on-primary/80">Membresía Premium</span>
+<h3 class="text-2xl font-bold leading-tight">Acceso Ilimitado a la Cocina Inteligente</h3>
+<p class="text-on-primary/90 text-sm leading-relaxed max-w-xs">Planes de alimentación personalizados, análisis nutricional avanzado y contenido exclusivo semanal.</p>
+</div>
+<button class="bg-on-primary text-primary px-8 py-3 rounded-full font-bold text-sm transition-all hover:scale-105 active:scale-95 shadow-md">
+                    Prueba 7 días gratis
+                </button>
+</div>
+<!-- Decorative glass element -->
+<div class="absolute bottom-4 right-4 opacity-20">
+<span class="material-symbols-outlined text-8xl" style="font-variation-settings: 'FILL' 1;">restaurant_menu</span>
+</div>
+</section>
+<!-- Featured Link: Free Guide -->
+<section class="space-y-4">
+<div class="flex items-center justify-between px-2">
+<h4 class="font-headline font-bold text-lg text-on-surface">Recursos Destacados</h4>
+</div>
+<a class="block bg-surface-container-lowest rounded-lg p-5 flex items-center gap-5 transition-all hover:bg-surface-container-low group" href="#">
+<div class="w-16 h-16 rounded-md overflow-hidden flex-shrink-0">
+<img alt="Recipe Guide Cover" class="w-full h-full object-cover" data-alt="top view of healthy green vegetable salad in a ceramic bowl on a rustic wooden table, bright airy photography" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD6MhLga4vXsEjzCtGSH39NIvK2WTIG9FnqeZy53Ojzfg-5UNxjRZnN9drDDYdu_DiVrFZgtee60rGj2xsB7P5HYCdVO4et_3wTGh-ffO9POaj7NGf14XxPIC-SJansp_U4czv2Iw5UclsfHz_wh4WLcogUHwIXRVyffTuOy1pf5JKovIpiXO3FGRd18R_vAdpsN3Fz-LgEzKfh0DXLjd8dBj8FcB0rAwbPISsEsaBosyOGmeN5sn3R8___oLoBpGgDyPkSNMV075Ev"/>
+</div>
+<div class="flex-1">
+<h5 class="font-bold text-primary text-sm">Guía gratuita de 10 recetas</h5>
+<p class="text-xs text-on-surface-variant mt-1">E-book descargable para empezar hoy.</p>
+</div>
+<span class="material-symbols-outlined text-outline-variant group-hover:text-primary transition-colors">download</span>
+</a>
+</section>
+<!-- Action Grid (Bento Style) -->
+<section class="grid grid-cols-2 gap-4">
+<div class="bg-surface-container-low p-6 rounded-lg flex flex-col justify-between h-40 group hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined text-primary text-3xl">bookmark</span>
+<div>
+<h6 class="font-bold text-sm">Mis Recetas</h6>
+<p class="text-[10px] text-on-surface-variant">24 guardadas</p>
+</div>
+</div>
+<div class="bg-surface-container-low p-6 rounded-lg flex flex-col justify-between h-40 group hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined text-primary text-3xl">settings</span>
+<div>
+<h6 class="font-bold text-sm">Configuración</h6>
+<p class="text-[10px] text-on-surface-variant">Perfil y preferencias</p>
+</div>
+</div>
+<div class="col-span-2 bg-tertiary-container/40 p-6 rounded-lg flex items-center justify-between group hover:bg-tertiary-container/60 transition-colors">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-tertiary text-2xl">help</span>
+<h6 class="font-bold text-sm text-tertiary">Centro de ayuda</h6>
+</div>
+<span class="material-symbols-outlined text-tertiary text-sm">arrow_forward_ios</span>
+</div>
+</section>
+<!-- Logout -->
+<button class="w-full py-4 text-error font-bold text-sm flex items-center justify-center gap-2 hover:opacity-70 transition-opacity">
+<span class="material-symbols-outlined text-sm">logout</span>
+            Cerrar Sesión
+        </button>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full flex justify-around items-center px-4 pb-6 pt-3 bg-[#f9faf6]/70 dark:bg-[#1a1c18]/70 backdrop-blur-xl z-50 rounded-t-[3rem] shadow-[0_-4px_40px_rgba(46,52,48,0.04)]">
+<div class="flex flex-col items-center justify-center text-[#aeb3ae] px-5 py-2 hover:text-[#4a6551] transition-all duration-300">
+<span class="material-symbols-outlined">home</span>
+<span class="font-['Manrope'] text-[10px] font-semibold">Home</span>
+</div>
+<div class="flex flex-col items-center justify-center text-[#aeb3ae] px-5 py-2 hover:text-[#4a6551] transition-all duration-300">
+<span class="material-symbols-outlined">document_scanner</span>
+<span class="font-['Manrope'] text-[10px] font-semibold">AI Scan</span>
+</div>
+<div class="flex flex-col items-center justify-center text-[#aeb3ae] px-5 py-2 hover:text-[#4a6551] transition-all duration-300">
+<span class="material-symbols-outlined">bookmark</span>
+<span class="font-['Manrope'] text-[10px] font-semibold">Saved</span>
+</div>
+<div class="flex flex-col items-center justify-center bg-[#cbead1] dark:bg-[#384d3e] text-[#4a6551] dark:text-[#e7ffea] rounded-full px-5 py-2 transition-all duration-300">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">person</span>
+<span class="font-['Manrope'] text-[10px] font-semibold">Profile</span>
+</div>
+</nav>
+</body></html>

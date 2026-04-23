@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Sandra Vergara Cocina Inteligente">
+  <rect width="512" height="512" rx="96" fill="#f9fbf9" />
+  <rect x="72" y="72" width="368" height="368" rx="72" fill="#88ab75" />
+  <path d="M154 186c34-24 73-24 102 3c29-27 68-27 102-3c-4 56-39 96-102 141c-63-45-98-85-102-141z" fill="#f9fbf9"/>
+  <circle cx="210" cy="168" r="11" fill="#4a5d3f"/>
+  <circle cx="302" cy="168" r="11" fill="#4a5d3f"/>
+</svg>

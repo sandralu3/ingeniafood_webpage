@@ -1,0 +1,17 @@
+{
+  "name": "Sandra Vergara | Cocina Inteligente",
+  "short_name": "Cocina Inteligente",
+  "description": "App de recetas inteligentes con IA para Sandra Vergara.",
+  "start_url": "/app-recetas",
+  "display": "standalone",
+  "background_color": "#FDFCFB",
+  "theme_color": "#556B2F",
+  "lang": "es",
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

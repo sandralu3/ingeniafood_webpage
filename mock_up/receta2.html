@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Gemini 3 | Curating Your Recipe</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        @keyframes pulse-gentle {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+        .animate-skeleton {
+            animation: pulse-gentle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "surface-container": "#eeeeec",
+                      "on-primary-container": "#d0eba1",
+                      "on-background": "#1a1c1b",
+                      "error-container": "#ffdad6",
+                      "tertiary-container": "#85537e",
+                      "primary-container": "#556b2f",
+                      "surface-bright": "#f9f9f7",
+                      "primary-fixed-dim": "#b6d088",
+                      "on-primary-fixed-variant": "#394d14",
+                      "secondary": "#586246",
+                      "on-tertiary-fixed-variant": "#65365f",
+                      "outline-variant": "#c5c8b8",
+                      "on-secondary-fixed-variant": "#414a30",
+                      "tertiary": "#6b3b65",
+                      "on-error": "#ffffff",
+                      "on-surface": "#1a1c1b",
+                      "surface-variant": "#e2e3e1",
+                      "inverse-on-surface": "#f1f1ef",
+                      "surface-container-high": "#e8e8e6",
+                      "surface-container-low": "#f4f4f2",
+                      "on-primary-fixed": "#131f00",
+                      "on-secondary": "#ffffff",
+                      "error": "#ba1a1a",
+                      "surface-container-highest": "#e2e3e1",
+                      "on-secondary-container": "#5e684c",
+                      "tertiary-fixed": "#ffd7f5",
+                      "on-tertiary-fixed": "#330931",
+                      "outline": "#75796b",
+                      "secondary-container": "#dce7c3",
+                      "inverse-surface": "#2f3130",
+                      "on-tertiary-container": "#ffd5f5",
+                      "on-primary": "#ffffff",
+                      "surface-tint": "#50652a",
+                      "secondary-fixed": "#dce7c3",
+                      "inverse-primary": "#b6d088",
+                      "on-tertiary": "#ffffff",
+                      "surface-dim": "#dadad8",
+                      "secondary-fixed-dim": "#c0cba9",
+                      "on-secondary-fixed": "#161e08",
+                      "primary-fixed": "#d2eca2",
+                      "surface": "#f9f9f7",
+                      "background": "#f9f9f7",
+                      "tertiary-fixed-dim": "#f0b4e5",
+                      "on-surface-variant": "#45483c",
+                      "on-error-container": "#93000a",
+                      "surface-container-lowest": "#ffffff",
+                      "primary": "#3e5219"
+              },
+              "borderRadius": {
+                      "DEFAULT": "1rem",
+                      "lg": "2rem",
+                      "xl": "3rem",
+                      "full": "9999px"
+              }
+            }
+          }
+        }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface min-h-screen flex flex-col">
+<!-- TopAppBar -->
+<header class="bg-[#F9F9F7]/80 dark:bg-stone-900/80 backdrop-blur-xl font-['Inter'] font-light tracking-tight text-lg docked full-width top-0 sticky z-50 flex justify-between items-center px-6 py-4 w-full">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-[#556B2F] dark:text-[#D2ECA2]">menu</span>
+<span class="font-['Inter'] font-semibold tracking-[0.1em] uppercase text-sm text-[#3E5219] dark:text-[#D2ECA2]">Sandra Vergara</span>
+</div>
+<div class="h-10 w-10 rounded-full bg-surface-container-high overflow-hidden">
+<img alt="User profile" class="w-full h-full object-cover" data-alt="close-up portrait of a smiling woman with professional studio lighting and clean minimalist background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAxfoo7cs_FNm8QUhNe8r2LwhjWUIp7mvR_1FpE1CvKWN1918DPwC9unonmXRosZQIjTTecSRGOqALqmOzlVmixHShV2xmFCPX3vAqH2xQmKVVoTCL8fg_3Q9DUWpA_vHArQecdGoG4TQ6GlagnK-Q84qmyiB_vE9erjx-1SOFOg4RM-5PlvpQj9IgiBrKyPZobosM8Po5QUX9UHlznXm-m1ciAIrgq7YKVRnzgnEhV90sjf5i2NBJCStPo-n6Y07NDixcNe6hA1BUz"/>
+</div>
+</header>
+<main class="flex-grow w-full max-w-screen-xl mx-auto px-6 py-8 md:py-12 space-y-12">
+<!-- Status Indicator -->
+<div class="flex flex-col items-center text-center space-y-4">
+<div class="flex items-center gap-2 px-4 py-1.5 bg-secondary-container rounded-full text-on-secondary-container text-[10px] font-bold tracking-widest uppercase">
+<span class="relative flex h-2 w-2">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+</span>
+                Gemini 3 Generating
+            </div>
+<h1 class="text-3xl md:text-5xl font-extrabold tracking-tight text-primary max-w-2xl">
+                Curating your culinary experience...
+            </h1>
+</div>
+<!-- Bento Grid Skeleton -->
+<div class="grid grid-cols-1 md:grid-cols-12 gap-8">
+<!-- Hero Image Skeleton -->
+<div class="md:col-span-8 group relative overflow-hidden rounded-xl bg-surface-container-low aspect-[16/9] animate-skeleton">
+<div class="absolute inset-0 bg-gradient-to-br from-surface-container-low to-surface-container-high"></div>
+</div>
+<!-- Metadata Skeleton -->
+<div class="md:col-span-4 flex flex-col justify-between bg-surface-container-low rounded-xl p-8 animate-skeleton">
+<div class="space-y-6">
+<div class="h-4 w-24 bg-surface-container-highest rounded-full"></div>
+<div class="space-y-3">
+<div class="h-8 w-full bg-surface-container-highest rounded-lg"></div>
+<div class="h-8 w-2/3 bg-surface-container-highest rounded-lg"></div>
+</div>
+</div>
+<div class="flex items-center gap-4 mt-8">
+<div class="h-12 w-12 rounded-full bg-surface-container-highest"></div>
+<div class="flex-grow space-y-2">
+<div class="h-3 w-20 bg-surface-container-highest rounded-full"></div>
+<div class="h-3 w-32 bg-surface-container-highest rounded-full"></div>
+</div>
+</div>
+</div>
+<!-- Ingredients Skeleton Section -->
+<div class="md:col-span-5 space-y-8 p-8 bg-surface-container-lowest rounded-xl shadow-[0_40px_60px_rgba(0,0,0,0.03)]">
+<div class="flex items-center justify-between">
+<div class="h-6 w-32 bg-surface-container-high rounded-full animate-skeleton"></div>
+<div class="h-4 w-16 bg-surface-container-low rounded-full animate-skeleton"></div>
+</div>
+<div class="space-y-4">
+<div class="flex items-center gap-4 py-3">
+<div class="h-6 w-6 rounded-full bg-surface-container-low animate-skeleton"></div>
+<div class="h-4 flex-grow bg-surface-container-low rounded-full animate-skeleton"></div>
+<div class="h-4 w-12 bg-surface-container-low rounded-full animate-skeleton"></div>
+</div>
+<div class="flex items-center gap-4 py-3">
+<div class="h-6 w-6 rounded-full bg-surface-container-low animate-skeleton" style="animation-delay: 0.2s"></div>
+<div class="h-4 flex-grow bg-surface-container-low rounded-full animate-skeleton" style="animation-delay: 0.2s"></div>
+<div class="h-4 w-12 bg-surface-container-low rounded-full animate-skeleton" style="animation-delay: 0.2s"></div>
+</div>
+<div class="flex items-center gap-4 py-3">
+<div class="h-6 w-6 rounded-full bg-surface-container-low animate-skeleton" style="animation-delay: 0.4s"></div>
+<div class="h-4 flex-grow bg-surface-container-low rounded-full animate-skeleton" style="animation-delay: 0.4s"></div>
+<div class="h-4 w-12 bg-surface-container-low rounded-full animate-skeleton" style="animation-delay: 0.4s"></div>
+</div>
+<div class="flex items-center gap-4 py-3">
+<div class="h-6 w-6 rounded-full bg-surface-container-low animate-skeleton" style="animation-delay: 0.6s"></div>
+<div class="h-4 flex-grow bg-surface-container-low rounded-full animate-skeleton" style="animation-delay: 0.6s"></div>
+<div class="h-4 w-12 bg-surface-container-low rounded-full animate-skeleton" style="animation-delay: 0.6s"></div>
+</div>
+</div>
+</div>
+<!-- Steps Skeleton Section -->
+<div class="md:col-span-7 space-y-8 p-8">
+<div class="h-6 w-48 bg-surface-container-high rounded-full animate-skeleton"></div>
+<div class="space-y-8">
+<div class="space-y-3">
+<div class="h-4 w-full bg-surface-container-low rounded-full animate-skeleton"></div>
+<div class="h-4 w-full bg-surface-container-low rounded-full animate-skeleton"></div>
+<div class="h-4 w-2/3 bg-surface-container-low rounded-full animate-skeleton"></div>
+</div>
+<div class="space-y-3">
+<div class="h-4 w-full bg-surface-container-low rounded-full animate-skeleton" style="animation-delay: 0.3s"></div>
+<div class="h-4 w-full bg-surface-container-low rounded-full animate-skeleton" style="animation-delay: 0.3s"></div>
+<div class="h-4 w-1/2 bg-surface-container-low rounded-full animate-skeleton" style="animation-delay: 0.3s"></div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-8 pt-4 bg-[#F9F9F7]/90 dark:bg-stone-900/90 backdrop-blur-2xl shadow-[0_-10px_40px_rgba(0,0,0,0.04)] rounded-t-[2.5rem]">
+<!-- Home -->
+<a class="flex flex-col items-center justify-center text-stone-400 dark:text-stone-500 px-5 py-2 hover:text-[#556B2F] transition-colors scale-95 active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined mb-1">home</span>
+<span class="font-['Inter'] text-[10px] font-medium tracking-widest uppercase">Home</span>
+</a>
+<!-- AI Scan (Active State) -->
+<a class="flex flex-col items-center justify-center bg-[#DCE7C3] dark:bg-[#3E5219]/30 text-[#3E5219] dark:text-[#D2ECA2] rounded-full px-5 py-2 transition-transform duration-200 scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined mb-1" style="font-variation-settings: 'FILL' 1;">document_scanner</span>
+<span class="font-['Inter'] text-[10px] font-medium tracking-widest uppercase">AI Scan</span>
+</a>
+<!-- Saved -->
+<a class="flex flex-col items-center justify-center text-stone-400 dark:text-stone-500 px-5 py-2 hover:text-[#556B2F] transition-colors scale-95 active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined mb-1">bookmark</span>
+<span class="font-['Inter'] text-[10px] font-medium tracking-widest uppercase">Saved</span>
+</a>
+<!-- Profile -->
+<a class="flex flex-col items-center justify-center text-stone-400 dark:text-stone-500 px-5 py-2 hover:text-[#556B2F] transition-colors scale-95 active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined mb-1">person</span>
+<span class="font-['Inter'] text-[10px] font-medium tracking-widest uppercase">Profile</span>
+</a>
+</nav>
+<div class="h-24"></div> <!-- Spacer for fixed nav -->
+</body></html>
