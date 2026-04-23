@@ -82,8 +82,8 @@
 </head>
 <body class="bg-background text-on-background selection:bg-primary-container selection:text-on-primary-container">
 <!-- TopNavBar -->
-<nav class="fixed top-0 w-full z-50 bg-[#fdfcfb]/80 backdrop-blur-md transition-all duration-300">
-<div class="flex justify-between items-center max-w-7xl mx-auto px-4 sm:px-6 min-h-16 py-2 md:py-0 md:h-16 gap-3">
+<nav class="fixed top-0 w-full z-50 bg-white/70 shadow-sm backdrop-blur-md transition-all duration-300" id="site-nav">
+<div class="flex justify-between items-center max-w-7xl mx-auto px-4 sm:px-6 h-20 md:h-20 gap-3 transition-all duration-300" id="site-nav-inner">
 <a class="flex items-center gap-2 sm:gap-3 shrink min-w-0 hover:opacity-90 transition-opacity" href="#inicio">
 <svg aria-hidden="true" class="w-7 h-7 sm:w-8 sm:h-8 text-[#556B2F] shrink-0" fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
 <path d="M24 8C32.2 10 37.5 16.9 36.8 24.8C36 34 28.2 40.6 19 40C10.2 39.3 4.4 31.2 5.4 22.4C6.3 15 11.6 9.4 19 8.3C20.9 8 22.4 8 24 8Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.4"></path>
@@ -91,7 +91,7 @@
 <path d="M16.8 24.1L23.2 21.1L26.1 27.4" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2"></path>
 <circle cx="26.1" cy="27.4" fill="currentColor" r="2.2"></circle>
 </svg>
-<span class="block text-base sm:text-lg md:text-xl tracking-[0.03em] whitespace-nowrap leading-none">
+<span class="block text-sm sm:text-base md:text-lg tracking-[0.03em] whitespace-nowrap leading-none">
 <span class="sm:hidden"><span class="font-light text-[#444444]">Ingenia</span><span class="font-bold text-[#556B2F]">Food</span></span>
 <span class="hidden sm:inline"><span class="font-light text-[#78716c]">Sandra Vergara</span><span class="font-light text-[#a8a29e] mx-1.5">|</span><span class="font-light text-[#444444]">Ingenia</span><span class="font-bold text-[#556B2F]">Food</span></span>
 </span>
@@ -102,21 +102,39 @@
 <a class="nav-spy text-stone-600 hover:text-[#8f4c35] font-medium text-sm" data-spy="preview" href="#preview">Guía gratis</a>
 <a class="nav-spy text-stone-600 hover:text-[#8f4c35] font-medium text-sm" data-spy="contacto" href="#contacto">Contacto</a>
 </div>
-<div class="flex items-center gap-4">
+<div class="hidden md:flex items-center gap-4">
 <a class="inline-flex items-center justify-center bg-primary-container text-on-primary-container px-5 py-2 rounded-lg font-bold text-sm hover:scale-95 transition-transform duration-200 ease-in-out text-center" href="#preview">Obtener Guía</a>
 </div>
+<button aria-controls="mobile-drawer" aria-expanded="false" aria-label="Abrir menú de navegación" class="md:hidden inline-flex items-center justify-center w-10 h-10 rounded-lg border border-stone-300 text-stone-700 hover:text-[#556B2F] hover:border-[#556B2F]/50 transition-colors shrink-0" id="mobile-menu-toggle" type="button">
+<span class="material-symbols-outlined">menu</span>
+</button>
 </div>
 </nav>
-<main class="pt-16 md:pt-14">
+<div aria-hidden="true" class="fixed inset-0 z-40 bg-black/30 opacity-0 pointer-events-none transition-opacity duration-300 md:hidden" id="mobile-drawer-backdrop"></div>
+<aside class="fixed inset-y-0 right-0 z-50 w-full max-w-xs bg-[#fdfcfb] shadow-2xl transform translate-x-full transition-transform duration-300 ease-out md:hidden" id="mobile-drawer">
+<div class="flex items-center justify-between px-5 py-4 border-b border-stone-200">
+<p class="font-body text-xs tracking-[0.08em] text-stone-600"><span class="font-medium">Sandra Vergara</span><span class="text-stone-400 mx-1">|</span><span class="font-light text-[#444444]">Ingenia</span><span class="font-bold text-[#556B2F]">Food</span></p>
+<button aria-label="Cerrar menú de navegación" class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-stone-300 text-stone-700 hover:text-[#556B2F] hover:border-[#556B2F]/50 transition-colors" id="mobile-menu-close" type="button">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+<div class="px-5 py-6 flex flex-col gap-3">
+<a class="mobile-nav-link text-stone-700 font-medium py-2" href="#app-beta">App</a>
+<a class="mobile-nav-link text-stone-700 font-medium py-2" href="#beneficios">Beneficios</a>
+<a class="mobile-nav-link text-stone-700 font-medium py-2" href="#preview">Guía gratis</a>
+<a class="mobile-nav-link text-stone-700 font-medium py-2" href="#contacto">Contacto</a>
+<a class="mobile-nav-link inline-flex items-center justify-center bg-primary-container text-on-primary-container px-5 py-3 rounded-lg font-bold text-sm mt-3" href="#preview">Obtener Guía</a>
+</div>
+</aside>
+<main class="pt-20">
 <!-- Hero Section -->
-<section class="relative min-h-[620px] md:min-h-[680px] flex items-center overflow-hidden px-6 lg:px-20" id="inicio">
+<section class="relative min-h-[620px] md:min-h-[680px] flex items-center overflow-hidden px-8 sm:px-10 lg:px-20" id="inicio">
 <div class="grid lg:grid-cols-12 gap-12 max-w-7xl mx-auto w-full items-center">
 <div class="lg:col-span-7 z-10">
 <span class="inline-block px-4 py-1.5 bg-tertiary-container text-on-tertiary-container rounded-full text-xs font-bold tracking-widest uppercase mb-4">Equilibrio Real</span>
-<p class="font-sans text-sm md:text-base tracking-[0.05em] mb-3"><span class="font-light text-[#444444]">Ingenia</span><span class="font-bold text-[#556B2F]">Food</span></p>
-<p class="text-xs md:text-sm uppercase tracking-[0.18em] text-stone-500 mb-2">Un proyecto de Sandra Vergara</p>
-<h1 class="font-sans text-3xl md:text-5xl font-semibold leading-tight text-on-background tracking-tight mb-4">Mira a IngeniaFood en acción</h1>
-<p class="text-base md:text-lg text-on-surface-variant max-w-xl mb-4 leading-relaxed">Así es como nuestra tecnología transforma ingredientes simples en recetas perfectas.</p>
+<p class="font-body text-xs sm:text-sm tracking-[0.08em] text-stone-600 mb-3"><span class="font-medium">Sandra Vergara</span><span class="text-stone-400 mx-1.5">|</span><span class="font-light text-[#444444]">Ingenia</span><span class="font-bold text-[#556B2F]">Food</span></p>
+<h1 class="font-sans text-3xl md:text-5xl font-semibold leading-tight text-on-background tracking-tight mb-4">Tu despensa optimizada con ingeniería</h1>
+<p class="text-base md:text-lg text-on-surface-variant max-w-xl mb-4 leading-relaxed">Estamos desarrollando IngeniaFood, la tecnología que escanea tus ingredientes y diseña la receta perfecta para tu salud y tu tiempo. Muy pronto disponible en versión Beta.</p>
 <div class="flex flex-wrap items-center gap-2.5 mb-6">
 <a aria-label="Instagram" class="w-8 h-8 rounded-full border border-stone-300 bg-white text-stone-400 hover:text-[#556B2F] hover:border-[#556B2F]/40 transition-colors flex items-center justify-center" href="https://www.instagram.com/healthysnacks_svn/" rel="noopener noreferrer" target="_blank"><span class="material-symbols-outlined text-[18px]">photo_camera</span></a>
 <a aria-label="TikTok" class="w-8 h-8 rounded-full border border-stone-300 bg-white text-stone-400 hover:text-[#556B2F] hover:border-[#556B2F]/40 transition-colors flex items-center justify-center" href="https://www.tiktok.com/@healthysnacks_svn" rel="noopener noreferrer" target="_blank"><span class="material-symbols-outlined text-[18px]">music_note</span></a>
@@ -124,8 +142,8 @@
 <a aria-label="Facebook" class="w-8 h-8 rounded-full border border-stone-300 bg-white text-stone-400 hover:text-[#556B2F] hover:border-[#556B2F]/40 transition-colors flex items-center justify-center" href="https://www.facebook.com/healthysnackssvn" rel="noopener noreferrer" target="_blank"><span class="material-symbols-outlined text-[18px]">thumb_up</span></a>
 </div>
 <div class="flex flex-col sm:flex-row gap-4">
-<a class="inline-flex items-center justify-center bg-primary text-on-primary px-6 py-3 rounded-xl font-bold text-base md:text-lg shadow-2xl ring-1 ring-primary/30 hover:shadow-xl transition-all hover:-translate-y-1 text-center" href="#preview">Obtener la Guía ahora</a>
-<a class="inline-flex items-center justify-center bg-surface-container-high text-on-surface px-6 py-3 rounded-xl font-bold text-base md:text-lg hover:bg-surface-container-highest transition-colors text-center" href="https://drive.google.com/file/d/1W3_BuFHua41zP46hyufFSdkiqQlwquge/view?usp=drive_link" rel="noopener noreferrer" target="_blank">Ver Receta de Regalo</a>
+<a class="inline-flex items-center justify-center bg-primary text-on-primary px-6 py-3 rounded-xl font-bold text-base md:text-lg shadow-2xl ring-1 ring-primary/30 hover:shadow-xl transition-all hover:-translate-y-1 text-center" href="https://drive.google.com/file/d/1Rj0tR-iIoTasbfNVLZlwwmHXEenxroMk/view?usp=drive_link" rel="noopener noreferrer" target="_blank">Descargar Guía de Cenas (PDF)</a>
+<a class="inline-flex items-center justify-center border border-outline text-on-surface bg-transparent px-6 py-3 rounded-xl font-bold text-base md:text-lg hover:bg-surface-container-high transition-colors text-center" href="#ingeniafood-redes">Ver progreso en Redes</a>
 </div>
 </div>
 <div class="lg:col-span-5 relative">
@@ -314,6 +332,8 @@
   };
 
   var nav = document.getElementById('main-nav');
+  var navBar = document.getElementById('site-nav');
+  var navInner = document.getElementById('site-nav-inner');
   var navLinks = document.querySelectorAll('a.nav-spy[data-spy]');
   var sections = document.querySelectorAll('main section[id]');
   var revealEls = document.querySelectorAll('.reveal-on-scroll');
@@ -355,9 +375,21 @@
     if (ticking) return;
     ticking = true;
     requestAnimationFrame(function () {
+      updateNavVisualState();
       updateActiveNav();
       ticking = false;
     });
+  }
+
+  function updateNavVisualState() {
+    if (!navBar || !navInner) return;
+    var isScrolled = window.scrollY > 50;
+    navBar.classList.toggle('bg-white', isScrolled);
+    navBar.classList.toggle('shadow-lg', isScrolled);
+    navBar.classList.toggle('bg-white/70', !isScrolled);
+    navBar.classList.toggle('shadow-sm', !isScrolled);
+    navInner.classList.toggle('h-16', isScrolled);
+    navInner.classList.toggle('h-20', !isScrolled);
   }
 
   window.addEventListener('scroll', onScrollOrResize, { passive: true });
@@ -383,10 +415,54 @@
   }
 
   if (location.hash) {
-    setTimeout(updateActiveNav, 0);
+    setTimeout(function () {
+      updateNavVisualState();
+      updateActiveNav();
+    }, 0);
   } else {
+    updateNavVisualState();
     updateActiveNav();
   }
+})();
+</script>
+<script>
+(function () {
+  var toggleBtn = document.getElementById('mobile-menu-toggle');
+  var closeBtn = document.getElementById('mobile-menu-close');
+  var drawer = document.getElementById('mobile-drawer');
+  var backdrop = document.getElementById('mobile-drawer-backdrop');
+  var links = document.querySelectorAll('.mobile-nav-link');
+
+  if (!toggleBtn || !drawer || !backdrop) return;
+
+  function openDrawer() {
+    drawer.classList.remove('translate-x-full');
+    backdrop.classList.remove('opacity-0', 'pointer-events-none');
+    backdrop.setAttribute('aria-hidden', 'false');
+    toggleBtn.setAttribute('aria-expanded', 'true');
+    document.body.classList.add('overflow-hidden');
+  }
+
+  function closeDrawer() {
+    drawer.classList.add('translate-x-full');
+    backdrop.classList.add('opacity-0', 'pointer-events-none');
+    backdrop.setAttribute('aria-hidden', 'true');
+    toggleBtn.setAttribute('aria-expanded', 'false');
+    document.body.classList.remove('overflow-hidden');
+  }
+
+  toggleBtn.addEventListener('click', function () {
+    var isOpen = toggleBtn.getAttribute('aria-expanded') === 'true';
+    if (isOpen) closeDrawer();
+    else openDrawer();
+  });
+
+  if (closeBtn) closeBtn.addEventListener('click', closeDrawer);
+  backdrop.addEventListener('click', closeDrawer);
+  links.forEach(function (link) { link.addEventListener('click', closeDrawer); });
+  window.addEventListener('resize', function () {
+    if (window.innerWidth >= 768) closeDrawer();
+  });
 })();
 </script>
 </body></html>
