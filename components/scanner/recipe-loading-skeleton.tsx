@@ -8,7 +8,7 @@ type Props = {
 
 export function RecipeLoadingSkeleton({ retryMessage }: Props) {
   const loadingMessages = [
-    "Sandra está preparando tu receta personalizada...",
+    "Sandra está diseñando tu receta y buscando el mejor tip para ti...",
     "Sandra está eligiendo las mejores técnicas para tus ingredientes...",
     "Sandra está optimizando los tiempos de cocción...",
     "Casi listo... Sandra le está dando el toque final a tu plan saludable."

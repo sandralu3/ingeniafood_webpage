@@ -12,6 +12,7 @@ type GeneratedRecipe = {
   tiempo_preparacion: string;
   ingredientes_detallados: string[];
   pasos_ordenados: string[];
+  tip_sandra: string;
 };
 
 type Props = {
@@ -21,6 +22,7 @@ type Props = {
   onSaveFavorites?: () => void;
   onNewSearch?: () => void;
   isSavingFavorites?: boolean;
+  isSavedFavorites?: boolean;
 };
 
 function inferDifficulty(pasosCount: number): string {
@@ -58,7 +60,8 @@ export function RecipeResultView({
   recipe,
   onSaveFavorites,
   onNewSearch,
-  isSavingFavorites = false
+  isSavingFavorites = false,
+  isSavedFavorites = false
 }: Props) {
   const macroData = buildMacroData(recipe);
 
@@ -163,15 +166,26 @@ export function RecipeResultView({
             })}
           </div>
 
+          <div className="rounded-xl border border-[#556B2F]/20 bg-[#F0F4ED] p-4">
+            <p className="text-sm italic font-bold tracking-wide text-[#556B2F]">✨ Tip de Sandra</p>
+            <p className="mt-2 text-sm leading-relaxed text-sv-on-surface-variant">
+              {recipe.tip_sandra}
+            </p>
+          </div>
+
           <div className="pt-2">
             <button
               type="button"
               onClick={onSaveFavorites}
-              disabled={isSavingFavorites}
+              disabled={isSavingFavorites || isSavedFavorites}
               className="group flex w-full items-center justify-center gap-2 rounded-xl bg-sv-primary px-5 py-3 text-sm font-semibold tracking-wide text-sv-on-primary shadow-lg shadow-sv-primary/20 transition duration-300 hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60"
             >
               <Bookmark className="h-4 w-4 fill-current" />
-              {isSavingFavorites ? "Guardando..." : "Guardar en mi recetario"}
+              {isSavedFavorites
+                ? "Guardado"
+                : isSavingFavorites
+                  ? "Guardando..."
+                  : "Guardar en mi recetario"}
             </button>
           </div>
         </div>

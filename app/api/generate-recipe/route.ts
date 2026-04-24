@@ -28,6 +28,7 @@ type GeminiRecipe = {
   tiempo_preparacion: string;
   ingredientes_detallados: string[];
   pasos_ordenados: string[];
+  tip_sandra: string;
 };
 
 type LooseGeminiRecipe = Partial<GeminiRecipe> & {
@@ -70,7 +71,11 @@ function normalizeRecipePayload(recipe: LooseGeminiRecipe): GeminiRecipe {
       ? recipe.pasos_ordenados
       : Array.isArray(recipe.pasos)
         ? recipe.pasos
-        : []
+        : [],
+    tip_sandra:
+      typeof recipe.tip_sandra === "string" && recipe.tip_sandra.trim().length > 0
+        ? recipe.tip_sandra.trim()
+        : "Tip de Sandra: Equilibra tu plato con proteína magra, vegetales y una grasa saludable."
   };
 }
 
@@ -295,7 +300,7 @@ export async function POST(request: Request) {
       : "El usuario no seleccionó ingredientes manualmente; infiere los ingredientes únicamente desde la imagen si es posible.";
 
     const jsonRules =
-      "Solo JSON valido. Entrega receta saludable, rapida y sin harinas. Formato esperado en texto: { \"titulo\": \"\", \"tiempo\": \"X min\", \"ingredientes\": [], \"pasos\": [] }.";
+      "Solo JSON valido. Entrega receta saludable, rapida y sin harinas. Formato esperado en texto: { \"titulo\": \"\", \"tiempo\": \"X min\", \"ingredientes\": [], \"pasos\": [], \"tip_sandra\": \"\" }. Genera un 'Tip de Sandra' para cada receta. Debe ser un consejo experto de no más de 2 frases sobre técnica de cocina, nutrición o conservación, escrito con un tono profesional, cercano y motivador.";
 
     const systemInstruction = hasImage
       ? `${VISION_SYSTEM_PREFIX}${jsonRules} ${manualClause}`
@@ -311,7 +316,7 @@ export async function POST(request: Request) {
     const prompt =
       "Primero valida si hay comida visible. Si NO hay comida, responde solo {\"error\":\"NOT_FOOD\"} y termina sin texto adicional. " +
       "Si sí hay comida, responde exclusivamente con JSON valido (sin markdown, sin bloques de codigo) usando esta estructura exacta: " +
-      '{"titulo": string, "tiempo_preparacion": string, "ingredientes_detallados": string[], "pasos_ordenados": string[]}. ' +
+      '{"titulo": string, "tiempo_preparacion": string, "ingredientes_detallados": string[], "pasos_ordenados": string[], "tip_sandra": string}. ' +
       `${promptTail} No inventes ingredientes imposibles; prioriza lo visible y lo indicado arriba.`;
 
     let rawResponse = "";

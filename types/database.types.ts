@@ -49,6 +49,7 @@ export type Database = {
           description: string | null;
           ingredients: Json;
           instructions: string;
+          tip_sandra: string | null;
           cooking_time: number | null;
           image_url: string | null;
           is_airfryer: boolean;
@@ -63,6 +64,7 @@ export type Database = {
           description?: string | null;
           ingredients?: Json;
           instructions: string;
+          tip_sandra?: string | null;
           cooking_time?: number | null;
           image_url?: string | null;
           is_airfryer?: boolean;
@@ -77,6 +79,7 @@ export type Database = {
           description?: string | null;
           ingredients?: Json;
           instructions?: string;
+          tip_sandra?: string | null;
           cooking_time?: number | null;
           image_url?: string | null;
           is_airfryer?: boolean;

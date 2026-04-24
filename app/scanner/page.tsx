@@ -11,6 +11,7 @@ type GeneratedRecipe = {
   tiempo_preparacion: string;
   ingredientes_detallados: string[];
   pasos_ordenados: string[];
+  tip_sandra: string;
 };
 
 type ApiPayload = {
@@ -130,6 +131,7 @@ export default function ScannerPage() {
   const [securityWarning, setSecurityWarning] = useState<string | null>(null);
   const [showNotFoodGuidance, setShowNotFoodGuidance] = useState(false);
   const [isSavingRecipe, setIsSavingRecipe] = useState(false);
+  const [isRecipeSaved, setIsRecipeSaved] = useState(false);
   const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null);
 
   const resetScannerState = () => {
@@ -143,6 +145,7 @@ export default function ScannerPage() {
     setIsLoading(false);
     setShowNotFoodGuidance(false);
     setSaveSuccessMessage(null);
+    setIsRecipeSaved(false);
   };
 
   const showDebugError = (context: string, error: unknown) => {
@@ -167,6 +170,7 @@ export default function ScannerPage() {
     setRecipeFromPhoto(false);
     setErrorMessage(null);
     setShowNotFoodGuidance(false);
+    setIsRecipeSaved(false);
   };
 
   const handleToggleFromCategory = (name: string) => {
@@ -177,6 +181,7 @@ export default function ScannerPage() {
     setRecipeFromPhoto(false);
     setErrorMessage(null);
     setShowNotFoodGuidance(false);
+    setIsRecipeSaved(false);
   };
 
   const handleRemoveIngredient = (name: string) => {
@@ -185,6 +190,7 @@ export default function ScannerPage() {
     setRecipeFromPhoto(false);
     setErrorMessage(null);
     setShowNotFoodGuidance(false);
+    setIsRecipeSaved(false);
   };
 
   const handleAddMoreSubmit = () => {
@@ -196,6 +202,7 @@ export default function ScannerPage() {
     setRecipeFromPhoto(false);
     setErrorMessage(null);
     setShowNotFoodGuidance(false);
+    setIsRecipeSaved(false);
   };
 
   const generarReceta = async () => {
@@ -337,6 +344,7 @@ export default function ScannerPage() {
     setRetryMessage(null);
     setRecipe(null);
     setShowNotFoodGuidance(false);
+    setIsRecipeSaved(false);
 
     const longWaitTimer = window.setTimeout(() => {
       setRetryMessage(
@@ -399,6 +407,7 @@ export default function ScannerPage() {
       setRecipe(payload.recipe);
       setRecipeFromPhoto(Boolean(pantryImageFile));
       setErrorMessage(null);
+      setIsRecipeSaved(false);
       if (!pantryImageFile) {
         window.localStorage.setItem(cacheKey, JSON.stringify(payload.recipe));
       }
@@ -416,7 +425,7 @@ export default function ScannerPage() {
   };
 
   const handleSaveRecipe = async () => {
-    if (!recipe || isSavingRecipe) return;
+    if (!recipe || isSavingRecipe || isRecipeSaved) return;
     setIsSavingRecipe(true);
     setErrorMessage(null);
 
@@ -441,6 +450,7 @@ export default function ScannerPage() {
         title: recipe.titulo,
         ingredients: recipe.ingredientes_detallados,
         instructions: instructions || "Sin pasos detallados",
+        tip_sandra: recipe.tip_sandra,
         image_url: null,
         is_airfryer: true,
         is_flourless: true,
@@ -454,6 +464,7 @@ export default function ScannerPage() {
       }
 
       setSaveSuccessMessage("¡Receta guardada con éxito!");
+      setIsRecipeSaved(true);
       window.setTimeout(() => {
         window.location.assign("/app-recetas");
       }, 600);
@@ -484,6 +495,7 @@ export default function ScannerPage() {
             onNewSearch={resetScannerState}
             onSaveFavorites={() => void handleSaveRecipe()}
             isSavingFavorites={isSavingRecipe}
+            isSavedFavorites={isRecipeSaved}
           />
         </div>
       ) : null}

@@ -24,6 +24,7 @@ create table if not exists public.recipes (
   description text,
   ingredients jsonb not null default '[]'::jsonb,
   instructions text not null,
+  tip_sandra text,
   cooking_time integer check (cooking_time is null or cooking_time > 0),
   image_url text,
   is_airfryer boolean not null default false,
@@ -32,8 +33,11 @@ create table if not exists public.recipes (
   created_at timestamptz not null default now()
 );
 
+alter table public.recipes add column if not exists tip_sandra text;
+
 comment on table public.recipes is 'Healthy and fast cooking recipes created by users.';
 comment on column public.recipes.ingredients is 'JSONB array for flexible ingredient lists and quantities.';
+comment on column public.recipes.tip_sandra is 'Consejo personalizado de Sandra asociado a la receta.';
 comment on column public.recipes.is_airfryer is 'Tag flag for Airfryer recipes.';
 comment on column public.recipes.is_flourless is 'Tag flag for Sin Harinas recipes.';
 

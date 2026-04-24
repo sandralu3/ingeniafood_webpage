@@ -5,7 +5,9 @@ import { Clock, UtensilsCrossed } from "lucide-react";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import type { Database } from "@/types/database.types";
 
-type RecipeRow = Database["public"]["Tables"]["recipes"]["Row"];
+type RecipeRow = Database["public"]["Tables"]["recipes"]["Row"] & {
+  tip_sandra?: string | null;
+};
 
 function formatDate(value: string): string {
   const date = new Date(value);
@@ -47,7 +49,7 @@ export default function AppRecetasHomePage() {
 
       const { data, error } = await supabase
         .from("recipes")
-        .select("id,user_id,title,ingredients,instructions,image_url,created_at,description,cooking_time,is_airfryer,is_flourless,is_public")
+        .select("id,user_id,title,ingredients,instructions,tip_sandra,image_url,created_at,description,cooking_time,is_airfryer,is_flourless,is_public")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
@@ -55,7 +57,7 @@ export default function AppRecetasHomePage() {
         setErrorMessage("No pudimos cargar tu recetario en este momento.");
         setRecipes([]);
       } else {
-        setRecipes(data ?? []);
+        setRecipes((data as RecipeRow[] | null) ?? []);
       }
     } catch (error) {
       console.error("[recipes-home] Error cargando recetas:", error);
@@ -163,6 +165,12 @@ export default function AppRecetasHomePage() {
                   <Clock className="h-3.5 w-3.5 text-[#556B2F]" />
                   {selectedRecipe.cooking_time} min
                 </p>
+              ) : null}
+              {selectedRecipe.tip_sandra ? (
+                <div className="rounded-xl border border-[#556B2F]/20 bg-[#F0F4ED] p-3">
+                  <p className="text-sm italic font-bold tracking-wide text-[#556B2F]">✨ Tip de Sandra</p>
+                  <p className="mt-1 text-sm text-stone-700">{selectedRecipe.tip_sandra}</p>
+                </div>
               ) : null}
             </div>
           </div>
