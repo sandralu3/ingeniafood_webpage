@@ -34,7 +34,7 @@ export default function RecipesPage() {
       const { data, error } = await supabase
         .from("recipes")
         .select(
-          "id,title,description,cooking_time,is_airfryer,is_flourless,is_public,created_at,user_id,ingredients,instructions,image_url"
+          "id,title,description,cooking_time,is_airfryer,is_flourless,is_public,created_at,user_id,ingredients,instructions,image_url,tip_sandra"
         )
         .eq("is_public", true)
         .order("created_at", { ascending: false })

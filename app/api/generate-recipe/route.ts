@@ -498,7 +498,11 @@ export async function POST(request: Request) {
         Array.isArray(recipe.ingredientes_detallados) && recipe.ingredientes_detallados.length
           ? recipe.ingredientes_detallados
           : selectedIngredients,
-      pasos_ordenados: Array.isArray(recipe.pasos_ordenados) ? recipe.pasos_ordenados : []
+      pasos_ordenados: Array.isArray(recipe.pasos_ordenados) ? recipe.pasos_ordenados : [],
+      tip_sandra:
+        typeof recipe.tip_sandra === "string" && recipe.tip_sandra.trim().length > 0
+          ? recipe.tip_sandra.trim()
+          : "Tip de Sandra: organiza todos tus ingredientes antes de cocinar para ganar tiempo y mantener una preparación más eficiente."
     };
 
     return jsonResponse({
