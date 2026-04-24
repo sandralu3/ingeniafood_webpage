@@ -8,6 +8,7 @@ const PUBLIC_ROUTES = new Set([
   "/auth/callback",
   "/login",
   "/registro",
+  "/app-recetas",
   "/desktop-app-recetas",
   "/descargar-app"
 ]);
@@ -120,7 +121,7 @@ export async function proxy(request: NextRequest) {
   } = await supabase.auth.getSession();
 
   const isAppRoute = pathname === "/app-recetas" || pathname.startsWith("/app-recetas/");
-  const isPublicRoute = PUBLIC_ROUTES.has(pathname);
+  const isPublicRoute = PUBLIC_ROUTES.has(pathname) || isAppRoute;
 
   if (session && (pathname === "/login" || pathname === "/auth" || pathname === "/registro")) {
     const targetUrl = request.nextUrl.clone();
@@ -129,25 +130,11 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(targetUrl);
   }
 
-  if (!session && isAppRoute) {
-    const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = "/login";
-    redirectUrl.searchParams.set("next", pathname);
-    redirectUrl.searchParams.set("reason", "app-recetas-auth");
-    return NextResponse.redirect(redirectUrl);
-  }
-
   if (!session && !isPublicRoute) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/login";
     redirectUrl.searchParams.set("next", pathname);
     return NextResponse.redirect(redirectUrl);
-  }
-
-  if (pathname === "/app-recetas" && !isMobile) {
-    const desktopUrl = request.nextUrl.clone();
-    desktopUrl.pathname = "/desktop-app-recetas";
-    return NextResponse.rewrite(desktopUrl);
   }
 
   return response;
