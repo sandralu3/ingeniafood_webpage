@@ -15,7 +15,7 @@ export default function AuthPage() {
 
 function AuthFallback() {
   return (
-    <section className="space-y-5">
+    <section className="space-y-5 rounded-3xl bg-[#FDFCFB] p-4">
       <header className="space-y-1">
         <h1 className="text-2xl font-bold tracking-tight text-brand-green-dark">Iniciar sesion</h1>
         <p className="text-sm text-brand-green-dark/75">Cargando formulario de autenticacion...</p>
@@ -28,6 +28,8 @@ function AuthForm() {
   const searchParams = useSearchParams();
   const nextPath = searchParams.get("next") || "/";
   const queryMode = searchParams.get("mode");
+  const reason = searchParams.get("reason");
+  const showAppRecetasMessage = reason === "app-recetas-auth";
   const initialMode: "login" | "signup" = queryMode === "signup" ? "signup" : "login";
   const [modeOverride, setModeOverride] = useState<"login" | "signup" | null>(null);
   const mode = modeOverride ?? initialMode;
@@ -143,13 +145,19 @@ function AuthForm() {
         </p>
       </header>
 
+      {showAppRecetasMessage ? (
+        <p className="rounded-xl border border-brand-green-light/35 bg-brand-green-light/10 px-3 py-2 text-sm text-brand-green-dark">
+          Para guardar tus recetas y usar la IA, necesitas crear una cuenta gratuita.
+        </p>
+      ) : null}
+
       <div className="inline-flex rounded-xl border border-brand-green-light/30 bg-white/85 p-1">
         <button
           type="button"
           onClick={() => handleModeChange("login")}
           className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
             mode === "login"
-              ? "bg-brand-green-dark text-brand-cream"
+              ? "bg-[#556B2F] text-white"
               : "text-brand-green-dark/80 hover:bg-brand-green-light/10"
           }`}
         >
@@ -160,7 +168,7 @@ function AuthForm() {
           onClick={() => handleModeChange("signup")}
           className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
             mode === "signup"
-              ? "bg-brand-green-dark text-brand-cream"
+              ? "bg-[#556B2F] text-white"
               : "text-brand-green-dark/80 hover:bg-brand-green-light/10"
           }`}
         >

@@ -35,6 +35,56 @@ function sleep(ms: number): Promise<void> {
   });
 }
 
+async function compressImageForUpload(
+  file: File
+): Promise<{ base64: string; mimeType: string }> {
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result !== "string") {
+        reject(new Error("Lectura de imagen inválida"));
+        return;
+      }
+      resolve(reader.result);
+    };
+    reader.onerror = () => reject(reader.error ?? new Error("Error al leer la imagen"));
+    reader.readAsDataURL(file);
+  });
+
+  const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error("No se pudo cargar la imagen para compresión"));
+    img.src = dataUrl;
+  });
+
+  const maxDimension = 1200;
+  const scale = Math.min(1, maxDimension / Math.max(image.width, image.height));
+  const width = Math.max(1, Math.round(image.width * scale));
+  const height = Math.max(1, Math.round(image.height * scale));
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("No se pudo inicializar el canvas");
+
+  context.drawImage(image, 0, 0, width, height);
+
+  let quality = 0.8;
+  let compressed = canvas.toDataURL("image/jpeg", quality);
+  const maxLength = 3_500_000;
+  while (compressed.length > maxLength && quality > 0.45) {
+    quality -= 0.1;
+    compressed = canvas.toDataURL("image/jpeg", quality);
+  }
+
+  const match = compressed.match(/^data:([^;]+);base64,(.+)$/);
+  if (!match) throw new Error("No se pudo generar la imagen comprimida");
+
+  return { mimeType: "image/jpeg", base64: match[2].replace(/\s/g, "") };
+}
+
 function resolveErrorMessage(
   status: number,
   payload: ApiPayload,
@@ -71,6 +121,17 @@ export default function ScannerPage() {
   const [pantryImageFile, setPantryImageFile] = useState<File | null>(null);
   const [recipeFromPhoto, setRecipeFromPhoto] = useState(false);
   const [securityWarning, setSecurityWarning] = useState<string | null>(null);
+
+  const resetScannerState = () => {
+    setSelectedIngredients([]);
+    setAddMoreValue("");
+    setRecipe(null);
+    setPantryImageFile(null);
+    setRecipeFromPhoto(false);
+    setErrorMessage(null);
+    setRetryMessage(null);
+    setIsLoading(false);
+  };
 
   const showDebugError = (context: string, error: unknown) => {
     const errorText =
@@ -130,28 +191,6 @@ export default function ScannerPage() {
     setErrorMessage(null);
   };
 
-  const readFileAsBase64Payload = (
-    file: File
-  ): Promise<{ base64: string; mimeType: string }> =>
-    new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const result = reader.result;
-        if (typeof result !== "string") {
-          reject(new Error("Lectura de archivo inválida"));
-          return;
-        }
-        const match = result.match(/^data:([^;]+);base64,(.+)$/);
-        if (!match) {
-          reject(new Error("Formato de imagen no reconocido"));
-          return;
-        }
-        resolve({ mimeType: match[1], base64: match[2].replace(/\s/g, "") });
-      };
-      reader.onerror = () => reject(reader.error ?? new Error("Error al leer la imagen"));
-      reader.readAsDataURL(file);
-    });
-
   const generarReceta = async () => {
     if (!selectedIngredients.length && !pantryImageFile) {
       setErrorMessage(
@@ -178,7 +217,7 @@ export default function ScannerPage() {
       }
     }
 
-    const FETCH_TIMEOUT_MS = 240_000;
+    const FETCH_TIMEOUT_MS = 120_000;
     const createFetchSignal = (): AbortSignal => {
       if (typeof AbortSignal !== "undefined" && "timeout" in AbortSignal) {
         return AbortSignal.timeout(FETCH_TIMEOUT_MS);
@@ -212,7 +251,7 @@ export default function ScannerPage() {
           };
         }
         try {
-          const { base64, mimeType } = await readFileAsBase64Payload(pantryImageFile);
+          const { base64, mimeType } = await compressImageForUpload(pantryImageFile);
           imagePayload = { imageBase64: base64, mimeType };
         } catch (err) {
           showDebugError("lectura de imagen", err);
@@ -240,13 +279,22 @@ export default function ScannerPage() {
             }),
             signal: createFetchSignal()
           });
+          if (!response.ok) {
+            throw new Error(await response.text());
+          }
         } catch (err) {
-          networkError = true;
-          showDebugError("fetch/red", err);
+          const responseText =
+            err instanceof Error && err.message ? err.message : "Error desconocido en la solicitud";
+          networkError = !response || response.status === 0;
+          showDebugError("fetch/red o respuesta no-JSON", err);
           return {
-            response: new Response(null, { status: 0 }),
-            payload: {},
-            networkError: true
+            response: response ?? new Response(null, { status: 0 }),
+            payload: {
+              error: responseText,
+              details: responseText,
+              code: "HTTP_TEXT_ERROR"
+            },
+            networkError
           };
         }
 
@@ -283,6 +331,12 @@ export default function ScannerPage() {
     setRetryMessage(null);
     setRecipe(null);
 
+    const longWaitTimer = window.setTimeout(() => {
+      setRetryMessage(
+        "Analizando ingredientes... está tardando más de 15 segundos. Puedes esperar o reintentar."
+      );
+    }, 15_000);
+
     let { response, payload, networkError } = await runFetchRound();
 
     const shouldRetryParse =
@@ -299,6 +353,7 @@ export default function ScannerPage() {
       networkError = second.networkError;
     }
 
+    window.clearTimeout(longWaitTimer);
     setIsLoading(false);
     setRetryMessage(null);
 
@@ -363,12 +418,7 @@ export default function ScannerPage() {
           <RecipeResultView
             recipe={recipe}
             showPhotoBanner={recipeFromPhoto}
-            onNewSearch={() => {
-              setRecipe(null);
-              setRecipeFromPhoto(false);
-              setPantryImageFile(null);
-              setErrorMessage(null);
-            }}
+            onNewSearch={resetScannerState}
             onSaveFavorites={() => {
               console.info("[favorites] Guardar en favoritos (pendiente de backend)");
             }}

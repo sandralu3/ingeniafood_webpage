@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 import type { Database } from "@/types/database.types";
 
 /** Vision + JSON puede tardar más que solo texto (p. ej. en Vercel). */
-export const maxDuration = 300;
+export const maxDuration = 30;
 
 const VISION_SYSTEM_PREFIX =
   "Analiza esta imagen de una nevera o despensa. Identifica los ingredientes comestibles visibles. Úsalos como base para generar una receta que también incluya los ingredientes que el usuario haya seleccionado manualmente. Si no identificas ingredientes en la imagen, ignórala.\n\n";
@@ -194,7 +194,24 @@ export async function OPTIONS() {
 
 export async function POST(request: Request) {
   try {
-    const body = (await request.json()) as GenerateRecipePayload;
+    let body: GenerateRecipePayload;
+    try {
+      body = (await request.json()) as GenerateRecipePayload;
+    } catch (parseError) {
+      const details =
+        parseError instanceof Error
+          ? parseError.message
+          : "No se pudo leer el body JSON de la solicitud.";
+      return jsonResponse(
+        {
+          error:
+            "No se pudo procesar la solicitud. La imagen puede ser demasiado grande o la conexión fue interrumpida.",
+          code: "INVALID_REQUEST_BODY",
+          details
+        },
+        400
+      );
+    }
     const selectedIngredients = Array.isArray(body.selectedIngredients)
       ? body.selectedIngredients
           .map((ingredient) => ingredient.trim())
