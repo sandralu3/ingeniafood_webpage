@@ -9,6 +9,11 @@ type RecipeRow = Database["public"]["Tables"]["recipes"]["Row"] & {
   tip_sandra?: string | null;
 };
 
+function isMissingTipSandraColumnError(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  return error.code === "42703" || error.message?.includes("column recipes.tip_sandra does not exist") === true;
+}
+
 function formatDate(value: string): string {
   const date = new Date(value);
   return new Intl.DateTimeFormat("es-ES", {
@@ -47,21 +52,48 @@ export default function AppRecetasHomePage() {
         return;
       }
 
-      const { data, error } = await supabase
+      const primaryQuery = await supabase
         .from("recipes")
         .select("id,user_id,title,ingredients,instructions,tip_sandra,image_url,created_at,description,cooking_time,is_airfryer,is_flourless,is_public")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
-      if (error) {
-        setErrorMessage("No pudimos cargar tu recetario en este momento.");
+      let recipesData = primaryQuery.data as RecipeRow[] | null;
+      let recipesError = primaryQuery.error;
+
+      if (isMissingTipSandraColumnError(recipesError)) {
+        const fallbackQuery = await supabase
+          .from("recipes")
+          .select(
+            "id,user_id,title,ingredients,instructions,image_url,created_at,description,cooking_time,is_airfryer,is_flourless,is_public"
+          )
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false });
+
+        recipesError = fallbackQuery.error;
+        recipesData = (fallbackQuery.data as RecipeRow[] | null)?.map((recipe) => ({
+          ...recipe,
+          tip_sandra: null
+        })) ?? null;
+      }
+
+      if (recipesError) {
+        const detailedMessage = recipesError.message?.trim()
+          ? `No pudimos cargar tu recetario en este momento. Detalle: ${recipesError.message}`
+          : "No pudimos cargar tu recetario en este momento.";
+        console.error("[recipes-home] Supabase select error:", recipesError);
+        setErrorMessage(detailedMessage);
         setRecipes([]);
       } else {
-        setRecipes((data as RecipeRow[] | null) ?? []);
+        setRecipes(recipesData ?? []);
       }
     } catch (error) {
       console.error("[recipes-home] Error cargando recetas:", error);
-      setErrorMessage("No pudimos cargar tu recetario en este momento.");
+      const fallbackMessage =
+        error instanceof Error && error.message.trim().length
+          ? `No pudimos cargar tu recetario en este momento. Detalle: ${error.message}`
+          : "No pudimos cargar tu recetario en este momento.";
+      setErrorMessage(fallbackMessage);
       setRecipes([]);
     } finally {
       setIsLoading(false);

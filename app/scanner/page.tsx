@@ -87,10 +87,24 @@ async function compressImageForUpload(
   return { mimeType: "image/jpeg", base64: match[2].replace(/\s/g, "") };
 }
 
+function extractRetrySeconds(details?: string): number {
+  if (!details) return 30;
+  const retryInMatch = details.match(/retry in\s+([\d.]+)s/i);
+  if (retryInMatch?.[1]) {
+    return Math.max(1, Math.ceil(Number(retryInMatch[1])));
+  }
+  const retryDelayMatch = details.match(/"retryDelay":"(\d+)s"/i);
+  if (retryDelayMatch?.[1]) {
+    return Math.max(1, Number(retryDelayMatch[1]));
+  }
+  return 30;
+}
+
 function resolveErrorMessage(
   status: number,
   payload: ApiPayload,
-  isNetworkError: boolean
+  isNetworkError: boolean,
+  rateLimitSeconds?: number
 ): string {
   if (isNetworkError) {
     return "No tienes conexión a internet o el servicio no está disponible.";
@@ -108,7 +122,9 @@ function resolveErrorMessage(
     return "El servidor de Google está saturado (Demanda alta). Por favor, intenta de nuevo en unos segundos.";
   }
   if (status === 429) {
-    return "Has alcanzado el límite de consultas gratuitas. Espera un momento.";
+    return rateLimitSeconds && rateLimitSeconds > 0
+      ? `Sandra está muy solicitada ahora. Reintenta en ${rateLimitSeconds}s.`
+      : "Has alcanzado el límite de consultas gratuitas. Espera un momento.";
   }
   if (payload.code === "HTTP_TEXT_ERROR") {
     return "No se pudo completar la generación de receta por ahora. Inténtalo nuevamente.";
@@ -133,6 +149,15 @@ export default function ScannerPage() {
   const [isSavingRecipe, setIsSavingRecipe] = useState(false);
   const [isRecipeSaved, setIsRecipeSaved] = useState(false);
   const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null);
+  const [rateLimitSecondsLeft, setRateLimitSecondsLeft] = useState(0);
+
+  useEffect(() => {
+    if (rateLimitSecondsLeft <= 0) return;
+    const timer = window.setInterval(() => {
+      setRateLimitSecondsLeft((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [rateLimitSecondsLeft]);
 
   const resetScannerState = () => {
     setSelectedIngredients([]);
@@ -146,6 +171,7 @@ export default function ScannerPage() {
     setShowNotFoodGuidance(false);
     setSaveSuccessMessage(null);
     setIsRecipeSaved(false);
+    setRateLimitSecondsLeft(0);
   };
 
   const showDebugError = (context: string, error: unknown) => {
@@ -171,6 +197,7 @@ export default function ScannerPage() {
     setErrorMessage(null);
     setShowNotFoodGuidance(false);
     setIsRecipeSaved(false);
+    setRateLimitSecondsLeft(0);
   };
 
   const handleToggleFromCategory = (name: string) => {
@@ -182,6 +209,7 @@ export default function ScannerPage() {
     setErrorMessage(null);
     setShowNotFoodGuidance(false);
     setIsRecipeSaved(false);
+    setRateLimitSecondsLeft(0);
   };
 
   const handleRemoveIngredient = (name: string) => {
@@ -191,6 +219,7 @@ export default function ScannerPage() {
     setErrorMessage(null);
     setShowNotFoodGuidance(false);
     setIsRecipeSaved(false);
+    setRateLimitSecondsLeft(0);
   };
 
   const handleAddMoreSubmit = () => {
@@ -203,6 +232,7 @@ export default function ScannerPage() {
     setErrorMessage(null);
     setShowNotFoodGuidance(false);
     setIsRecipeSaved(false);
+    setRateLimitSecondsLeft(0);
   };
 
   const generarReceta = async () => {
@@ -345,6 +375,7 @@ export default function ScannerPage() {
     setRecipe(null);
     setShowNotFoodGuidance(false);
     setIsRecipeSaved(false);
+    setRateLimitSecondsLeft(0);
 
     const longWaitTimer = window.setTimeout(() => {
       setRetryMessage(
@@ -397,7 +428,17 @@ export default function ScannerPage() {
           setErrorMessage(null);
           return;
         }
-        const friendlyError = resolveErrorMessage(response.status, payload, networkError);
+        const nextRateLimitSeconds =
+          response.status === 429 ? extractRetrySeconds(payload.details) : 0;
+        if (nextRateLimitSeconds > 0) {
+          setRateLimitSecondsLeft(nextRateLimitSeconds);
+        }
+        const friendlyError = resolveErrorMessage(
+          response.status,
+          payload,
+          networkError,
+          nextRateLimitSeconds
+        );
         setErrorMessage(
           payload.error && payload.error !== "NOT_FOOD" ? payload.error : friendlyError
         );
@@ -537,7 +578,8 @@ export default function ScannerPage() {
             onFindRecipes={handleFindRecipes}
             errorMessage={errorMessage}
             onRetry={() => void generarReceta()}
-            isBusy={isLoading}
+            isBusy={isLoading || rateLimitSecondsLeft > 0}
+            rateLimitSecondsLeft={rateLimitSecondsLeft}
           />
           {securityWarning ? (
             <p className="mt-3 rounded-2xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-800">

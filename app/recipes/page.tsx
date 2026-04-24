@@ -7,6 +7,11 @@ import type { Database } from "@/types/database.types";
 
 type RecipeRow = Database["public"]["Tables"]["recipes"]["Row"];
 
+function isMissingTipSandraColumnError(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  return error.code === "42703" || error.message?.includes("column recipes.tip_sandra does not exist") === true;
+}
+
 export default function RecipesPage() {
   const [recipes, setRecipes] = useState<RecipeRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -31,7 +36,7 @@ export default function RecipesPage() {
         return;
       }
 
-      const { data, error } = await supabase
+      const primaryQuery = await supabase
         .from("recipes")
         .select(
           "id,title,description,cooking_time,is_airfryer,is_flourless,is_public,created_at,user_id,ingredients,instructions,image_url,tip_sandra"
@@ -40,14 +45,34 @@ export default function RecipesPage() {
         .order("created_at", { ascending: false })
         .limit(5);
 
-      if (error) {
+      let recipesData = primaryQuery.data as RecipeRow[] | null;
+      let recipesError = primaryQuery.error;
+
+      if (isMissingTipSandraColumnError(recipesError)) {
+        const fallbackQuery = await supabase
+          .from("recipes")
+          .select(
+            "id,title,description,cooking_time,is_airfryer,is_flourless,is_public,created_at,user_id,ingredients,instructions,image_url"
+          )
+          .eq("is_public", true)
+          .order("created_at", { ascending: false })
+          .limit(5);
+
+        recipesError = fallbackQuery.error;
+        recipesData = (fallbackQuery.data as RecipeRow[] | null)?.map((recipe) => ({
+          ...recipe,
+          tip_sandra: null
+        })) ?? null;
+      }
+
+      if (recipesError) {
         setErrorMessage("No pudimos cargar tus recetas ahora. Intentalo de nuevo.");
         setRecipes([]);
         setIsLoading(false);
         return;
       }
 
-      setRecipes(data ?? []);
+      setRecipes(recipesData ?? []);
       setIsLoading(false);
     };
 

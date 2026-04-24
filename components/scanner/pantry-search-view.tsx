@@ -64,6 +64,7 @@ type Props = {
   errorMessage: string | null;
   onRetry: () => void;
   isBusy: boolean;
+  rateLimitSecondsLeft?: number;
 };
 
 export function PantrySearchView({
@@ -78,7 +79,8 @@ export function PantrySearchView({
   onFindRecipes,
   errorMessage,
   onRetry,
-  isBusy
+  isBusy,
+  rateLimitSecondsLeft = 0
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [expandedCategories, setExpandedCategories] = useState<Record<CategoryKey, boolean>>({
@@ -357,7 +359,7 @@ export function PantrySearchView({
             disabled={isBusy || !hasSelection}
             className="self-start rounded-lg border border-red-400 bg-white px-3 py-2 text-sm font-semibold text-red-800 disabled:opacity-50"
           >
-            Reintentar ahora
+            {rateLimitSecondsLeft > 0 ? `Reintentar en ${rateLimitSecondsLeft}s` : "Reintentar ahora"}
           </button>
         </div>
       ) : null}
@@ -370,7 +372,11 @@ export function PantrySearchView({
           aria-label={hasSelection ? "Optimizar Receta Saludable" : "Escanear Nevera"}
           className="pointer-events-auto flex w-full items-center justify-center gap-2.5 rounded-2xl bg-sv-primary px-4 py-3 text-center text-sm font-semibold leading-tight text-sv-on-primary shadow-[0_8px_30px_-10px_rgba(62,82,25,0.6)] transition hover:shadow-[0_12px_35px_-10px_rgba(62,82,25,0.8)] disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {hasSelection ? "Optimizar Receta Saludable" : "Escanear Nevera"}
+          {hasSelection
+            ? rateLimitSecondsLeft > 0
+              ? `Reintentar en ${rateLimitSecondsLeft}s`
+              : "Optimizar Receta Saludable"
+            : "Escanear Nevera"}
           <span aria-hidden className="transition group-hover:translate-x-1">
             →
           </span>

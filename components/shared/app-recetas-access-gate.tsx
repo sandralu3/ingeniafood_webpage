@@ -22,6 +22,12 @@ function detectStandaloneMode() {
   return mediaStandalone || iosStandalone;
 }
 
+function canUseWebAccessInCurrentHost() {
+  if (typeof window === "undefined") return false;
+  const host = window.location.hostname.toLowerCase();
+  return host === "localhost" || host === "127.0.0.1" || host.endsWith(".local");
+}
+
 function InstallationLanding({
   onInstallClick,
   showIosModal,
@@ -106,12 +112,14 @@ function InstallationLanding({
 export function AppRecetasAccessGate({ children }: { children: React.ReactNode }) {
   const [isStandalone, setIsStandalone] = useState(false);
   const [checkedStandalone, setCheckedStandalone] = useState(false);
+  const [allowWebAccess, setAllowWebAccess] = useState(false);
   const [authState, setAuthState] = useState<AuthState>("loading");
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isIos, setIsIos] = useState(false);
   const [showIosModal, setShowIosModal] = useState(false);
 
   useEffect(() => {
+    setAllowWebAccess(canUseWebAccessInCurrentHost());
     const updateStandalone = () => {
       setIsStandalone(detectStandaloneMode());
       setCheckedStandalone(true);
@@ -150,7 +158,7 @@ export function AppRecetasAccessGate({ children }: { children: React.ReactNode }
 
   useEffect(() => {
     if (!checkedStandalone) return;
-    if (!isStandalone) {
+    if (!isStandalone && !allowWebAccess) {
       setAuthState("unauthenticated");
       return;
     }
@@ -173,7 +181,7 @@ export function AppRecetasAccessGate({ children }: { children: React.ReactNode }
       cancelled = true;
       subscription.unsubscribe();
     };
-  }, [checkedStandalone, isStandalone]);
+  }, [allowWebAccess, checkedStandalone, isStandalone]);
 
   const handleInstallClick = async () => {
     if (isIos) {
@@ -194,7 +202,7 @@ export function AppRecetasAccessGate({ children }: { children: React.ReactNode }
       return <div className="min-h-screen bg-[#FDFCFB]" />;
     }
 
-    if (!isStandalone) {
+    if (!isStandalone && !allowWebAccess) {
       return (
         <InstallationLanding
           onInstallClick={handleInstallClick}
@@ -237,6 +245,7 @@ export function AppRecetasAccessGate({ children }: { children: React.ReactNode }
     deferredPrompt,
     isIos,
     isStandalone,
+    allowWebAccess,
     showIosModal
   ]);
 
