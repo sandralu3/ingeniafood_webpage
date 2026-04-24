@@ -91,10 +91,12 @@ export default function AppRecetasHomePage() {
     if ("serviceWorker" in navigator) {
       void navigator.serviceWorker
         .register("/sw.js")
-        .then(() => {
+        .then((registration) => {
+          console.log("[PWA] Service Worker registrado:", registration.scope);
           if (mounted) setInstallMessage(null);
         })
-        .catch(() => {
+        .catch((error: unknown) => {
+          console.error("[PWA] Error al registrar Service Worker:", error);
           if (mounted) {
             setInstallMessage("No se pudo preparar la instalación automática.");
             setShowInstallHelp(true);
@@ -111,7 +113,9 @@ export default function AppRecetasHomePage() {
       if (detectStandaloneMode()) return;
       const currentPrompt = syncDeferredPrompt();
       if (!currentPrompt && mounted) {
-        setInstallMessage("Si no aparece el popup automáticamente,");
+        setInstallMessage(
+          "Para usar IngeniaFood, toca los 3 puntos (⋮) de Chrome > Instalar aplicación."
+        );
       }
     }, 6000);
 
@@ -128,7 +132,9 @@ export default function AppRecetasHomePage() {
   const handleInstall = async () => {
     const activePrompt = deferredPrompt ?? (window as WindowWithDeferredPrompt).__ingeniaDeferredInstallPrompt ?? null;
     if (!activePrompt) {
-      setInstallMessage("El navegador no mostró el evento de instalación.");
+      setInstallMessage(
+        "Para usar IngeniaFood, toca los 3 puntos (⋮) de Chrome > Instalar aplicación."
+      );
       setShowInstallHelp(true);
       return;
     }
@@ -148,7 +154,9 @@ export default function AppRecetasHomePage() {
     } catch {
       (window as WindowWithDeferredPrompt).__ingeniaDeferredInstallPrompt = null;
       setDeferredPrompt(null);
-      setInstallMessage("El aviso de instalación ya no está disponible.");
+      setInstallMessage(
+        "Para usar IngeniaFood, toca los 3 puntos (⋮) de Chrome > Instalar aplicación."
+      );
       setShowInstallHelp(true);
     }
   };
@@ -184,9 +192,8 @@ export default function AppRecetasHomePage() {
               </button>
                 {showInstallHelp || !deferredPrompt ? (
                   <p className="mt-4 rounded-2xl border border-[#556B2F]/20 bg-white px-4 py-3 text-sm leading-relaxed text-stone-700">
-                    {installMessage ?? "Si no aparece el popup automático, abre el menú del navegador y selecciona "}
-                    <strong>&quot;Instalar app&quot;</strong> o{" "}
-                    <strong>&quot;Añadir a pantalla de inicio&quot;</strong>.
+                    {installMessage ??
+                      "Para usar IngeniaFood, toca los 3 puntos (⋮) de Chrome > Instalar aplicación."}
                   </p>
                 ) : null}
               </>

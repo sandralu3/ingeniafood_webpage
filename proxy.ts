@@ -19,7 +19,20 @@ function isMobileUserAgent(userAgent: string) {
 }
 
 export async function proxy(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+  const { pathname, protocol } = request.nextUrl;
+  const forwardedProto = request.headers.get("x-forwarded-proto");
+
+  // Refuerzo: en producción forzar HTTPS para cumplir requisitos PWA en móviles.
+  if (
+    process.env.NODE_ENV === "production" &&
+    protocol === "http:" &&
+    forwardedProto !== "https"
+  ) {
+    const httpsUrl = request.nextUrl.clone();
+    httpsUrl.protocol = "https:";
+    return NextResponse.redirect(httpsUrl, 308);
+  }
+
   const userAgent = request.headers.get("user-agent") ?? "";
   const isMobile = isMobileUserAgent(userAgent);
   const isProtectedAppRoute =

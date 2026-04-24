@@ -3,7 +3,8 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: "Sandra Vergara | IngeniaFood",
-  description: "Landing oficial de Sandra Vergara e IngeniaFood."
+  description: "Landing oficial de Sandra Vergara e IngeniaFood.",
+  manifest: "/manifest.json"
 };
 
 export default function RootLayout({
