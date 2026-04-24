@@ -8,7 +8,7 @@ import type { Database } from "@/types/database.types";
 export const maxDuration = 30;
 
 const VISION_SYSTEM_PREFIX =
-  "Analiza esta imagen de una nevera o despensa. Identifica los ingredientes comestibles visibles. Úsalos como base para generar una receta que también incluya los ingredientes que el usuario haya seleccionado manualmente. Si no identificas ingredientes en la imagen, ignórala.\n\n";
+  "Tu primera tarea es analizar si la imagen contiene ingredientes, alimentos o comida. Si la imagen NO muestra nada comestible (por ejemplo: objetos, personas, paisajes, animales), debes responder ÚNICAMENTE con este código de error: { \"error\": \"NOT_FOOD\" }. No generes ninguna receta en ese caso.\nAnaliza esta imagen de una nevera o despensa. Identifica los ingredientes comestibles visibles. Úsalos como base para generar una receta que también incluya los ingredientes que el usuario haya seleccionado manualmente.\n\n";
 
 const ALLOWED_IMAGE_MIME = new Set([
   "image/jpeg",
@@ -56,6 +56,7 @@ const GEMINI_REQUEST_TIMEOUT_MS = 180_000;
 
 type ParseOutcome =
   | { status: "ok"; recipe: GeminiRecipe }
+  | { status: "not_food" }
   | { status: "incomplete" }
   | { status: "invalid" };
 
@@ -100,7 +101,10 @@ function parseJsonResponse(rawText: string): ParseOutcome {
   const cleanedResponse = jsonString.replace(/,\s*([}\]])/g, "$1").trim();
 
   try {
-    const parsed = JSON.parse(cleanedResponse) as LooseGeminiRecipe;
+    const parsed = JSON.parse(cleanedResponse) as LooseGeminiRecipe & { error?: string };
+    if (parsed.error === "NOT_FOOD") {
+      return { status: "not_food" };
+    }
     return { status: "ok", recipe: normalizeRecipePayload(parsed) };
   } catch {
     console.log("DEBUG RAW RESPONSE: " + rawText);
@@ -347,7 +351,8 @@ export async function POST(request: Request) {
           : "Completa ingredientes_detallados con lo que propongas para la receta.";
 
     const prompt =
-      "Responde exclusivamente con JSON valido (sin markdown, sin bloques de codigo) usando esta estructura exacta: " +
+      "Primero valida si hay comida visible. Si NO hay comida, responde solo {\"error\":\"NOT_FOOD\"} y termina sin texto adicional. " +
+      "Si sí hay comida, responde exclusivamente con JSON valido (sin markdown, sin bloques de codigo) usando esta estructura exacta: " +
       '{"titulo": string, "tiempo_preparacion": string, "ingredientes_detallados": string[], "pasos_ordenados": string[]}. ' +
       `${promptTail} No inventes ingredientes imposibles; prioriza lo visible y lo indicado arriba.`;
 
@@ -440,6 +445,16 @@ export async function POST(request: Request) {
 
     if (!parseOutcome || parseOutcome.status !== "ok") {
       rawResponse = lastRawForParse;
+    }
+
+    if (parseOutcome?.status === "not_food") {
+      return jsonResponse(
+        {
+          error: "NOT_FOOD",
+          code: "NOT_FOOD"
+        },
+        422
+      );
     }
 
     if (!rawResponse?.trim() && !lastRawForParse?.trim()) {

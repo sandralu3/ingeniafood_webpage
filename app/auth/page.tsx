@@ -2,7 +2,6 @@
 
 import { FormEvent, Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { CustomButton } from "@/components/shared/custom-button";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 
 export default function AuthPage() {
@@ -15,12 +14,12 @@ export default function AuthPage() {
 
 function AuthFallback() {
   return (
-    <section className="space-y-5 rounded-3xl bg-[#FDFCFB] p-4">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-bold tracking-tight text-brand-green-dark">Iniciar sesion</h1>
-        <p className="text-sm text-brand-green-dark/75">Cargando formulario de autenticacion...</p>
-      </header>
-    </section>
+    <div className="flex min-h-[80vh] items-center justify-center bg-[#FDFCFB] px-4 py-10">
+      <section className="w-full max-w-md rounded-2xl bg-white p-6 shadow-sm">
+        <h1 className="text-3xl font-bold tracking-tight text-[#1F2937]">Iniciar sesión</h1>
+        <p className="mt-2 text-sm text-[#6B7280]">Cargando formulario de autenticación...</p>
+      </section>
+    </div>
   );
 }
 
@@ -31,10 +30,9 @@ function AuthForm() {
     requestedNextPath && requestedNextPath.startsWith("/app-recetas")
       ? requestedNextPath
       : "/app-recetas";
-  const queryMode = searchParams.get("mode");
   const reason = searchParams.get("reason");
   const showAppRecetasMessage = reason === "app-recetas-auth";
-  const initialMode: "login" | "signup" = queryMode === "signup" ? "signup" : "login";
+  const initialMode: "login" | "signup" = "login";
   const [modeOverride, setModeOverride] = useState<"login" | "signup" | null>(null);
   const mode = modeOverride ?? initialMode;
   const verifiedFromLink = searchParams.get("verified") === "1";
@@ -137,56 +135,59 @@ function AuthForm() {
   };
 
   return (
-    <section className="space-y-5">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-bold tracking-tight text-brand-green-dark">
-          {mode === "signup" ? "Crear cuenta" : "Iniciar sesion"}
-        </h1>
-        <p className="text-sm text-brand-green-dark/75">
-          {mode === "signup"
-            ? "Registrate para guardar recetas saludables y escanear tu nevera."
-            : "Ingresa para continuar con tu plan de cocina saludable."}
-        </p>
-      </header>
+    <div className="flex min-h-[80vh] items-center justify-center bg-[#FDFCFB] px-4 py-10">
+      <section className="w-full max-w-md rounded-2xl bg-white p-6 shadow-sm sm:p-7">
+        <header className="text-center">
+          <p className="text-sm tracking-[0.08em] text-stone-700">
+            <span className="font-medium">Sandra Vergara</span>
+            <span className="mx-1 text-stone-400">|</span>
+            <span className="font-light text-[#444444]">Ingenia</span>
+            <span className="font-bold text-[#556B2F]">Food</span>
+          </p>
+          <h1 className="mt-4 text-3xl font-bold tracking-tight text-[#1F2937]">
+            {mode === "signup" ? "Crear cuenta" : "Iniciar sesión"}
+          </h1>
+          <p className="mt-2 text-sm text-[#6B7280]">
+            {mode === "signup"
+              ? "Regístrate para guardar recetas saludables y escanear tu nevera."
+              : "Ingresa para continuar con tu plan de cocina saludable."}
+          </p>
+          {showAppRecetasMessage ? (
+            <p className="mt-2 text-xs font-medium text-[#6B7280]">
+              Para guardar tus recetas y usar la IA, necesitas crear una cuenta gratuita.
+            </p>
+          ) : null}
+        </header>
 
-      {showAppRecetasMessage ? (
-        <p className="rounded-xl border border-brand-green-light/35 bg-brand-green-light/10 px-3 py-2 text-sm text-brand-green-dark">
-          Para guardar tus recetas y usar la IA, necesitas crear una cuenta gratuita.
-        </p>
-      ) : null}
+        <div className="mt-5 grid grid-cols-2 rounded-full bg-[#F3F4F6] p-1">
+          <button
+            type="button"
+            onClick={() => handleModeChange("login")}
+            className={`rounded-full px-3 py-2 text-sm font-medium transition ${
+              mode === "login"
+                ? "bg-[#556B2F]/15 text-[#556B2F] shadow-sm"
+                : "text-[#6B7280] hover:text-[#374151]"
+            }`}
+          >
+            Login
+          </button>
+          <button
+            type="button"
+            onClick={() => handleModeChange("signup")}
+            className={`rounded-full px-3 py-2 text-sm font-medium transition ${
+              mode === "signup"
+                ? "bg-[#556B2F]/15 text-[#556B2F] shadow-sm"
+                : "text-[#6B7280] hover:text-[#374151]"
+            }`}
+          >
+            Registro
+          </button>
+        </div>
 
-      <div className="inline-flex rounded-xl border border-brand-green-light/30 bg-white/85 p-1">
-        <button
-          type="button"
-          onClick={() => handleModeChange("login")}
-          className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
-            mode === "login"
-              ? "bg-[#556B2F] text-white"
-              : "text-brand-green-dark/80 hover:bg-brand-green-light/10"
-          }`}
-        >
-          Login
-        </button>
-        <button
-          type="button"
-          onClick={() => handleModeChange("signup")}
-          className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
-            mode === "signup"
-              ? "bg-[#556B2F] text-white"
-              : "text-brand-green-dark/80 hover:bg-brand-green-light/10"
-          }`}
-        >
-          Registro
-        </button>
-      </div>
-
-      <form
-        onSubmit={handleSubmit}
-        className="space-y-4 rounded-3xl border border-brand-green-light/25 bg-white/85 p-5 shadow-sm"
-      >
+        <form onSubmit={handleSubmit} className="mt-5 space-y-4">
         {mode === "signup" ? (
           <div className="space-y-1.5">
-            <label htmlFor="fullName" className="text-sm font-medium text-brand-green-dark">
+            <label htmlFor="fullName" className="text-sm font-medium text-[#374151]">
               Nombre completo
             </label>
             <input
@@ -195,7 +196,7 @@ function AuthForm() {
               value={fullName}
               onChange={(event) => setFullName(event.target.value)}
               suppressHydrationWarning
-              className="h-11 w-full rounded-xl border border-brand-green-light/35 bg-brand-cream px-3 text-sm text-brand-green-dark outline-none transition focus:border-brand-green-dark/60"
+              className="h-12 w-full rounded-xl border border-[#E5E7EB] bg-white px-4 text-sm text-[#1F2937] outline-none transition focus:border-[#556B2F]/55 focus:ring-2 focus:ring-[#556B2F]/15"
               placeholder="Sandra Vergara"
               autoComplete="name"
               required
@@ -204,7 +205,7 @@ function AuthForm() {
         ) : null}
 
         <div className="space-y-1.5">
-          <label htmlFor="email" className="text-sm font-medium text-brand-green-dark">
+          <label htmlFor="email" className="text-sm font-medium text-[#374151]">
             Correo electronico
           </label>
           <input
@@ -213,7 +214,7 @@ function AuthForm() {
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             suppressHydrationWarning
-            className="h-11 w-full rounded-xl border border-brand-green-light/35 bg-brand-cream px-3 text-sm text-brand-green-dark outline-none transition focus:border-brand-green-dark/60"
+            className="h-12 w-full rounded-xl border border-[#E5E7EB] bg-white px-4 text-sm text-[#1F2937] outline-none transition focus:border-[#556B2F]/55 focus:ring-2 focus:ring-[#556B2F]/15"
             placeholder="tuemail@correo.com"
             autoComplete="email"
             required
@@ -221,7 +222,7 @@ function AuthForm() {
         </div>
 
         <div className="space-y-1.5">
-          <label htmlFor="password" className="text-sm font-medium text-brand-green-dark">
+          <label htmlFor="password" className="text-sm font-medium text-[#374151]">
             Contraseña
           </label>
           <input
@@ -230,7 +231,7 @@ function AuthForm() {
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             suppressHydrationWarning
-            className="h-11 w-full rounded-xl border border-brand-green-light/35 bg-brand-cream px-3 text-sm text-brand-green-dark outline-none transition focus:border-brand-green-dark/60"
+            className="h-12 w-full rounded-xl border border-[#E5E7EB] bg-white px-4 text-sm text-[#1F2937] outline-none transition focus:border-[#556B2F]/55 focus:ring-2 focus:ring-[#556B2F]/15"
             placeholder="Minimo 6 caracteres"
             autoComplete={mode === "signup" ? "new-password" : "current-password"}
             minLength={6}
@@ -250,11 +251,10 @@ function AuthForm() {
           </p>
         ) : null}
 
-        <CustomButton
+        <button
           type="submit"
           disabled={isSubmitting}
-          suppressHydrationWarning
-          className="h-11 w-full rounded-xl"
+          className="h-12 w-full rounded-full bg-[#556B2F] px-4 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-60"
         >
           {isSubmitting
             ? mode === "signup"
@@ -263,8 +263,9 @@ function AuthForm() {
             : mode === "signup"
               ? "Crear cuenta"
               : "Iniciar sesion"}
-        </CustomButton>
-      </form>
-    </section>
+        </button>
+        </form>
+      </section>
+    </div>
   );
 }

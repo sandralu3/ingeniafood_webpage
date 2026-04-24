@@ -133,7 +133,6 @@ export async function proxy(request: NextRequest) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/login";
     redirectUrl.searchParams.set("next", pathname);
-    redirectUrl.searchParams.set("mode", "signup");
     redirectUrl.searchParams.set("reason", "app-recetas-auth");
     return NextResponse.redirect(redirectUrl);
   }

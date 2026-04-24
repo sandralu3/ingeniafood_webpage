@@ -99,6 +99,9 @@ function resolveErrorMessage(
   if (payload.code === "PARSING_ERROR") {
     return "La IA respondió pero el formato no es válido. Intenta con otros ingredientes.";
   }
+  if (payload.code === "NOT_FOOD" || payload.error === "NOT_FOOD") {
+    return "🍎 ¡Ups! No hemos detectado ningún ingrediente en la foto. Por favor, asegúrate de enfocar bien tus alimentos para que pueda ayudarte con una receta.";
+  }
   if (status === 503) {
     return "El servidor de Google está saturado (Demanda alta). Por favor, intenta de nuevo en unos segundos.";
   }
@@ -382,8 +385,9 @@ export default function ScannerPage() {
             window.alert(`Diagnóstico receta: ${detailsText}`);
           }
         }
+        const friendlyError = resolveErrorMessage(response.status, payload, networkError);
         setErrorMessage(
-          payload.error ?? resolveErrorMessage(response.status, payload, networkError)
+          payload.error && payload.error !== "NOT_FOOD" ? payload.error : friendlyError
         );
         return;
       }
