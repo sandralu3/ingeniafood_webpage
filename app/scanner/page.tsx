@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PantrySearchView } from "@/components/scanner/pantry-search-view";
 import { RecipeLoadingSkeleton } from "@/components/scanner/recipe-loading-skeleton";
 import { RecipeResultView } from "@/components/scanner/recipe-result-view";
@@ -70,6 +70,32 @@ export default function ScannerPage() {
   const [recipe, setRecipe] = useState<GeneratedRecipe | null>(null);
   const [pantryImageFile, setPantryImageFile] = useState<File | null>(null);
   const [recipeFromPhoto, setRecipeFromPhoto] = useState(false);
+  const [securityWarning, setSecurityWarning] = useState<string | null>(null);
+
+  const showDebugError = (context: string, error: unknown) => {
+    const errorText =
+      error instanceof Error
+        ? `${error.name}: ${error.message}`
+        : typeof error === "string"
+          ? error
+          : JSON.stringify(error);
+    console.error(`[generate-recipe] ${context}:`, error);
+    if (typeof window !== "undefined") {
+      window.alert(`Error de receta (${context}): ${errorText}`);
+    }
+  };
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const isInsecureContext = !window.isSecureContext;
+    const localHosts = new Set(["localhost", "127.0.0.1"]);
+    const isLocalhost = localHosts.has(window.location.hostname);
+    if (isInsecureContext && !isLocalhost) {
+      setSecurityWarning(
+        "Entorno inseguro detectado (HTTP/IP local). En Pixel pueden fallar camara o API. Usa HTTPS para pruebas moviles."
+      );
+    }
+  }, []);
 
   const handlePantryImageChange = (file: File | null) => {
     setPantryImageFile(file);
@@ -152,7 +178,7 @@ export default function ScannerPage() {
       }
     }
 
-    const FETCH_TIMEOUT_MS = 180_000;
+    const FETCH_TIMEOUT_MS = 240_000;
     const createFetchSignal = (): AbortSignal => {
       if (typeof AbortSignal !== "undefined" && "timeout" in AbortSignal) {
         return AbortSignal.timeout(FETCH_TIMEOUT_MS);
@@ -189,7 +215,7 @@ export default function ScannerPage() {
           const { base64, mimeType } = await readFileAsBase64Payload(pantryImageFile);
           imagePayload = { imageBase64: base64, mimeType };
         } catch (err) {
-          console.error("[generate-recipe] Error leyendo imagen:", err);
+          showDebugError("lectura de imagen", err);
           return {
             response: new Response(null, { status: 400 }),
             payload: {
@@ -216,7 +242,7 @@ export default function ScannerPage() {
           });
         } catch (err) {
           networkError = true;
-          console.error("[generate-recipe] Error de red o fetch:", err);
+          showDebugError("fetch/red", err);
           return {
             response: new Response(null, { status: 0 }),
             payload: {},
@@ -227,7 +253,7 @@ export default function ScannerPage() {
         try {
           payload = (await response.json()) as ApiPayload;
         } catch (parseErr) {
-          console.error("[generate-recipe] JSON de respuesta HTTP inválido:", parseErr);
+          showDebugError("parseo JSON respuesta", parseErr);
           payload = {};
         }
 
@@ -295,6 +321,12 @@ export default function ScannerPage() {
           error: payload.error,
           details: payload.details
         });
+        if (payload.details || payload.error) {
+          const detailsText = payload.details ?? payload.error ?? "Sin detalle";
+          if (typeof window !== "undefined") {
+            window.alert(`Diagnóstico receta: ${detailsText}`);
+          }
+        }
         setErrorMessage(
           payload.error ?? resolveErrorMessage(response.status, payload, networkError)
         );
@@ -308,7 +340,7 @@ export default function ScannerPage() {
         window.localStorage.setItem(cacheKey, JSON.stringify(payload.recipe));
       }
     } catch (err) {
-      console.error("[generate-recipe] Error inesperado en el manejo de la respuesta:", err);
+      showDebugError("manejo de respuesta", err);
       setRecipe(null);
       setErrorMessage(
         "Ocurrió un error al procesar la respuesta. Revisa la consola para más detalle."
@@ -360,6 +392,11 @@ export default function ScannerPage() {
             onRetry={() => void generarReceta()}
             isBusy={isLoading}
           />
+          {securityWarning ? (
+            <p className="mt-3 rounded-2xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-800">
+              {securityWarning}
+            </p>
+          ) : null}
         </div>
       ) : null}
     </div>

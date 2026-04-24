@@ -168,6 +168,30 @@ function stripDataUrlBase64(input: string): { base64: string; mimeType?: string 
 
 const MAX_IMAGE_BYTES = 12 * 1024 * 1024;
 
+const CORS_HEADERS: HeadersInit = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization"
+};
+
+function jsonResponse(payload: unknown, status = 200) {
+  return NextResponse.json(payload, {
+    status,
+    headers: {
+      ...CORS_HEADERS,
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "no-store"
+    }
+  });
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: CORS_HEADERS
+  });
+}
+
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as GenerateRecipePayload;
@@ -199,18 +223,15 @@ export async function POST(request: Request) {
       try {
         imageBytes = Buffer.from(imageBase64Raw, "base64").length;
       } catch {
-        return NextResponse.json(
-          { error: "La imagen no es un Base64 válido." },
-          { status: 400 }
-        );
+        return jsonResponse({ error: "La imagen no es un Base64 válido." }, 400);
       }
       if (imageBytes > MAX_IMAGE_BYTES) {
-        return NextResponse.json(
+        return jsonResponse(
           {
             error:
               "La imagen es demasiado grande. Prueba con otra foto o comprime la imagen antes de subirla."
           },
-          { status: 400 }
+          400
         );
       }
     }
@@ -223,30 +244,30 @@ export async function POST(request: Request) {
       : undefined;
 
     if (hasImage && mimeFromBody && !ALLOWED_IMAGE_MIME.has(mimeFromBody)) {
-      return NextResponse.json(
+      return jsonResponse(
         {
           error:
             "Formato de imagen no soportado. Usa JPEG, PNG, WebP o GIF."
         },
-        { status: 400 }
+        400
       );
     }
 
     if (!selectedIngredients.length && !hasImage) {
-      return NextResponse.json(
+      return jsonResponse(
         {
           error:
             "Selecciona al menos un ingrediente o añade una foto de tu nevera o despensa."
         },
-        { status: 400 }
+        400
       );
     }
 
     const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY?.trim();
     if (!apiKey) {
-      return NextResponse.json(
+      return jsonResponse(
         { error: "Falta GOOGLE_GENERATIVE_AI_API_KEY en variables de entorno." },
-        { status: 500 }
+        500
       );
     }
     if (process.env.NODE_ENV !== "production") {
@@ -258,9 +279,9 @@ export async function POST(request: Request) {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     if (!supabaseUrl || !supabaseKey) {
-      return NextResponse.json(
+      return jsonResponse(
         { error: "Faltan variables de Supabase para autenticar usuario." },
-        { status: 500 }
+        500
       );
     }
 
@@ -419,19 +440,19 @@ export async function POST(request: Request) {
       console.error("[Gemini] Fallo tras reintentos:", lastFailure);
 
       if (unavailableHit) {
-        return NextResponse.json(
+        return jsonResponse(
           {
             error:
               "El servidor de Google está saturado (Demanda alta). Por favor, intenta de nuevo en unos segundos.",
             code: "SERVICE_UNAVAILABLE",
             details: lastFailure
           },
-          { status: 503 }
+          503
         );
       }
 
       const statusCode = quotaHit ? 429 : 502;
-      return NextResponse.json(
+      return jsonResponse(
         {
           error: authConfigHit
             ? "Error de autenticacion o permisos con Google AI. Verifica GOOGLE_GENERATIVE_AI_API_KEY y que la API Gemini este habilitada para tu proyecto."
@@ -443,17 +464,17 @@ export async function POST(request: Request) {
           code: quotaHit ? "RATE_LIMIT" : missingModelHit ? "MODEL_NOT_FOUND" : "GEMINI_ERROR",
           details: lastFailure
         },
-        { status: statusCode }
+        statusCode
       );
     }
 
     if (!rawResponse?.trim()) {
-      return NextResponse.json(
+      return jsonResponse(
         {
           error: "Gemini respondio vacio. Verifica tu prompt o intenta con otros ingredientes.",
           details: `${modelName}: respuesta vacia del modelo`
         },
-        { status: 502 }
+        502
       );
     }
 
@@ -463,7 +484,7 @@ export async function POST(request: Request) {
         "[Gemini] Respuesta no parseable como JSON. Raw (primeros 2000 chars):",
         rawResponse.slice(0, 2000)
       );
-      return NextResponse.json(
+      return jsonResponse(
         {
           error: isIncomplete
             ? "Respuesta incompleta del servidor, reintentando..."
@@ -471,7 +492,7 @@ export async function POST(request: Request) {
           code: isIncomplete ? "INCOMPLETE_RESPONSE" : "PARSING_ERROR",
           details: rawResponse.slice(0, 1500)
         },
-        { status: 502 }
+        502
       );
     }
     const recipe = parseOutcome.recipe;
@@ -496,7 +517,7 @@ export async function POST(request: Request) {
 
     // Permite uso sin sesión: guarda en BD solo si hay usuario autenticado.
     if (!user) {
-      return NextResponse.json({
+      return jsonResponse({
         recipe: safeRecipe,
         savedRecipe: null
       });
@@ -522,17 +543,17 @@ export async function POST(request: Request) {
       .single();
 
     if (insertError) {
-      return NextResponse.json(
+      return jsonResponse(
         {
           error:
             "La receta se generó, pero no se pudo guardar en tu cuenta. Verifica perfil y políticas RLS de recipes.",
           details: insertError.message
         },
-        { status: 500 }
+        500
       );
     }
 
-    return NextResponse.json({
+    return jsonResponse({
       recipe: safeRecipe,
       savedRecipe: insertedRecipe
     });
@@ -540,13 +561,13 @@ export async function POST(request: Request) {
     const message =
       error instanceof Error ? error.message : "Error desconocido al generar la receta.";
     console.error("[generate-recipe] Excepción no controlada:", error);
-    return NextResponse.json(
+    return jsonResponse(
       {
         error: "No pudimos generar una receta con los ingredientes seleccionados. Intenta nuevamente.",
         code: "SERVER_ERROR",
         details: message
       },
-      { status: 500 }
+      500
     );
   }
 }

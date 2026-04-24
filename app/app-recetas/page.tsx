@@ -33,6 +33,7 @@ type BeforeInstallPromptEvent = Event & {
 
 type WindowWithDeferredPrompt = Window & {
   __ingeniaDeferredInstallPrompt?: BeforeInstallPromptEvent | null;
+  __ingeniaInstallPromptCapturedAt?: number | null;
 };
 
 function detectStandaloneMode() {
@@ -49,6 +50,7 @@ export default function AppRecetasHomePage() {
     return (window as WindowWithDeferredPrompt).__ingeniaDeferredInstallPrompt ?? null;
   });
   const [showInstallHelp, setShowInstallHelp] = useState(false);
+  const [installMessage, setInstallMessage] = useState<string | null>(null);
   const [isIos] = useState(() => {
     if (typeof window === "undefined") return false;
     const ua = window.navigator.userAgent.toLowerCase();
@@ -56,23 +58,66 @@ export default function AppRecetasHomePage() {
   });
 
   useEffect(() => {
+    let mounted = true;
+
+    const syncDeferredPrompt = () => {
+      const deferred = (window as WindowWithDeferredPrompt).__ingeniaDeferredInstallPrompt ?? null;
+      if (mounted) setDeferredPrompt(deferred);
+      return deferred;
+    };
+
     const onBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();
       const installPromptEvent = event as BeforeInstallPromptEvent;
       (window as WindowWithDeferredPrompt).__ingeniaDeferredInstallPrompt = installPromptEvent;
-      setDeferredPrompt(installPromptEvent);
+      (window as WindowWithDeferredPrompt).__ingeniaInstallPromptCapturedAt = Date.now();
+      console.log("Evento de instalación capturado");
+      if (mounted) {
+        setDeferredPrompt(installPromptEvent);
+        setInstallMessage(null);
+      }
     };
 
     const onAppInstalled = () => {
       (window as WindowWithDeferredPrompt).__ingeniaDeferredInstallPrompt = null;
-      setDeferredPrompt(null);
-      setIsStandalone(true);
+      (window as WindowWithDeferredPrompt).__ingeniaInstallPromptCapturedAt = null;
+      if (mounted) {
+        setDeferredPrompt(null);
+        setIsStandalone(true);
+        setInstallMessage(null);
+      }
     };
+
+    if ("serviceWorker" in navigator) {
+      void navigator.serviceWorker
+        .register("/sw.js")
+        .then(() => {
+          if (mounted) setInstallMessage(null);
+        })
+        .catch(() => {
+          if (mounted) {
+            setInstallMessage("No se pudo preparar la instalación automática.");
+            setShowInstallHelp(true);
+          }
+        });
+    }
+
+    syncDeferredPrompt();
 
     window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
     window.addEventListener("appinstalled", onAppInstalled);
 
+    const refreshPromptTimer = window.setInterval(() => {
+      if (detectStandaloneMode()) return;
+      const currentPrompt = syncDeferredPrompt();
+      if (!currentPrompt && mounted) {
+        setInstallMessage("Si no aparece el popup automáticamente,");
+      }
+    }, 6000);
+
     return () => {
+      mounted = false;
+      window.clearInterval(refreshPromptTimer);
       window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);
       window.removeEventListener("appinstalled", onAppInstalled);
     };
@@ -81,16 +126,30 @@ export default function AppRecetasHomePage() {
   const showInstallOverlay = useMemo(() => !isStandalone, [isStandalone]);
 
   const handleInstall = async () => {
-    if (!deferredPrompt) {
+    const activePrompt = deferredPrompt ?? (window as WindowWithDeferredPrompt).__ingeniaDeferredInstallPrompt ?? null;
+    if (!activePrompt) {
+      setInstallMessage("El navegador no mostró el evento de instalación.");
       setShowInstallHelp(true);
       return;
     }
-    await deferredPrompt.prompt();
-    const choice = await deferredPrompt.userChoice;
-    if (choice.outcome === "accepted") {
+    try {
+      await activePrompt.prompt();
+      const choice = await activePrompt.userChoice;
+      if (choice.outcome === "accepted") {
+        (window as WindowWithDeferredPrompt).__ingeniaDeferredInstallPrompt = null;
+        (window as WindowWithDeferredPrompt).__ingeniaInstallPromptCapturedAt = null;
+        setDeferredPrompt(null);
+        setIsStandalone(true);
+        setInstallMessage(null);
+      } else {
+        setInstallMessage("Instalación cancelada. Puedes intentarlo de nuevo.");
+        setShowInstallHelp(true);
+      }
+    } catch {
       (window as WindowWithDeferredPrompt).__ingeniaDeferredInstallPrompt = null;
       setDeferredPrompt(null);
-      setIsStandalone(true);
+      setInstallMessage("El aviso de instalación ya no está disponible.");
+      setShowInstallHelp(true);
     }
   };
 
@@ -125,7 +184,7 @@ export default function AppRecetasHomePage() {
               </button>
                 {showInstallHelp || !deferredPrompt ? (
                   <p className="mt-4 rounded-2xl border border-[#556B2F]/20 bg-white px-4 py-3 text-sm leading-relaxed text-stone-700">
-                    Si no aparece el popup automático, abre el menú del navegador y selecciona{" "}
+                    {installMessage ?? "Si no aparece el popup automático, abre el menú del navegador y selecciona "}
                     <strong>&quot;Instalar app&quot;</strong> o{" "}
                     <strong>&quot;Añadir a pantalla de inicio&quot;</strong>.
                   </p>
