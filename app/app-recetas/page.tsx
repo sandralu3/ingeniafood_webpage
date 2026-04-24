@@ -31,6 +31,10 @@ type BeforeInstallPromptEvent = Event & {
   userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
 };
 
+type WindowWithDeferredPrompt = Window & {
+  __ingeniaDeferredInstallPrompt?: BeforeInstallPromptEvent | null;
+};
+
 function detectStandaloneMode() {
   if (typeof window === "undefined") return false;
   const mediaStandalone = window.matchMedia("(display-mode: standalone)").matches;
@@ -40,7 +44,10 @@ function detectStandaloneMode() {
 
 export default function AppRecetasHomePage() {
   const [isStandalone, setIsStandalone] = useState(() => detectStandaloneMode());
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(() => {
+    if (typeof window === "undefined") return null;
+    return (window as WindowWithDeferredPrompt).__ingeniaDeferredInstallPrompt ?? null;
+  });
   const [showInstallHelp, setShowInstallHelp] = useState(false);
   const [isIos] = useState(() => {
     if (typeof window === "undefined") return false;
@@ -51,10 +58,13 @@ export default function AppRecetasHomePage() {
   useEffect(() => {
     const onBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();
-      setDeferredPrompt(event as BeforeInstallPromptEvent);
+      const installPromptEvent = event as BeforeInstallPromptEvent;
+      (window as WindowWithDeferredPrompt).__ingeniaDeferredInstallPrompt = installPromptEvent;
+      setDeferredPrompt(installPromptEvent);
     };
 
     const onAppInstalled = () => {
+      (window as WindowWithDeferredPrompt).__ingeniaDeferredInstallPrompt = null;
       setDeferredPrompt(null);
       setIsStandalone(true);
     };
@@ -78,6 +88,7 @@ export default function AppRecetasHomePage() {
     await deferredPrompt.prompt();
     const choice = await deferredPrompt.userChoice;
     if (choice.outcome === "accepted") {
+      (window as WindowWithDeferredPrompt).__ingeniaDeferredInstallPrompt = null;
       setDeferredPrompt(null);
       setIsStandalone(true);
     }

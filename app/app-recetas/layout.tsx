@@ -1,5 +1,10 @@
+import type { Metadata } from "next";
 import { Header } from "@/components/shared/header";
 import { BottomNav } from "@/components/shared/bottom-nav";
+
+export const metadata: Metadata = {
+  manifest: "/manifest.json"
+};
 
 export default function AppRecetasLayout({
   children

@@ -1,17 +1,24 @@
 /** @type {import('next').NextConfig} */
-const nextConfig = {
-  // Eliminamos cualquier referencia manual a webpack o turbopack experimental
-  // para que Next.js use los valores por defecto que no causen conflicto.
+const isDev = process.env.NODE_ENV !== "production";
 
+const nextConfig = {
   allowedDevOrigins: ["192.168.1.13", "localhost", "127.0.0.1"],
 
-  images: {
-    unoptimized: true // Esto ayuda con las imágenes locales en desarrollo
+  // Reduce RAM en dev manteniendo pocas rutas activas en memoria.
+  onDemandEntries: {
+    maxInactiveAge: 30_000,
+    pagesBufferLength: 2
   },
 
-  // Si necesitas alguna configuración específica de Turbopack, usa la nueva sintaxis:
-  experimental: {
-    // Dejamos esto vacío para que no lance el error de "Unrecognized key"
+  // Limita el contexto de Turbopack al root actual del proyecto.
+  turbopack: {
+    root: process.cwd()
+  },
+
+  images: {
+    // En desarrollo evita procesamiento pesado de imágenes.
+    unoptimized: isDev,
+    minimumCacheTTL: isDev ? 60 : 14_400
   }
 };
 
