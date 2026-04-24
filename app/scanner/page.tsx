@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { PantrySearchView } from "@/components/scanner/pantry-search-view";
 import { RecipeLoadingSkeleton } from "@/components/scanner/recipe-loading-skeleton";
 import { RecipeResultView } from "@/components/scanner/recipe-result-view";
+import { createSupabaseClient } from "@/lib/supabaseClient";
 
 type GeneratedRecipe = {
   titulo: string;
@@ -108,8 +109,11 @@ function resolveErrorMessage(
   if (status === 429) {
     return "Has alcanzado el límite de consultas gratuitas. Espera un momento.";
   }
+  if (payload.code === "HTTP_TEXT_ERROR") {
+    return "No se pudo completar la generación de receta por ahora. Inténtalo nuevamente.";
+  }
   return (
-    payload.error ??
+    (payload.error && payload.error !== "NOT_FOOD" ? payload.error : undefined) ??
     "No pudimos generar la receta con los ingredientes seleccionados. Inténtalo de nuevo."
   );
 }
@@ -124,6 +128,9 @@ export default function ScannerPage() {
   const [pantryImageFile, setPantryImageFile] = useState<File | null>(null);
   const [recipeFromPhoto, setRecipeFromPhoto] = useState(false);
   const [securityWarning, setSecurityWarning] = useState<string | null>(null);
+  const [showNotFoodGuidance, setShowNotFoodGuidance] = useState(false);
+  const [isSavingRecipe, setIsSavingRecipe] = useState(false);
+  const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null);
 
   const resetScannerState = () => {
     setSelectedIngredients([]);
@@ -134,19 +141,12 @@ export default function ScannerPage() {
     setErrorMessage(null);
     setRetryMessage(null);
     setIsLoading(false);
+    setShowNotFoodGuidance(false);
+    setSaveSuccessMessage(null);
   };
 
   const showDebugError = (context: string, error: unknown) => {
-    const errorText =
-      error instanceof Error
-        ? `${error.name}: ${error.message}`
-        : typeof error === "string"
-          ? error
-          : JSON.stringify(error);
     console.error(`[generate-recipe] ${context}:`, error);
-    if (typeof window !== "undefined") {
-      window.alert(`Error de receta (${context}): ${errorText}`);
-    }
   };
 
   useEffect(() => {
@@ -166,6 +166,7 @@ export default function ScannerPage() {
     setRecipe(null);
     setRecipeFromPhoto(false);
     setErrorMessage(null);
+    setShowNotFoodGuidance(false);
   };
 
   const handleToggleFromCategory = (name: string) => {
@@ -175,6 +176,7 @@ export default function ScannerPage() {
     setRecipe(null);
     setRecipeFromPhoto(false);
     setErrorMessage(null);
+    setShowNotFoodGuidance(false);
   };
 
   const handleRemoveIngredient = (name: string) => {
@@ -182,6 +184,7 @@ export default function ScannerPage() {
     setRecipe(null);
     setRecipeFromPhoto(false);
     setErrorMessage(null);
+    setShowNotFoodGuidance(false);
   };
 
   const handleAddMoreSubmit = () => {
@@ -192,6 +195,7 @@ export default function ScannerPage() {
     setRecipe(null);
     setRecipeFromPhoto(false);
     setErrorMessage(null);
+    setShowNotFoodGuidance(false);
   };
 
   const generarReceta = async () => {
@@ -282,19 +286,14 @@ export default function ScannerPage() {
             }),
             signal: createFetchSignal()
           });
-          if (!response.ok) {
-            throw new Error(await response.text());
-          }
         } catch (err) {
-          const responseText =
-            err instanceof Error && err.message ? err.message : "Error desconocido en la solicitud";
           networkError = !response || response.status === 0;
-          showDebugError("fetch/red o respuesta no-JSON", err);
+          showDebugError("fetch/red", err);
           return {
             response: response ?? new Response(null, { status: 0 }),
             payload: {
-              error: responseText,
-              details: responseText,
+              error: "No se pudo completar la solicitud.",
+              details: "Error de red",
               code: "HTTP_TEXT_ERROR"
             },
             networkError
@@ -302,9 +301,13 @@ export default function ScannerPage() {
         }
 
         try {
-          payload = (await response.json()) as ApiPayload;
-        } catch (parseErr) {
-          showDebugError("parseo JSON respuesta", parseErr);
+          const contentType = response.headers.get("content-type") ?? "";
+          if (contentType.includes("application/json")) {
+            payload = (await response.json()) as ApiPayload;
+          } else {
+            payload = {};
+          }
+        } catch {
           payload = {};
         }
 
@@ -333,6 +336,7 @@ export default function ScannerPage() {
     setErrorMessage(null);
     setRetryMessage(null);
     setRecipe(null);
+    setShowNotFoodGuidance(false);
 
     const longWaitTimer = window.setTimeout(() => {
       setRetryMessage(
@@ -379,11 +383,11 @@ export default function ScannerPage() {
           error: payload.error,
           details: payload.details
         });
-        if (payload.details || payload.error) {
-          const detailsText = payload.details ?? payload.error ?? "Sin detalle";
-          if (typeof window !== "undefined") {
-            window.alert(`Diagnóstico receta: ${detailsText}`);
-          }
+        const isNotFood = payload.code === "NOT_FOOD" || payload.error === "NOT_FOOD";
+        if (isNotFood) {
+          setShowNotFoodGuidance(true);
+          setErrorMessage(null);
+          return;
         }
         const friendlyError = resolveErrorMessage(response.status, payload, networkError);
         setErrorMessage(
@@ -411,6 +415,56 @@ export default function ScannerPage() {
     void generarReceta();
   };
 
+  const handleSaveRecipe = async () => {
+    if (!recipe || isSavingRecipe) return;
+    setIsSavingRecipe(true);
+    setErrorMessage(null);
+
+    try {
+      const supabase = createSupabaseClient();
+      const {
+        data: { user }
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        setErrorMessage("Necesitas iniciar sesión para guardar recetas en tu recetario.");
+        setIsSavingRecipe(false);
+        return;
+      }
+
+      const instructions = recipe.pasos_ordenados
+        .map((step, index) => `${index + 1}. ${step}`)
+        .join("\n");
+
+      const { error } = await supabase.from("recipes").insert({
+        user_id: user.id,
+        title: recipe.titulo,
+        ingredients: recipe.ingredientes_detallados,
+        instructions: instructions || "Sin pasos detallados",
+        image_url: null,
+        is_airfryer: true,
+        is_flourless: true,
+        is_public: false
+      });
+
+      if (error) {
+        setErrorMessage("No pudimos guardar la receta. Inténtalo nuevamente.");
+        setIsSavingRecipe(false);
+        return;
+      }
+
+      setSaveSuccessMessage("¡Receta guardada con éxito!");
+      window.setTimeout(() => {
+        window.location.assign("/app-recetas");
+      }, 600);
+    } catch (error) {
+      console.error("[save-recipe] Error guardando receta:", error);
+      setErrorMessage("No pudimos guardar la receta. Inténtalo nuevamente.");
+    } finally {
+      setIsSavingRecipe(false);
+    }
+  };
+
   return (
     <div className="min-h-[calc(100dvh-10rem)] bg-sv-surface">
       {isLoading ? (
@@ -419,19 +473,46 @@ export default function ScannerPage() {
 
       {!isLoading && recipe ? (
         <div className="animate-fade-in">
+          {saveSuccessMessage ? (
+            <div className="mb-3 rounded-xl border border-[#556B2F]/30 bg-[#FDFCFB] px-4 py-2 text-sm font-medium text-[#556B2F]">
+              {saveSuccessMessage}
+            </div>
+          ) : null}
           <RecipeResultView
             recipe={recipe}
             showPhotoBanner={recipeFromPhoto}
             onNewSearch={resetScannerState}
-            onSaveFavorites={() => {
-              console.info("[favorites] Guardar en favoritos (pendiente de backend)");
-            }}
+            onSaveFavorites={() => void handleSaveRecipe()}
+            isSavingFavorites={isSavingRecipe}
           />
         </div>
       ) : null}
 
       {!isLoading && !recipe ? (
         <div className="animate-fade-in">
+          {showNotFoodGuidance ? (
+            <div className="mb-4 rounded-2xl border border-[#556B2F]/25 bg-[#FDFCFB] p-4 shadow-sm">
+              <p className="text-lg font-semibold text-[#556B2F]">🍎 ¡Vaya! No parece haber comida ahí.</p>
+              <p className="mt-2 text-sm text-stone-700">
+                Para ayudarte con una receta increíble, asegúrate de que los ingredientes se vean
+                claramente en la foto.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setPantryImageFile(null);
+                  setRecipe(null);
+                  setRecipeFromPhoto(false);
+                  setErrorMessage(null);
+                  setRetryMessage(null);
+                  setShowNotFoodGuidance(false);
+                }}
+                className="mt-3 rounded-full bg-[#556B2F] px-4 py-2 text-sm font-semibold text-white transition hover:brightness-110"
+              >
+                📸 Intentar de nuevo
+              </button>
+            </div>
+          ) : null}
           <PantrySearchView
             selectedIngredients={selectedIngredients}
             pantryImageFile={pantryImageFile}

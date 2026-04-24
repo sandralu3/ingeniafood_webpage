@@ -1,264 +1,181 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { Sparkles, UtensilsCrossed } from "lucide-react";
-import { RecipeCard } from "@/components/recipes/RecipeCard";
+import { Clock, UtensilsCrossed } from "lucide-react";
+import { createSupabaseClient } from "@/lib/supabaseClient";
+import type { Database } from "@/types/database.types";
 
-const popularRecipes = [
-  {
-    title: "Bowl Verde Anti Inflamatorio",
-    category: "Popular",
-    time: "18 min",
-    description: "Receta ligera con vegetales frescos y grasas saludables para cuidar tu energia."
-  },
-  {
-    title: "Pollo al Horno con Hierbas",
-    category: "Sin Harinas",
-    time: "28 min",
-    description: "Proteina magra con especias naturales para una cena simple y balanceada."
-  },
-  {
-    title: "Smoothie de Frutos Rojos",
-    category: "Desayuno",
-    time: "10 min",
-    description: "Combinacion de antioxidantes y fibra para arrancar el dia de forma saludable."
+type RecipeRow = Database["public"]["Tables"]["recipes"]["Row"];
+
+function formatDate(value: string): string {
+  const date = new Date(value);
+  return new Intl.DateTimeFormat("es-ES", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric"
+  }).format(date);
+}
+
+function parseIngredients(value: Database["public"]["Tables"]["recipes"]["Row"]["ingredients"]): string[] {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item));
   }
-];
-
-type BeforeInstallPromptEvent = Event & {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
-};
-
-type WindowWithDeferredPrompt = Window & {
-  __ingeniaDeferredInstallPrompt?: BeforeInstallPromptEvent | null;
-  __ingeniaInstallPromptCapturedAt?: number | null;
-};
-
-function detectStandaloneMode() {
-  if (typeof window === "undefined") return false;
-  const mediaStandalone = window.matchMedia("(display-mode: standalone)").matches;
-  const iosStandalone = "standalone" in window.navigator && Boolean((window.navigator as { standalone?: boolean }).standalone);
-  return mediaStandalone || iosStandalone;
+  return [];
 }
 
 export default function AppRecetasHomePage() {
-  const [isStandalone, setIsStandalone] = useState(() => detectStandaloneMode());
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(() => {
-    if (typeof window === "undefined") return null;
-    return (window as WindowWithDeferredPrompt).__ingeniaDeferredInstallPrompt ?? null;
-  });
-  const [showInstallHelp, setShowInstallHelp] = useState(false);
-  const [installMessage, setInstallMessage] = useState<string | null>(null);
-  const [isIos] = useState(() => {
-    if (typeof window === "undefined") return false;
-    const ua = window.navigator.userAgent.toLowerCase();
-    return /iphone|ipad|ipod/.test(ua);
-  });
+  const [recipes, setRecipes] = useState<RecipeRow[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [selectedRecipe, setSelectedRecipe] = useState<RecipeRow | null>(null);
 
-  useEffect(() => {
-    let mounted = true;
+  const loadRecipes = async () => {
+    setIsLoading(true);
+    setErrorMessage(null);
 
-    const syncDeferredPrompt = () => {
-      const deferred = (window as WindowWithDeferredPrompt).__ingeniaDeferredInstallPrompt ?? null;
-      if (mounted) setDeferredPrompt(deferred);
-      return deferred;
-    };
-
-    const onBeforeInstallPrompt = (event: Event) => {
-      event.preventDefault();
-      const installPromptEvent = event as BeforeInstallPromptEvent;
-      (window as WindowWithDeferredPrompt).__ingeniaDeferredInstallPrompt = installPromptEvent;
-      (window as WindowWithDeferredPrompt).__ingeniaInstallPromptCapturedAt = Date.now();
-      console.log("Evento de instalación capturado");
-      if (mounted) {
-        setDeferredPrompt(installPromptEvent);
-        setInstallMessage(null);
-      }
-    };
-
-    const onAppInstalled = () => {
-      (window as WindowWithDeferredPrompt).__ingeniaDeferredInstallPrompt = null;
-      (window as WindowWithDeferredPrompt).__ingeniaInstallPromptCapturedAt = null;
-      if (mounted) {
-        setDeferredPrompt(null);
-        setIsStandalone(true);
-        setInstallMessage(null);
-      }
-    };
-
-    if ("serviceWorker" in navigator) {
-      void navigator.serviceWorker
-        .register("/sw.js")
-        .then((registration) => {
-          console.log("[PWA] Service Worker registrado:", registration.scope);
-          if (mounted) setInstallMessage(null);
-        })
-        .catch((error: unknown) => {
-          console.error("[PWA] Error al registrar Service Worker:", error);
-          if (mounted) {
-            setInstallMessage("No se pudo preparar la instalación automática.");
-            setShowInstallHelp(true);
-          }
-        });
-    }
-
-    syncDeferredPrompt();
-
-    window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
-    window.addEventListener("appinstalled", onAppInstalled);
-
-    const refreshPromptTimer = window.setInterval(() => {
-      if (detectStandaloneMode()) return;
-      const currentPrompt = syncDeferredPrompt();
-      if (!currentPrompt && mounted) {
-        setInstallMessage(
-          "Para usar IngeniaFood, toca los 3 puntos (⋮) de Chrome > Instalar aplicación."
-        );
-      }
-    }, 6000);
-
-    return () => {
-      mounted = false;
-      window.clearInterval(refreshPromptTimer);
-      window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);
-      window.removeEventListener("appinstalled", onAppInstalled);
-    };
-  }, []);
-
-  const showInstallOverlay = useMemo(() => !isStandalone, [isStandalone]);
-
-  const handleInstall = async () => {
-    const activePrompt = deferredPrompt ?? (window as WindowWithDeferredPrompt).__ingeniaDeferredInstallPrompt ?? null;
-    if (!activePrompt) {
-      setInstallMessage(
-        "Para usar IngeniaFood, toca los 3 puntos (⋮) de Chrome > Instalar aplicación."
-      );
-      setShowInstallHelp(true);
-      return;
-    }
     try {
-      await activePrompt.prompt();
-      const choice = await activePrompt.userChoice;
-      if (choice.outcome === "accepted") {
-        (window as WindowWithDeferredPrompt).__ingeniaDeferredInstallPrompt = null;
-        (window as WindowWithDeferredPrompt).__ingeniaInstallPromptCapturedAt = null;
-        setDeferredPrompt(null);
-        setIsStandalone(true);
-        setInstallMessage(null);
-      } else {
-        setInstallMessage("Instalación cancelada. Puedes intentarlo de nuevo.");
-        setShowInstallHelp(true);
+      const supabase = createSupabaseClient();
+      const {
+        data: { user }
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        setRecipes([]);
+        setIsLoading(false);
+        return;
       }
-    } catch {
-      (window as WindowWithDeferredPrompt).__ingeniaDeferredInstallPrompt = null;
-      setDeferredPrompt(null);
-      setInstallMessage(
-        "Para usar IngeniaFood, toca los 3 puntos (⋮) de Chrome > Instalar aplicación."
-      );
-      setShowInstallHelp(true);
+
+      const { data, error } = await supabase
+        .from("recipes")
+        .select("id,user_id,title,ingredients,instructions,image_url,created_at,description,cooking_time,is_airfryer,is_flourless,is_public")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        setErrorMessage("No pudimos cargar tu recetario en este momento.");
+        setRecipes([]);
+      } else {
+        setRecipes(data ?? []);
+      }
+    } catch (error) {
+      console.error("[recipes-home] Error cargando recetas:", error);
+      setErrorMessage("No pudimos cargar tu recetario en este momento.");
+      setRecipes([]);
+    } finally {
+      setIsLoading(false);
     }
   };
 
+  useEffect(() => {
+    void loadRecipes();
+  }, []);
+
+  const pageContent = useMemo(() => {
+    if (isLoading) {
+      return (
+        <p className="rounded-2xl border border-[#556B2F]/15 bg-white px-4 py-3 text-sm text-stone-700">
+          Cargando tu recetario...
+        </p>
+      );
+    }
+
+    if (errorMessage) {
+      return (
+        <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {errorMessage}
+        </p>
+      );
+    }
+
+    if (!recipes.length) {
+      return (
+        <p className="rounded-2xl border border-[#556B2F]/15 bg-white px-4 py-3 text-sm text-stone-700">
+          Aún no tienes recetas guardadas. ¡Escanea tus ingredientes para empezar!
+        </p>
+      );
+    }
+
+    return (
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {recipes.map((recipe) => (
+          <button
+            key={recipe.id}
+            type="button"
+            onClick={() => setSelectedRecipe(recipe)}
+            className="rounded-2xl border border-[#556B2F]/20 bg-white p-4 text-left shadow-sm transition hover:border-[#556B2F]/35"
+          >
+            <p className="text-base font-semibold text-[#1F2937]">{recipe.title}</p>
+            <p className="mt-1 text-xs text-stone-600">{formatDate(recipe.created_at)}</p>
+          </button>
+        ))}
+      </div>
+    );
+  }, [errorMessage, isLoading, recipes]);
+
   return (
-    <>
-      {showInstallOverlay ? (
-        <div className="fixed inset-0 z-[120] bg-[#FDFCFB] text-[#1b1c19]">
-          <div className="mx-auto flex h-full w-full max-w-md flex-col items-center justify-center px-6 text-center">
-            <p className="mb-3 text-sm tracking-[0.08em] text-stone-700">
-              <span className="font-medium">Sandra Vergara</span>
-              <span className="mx-1 text-stone-400">|</span>
-              <span className="font-light text-[#444444]">Ingenia</span>
-              <span className="font-bold text-[#556B2F]">Food</span>
-            </p>
-            <h1 className="text-2xl font-bold text-[#556B2F]">Instala IngeniaFood</h1>
-            <p className="mt-3 text-sm leading-relaxed text-stone-700">
-              Para usar IngeniaFood, instálala en tu pantalla de inicio.
-            </p>
-            {isIos ? (
-              <p className="mt-6 rounded-2xl border border-[#556B2F]/20 bg-white px-4 py-3 text-sm leading-relaxed text-stone-700">
-                En Safari: toca el icono de compartir y luego{" "}
-                <strong>&quot;Añadir a la pantalla de inicio&quot;</strong>.
-              </p>
-            ) : (
-              <>
+    <section className="space-y-4">
+      <header className="space-y-1">
+        <h1 className="text-2xl font-bold tracking-tight text-[#1F2937]">Mi recetario</h1>
+        <p className="text-sm text-stone-600">
+          Tus recetas guardadas, listas para cocinar cuando quieras.
+        </p>
+      </header>
+
+      {pageContent}
+
+      {selectedRecipe ? (
+        <div className="fixed inset-0 z-[130] flex items-end justify-center bg-black/30 px-4 pb-6 sm:items-center">
+          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-lg">
+            <div className="flex items-start justify-between gap-3">
+              <h2 className="text-xl font-bold text-[#1F2937]">{selectedRecipe.title}</h2>
               <button
                 type="button"
-                onClick={() => void handleInstall()}
-                className="mt-6 inline-flex rounded-full bg-[#556B2F] px-6 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-[#4a5d29]"
+                onClick={() => setSelectedRecipe(null)}
+                className="rounded-full border border-stone-200 px-3 py-1 text-xs text-stone-600"
               >
-                Instalar IngeniaFood
+                Cerrar
               </button>
-                {showInstallHelp || !deferredPrompt ? (
-                  <p className="mt-4 rounded-2xl border border-[#556B2F]/20 bg-white px-4 py-3 text-sm leading-relaxed text-stone-700">
-                    {installMessage ??
-                      "Para usar IngeniaFood, toca los 3 puntos (⋮) de Chrome > Instalar aplicación."}
-                  </p>
-                ) : null}
-              </>
-            )}
+            </div>
+
+            <p className="mt-1 text-xs text-stone-500">{formatDate(selectedRecipe.created_at)}</p>
+
+            <div className="mt-4 space-y-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#556B2F]">
+                  Ingredientes
+                </p>
+                <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-stone-700">
+                  {parseIngredients(selectedRecipe.ingredients).map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#556B2F]">
+                  Instrucciones
+                </p>
+                <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-stone-700">
+                  {selectedRecipe.instructions}
+                </p>
+              </div>
+              {selectedRecipe.cooking_time ? (
+                <p className="inline-flex items-center gap-1 text-xs text-stone-600">
+                  <Clock className="h-3.5 w-3.5 text-[#556B2F]" />
+                  {selectedRecipe.cooking_time} min
+                </p>
+              ) : null}
+            </div>
           </div>
         </div>
       ) : null}
 
-      <section className="space-y-8">
-        <article className="relative overflow-hidden rounded-3xl border border-brand-green-light/25 bg-white px-5 py-6 shadow-sm">
-          <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-brand-green-light/20" />
-          <div className="relative space-y-5">
-            <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-green-light">
-                Cocina Inteligente
-              </p>
-              <h1 className="text-3xl font-bold leading-tight text-brand-green-dark">
-                Transforma tu nevera en bienestar diario.
-              </h1>
-              <p className="max-w-[32ch] text-sm leading-relaxed text-brand-green-dark/80">
-                Descubre recetas personalizadas con lo que ya tienes en casa. Menos friccion, mas
-                salud en cada comida.
-              </p>
-            </div>
-
-            <Link
-              href="/app-recetas/scanner"
-              className="inline-flex items-center gap-2 rounded-full bg-brand-green-dark px-5 py-3 text-sm font-semibold text-brand-cream shadow-md shadow-brand-green-dark/25 transition hover:bg-brand-green-dark/90"
-            >
-              <UtensilsCrossed className="h-4 w-4" />
-              Seleccionar Ingredientes
-            </Link>
-
-            <div className="inline-flex items-center gap-2 rounded-2xl border border-brand-green-light/25 bg-brand-cream px-3 py-2 text-xs text-brand-green-dark/85">
-              <Sparkles className="h-4 w-4 text-brand-green-light" />
-              Tip del dia: agrega hojas verdes en tu primera comida.
-            </div>
-          </div>
-        </article>
-
-        <article className="space-y-4">
-          <div className="flex items-end justify-between">
-            <div>
-              <h2 className="text-xl font-bold tracking-tight text-brand-green-dark">
-                Recetas Populares
-              </h2>
-              <p className="text-sm text-brand-green-dark/70">Inspiradas en tu estilo saludable.</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-4">
-            {popularRecipes.map((recipe, index) => (
-              <RecipeCard
-                key={recipe.title}
-                title={recipe.title}
-                category={recipe.category}
-                time={recipe.time}
-                description={recipe.description}
-                imageLabel={`Imagen de ${recipe.title}`}
-                featured={index === 0}
-              />
-            ))}
-          </div>
-        </article>
-      </section>
-    </>
+      <a
+        href="/app-recetas/scanner"
+        className="inline-flex items-center gap-2 rounded-full bg-[#556B2F] px-5 py-3 text-sm font-semibold text-white shadow-md transition hover:brightness-110"
+      >
+        <UtensilsCrossed className="h-4 w-4" />
+        Escanear ingredientes
+      </a>
+    </section>
   );
 }

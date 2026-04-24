@@ -20,6 +20,7 @@ type Props = {
   showPhotoBanner?: boolean;
   onSaveFavorites?: () => void;
   onNewSearch?: () => void;
+  isSavingFavorites?: boolean;
 };
 
 function inferDifficulty(pasosCount: number): string {
@@ -56,7 +57,8 @@ function buildMacroData(recipe: GeneratedRecipe) {
 export function RecipeResultView({
   recipe,
   onSaveFavorites,
-  onNewSearch
+  onNewSearch,
+  isSavingFavorites = false
 }: Props) {
   const macroData = buildMacroData(recipe);
 
@@ -165,10 +167,11 @@ export function RecipeResultView({
             <button
               type="button"
               onClick={onSaveFavorites}
-              className="group flex w-full items-center justify-center gap-2 rounded-xl bg-sv-primary px-5 py-3 text-sm font-semibold tracking-wide text-sv-on-primary shadow-lg shadow-sv-primary/20 transition duration-300 hover:scale-[1.01]"
+              disabled={isSavingFavorites}
+              className="group flex w-full items-center justify-center gap-2 rounded-xl bg-sv-primary px-5 py-3 text-sm font-semibold tracking-wide text-sv-on-primary shadow-lg shadow-sv-primary/20 transition duration-300 hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60"
             >
               <Bookmark className="h-4 w-4 fill-current" />
-              Guardar en Favoritos
+              {isSavingFavorites ? "Guardando..." : "Guardar en mi recetario"}
             </button>
           </div>
         </div>

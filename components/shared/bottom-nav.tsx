@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/app-recetas", label: "Home", icon: Home },
-  { href: "/app-recetas/scanner", label: "AI Scan", icon: ScanLine, highlight: true },
+  { href: "/app-recetas/scanner", label: "Escáner Sandra", icon: ScanLine, highlight: true },
   { href: "/app-recetas/recipes", label: "Saved", icon: Bookmark },
   { href: "/app-recetas/profile", label: "Profile", icon: UserRound }
 ];

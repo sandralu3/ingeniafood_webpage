@@ -1,8 +1,5 @@
 import { GoogleGenerativeAI, type Part } from "@google/generative-ai";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import type { Database } from "@/types/database.types";
 
 /** Vision + JSON puede tardar más que solo texto (p. ej. en Vercel). */
 export const maxDuration = 30;
@@ -110,15 +107,6 @@ function parseJsonResponse(rawText: string): ParseOutcome {
     console.log("DEBUG RAW RESPONSE: " + rawText);
     return { status: "invalid" };
   }
-}
-
-function parseCookingMinutes(tiempo: string): number | null {
-  const match = tiempo.match(/\d+/);
-  if (!match) {
-    return null;
-  }
-  const minutes = Number(match[0]);
-  return Number.isFinite(minutes) ? minutes : null;
 }
 
 function formatGeminiFailure(error: unknown): string {
@@ -296,36 +284,6 @@ export async function POST(request: Request) {
         `[Gemini] API key cargada correctamente: ${maskApiKeyForDevLog(apiKey)}`
       );
     }
-
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (!supabaseUrl || !supabaseKey) {
-      return jsonResponse(
-        { error: "Faltan variables de Supabase para autenticar usuario." },
-        500
-      );
-    }
-
-    const cookieStore = await cookies();
-    const supabase = createServerClient<Database>(supabaseUrl, supabaseKey, {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              cookieStore.set(name, value, options);
-            });
-          } catch {
-            // En Route Handlers las cookies a veces son de solo lectura; el middleware puede refrescar sesión.
-          }
-        }
-      }
-    });
-    const {
-      data: { user }
-    } = await supabase.auth.getUser();
 
     const genAI = new GoogleGenerativeAI(apiKey);
     const selectedList = selectedIngredients.join(", ");
@@ -538,56 +496,9 @@ export async function POST(request: Request) {
       pasos_ordenados: Array.isArray(recipe.pasos_ordenados) ? recipe.pasos_ordenados : []
     };
 
-    const instructions = safeRecipe.pasos_ordenados
-      .map((step, index) => `${index + 1}. ${step}`)
-      .join("\n");
-    const description = hasImage
-      ? selectedIngredients.length
-        ? `Receta saludable sin harinas basada en foto de despensa y seleccion: ${selectedList}.`
-        : "Receta saludable sin harinas basada en analisis de imagen de despensa o nevera."
-      : `Receta saludable sin harinas basada en: ${selectedList}.`;
-
-    // Permite uso sin sesión: guarda en BD solo si hay usuario autenticado.
-    if (!user) {
-      return jsonResponse({
-        recipe: safeRecipe,
-        savedRecipe: null
-      });
-    }
-
-    const { data: insertedRecipe, error: insertError } = await supabase
-      .from("recipes")
-      .insert({
-        user_id: user.id,
-        title: safeRecipe.titulo,
-        description,
-        ingredients: safeRecipe.ingredientes_detallados,
-        instructions: instructions || "No se generaron pasos detallados.",
-        cooking_time: parseCookingMinutes(safeRecipe.tiempo_preparacion),
-        image_url: null,
-        is_airfryer: true,
-        is_flourless: true,
-        is_public: false
-      })
-      .select(
-        "id, title, description, ingredients, instructions, cooking_time, is_airfryer, is_flourless"
-      )
-      .single();
-
-    if (insertError) {
-      return jsonResponse(
-        {
-          error:
-            "La receta se generó, pero no se pudo guardar en tu cuenta. Verifica perfil y políticas RLS de recipes.",
-          details: insertError.message
-        },
-        500
-      );
-    }
-
     return jsonResponse({
       recipe: safeRecipe,
-      savedRecipe: insertedRecipe
+      savedRecipe: null
     });
   } catch (error) {
     const message =

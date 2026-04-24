@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
 import { Download } from "lucide-react";
 import AuthPage from "@/app/auth/page";
 import { createSupabaseClient } from "@/lib/supabaseClient";
@@ -105,8 +104,6 @@ function InstallationLanding({
 }
 
 export function AppRecetasAccessGate({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-  const router = useRouter();
   const [isStandalone, setIsStandalone] = useState(false);
   const [checkedStandalone, setCheckedStandalone] = useState(false);
   const [authState, setAuthState] = useState<AuthState>("loading");
@@ -177,12 +174,6 @@ export function AppRecetasAccessGate({ children }: { children: React.ReactNode }
       subscription.unsubscribe();
     };
   }, [checkedStandalone, isStandalone]);
-
-  useEffect(() => {
-    if (authState === "authenticated" && pathname === "/app-recetas") {
-      router.replace("/app-recetas/scanner");
-    }
-  }, [authState, pathname, router]);
 
   const handleInstallClick = async () => {
     if (isIos) {

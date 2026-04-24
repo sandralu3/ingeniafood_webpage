@@ -1,10 +1,29 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 type Props = {
   retryMessage: string | null;
 };
 
 export function RecipeLoadingSkeleton({ retryMessage }: Props) {
+  const loadingMessages = [
+    "Sandra está preparando tu receta personalizada...",
+    "Sandra está eligiendo las mejores técnicas para tus ingredientes...",
+    "Sandra está optimizando los tiempos de cocción...",
+    "Casi listo... Sandra le está dando el toque final a tu plan saludable."
+  ];
+  const [messageIndex, setMessageIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setMessageIndex((prev) => (prev + 1) % loadingMessages.length);
+    }, 5000);
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [loadingMessages.length]);
+
   return (
     <div className="opacity-100 transition-opacity duration-300">
       <div className="flex flex-col items-center space-y-4 text-center">
@@ -13,10 +32,12 @@ export function RecipeLoadingSkeleton({ retryMessage }: Props) {
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sv-primary opacity-75" />
             <span className="relative inline-flex h-2 w-2 rounded-full bg-sv-primary" />
           </span>
-          Gemini 3 Analizando
+          <span>
+            <span className="font-extrabold text-[#556B2F]">Sandra</span> en cocina
+          </span>
         </div>
         <h1 className="max-w-2xl text-3xl font-extrabold tracking-tight text-sv-primary md:text-5xl">
-          Analizando ingredientes y optimizando receta...
+          {loadingMessages[messageIndex]}
         </h1>
         {retryMessage ? (
           <p className="max-w-xl text-sm font-medium text-sv-on-surface-variant">

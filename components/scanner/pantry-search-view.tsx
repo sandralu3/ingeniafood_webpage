@@ -103,6 +103,7 @@ export function PantrySearchView({
   }, [previewUrl]);
 
   const openFilePicker = useCallback(() => {
+    console.log("Abriendo selector de medios...");
     inputRef.current?.click();
   }, []);
 
@@ -170,6 +171,7 @@ export function PantrySearchView({
         >
           <input
             ref={inputRef}
+            id="fileInput"
             type="file"
             accept="image/*"
             className="sr-only"
