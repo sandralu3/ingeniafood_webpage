@@ -5,6 +5,7 @@ import type { Database } from "@/types/database.types";
 const PUBLIC_ROUTES = new Set([
   "/",
   "/auth",
+  "/auth/callback",
   "/login",
   "/registro",
   "/desktop-app-recetas",
@@ -120,6 +121,13 @@ export async function proxy(request: NextRequest) {
 
   const isAppRoute = pathname === "/app-recetas" || pathname.startsWith("/app-recetas/");
   const isPublicRoute = PUBLIC_ROUTES.has(pathname);
+
+  if (session && (pathname === "/login" || pathname === "/auth" || pathname === "/registro")) {
+    const targetUrl = request.nextUrl.clone();
+    targetUrl.pathname = "/app-recetas";
+    targetUrl.search = "";
+    return NextResponse.redirect(targetUrl);
+  }
 
   if (!session && isAppRoute) {
     const redirectUrl = request.nextUrl.clone();

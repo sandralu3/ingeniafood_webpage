@@ -26,7 +26,11 @@ function AuthFallback() {
 
 function AuthForm() {
   const searchParams = useSearchParams();
-  const nextPath = searchParams.get("next") || "/";
+  const requestedNextPath = searchParams.get("next");
+  const nextPath =
+    requestedNextPath && requestedNextPath.startsWith("/app-recetas")
+      ? requestedNextPath
+      : "/app-recetas";
   const queryMode = searchParams.get("mode");
   const reason = searchParams.get("reason");
   const showAppRecetasMessage = reason === "app-recetas-auth";
@@ -84,7 +88,7 @@ function AuthForm() {
               },
               emailRedirectTo:
                 typeof window !== "undefined"
-                  ? `${window.location.origin}/auth?mode=login&verified=1`
+                  ? `${window.location.origin}/auth/callback?next=${encodeURIComponent("/app-recetas")}`
                   : undefined
             }
           })
