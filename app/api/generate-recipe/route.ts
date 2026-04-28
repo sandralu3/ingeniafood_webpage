@@ -300,11 +300,17 @@ export async function POST(request: Request) {
       : "El usuario no seleccionó ingredientes manualmente; infiere los ingredientes únicamente desde la imagen si es posible.";
 
     const jsonRules =
-      "Solo JSON valido. Entrega receta saludable, rapida y sin harinas. Formato esperado en texto: { \"titulo\": \"\", \"tiempo\": \"X min\", \"ingredientes\": [], \"pasos\": [], \"tip_sandra\": \"\" }. Genera un 'Tip de Sandra' para cada receta. Debe ser un consejo experto de no más de 2 frases sobre técnica de cocina, nutrición o conservación, escrito con un tono profesional, cercano y motivador.";
+      "Solo JSON valido. Entrega receta saludable, rapida y sin harinas. Formato esperado en texto: { \"titulo\": \"\", \"tiempo\": \"X min\", \"ingredientes\": [], \"pasos\": [], \"tip_sandra\": \"\" }. " +
+      "REGLA DE ORO DE INVENTARIO (obligatoria): PROHIBIDO añadir ingredientes al titulo o a las instrucciones que no hayan sido detectados en la imagen ni seleccionados por el usuario, salvo basicos de despensa permitidos (sal, pimienta, aceite, agua). " +
+      "Si el titulo incluye una especia o sabor (como curry o pimenton), ese ingrediente DEBE figurar en ingredientes_detallados y estar respaldado por evidencia visual o seleccion manual. " +
+      "PRIORIDAD DE ATRIBUTOS: el titulo debe ser una descripcion tecnica y real de los ingredientes capturados; no inventes sabores externos para hacerlo atractivo. " +
+      "VALIDACION CRUZADA obligatoria antes de responder: verifica internamente si todos los elementos del titulo estan presentes en ingredientes_detallados; si no, renombra la receta para que coincida. " +
+      "AJUSTE EN TIP DE SANDRA: si consideras que falta algun ingrediente para mejorar sabor (ej. curry), NO lo agregues a la receta principal; incluyelo solo como sugerencia opcional en tip_sandra. " +
+      "Genera un 'Tip de Sandra' para cada receta. Debe ser un consejo experto de no mas de 2 frases sobre tecnica de cocina, nutricion o conservacion, escrito con un tono profesional, cercano y motivador.";
 
     const systemInstruction = hasImage
       ? `${VISION_SYSTEM_PREFIX}${jsonRules} ${manualClause}`
-      : `Solo JSON valido. Usa ingredientes: [${selectedList}]. Entrega receta saludable, rapida y sin harinas con formato { "titulo": "", "tiempo": "X min", "ingredientes": [], "pasos": [] }.`;
+      : `Solo JSON valido. Usa ingredientes: [${selectedList}]. Entrega receta saludable, rapida y sin harinas con formato { "titulo": "", "tiempo_preparacion": "X min", "ingredientes_detallados": [], "pasos_ordenados": [], "tip_sandra": "" }. ${jsonRules}`;
 
     const promptTail =
       selectedIngredients.length && hasImage
