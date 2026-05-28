@@ -1,6 +1,6 @@
 -- Sandra Vergara | Cocina Inteligente
 -- Supabase schema + RLS policies
-
+-- PW: C9q689NItZMtwz7k
 -- Extensions
 create extension if not exists "pgcrypto";
 

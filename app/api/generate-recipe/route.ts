@@ -154,6 +154,12 @@ function isAuthConfigurationError(message: string): boolean {
   );
 }
 
+function buildModelCandidates(configuredModel?: string): string[] {
+  const defaults = ["gemini-3.1-flash-lite"];
+  const all = configuredModel?.trim() ? [configuredModel.trim(), ...defaults] : defaults;
+  return Array.from(new Set(all.filter((model) => model.length > 0)));
+}
+
 function stripDataUrlBase64(input: string): { base64: string; mimeType?: string } {
   const trimmed = input.trim();
   const dataUrl = trimmed.match(/^data:([^;]+);base64,([\s\S]+)$/i);
@@ -292,8 +298,8 @@ export async function POST(request: Request) {
 
     const genAI = new GoogleGenerativeAI(apiKey);
     const selectedList = selectedIngredients.join(", ");
-    const modelName =
-      process.env.GOOGLE_GENERATIVE_AI_MODEL?.trim() || "gemini-3-flash-preview";
+    const configuredModel = process.env.GOOGLE_GENERATIVE_AI_MODEL?.trim();
+    const modelCandidates = buildModelCandidates(configuredModel);
 
     const manualClause = selectedIngredients.length
       ? `Usa como referencia obligatoria los ingredientes seleccionados manualmente: [${selectedList}]. Combínalos de forma coherente con lo visible en la imagen (si aplica).`
@@ -326,24 +332,11 @@ export async function POST(request: Request) {
       `${promptTail} No inventes ingredientes imposibles; prioriza lo visible y lo indicado arriba.`;
 
     let rawResponse = "";
-    const model = genAI.getGenerativeModel(
-      {
-        model: modelName,
-        systemInstruction,
-        generationConfig: {
-          temperature: 0.2,
-          topP: 0.9,
-          // Evita truncar el JSON (PARSING_ERROR por respuesta cortada).
-          maxOutputTokens: 2048,
-          responseMimeType: "application/json"
-        }
-      },
-      { timeout: GEMINI_REQUEST_TIMEOUT_MS }
-    );
 
     const maxAttempts = 3;
     const baseDelayMs = 2000;
     let lastFailure = "";
+    let lastTriedModel = modelCandidates[0] ?? configuredModel ?? "gemini-3.1-flash-lite";
 
     const contentParts: Part[] = [];
     if (hasImage && imageBase64Raw) {
@@ -358,24 +351,49 @@ export async function POST(request: Request) {
 
     const callGenerateContentOnce = async (): Promise<string> => {
       let text = "";
-      let failure = "";
-      for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-        try {
-          // generateContent (no stream): multimodal cuando hay imagen (orden: imagen, texto)
-          const result = await model.generateContent(contentParts, {
-            timeout: GEMINI_REQUEST_TIMEOUT_MS
-          });
-          text = result.response.text();
-          break;
-        } catch (error) {
-          failure = `${modelName}: ${formatGeminiFailure(error)}`;
-          const retryable = isRateLimited(failure) || isServiceUnavailable(failure);
-          if (!retryable || attempt === maxAttempts) {
+      let failure = lastFailure;
+
+      for (const candidateModel of modelCandidates) {
+        lastTriedModel = candidateModel;
+        const model = genAI.getGenerativeModel(
+          {
+            model: candidateModel,
+            systemInstruction,
+            generationConfig: {
+              temperature: 0.2,
+              topP: 0.9,
+              // Evita truncar el JSON (PARSING_ERROR por respuesta cortada).
+              maxOutputTokens: 2048,
+              responseMimeType: "application/json"
+            }
+          },
+          { timeout: GEMINI_REQUEST_TIMEOUT_MS }
+        );
+
+        for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+          try {
+            // generateContent (no stream): multimodal cuando hay imagen (orden: imagen, texto)
+            const result = await model.generateContent(contentParts, {
+              timeout: GEMINI_REQUEST_TIMEOUT_MS
+            });
+            text = result.response.text();
             break;
+          } catch (error) {
+            failure = `${candidateModel}: ${formatGeminiFailure(error)}`;
+            const retryable = isRateLimited(failure) || isServiceUnavailable(failure);
+            const modelMissing = isModelNotFound(failure);
+            if (modelMissing || !retryable || attempt === maxAttempts) {
+              break;
+            }
+            await sleep(baseDelayMs * 2 ** (attempt - 1));
           }
-          await sleep(baseDelayMs * 2 ** (attempt - 1));
+        }
+
+        if (text.trim().length > 0) {
+          break;
         }
       }
+
       lastFailure = failure;
       return text;
     };
@@ -434,7 +452,7 @@ export async function POST(request: Request) {
 
       if (missingModelHit) {
         console.error(
-          "Error de configuración de modelo: Revisa que el modelo 'gemini-3-flash-preview' esté habilitado en este proyecto"
+          `Error de configuración de modelo: Revisa que el modelo configurado esté habilitado en este proyecto. Ultimo modelo probado: ${lastTriedModel}`
         );
       }
 
@@ -458,7 +476,7 @@ export async function POST(request: Request) {
           error: authConfigHit
             ? "Error de autenticacion o permisos con Google AI. Verifica GOOGLE_GENERATIVE_AI_API_KEY y que la API Gemini este habilitada para tu proyecto."
             : missingModelHit
-              ? "El modelo configurado no esta disponible para esta API key/proyecto. Cambia GOOGLE_GENERATIVE_AI_MODEL por uno habilitado."
+              ? `El modelo configurado no esta disponible para esta API key/proyecto. Modelos probados: ${modelCandidates.join(", ")}.`
               : quotaHit
                 ? "Has alcanzado el límite de consultas gratuitas. Espera un momento."
                 : "No pudimos contactar al modelo de IA. Verifica la API key y la configuracion del modelo.",
@@ -473,7 +491,7 @@ export async function POST(request: Request) {
       return jsonResponse(
         {
           error: "Gemini respondio vacio. Verifica tu prompt o intenta con otros ingredientes.",
-          details: `${modelName}: respuesta vacia del modelo`
+          details: `${lastTriedModel}: respuesta vacia del modelo`
         },
         502
       );

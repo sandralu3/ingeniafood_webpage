@@ -100,6 +100,11 @@ function extractRetrySeconds(details?: string): number {
   return 30;
 }
 
+function isHardQuotaExceeded(details?: string): boolean {
+  if (!details) return false;
+  return /limit:\s*0/i.test(details) || /quota exceeded/i.test(details);
+}
+
 function resolveErrorMessage(
   status: number,
   payload: ApiPayload,
@@ -122,6 +127,9 @@ function resolveErrorMessage(
     return "El servidor de Google está saturado (Demanda alta). Por favor, intenta de nuevo en unos segundos.";
   }
   if (status === 429) {
+    if (isHardQuotaExceeded(payload.details)) {
+      return "Servicio de IA temporalmente sin cuota disponible. Intenta de nuevo más tarde.";
+    }
     return rateLimitSeconds && rateLimitSeconds > 0
       ? `Sandra está muy solicitada ahora. Reintenta en ${rateLimitSeconds}s.`
       : "Has alcanzado el límite de consultas gratuitas. Espera un momento.";
@@ -348,7 +356,9 @@ export default function ScannerPage() {
           payload = {};
         }
 
-        const retryableStatus = response.status === 429 || response.status === 503;
+        const retryableStatus =
+          response.status === 503 ||
+          (response.status === 429 && !isHardQuotaExceeded(payload.details));
         if (retryableStatus && attempt < maxAttempts - 1) {
           const nextAttempt = attempt + 2;
           setRetryMessage(
