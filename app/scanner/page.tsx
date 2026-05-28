@@ -327,7 +327,7 @@ export default function ScannerPage() {
           networkError = !response || response.status === 0;
           showDebugError("fetch/red", err);
           return {
-            response: response ?? new Response(null, { status: 0 }),
+            response: response ?? new Response(null, { status: 503 }),
             payload: {
               error: "No se pudo completar la solicitud.",
               details: "Error de red",
@@ -363,7 +363,7 @@ export default function ScannerPage() {
       }
 
       return {
-        response: response ?? new Response(null, { status: 0 }),
+        response: response ?? new Response(null, { status: 503 }),
         payload,
         networkError
       };
