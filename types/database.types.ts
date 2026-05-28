@@ -16,6 +16,7 @@ export type Database = {
           avatar_url: string | null;
           is_premium: boolean;
           created_at: string;
+          updated_at: string;
         };
         Insert: {
           id: string;
@@ -23,6 +24,7 @@ export type Database = {
           avatar_url?: string | null;
           is_premium?: boolean;
           created_at?: string;
+          updated_at?: string;
         };
         Update: {
           id?: string;
@@ -30,6 +32,7 @@ export type Database = {
           avatar_url?: string | null;
           is_premium?: boolean;
           created_at?: string;
+          updated_at?: string;
         };
         Relationships: [
           {
@@ -48,6 +51,7 @@ export type Database = {
           title: string;
           description: string | null;
           ingredients: Json;
+          steps: Json;
           instructions: string;
           tip_sandra: string | null;
           cooking_time: number | null;
@@ -56,6 +60,7 @@ export type Database = {
           is_flourless: boolean;
           is_public: boolean;
           created_at: string;
+          updated_at: string;
         };
         Insert: {
           id?: string;
@@ -63,6 +68,7 @@ export type Database = {
           title: string;
           description?: string | null;
           ingredients?: Json;
+          steps?: Json;
           instructions: string;
           tip_sandra?: string | null;
           cooking_time?: number | null;
@@ -71,6 +77,7 @@ export type Database = {
           is_flourless?: boolean;
           is_public?: boolean;
           created_at?: string;
+          updated_at?: string;
         };
         Update: {
           id?: string;
@@ -78,6 +85,7 @@ export type Database = {
           title?: string;
           description?: string | null;
           ingredients?: Json;
+          steps?: Json;
           instructions?: string;
           tip_sandra?: string | null;
           cooking_time?: number | null;
@@ -86,6 +94,7 @@ export type Database = {
           is_flourless?: boolean;
           is_public?: boolean;
           created_at?: string;
+          updated_at?: string;
         };
         Relationships: [
           {

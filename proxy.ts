@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import type { Database } from "@/types/database.types";
+import { getSupabaseProjectUrl } from "@/lib/supabaseConfig";
 
 const PUBLIC_ROUTES = new Set([
   "/",
@@ -96,7 +97,7 @@ export async function proxy(request: NextRequest) {
     }
   });
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseUrl = getSupabaseProjectUrl();
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseKey) {

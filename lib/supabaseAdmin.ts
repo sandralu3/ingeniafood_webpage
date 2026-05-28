@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database.types";
+import { getSupabaseProjectUrl } from "@/lib/supabaseConfig";
 
 let adminClient: ReturnType<typeof createClient<Database>> | null = null;
 
@@ -8,7 +9,7 @@ export function getSupabaseAdminClient() {
     return adminClient;
   }
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseUrl = getSupabaseProjectUrl();
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!supabaseUrl || !serviceRoleKey) {

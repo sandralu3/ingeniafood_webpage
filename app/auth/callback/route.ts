@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import type { Database } from "@/types/database.types";
+import { getSupabaseProjectUrl } from "@/lib/supabaseConfig";
 
 function resolveSafeNextPath(value: string | null): string {
   if (!value) return "/app-recetas";
@@ -14,7 +15,7 @@ export async function GET(request: Request) {
   const next = resolveSafeNextPath(url.searchParams.get("next"));
   const redirectUrl = new URL(next, url.origin);
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseUrl = getSupabaseProjectUrl();
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseKey || !code) {

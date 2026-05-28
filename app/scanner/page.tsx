@@ -490,6 +490,7 @@ export default function ScannerPage() {
         user_id: user.id,
         title: recipe.titulo,
         ingredients: recipe.ingredientes_detallados,
+        steps: recipe.pasos_ordenados,
         instructions: instructions || "Sin pasos detallados",
         tip_sandra: recipe.tip_sandra,
         image_url: null,
