@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, Heart, Loader2 } from "lucide-react";
 import { RecipeDetailMagazine } from "@/components/recipes/recipe-detail-magazine";
+import { handleRemoveFromFavorites } from "@/lib/recipes/remove-from-favorites";
 import { savedRecipeToShareable } from "@/lib/share/recipe-share-utils";
 import { createSupabaseClient } from "@/lib/supabaseClient";
+import { cn } from "@/lib/utils";
 import type { Database } from "@/types/database.types";
 
 type RecipeRow = Database["public"]["Tables"]["recipes"]["Row"];
@@ -20,10 +23,13 @@ type RecipeDetailPageProps = {
 };
 
 export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
+  const router = useRouter();
   const [recipeId, setRecipeId] = useState<string>("");
   const [recipe, setRecipe] = useState<RecipeRow | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isFavorite, setIsFavorite] = useState(true);
+  const [isRemoving, setIsRemoving] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -111,6 +117,7 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
       }
 
       setRecipe(recipeData);
+      setIsFavorite(Boolean(recipeData));
       setIsLoading(false);
     };
 
@@ -122,15 +129,60 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
     [recipe]
   );
 
+  const handleRemoveFavorite = useCallback(async () => {
+    if (!recipe || isRemoving || !isFavorite) return;
+
+    setIsRemoving(true);
+    setErrorMessage(null);
+
+    const result = await handleRemoveFromFavorites(recipe.id);
+
+    if (result.success) {
+      setIsFavorite(false);
+      router.push("/app-recetas/recipes");
+      return;
+    }
+
+    setErrorMessage(result.error);
+    setIsRemoving(false);
+  }, [isFavorite, isRemoving, recipe, router]);
+
   return (
     <section className="space-y-5 pb-8">
-      <Link
-        href="/app-recetas/recipes"
-        className="inline-flex items-center gap-2 text-xs font-medium text-[#4c6633]/80 transition hover:text-[#4c6633]"
-      >
-        <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.5} />
-        Volver a Mis Recetas
-      </Link>
+      <div className="flex items-center justify-between gap-3">
+        <Link
+          href="/app-recetas/recipes"
+          className="inline-flex items-center gap-2 text-xs font-medium text-[#4c6633]/80 transition hover:text-[#4c6633]"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.5} />
+          Volver a Mis Recetas
+        </Link>
+
+        {!isLoading && recipe ? (
+          <button
+            type="button"
+            onClick={() => void handleRemoveFavorite()}
+            disabled={isRemoving || !isFavorite}
+            aria-label={isFavorite ? "Quitar de favoritos" : "Receta no guardada"}
+            className={cn(
+              "inline-flex h-10 w-10 items-center justify-center rounded-full border transition",
+              isFavorite
+                ? "border-[#4c6633]/15 bg-[#4c6633]/5 text-[#4c6633] hover:bg-[#4c6633]/10"
+                : "border-stone-200 bg-white text-stone-400",
+              "disabled:cursor-not-allowed disabled:opacity-50"
+            )}
+          >
+            {isRemoving ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Heart
+                className={cn("h-4 w-4", isFavorite ? "fill-current" : "")}
+                strokeWidth={1.5}
+              />
+            )}
+          </button>
+        ) : null}
+      </div>
 
       {isLoading ? (
         <div className="space-y-4 animate-pulse">
@@ -154,11 +206,7 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
 
       {!isLoading && shareableRecipe && recipe ? (
         <article className="animate-detail-enter">
-          <RecipeDetailMagazine
-            recipe={shareableRecipe}
-            showFlourlessTag={recipe.is_flourless}
-            showAirfryerTag={recipe.is_airfryer}
-          />
+          <RecipeDetailMagazine recipe={shareableRecipe} />
         </article>
       ) : null}
 

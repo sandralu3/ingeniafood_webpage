@@ -4,6 +4,7 @@ export type ShareableRecipe = {
   ingredientes_detallados: string[];
   pasos_ordenados?: string[];
   tip_sandra?: string;
+  tags?: string[];
 };
 
 function slugifyRecipeTitle(title: string): string {

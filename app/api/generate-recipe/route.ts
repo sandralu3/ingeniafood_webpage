@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI, type Part } from "@google/generative-ai";
 import { NextResponse } from "next/server";
+import { normalizeRecipeTags } from "@/lib/recipes/recipe-tags";
 
 /** Vision + JSON puede tardar más que solo texto (p. ej. en Vercel). */
 export const maxDuration = 30;
@@ -32,12 +33,14 @@ type GeminiRecipe = {
   ingredientes_detallados: string[];
   pasos_ordenados: string[];
   tip_sandra: string;
+  tags: string[];
 };
 
 type LooseGeminiRecipe = Partial<GeminiRecipe> & {
   tiempo?: string;
   ingredientes?: string[];
   pasos?: string[];
+  etiquetas?: string[];
 };
 
 function sleep(ms: number): Promise<void> {
@@ -63,6 +66,14 @@ type ParseOutcome =
   | { status: "invalid" };
 
 function normalizeRecipePayload(recipe: LooseGeminiRecipe): GeminiRecipe {
+  const tags = normalizeRecipeTags(
+    Array.isArray(recipe.tags)
+      ? recipe.tags
+      : Array.isArray(recipe.etiquetas)
+        ? recipe.etiquetas
+        : []
+  );
+
   return {
     titulo: recipe.titulo ?? "Receta Saludable de Sandra",
     tiempo_preparacion: recipe.tiempo_preparacion ?? recipe.tiempo ?? "20 min",
@@ -79,7 +90,8 @@ function normalizeRecipePayload(recipe: LooseGeminiRecipe): GeminiRecipe {
     tip_sandra:
       typeof recipe.tip_sandra === "string" && recipe.tip_sandra.trim().length > 0
         ? recipe.tip_sandra.trim()
-        : "Tip de Sandra: Equilibra tu plato con proteína magra, vegetales y una grasa saludable."
+        : "Tip de Sandra: Equilibra tu plato con proteína magra, vegetales y una grasa saludable.",
+    tags
   };
 }
 
@@ -320,7 +332,9 @@ export async function POST(request: Request) {
       : "El usuario no seleccionó ingredientes manualmente; infiere los ingredientes únicamente desde la imagen si es posible.";
 
     const jsonRules =
-      "Solo JSON valido. Entrega receta saludable, rapida y sin harinas. Formato esperado en texto: { \"titulo\": \"\", \"tiempo\": \"X min\", \"ingredientes\": [], \"pasos\": [], \"tip_sandra\": \"\" }. " +
+      "Solo JSON valido. Entrega receta saludable y rapida. Formato esperado: { \"titulo\": \"\", \"tiempo\": \"X min\", \"ingredientes\": [], \"pasos\": [], \"tip_sandra\": \"\", \"etiquetas\": [] }. " +
+      "ETIQUETAS (campo etiquetas): array de 1 a 3 strings que describan SOLO lo que aplica a ESTA receta concreta. Valores permitidos: \"Desayuno\", \"Cena\", \"Snack\", \"Sin Harinas\", \"Apto para Airfryer\", \"Alto en Proteína\". " +
+      "Reglas estrictas: incluye \"Sin Harinas\" solo si la receta no usa harinas ni cereales refinados; incluye \"Apto para Airfryer\" solo si la cocción principal es en airfryer; incluye \"Desayuno\", \"Cena\" o \"Snack\" según el momento ideal del plato (ej. mug cake o bowl matutino = \"Desayuno\", no Airfryer). Si ninguna aplica, devuelve etiquetas: []. " +
       "REGLA DE ORO DE INVENTARIO (obligatoria): PROHIBIDO añadir ingredientes al titulo o a las instrucciones que no hayan sido detectados en la imagen ni seleccionados por el usuario, salvo basicos de despensa permitidos (sal, pimienta, aceite, agua). " +
       "Si el titulo incluye una especia o sabor (como curry o pimenton), ese ingrediente DEBE figurar en ingredientes_detallados y estar respaldado por evidencia visual o seleccion manual. " +
       "PRIORIDAD DE ATRIBUTOS: el titulo debe ser una descripcion tecnica y real de los ingredientes capturados; no inventes sabores externos para hacerlo atractivo. " +
@@ -330,7 +344,7 @@ export async function POST(request: Request) {
 
     const systemInstruction = hasImage
       ? `${INGREDIENT_VALIDATION_RULE}${VISION_SYSTEM_PREFIX}${jsonRules} ${manualClause}`
-      : `${INGREDIENT_VALIDATION_RULE}Solo JSON valido. Usa ingredientes: [${selectedList}]. Entrega receta saludable, rapida y sin harinas con formato { "titulo": "", "tiempo_preparacion": "X min", "ingredientes_detallados": [], "pasos_ordenados": [], "tip_sandra": "" }. ${jsonRules}`;
+      : `${INGREDIENT_VALIDATION_RULE}Solo JSON valido. Usa ingredientes: [${selectedList}]. Entrega receta saludable y rapida con formato { "titulo": "", "tiempo_preparacion": "X min", "ingredientes_detallados": [], "pasos_ordenados": [], "tip_sandra": "", "etiquetas": [] }. ${jsonRules}`;
 
     const promptTail =
       selectedIngredients.length && hasImage
@@ -342,7 +356,7 @@ export async function POST(request: Request) {
     const prompt =
       "Primero valida si hay comida visible. Si NO hay comida, responde solo {\"error\":\"NOT_FOOD\"} y termina sin texto adicional. " +
       "Si sí hay comida, responde exclusivamente con JSON valido (sin markdown, sin bloques de codigo) usando esta estructura exacta: " +
-      '{"titulo": string, "tiempo_preparacion": string, "ingredientes_detallados": string[], "pasos_ordenados": string[], "tip_sandra": string}. ' +
+      '{"titulo": string, "tiempo_preparacion": string, "ingredientes_detallados": string[], "pasos_ordenados": string[], "tip_sandra": string, "etiquetas": string[]}. ' +
       `${promptTail} No inventes ingredientes imposibles; prioriza lo visible y lo indicado arriba.`;
 
     let rawResponse = "";
@@ -551,7 +565,8 @@ export async function POST(request: Request) {
       tip_sandra:
         typeof recipe.tip_sandra === "string" && recipe.tip_sandra.trim().length > 0
           ? recipe.tip_sandra.trim()
-          : "Tip de Sandra: organiza todos tus ingredientes antes de cocinar para ganar tiempo y mantener una preparación más eficiente."
+          : "Tip de Sandra: organiza todos tus ingredientes antes de cocinar para ganar tiempo y mantener una preparación más eficiente.",
+      tags: normalizeRecipeTags(recipe.tags)
     };
 
     return jsonResponse({

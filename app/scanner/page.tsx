@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { PantrySearchView } from "@/components/scanner/pantry-search-view";
-import { RecipeLoadingSkeleton } from "@/components/scanner/recipe-loading-skeleton";
+import { RecipeGenerationState } from "@/components/scanner/recipe-generation-state";
 import { RecipeResultView } from "@/components/scanner/recipe-result-view";
+import { tagsToLegacyFlags } from "@/lib/recipes/recipe-tags";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 
 type GeneratedRecipe = {
@@ -12,6 +13,7 @@ type GeneratedRecipe = {
   ingredientes_detallados: string[];
   pasos_ordenados: string[];
   tip_sandra: string;
+  tags?: string[];
 };
 
 type ApiPayload = {
@@ -521,6 +523,9 @@ export default function ScannerPage() {
         .map((step, index) => `${index + 1}. ${step}`)
         .join("\n");
 
+      const recipeTags = recipe.tags ?? [];
+      const { is_airfryer, is_flourless } = tagsToLegacyFlags(recipeTags);
+
       const { error } = await supabase.from("recipes").insert({
         user_id: user.id,
         title: recipe.titulo,
@@ -529,8 +534,8 @@ export default function ScannerPage() {
         instructions: instructions || "Sin pasos detallados",
         tip_sandra: recipe.tip_sandra,
         image_url: null,
-        is_airfryer: true,
-        is_flourless: true,
+        is_airfryer,
+        is_flourless,
         is_public: false
       });
 
@@ -553,10 +558,31 @@ export default function ScannerPage() {
     }
   };
 
+  const showGenerationError =
+    !isLoading &&
+    !recipe &&
+    Boolean(errorMessage) &&
+    !showInvalidIngredientAlert &&
+    !showNotFoodGuidance;
+
+  const handleScanAgain = () => {
+    setErrorMessage(null);
+    setRetryMessage(null);
+  };
+
   return (
     <div className="min-h-[calc(100dvh-10rem)] bg-sv-surface">
       {isLoading ? (
-        <RecipeLoadingSkeleton retryMessage={retryMessage} />
+        <RecipeGenerationState variant="loading" retryMessage={retryMessage} />
+      ) : null}
+
+      {showGenerationError && errorMessage ? (
+        <RecipeGenerationState
+          variant="error"
+          errorMessage={errorMessage}
+          onRetry={handleScanAgain}
+          rateLimitSecondsLeft={rateLimitSecondsLeft}
+        />
       ) : null}
 
       {!isLoading && recipe ? (
@@ -635,7 +661,7 @@ export default function ScannerPage() {
         </div>
       ) : null}
 
-      {!isLoading && !recipe ? (
+      {!isLoading && !recipe && !showGenerationError ? (
         <div className="animate-fade-in">
           {showNotFoodGuidance ? (
             <div className="mb-4 rounded-2xl border border-[#556B2F]/25 bg-[#FDFCFB] p-4 shadow-sm">
@@ -668,7 +694,7 @@ export default function ScannerPage() {
             onRemoveIngredient={handleRemoveIngredient}
             onToggleFromCategory={handleToggleFromCategory}
             onFindRecipes={handleFindRecipes}
-            errorMessage={errorMessage}
+            errorMessage={null}
             onRetry={() => void generarReceta()}
             isBusy={isLoading || rateLimitSecondsLeft > 0}
             rateLimitSecondsLeft={rateLimitSecondsLeft}

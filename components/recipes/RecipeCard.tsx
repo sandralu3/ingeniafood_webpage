@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Loader2, Share2 } from "lucide-react";
+import { ArrowRight, Heart, Loader2, Share2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type RecipeCardProps = {
@@ -11,6 +11,9 @@ type RecipeCardProps = {
   onShare?: () => void;
   isSharing?: boolean;
   isShareDisabled?: boolean;
+  onRemove?: () => void;
+  isRemoving?: boolean;
+  isRemoveDisabled?: boolean;
   onPrefetch?: () => void;
 };
 
@@ -23,6 +26,9 @@ export function RecipeCard({
   onShare,
   isSharing = false,
   isShareDisabled = false,
+  onRemove,
+  isRemoving = false,
+  isRemoveDisabled = false,
   onPrefetch
 }: RecipeCardProps) {
   return (
@@ -55,6 +61,26 @@ export function RecipeCard({
         <p className="min-w-0 flex-1 text-xs leading-relaxed text-stone-400">{savedAtLabel}</p>
 
         <div className="flex shrink-0 items-center gap-0.5">
+          {onRemove ? (
+            <button
+              type="button"
+              aria-label="Quitar de favoritos"
+              disabled={isRemoveDisabled || isRemoving}
+              onClick={onRemove}
+              className={cn(
+                "inline-flex h-8 w-8 items-center justify-center rounded-full text-stone-400 transition",
+                "hover:bg-red-50 hover:text-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-200/60",
+                "disabled:cursor-not-allowed disabled:opacity-40"
+              )}
+            >
+              {isRemoving ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-stone-400" />
+              ) : (
+                <Heart className="h-3.5 w-3.5 fill-current" strokeWidth={1.5} />
+              )}
+            </button>
+          ) : null}
+
           {onShare ? (
             <button
               type="button"

@@ -7,6 +7,7 @@ import { RecipeCard } from "@/components/recipes/RecipeCard";
 import { RecipeShareCaptureHost } from "@/components/share/recipe-share-capture-host";
 import { useShareRecipeImage } from "@/hooks/use-share-recipe-image";
 import { savedRecipeToShareable } from "@/lib/share/recipe-share-utils";
+import { handleRemoveFromFavorites } from "@/lib/recipes/remove-from-favorites";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import type { Database, Json } from "@/types/database.types";
 
@@ -68,6 +69,8 @@ export default function RecipesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilter, setActiveFilter] = useState<FilterChip>("Todas");
   const [mostrarTodas, setMostrarTodas] = useState(false);
+  const [removingRecipeId, setRemovingRecipeId] = useState<string | null>(null);
+  const [removeMessage, setRemoveMessage] = useState<string | null>(null);
   const {
     captureRef,
     captureRecipe,
@@ -84,6 +87,26 @@ export default function RecipesPage() {
       void shareRecipeImage(shareable, { recipeId: recipe.id });
     },
     [clearShareError, shareRecipeImage]
+  );
+
+  const handleRemoveRecipe = useCallback(
+    async (recipeId: string) => {
+      if (removingRecipeId) return;
+
+      setRemovingRecipeId(recipeId);
+      setRemoveMessage(null);
+
+      const result = await handleRemoveFromFavorites(recipeId);
+
+      if (result.success) {
+        setRecipes((previous) => previous.filter((recipe) => recipe.id !== recipeId));
+      } else {
+        setRemoveMessage(result.error);
+      }
+
+      setRemovingRecipeId(null);
+    },
+    [removingRecipeId]
   );
 
   useEffect(() => {
@@ -235,9 +258,12 @@ export default function RecipesPage() {
                   title={recipe.title}
                   categories={categories}
                   savedAtLabel={formatSavedDate(recipe.created_at)}
-                  detailHref={`/recipes/${recipe.id}`}
-                  onPrefetch={() => router.prefetch(`/recipes/${recipe.id}`)}
+                  detailHref={`/app-recetas/recipes/${recipe.id}`}
+                  onPrefetch={() => router.prefetch(`/app-recetas/recipes/${recipe.id}`)}
                   onShare={() => handleShareRecipe(recipe)}
+                  onRemove={() => void handleRemoveRecipe(recipe.id)}
+                  isRemoving={removingRecipeId === recipe.id}
+                  isRemoveDisabled={Boolean(removingRecipeId && removingRecipeId !== recipe.id)}
                   isSharing={sharingRecipeId === recipe.id}
                   isShareDisabled={Boolean(sharingRecipeId && sharingRecipeId !== recipe.id)}
                 />
@@ -262,11 +288,13 @@ export default function RecipesPage() {
   }, [
     errorMessage,
     filteredRecipes,
+    handleRemoveRecipe,
     handleShareRecipe,
     isLoading,
     mostrarTodas,
     recipes.length,
     sharingRecipeId,
+    removingRecipeId,
     visibleRecipes
   ]);
 
@@ -327,6 +355,12 @@ export default function RecipesPage() {
       {shareErrorMessage ? (
         <p className="rounded-2xl border border-red-100 bg-red-50/80 px-4 py-3 text-sm text-red-700">
           {shareErrorMessage}
+        </p>
+      ) : null}
+
+      {removeMessage ? (
+        <p className="rounded-2xl border border-red-100 bg-red-50/80 px-4 py-3 text-sm text-red-700">
+          {removeMessage}
         </p>
       ) : null}
 

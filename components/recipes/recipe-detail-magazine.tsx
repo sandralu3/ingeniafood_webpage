@@ -2,6 +2,7 @@
 
 import { Clock, UtensilsCrossed } from "lucide-react";
 import { SandraTipCard } from "@/components/recipes/sandra-tip-card";
+import { resolveRecipeTags, isShareExcludedTag } from "@/lib/recipes/recipe-tags";
 import type { ShareableRecipe } from "@/lib/share/recipe-share-image";
 import {
   buildMacroData,
@@ -12,23 +13,20 @@ import {
 type Props = {
   recipe: ShareableRecipe;
   showScanBanner?: boolean;
-  showFlourlessTag?: boolean;
-  showAirfryerTag?: boolean;
   hideInlineTipOnShare?: boolean;
 };
 
 const pillClass =
-  "inline-flex shrink-0 items-center rounded-full border border-[#4c6633]/12 bg-[#dce7c3]/25 px-3 py-1 text-[11px] font-medium uppercase tracking-wide text-[#4c6633]/85";
+  "inline-flex shrink-0 items-center rounded-full border border-[#4c6633]/12 bg-[#dce7c3]/25 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-[#4c6633]";
 
 export function RecipeDetailMagazine({
   recipe,
   showScanBanner = false,
-  showFlourlessTag = true,
-  showAirfryerTag = true,
   hideInlineTipOnShare = false
 }: Props) {
   const macroData = buildMacroData(recipe);
   const steps = recipe.pasos_ordenados ?? [];
+  const tags = resolveRecipeTags({ tags: recipe.tags });
 
   return (
     <div className="space-y-6">
@@ -45,16 +43,15 @@ export function RecipeDetailMagazine({
         </h1>
 
         <div className="flex flex-wrap items-center gap-2">
-          {showFlourlessTag ? (
-            <span data-share-exclude className={pillClass}>
-              Sin Harinas
+          {tags.map((tag) => (
+            <span
+              key={tag}
+              {...(isShareExcludedTag(tag) ? { "data-share-exclude": true } : {})}
+              className={pillClass}
+            >
+              {tag}
             </span>
-          ) : null}
-          {showAirfryerTag ? (
-            <span data-share-exclude className={pillClass}>
-              Apto para Airfryer
-            </span>
-          ) : null}
+          ))}
           <span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-stone-200/80 bg-white px-3 py-1 text-[11px] font-medium text-stone-600">
             <Clock className="h-3 w-3 text-[#4c6633]" strokeWidth={1.5} />
             {formatTimeLabel(recipe.tiempo_preparacion)}

@@ -1,6 +1,6 @@
 import type { Json } from "@/types/database.types";
 import type { ShareableRecipe } from "@/lib/share/recipe-share-image";
-
+import { resolveRecipeTags } from "@/lib/recipes/recipe-tags";
 export function inferDifficulty(pasosCount: number): string {
   if (pasosCount <= 3) return "FÁCIL";
   if (pasosCount <= 5) return "INTERMEDIO";
@@ -65,8 +65,10 @@ type SavedRecipeSource = {
   instructions: string;
   cooking_time: number | null;
   tip_sandra?: string | null;
+  is_airfryer?: boolean;
+  is_flourless?: boolean;
+  tags?: Json;
 };
-
 export function savedRecipeToShareable(recipe: SavedRecipeSource): ShareableRecipe {
   const ingredientes = jsonToStringList(recipe.ingredients);
   let pasos = recipe.steps ? jsonToStringList(recipe.steps) : [];
@@ -84,6 +86,10 @@ export function savedRecipeToShareable(recipe: SavedRecipeSource): ShareableReci
     tiempo_preparacion: tiempo,
     ingredientes_detallados: ingredientes,
     pasos_ordenados: pasos,
-    tip_sandra: recipe.tip_sandra ?? ""
-  };
-}
+    tip_sandra: recipe.tip_sandra ?? "",
+    tags: resolveRecipeTags({
+      tags: recipe.tags,
+      is_airfryer: recipe.is_airfryer,
+      is_flourless: recipe.is_flourless
+    })
+  };}
