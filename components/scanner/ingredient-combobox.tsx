@@ -174,21 +174,21 @@ export function IngredientCombobox({
           }
         }}
         placeholder="Agrega mas: ej. Kale, Yogur griego, Quinoa"
-        className="w-full rounded-full border-none bg-sv-surface-low px-5 py-3 pr-12 text-sm text-sv-on-surface shadow-sm placeholder:text-stone-400 transition focus:bg-white focus:ring-2 focus:ring-sv-primary/20 disabled:opacity-60"
+        className="w-full rounded-full border border-stone-200/80 bg-stone-50/90 px-5 py-3 pr-12 text-sm text-stone-800 shadow-sm placeholder:text-stone-400 transition focus:border-[#556B2F]/25 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#556B2F]/10 disabled:opacity-60"
       />
       <button
         type="button"
         onClick={handleAddExisting}
         disabled={disabled || isCreating || !canAddExisting}
         className={cn(
-          "absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full transition",
+          "absolute right-1.5 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full transition",
           canAddExisting
-            ? "bg-sv-primary text-sv-on-primary hover:scale-95"
-            : "cursor-not-allowed bg-stone-300 text-stone-500"
+            ? "bg-[#4c6633] text-white shadow-sm hover:bg-[#556B2F]"
+            : "cursor-not-allowed bg-stone-200 text-stone-400"
         )}
         aria-label="Añadir ingrediente validado"
       >
-        <Plus className="h-4 w-4" strokeWidth={2.5} />
+        <Plus className="h-4 w-4" strokeWidth={2} />
       </button>
 
       {isOpen && pendingCustomName ? (

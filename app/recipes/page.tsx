@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Search } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { RecipeCard } from "@/components/recipes/RecipeCard";
+import { RecipeShareCaptureHost } from "@/components/share/recipe-share-capture-host";
+import { useShareRecipeImage } from "@/hooks/use-share-recipe-image";
+import { savedRecipeToShareable } from "@/lib/share/recipe-share-utils";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import type { Database, Json } from "@/types/database.types";
 
@@ -49,6 +51,15 @@ function isMissingTipSandraColumnError(error: { code?: string; message?: string 
   return error.code === "42703" || error.message?.includes("column recipes.tip_sandra does not exist") === true;
 }
 
+function formatSavedDate(isoDate: string): string {
+  const formatted = new Intl.DateTimeFormat("es-ES", {
+    day: "numeric",
+    month: "long",
+    year: "numeric"
+  }).format(new Date(isoDate));
+  return `Guardado el ${formatted}`;
+}
+
 export default function RecipesPage() {
   const router = useRouter();
   const [recipes, setRecipes] = useState<RecipeRow[]>([]);
@@ -57,6 +68,23 @@ export default function RecipesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilter, setActiveFilter] = useState<FilterChip>("Todas");
   const [mostrarTodas, setMostrarTodas] = useState(false);
+  const {
+    captureRef,
+    captureRecipe,
+    shareRecipeImage,
+    sharingRecipeId,
+    errorMessage: shareErrorMessage,
+    clearError: clearShareError
+  } = useShareRecipeImage();
+
+  const handleShareRecipe = useCallback(
+    (recipe: RecipeRow) => {
+      clearShareError();
+      const shareable = savedRecipeToShareable(recipe);
+      void shareRecipeImage(shareable, { recipeId: recipe.id });
+    },
+    [clearShareError, shareRecipeImage]
+  );
 
   useEffect(() => {
     const loadRecipes = async () => {
@@ -91,7 +119,7 @@ export default function RecipesPage() {
       const primaryQuery = await supabase
         .from("recipes")
         .select(
-          "id,title,description,cooking_time,is_airfryer,is_flourless,is_public,created_at,user_id,ingredients,instructions,image_url,tip_sandra"
+          "id,title,description,cooking_time,is_airfryer,is_flourless,is_public,created_at,user_id,ingredients,steps,instructions,image_url,tip_sandra"
         )
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
@@ -103,7 +131,7 @@ export default function RecipesPage() {
         const fallbackQuery = await supabase
           .from("recipes")
           .select(
-            "id,title,description,cooking_time,is_airfryer,is_flourless,is_public,created_at,user_id,ingredients,instructions,image_url"
+            "id,title,description,cooking_time,is_airfryer,is_flourless,is_public,created_at,user_id,ingredients,steps,instructions,image_url"
           )
           .eq("user_id", user.id)
           .order("created_at", { ascending: false });
@@ -153,7 +181,7 @@ export default function RecipesPage() {
   const pageContent = useMemo(() => {
     if (isLoading) {
       return (
-        <p className="rounded-2xl border border-brand-green-light/25 bg-white/70 p-4 text-sm text-brand-green-dark/80">
+        <p className="rounded-2xl border border-stone-100 bg-white p-5 text-sm text-stone-500 shadow-sm">
           Cargando recetas saludables...
         </p>
       );
@@ -161,7 +189,7 @@ export default function RecipesPage() {
 
     if (errorMessage) {
       return (
-        <p className="rounded-2xl border border-brand-green-light/35 bg-white/80 p-4 text-sm font-medium text-brand-green-dark">
+        <p className="rounded-2xl border border-stone-100 bg-white p-5 text-sm font-medium text-[#556B2F] shadow-sm">
           {errorMessage}
         </p>
       );
@@ -169,16 +197,16 @@ export default function RecipesPage() {
 
     if (recipes.length === 0) {
       return (
-        <p className="rounded-2xl border border-brand-green-light/25 bg-white/70 p-4 text-sm text-brand-green-dark/80">
-          Aun no hay recetas publicas en la base de datos.
+        <p className="rounded-2xl border border-stone-100 bg-white p-5 text-sm text-stone-500 shadow-sm">
+          Aún no hay recetas guardadas. Escanea tus ingredientes para empezar.
         </p>
       );
     }
 
     if (filteredRecipes.length === 0) {
       return (
-        <p className="rounded-2xl border border-brand-green-light/25 bg-white/70 p-4 text-sm text-brand-green-dark/80">
-          Sandra no encontro esa receta en tu historial. !Prueba con otro ingrediente!
+        <p className="rounded-2xl border border-stone-100 bg-white p-5 text-sm text-stone-500 shadow-sm">
+          Sandra no encontró esa receta en tu historial. Prueba con otro ingrediente.
         </p>
       );
     }
@@ -194,17 +222,9 @@ export default function RecipesPage() {
             ].filter((category): category is string => Boolean(category));
 
             return (
-              <Link
+              <div
                 key={recipe.id}
-                href={`/recipes/${recipe.id}`}
-                onMouseEnter={() => router.prefetch(`/recipes/${recipe.id}`)}
-                onFocus={() => router.prefetch(`/recipes/${recipe.id}`)}
-                className={`
-                  block cursor-pointer rounded-2xl transition-transform duration-200
-                  hover:scale-[1.02] active:scale-[0.995] focus-visible:outline-none
-                  focus-visible:ring-2 focus-visible:ring-[#4A6044]/25
-                  ${mostrarTodas && index >= 5 ? "animate-fade-in-down" : ""}
-                `}
+                className={mostrarTodas && index >= 5 ? "animate-fade-in-down" : undefined}
                 style={
                   mostrarTodas && index >= 5
                     ? { animationDelay: `${Math.min(index - 5, 8) * 45}ms` }
@@ -214,23 +234,24 @@ export default function RecipesPage() {
                 <RecipeCard
                   title={recipe.title}
                   categories={categories}
-                  createdAt={new Date(recipe.created_at).toLocaleDateString("es-ES", {
-                    day: "2-digit",
-                    month: "short",
-                    year: "numeric"
-                  })}
+                  savedAtLabel={formatSavedDate(recipe.created_at)}
+                  detailHref={`/recipes/${recipe.id}`}
+                  onPrefetch={() => router.prefetch(`/recipes/${recipe.id}`)}
+                  onShare={() => handleShareRecipe(recipe)}
+                  isSharing={sharingRecipeId === recipe.id}
+                  isShareDisabled={Boolean(sharingRecipeId && sharingRecipeId !== recipe.id)}
                 />
-              </Link>
+              </div>
             );
           })}
         </div>
 
         {filteredRecipes.length > 5 ? (
-          <div className="flex justify-center">
+          <div className="flex justify-center pt-1">
             <button
               type="button"
               onClick={() => setMostrarTodas((previous) => !previous)}
-              className="inline-flex items-center justify-center rounded-full bg-transparent px-6 py-3 text-sm font-semibold text-[#4A6044] transition-all duration-200 hover:bg-[#4A6044]/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4A6044]/20"
+              className="inline-flex items-center justify-center rounded-full border border-stone-200 bg-white px-6 py-2.5 text-sm font-medium text-[#4c6633] shadow-sm transition hover:border-stone-300 hover:bg-stone-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4c6633]/10"
             >
               {mostrarTodas ? "Ver menos" : `Ver todas mis recetas (${recipes.length})`}
             </button>
@@ -238,24 +259,36 @@ export default function RecipesPage() {
         ) : null}
       </div>
     );
-  }, [errorMessage, filteredRecipes, isLoading, mostrarTodas, recipes.length, visibleRecipes]);
+  }, [
+    errorMessage,
+    filteredRecipes,
+    handleShareRecipe,
+    isLoading,
+    mostrarTodas,
+    recipes.length,
+    sharingRecipeId,
+    visibleRecipes
+  ]);
 
   return (
-    <section className="space-y-4">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-semibold italic tracking-tight text-[#667a60]">
+    <section className="space-y-5">
+      <RecipeShareCaptureHost captureRef={captureRef} recipe={captureRecipe} mode="offscreen" />
+
+      <header>
+        <h1 className="mb-2 font-serif text-xl font-semibold tracking-tight text-stone-900">
           Mis Recetas ({recipes.length})
         </h1>
-        <p className="text-sm text-brand-green-dark/75">
-          Explora tu historial y encuentra recetas por categoria o ingrediente.
+        <p className="text-sm leading-loose text-stone-500">
+          Explora tu historial y encuentra recetas por categoría o ingrediente.
         </p>
       </header>
 
-      <div className="max-h-[68vh] overflow-y-auto pr-1">
-        <div className="sticky top-0 z-20 -mx-1 space-y-4 bg-brand-cream/95 px-1 pb-3 pt-1 backdrop-blur-sm">
+      <div className="max-h-[68vh] overflow-y-auto pr-0.5">
+        <div className="sticky top-0 z-20 -mx-0.5 space-y-4 bg-[#FAFAFA]/95 px-0.5 pb-3 pt-0.5 backdrop-blur-md">
           <label className="relative block">
             <Search
-              className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-brand-green-dark/45"
+              className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400/80"
+              strokeWidth={1.35}
               aria-hidden="true"
             />
             <input
@@ -263,11 +296,11 @@ export default function RecipesPage() {
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
               placeholder="Buscar en mis recetas..."
-              className="w-full rounded-full border border-brand-green-light/35 bg-white/90 py-2.5 pl-11 pr-4 text-sm text-brand-green-dark placeholder:text-brand-green-dark/50 transition-colors duration-200 focus:border-[#4A6044]/40 focus:outline-none focus:ring-2 focus:ring-[#4A6044]/20"
+              className="w-full rounded-full border border-stone-200/80 bg-white py-3 pl-11 pr-4 text-sm text-stone-700 placeholder:text-stone-400 transition focus:border-[#4c6633]/30 focus:outline-none focus:ring-2 focus:ring-[#4c6633]/8"
             />
           </label>
 
-          <div className="flex flex-wrap gap-2 pb-1">
+          <div className="no-scrollbar flex gap-2 overflow-x-auto pb-2">
             {FILTER_CHIPS.map((chip) => {
               const isActive = chip === activeFilter;
               return (
@@ -277,8 +310,8 @@ export default function RecipesPage() {
                   onClick={() => setActiveFilter(chip)}
                   className={
                     isActive
-                      ? "whitespace-nowrap rounded-full bg-[#4A6044] px-4 py-1.5 text-xs font-semibold text-white transition-all duration-200 shadow-sm"
-                      : "whitespace-nowrap rounded-full border border-gray-200 bg-white px-4 py-1.5 text-xs font-medium text-brand-green-dark/80 transition-all duration-200 hover:border-[#4A6044]/30 hover:bg-brand-cream focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4A6044]/20"
+                      ? "shrink-0 whitespace-nowrap rounded-full bg-[#4c6633] px-4 py-2 text-xs font-medium text-white transition"
+                      : "shrink-0 whitespace-nowrap rounded-full border border-stone-200 bg-white px-4 py-2 text-xs font-medium text-stone-600 transition hover:border-stone-300 hover:text-stone-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4c6633]/10"
                   }
                 >
                   {chip}
@@ -290,6 +323,13 @@ export default function RecipesPage() {
 
         {pageContent}
       </div>
+
+      {shareErrorMessage ? (
+        <p className="rounded-2xl border border-red-100 bg-red-50/80 px-4 py-3 text-sm text-red-700">
+          {shareErrorMessage}
+        </p>
+      ) : null}
+
       <style jsx>{`
         @keyframes fadeInDown {
           from {

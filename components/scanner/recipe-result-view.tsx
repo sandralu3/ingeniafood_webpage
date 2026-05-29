@@ -2,26 +2,15 @@
 
 import {
   Bookmark,
-  CheckCircle2,
-  Clock,
   Loader2,
-  Share2,
-  UtensilsCrossed
+  Share2
 } from "lucide-react";
-import { RecipeShareBranding } from "@/components/scanner/recipe-share-branding";
-import { IngeniaFoodLogo } from "@/components/shared/ingenia-food-logo";
+import { RecipeShareCapture } from "@/components/share/recipe-share-capture";
 import { useShareRecipeImage } from "@/hooks/use-share-recipe-image";
-
-type GeneratedRecipe = {
-  titulo: string;
-  tiempo_preparacion: string;
-  ingredientes_detallados: string[];
-  pasos_ordenados: string[];
-  tip_sandra: string;
-};
+import type { ShareableRecipe } from "@/lib/share/recipe-share-image";
 
 type Props = {
-  recipe: GeneratedRecipe;
+  recipe: ShareableRecipe;
   /** Banner cuando la receta se generó con foto de despensa */
   showPhotoBanner?: boolean;
   onSaveFavorites?: () => void;
@@ -30,37 +19,6 @@ type Props = {
   isSavedFavorites?: boolean;
 };
 
-function inferDifficulty(pasosCount: number): string {
-  if (pasosCount <= 3) return "FÁCIL";
-  if (pasosCount <= 5) return "INTERMEDIO";
-  return "AVANZADO";
-}
-
-function formatTimeLabel(tiempo: string): string {
-  const t = tiempo.trim().toUpperCase();
-  if (t.includes("MIN")) return t.replace(/\s+/g, "\u00A0");
-  const n = tiempo.match(/\d+/);
-  return n ? `${n[0]}\u00A0MIN` : tiempo;
-}
-
-function buildMacroData(recipe: GeneratedRecipe) {
-  const ingredientCount = Math.max(recipe.ingredientes_detallados.length, 1);
-  const stepCount = Math.max(recipe.pasos_ordenados.length, 1);
-
-  const proteinas = Math.min(18 + ingredientCount * 2, 42);
-  const carbs = Math.min(24 + stepCount * 3, 58);
-  const grasas = Math.min(10 + ingredientCount, 28);
-  const calorias = 220 + proteinas * 4 + carbs * 4 + grasas * 9;
-
-  const maxGram = 60;
-  return [
-    { label: "Proteínas", value: `${proteinas} g`, progress: Math.round((proteinas / maxGram) * 100) },
-    { label: "Carbs", value: `${carbs} g`, progress: Math.round((carbs / maxGram) * 100) },
-    { label: "Grasas", value: `${grasas} g`, progress: Math.round((grasas / maxGram) * 100) },
-    { label: "Calorías", value: `${calorias} kcal`, progress: Math.min(Math.round((calorias / 520) * 100), 100) }
-  ];
-}
-
 export function RecipeResultView({
   recipe,
   onSaveFavorites,
@@ -68,19 +26,12 @@ export function RecipeResultView({
   isSavingFavorites = false,
   isSavedFavorites = false
 }: Props) {
-  const macroData = buildMacroData(recipe);
   const { captureRef, shareRecipeImage, isGenerating, errorMessage, clearError } =
     useShareRecipeImage();
 
   const handleShareImage = () => {
     clearError();
-    void shareRecipeImage({
-      titulo: recipe.titulo,
-      tiempo_preparacion: recipe.tiempo_preparacion,
-      ingredientes_detallados: recipe.ingredientes_detallados,
-      pasos_ordenados: recipe.pasos_ordenados,
-      tip_sandra: recipe.tip_sandra
-    });
+    void shareRecipeImage(recipe, { useExistingCapture: true });
   };
 
   return (
@@ -97,157 +48,40 @@ export function RecipeResultView({
         </div>
       ) : null}
 
-      <div
-        id="recipe-container"
-        ref={captureRef}
-        className="recipe-capture-root space-y-4 bg-[#FAFAFA]"
-      >
-        <header data-share-only className="border-b border-sv-outline-variant/20 px-0.5 pb-4 pt-1">
-          <IngeniaFoodLogo variant="share" />
-        </header>
+      <RecipeShareCapture ref={captureRef} recipe={recipe} showScanBanner />
 
-        <section className="space-y-4 rounded-xl border border-sv-outline-variant/25 bg-white p-4">
-          <p data-share-exclude className="text-xs font-medium text-sv-primary/80">
-            Receta optimizada a partir de tu escaneo
+      <div className="mt-4 space-y-3 px-0" data-share-exclude>
+        <button
+          type="button"
+          onClick={handleShareImage}
+          disabled={isGenerating}
+          className="group flex w-full items-center justify-center gap-2 rounded-full border border-[#4c6633]/20 bg-white px-5 py-3.5 text-sm font-semibold text-[#4c6633] shadow-sm transition hover:bg-[#4c6633]/5 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {isGenerating ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Share2 className="h-4 w-4" />
+          )}
+          {isGenerating ? "Generando imagen..." : "Compartir Receta (Imagen)"}
+        </button>
+        {errorMessage ? (
+          <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+            {errorMessage}
           </p>
-
-          <h1 className="text-[1.6rem] font-semibold leading-tight tracking-tight text-sv-on-surface">
-            {recipe.titulo}
-          </h1>
-
-          <div className="flex flex-wrap items-center justify-center gap-2.5 text-xs font-medium">
-            <span
-              data-share-exclude
-              className="rounded-full border border-sv-primary/25 bg-sv-secondary-container/70 px-3 py-1 text-sv-on-secondary-container"
-            >
-              Sin Harinas
-            </span>
-            <span
-              data-share-exclude
-              className="rounded-full border border-sv-primary/25 bg-sv-secondary-container/70 px-3 py-1 text-sv-on-secondary-container"
-            >
-              Apto para Airfryer
-            </span>
-            <span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-sv-outline-variant/40 px-3.5 py-1.5 text-sv-on-surface-variant">
-              <Clock className="h-3.5 w-3.5 shrink-0 text-sv-primary" />
-              {formatTimeLabel(recipe.tiempo_preparacion)}
-            </span>
-            <span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-sv-outline-variant/40 px-3.5 py-1.5 text-sv-on-surface-variant">
-              <UtensilsCrossed className="h-3.5 w-3.5 shrink-0 text-sv-primary" />
-              {inferDifficulty(recipe.pasos_ordenados.length)}
-            </span>
-          </div>
-        </section>
-
-        <div className="grid grid-cols-1 gap-4">
-          <div className="rounded-xl border border-sv-outline-variant/25 bg-white p-4">
-            <h3 className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-sv-primary">
-              Cálculo de Macronutrientes
-            </h3>
-            <div className="space-y-2.5">
-              {macroData.map((macro) => (
-                <div key={macro.label} className="space-y-1">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-medium text-sv-on-surface-variant">{macro.label}</span>
-                    <span className="font-semibold text-sv-on-surface">{macro.value}</span>
-                  </div>
-                  <div className="h-1.5 rounded-full bg-sv-surface-low">
-                    <div
-                      className="h-full rounded-full bg-sv-primary transition-all"
-                      style={{ width: `${macro.progress}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="rounded-xl border border-sv-outline-variant/25 bg-white p-4">
-            <h3 className="mb-4 text-xs font-bold uppercase tracking-[0.2em] text-sv-primary">
-              Ingredientes Identificados
-            </h3>
-            <ul className="space-y-2.5">
-              {recipe.ingredientes_detallados.map((item) => (
-                <li
-                  key={item}
-                  className="flex items-start gap-3 border-b border-sv-outline-variant/20 pb-2.5 last:border-0"
-                >
-                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-sv-primary" />
-                  <span className="text-sm leading-relaxed text-sv-on-surface">{item}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="space-y-6 rounded-xl border border-sv-outline-variant/25 bg-white p-4">
-            <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-sv-primary">
-              Instrucciones de Preparación
-            </h3>
-            <div className="space-y-6">
-              {recipe.pasos_ordenados.map((step, index) => {
-                const num = String(index + 1).padStart(2, "0");
-                return (
-                  <div key={`${num}-${step.slice(0, 24)}`} className="flex gap-4">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-sv-outline-variant text-xs font-semibold text-sv-primary">
-                      {num}
-                    </div>
-                    <div className="pt-0.5">
-                      <p className="text-sm leading-relaxed text-sv-on-surface-variant">
-                        {step}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div
-              data-share-exclude
-              className="rounded-xl border border-[#556B2F]/20 bg-[#F0F4ED] p-4"
-            >
-              <p className="text-sm font-bold tracking-wide text-[#556B2F]">✨ Tip de Sandra</p>
-              <p className="mt-2 text-sm leading-relaxed text-sv-on-surface-variant">
-                {recipe.tip_sandra}
-              </p>
-            </div>
-
-            <div className="space-y-3 pt-2" data-share-exclude>
-              <button
-                type="button"
-                onClick={handleShareImage}
-                disabled={isGenerating}
-                className="group flex w-full items-center justify-center gap-2 rounded-xl border border-sv-primary/30 bg-white px-5 py-3 text-sm font-semibold tracking-wide text-sv-primary shadow-sm transition duration-300 hover:bg-sv-secondary-container/40 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isGenerating ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Share2 className="h-4 w-4" />
-                )}
-                {isGenerating ? "Generando imagen..." : "Compartir Receta (Imagen)"}
-              </button>
-              {errorMessage ? (
-                <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-                  {errorMessage}
-                </p>
-              ) : null}
-              <button
-                type="button"
-                onClick={onSaveFavorites}
-                disabled={isSavingFavorites || isSavedFavorites || isGenerating}
-                className="group flex w-full items-center justify-center gap-2 rounded-xl bg-sv-primary px-5 py-3 text-sm font-semibold tracking-wide text-sv-on-primary shadow-lg shadow-sv-primary/20 transition duration-300 hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <Bookmark className="h-4 w-4 fill-current" />
-                {isSavedFavorites
-                  ? "Guardado"
-                  : isSavingFavorites
-                    ? "Guardando..."
-                    : "Guardar en mi recetario"}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <RecipeShareBranding tipSandra={recipe.tip_sandra} />
+        ) : null}
+        <button
+          type="button"
+          onClick={onSaveFavorites}
+          disabled={isSavingFavorites || isSavedFavorites || isGenerating}
+          className="group flex w-full items-center justify-center gap-2 rounded-full bg-[#4c6633] px-5 py-3.5 text-sm font-semibold text-white shadow-lg shadow-[#4c6633]/20 transition hover:bg-[#556B2F] disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <Bookmark className="h-4 w-4 fill-current" />
+          {isSavedFavorites
+            ? "Guardado"
+            : isSavingFavorites
+              ? "Guardando..."
+              : "Guardar en mi recetario"}
+        </button>
       </div>
     </article>
   );

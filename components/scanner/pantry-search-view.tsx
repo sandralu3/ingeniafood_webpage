@@ -254,18 +254,18 @@ export function PantrySearchView({
 
   return (
     <div className="pb-36 pt-1.5 duration-300 sm:pb-40">
-      <section className="mb-4">
-        <div className="mb-4 text-center">
-          <h2 className="mb-2 text-2xl font-semibold leading-tight tracking-tight text-sv-on-surface">
+      <section className="mb-5 px-1 pt-2">
+        <div className="mb-5 text-center">
+          <h2 className="mb-2.5 font-serif text-[1.65rem] font-semibold leading-tight tracking-tight text-stone-900">
             ¿Qué hay en tu despensa?
           </h2>
-          <p className="text-sm leading-snug text-sv-on-surface-variant sm:text-[0.9rem]">
+          <p className="text-sm leading-relaxed text-stone-500 sm:text-[0.9rem]">
             Toma una foto de tu nevera o escribe ingredientes para optimizar tu próxima receta.
           </p>
         </div>
 
         <div
-          className="group relative h-40 overflow-hidden rounded-xl border-2 border-dashed border-sv-outline-variant bg-sv-surface-low transition-colors hover:border-sv-primary sm:h-44"
+          className="group relative h-40 overflow-hidden rounded-2xl border border-dashed border-[#556B2F]/25 bg-white bg-gradient-to-br from-white via-[#FDFCFB] to-[#556B2F]/6 transition-colors hover:border-[#556B2F]/40 sm:h-44"
           onDragOver={(e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -286,7 +286,7 @@ export function PantrySearchView({
             alt=""
             priority
             loading="eager"
-            className="absolute inset-0 h-full w-full object-cover opacity-10 transition-opacity group-hover:opacity-20"
+            className="absolute inset-0 h-full w-full object-cover opacity-[0.04] transition-opacity group-hover:opacity-[0.07]"
             fill
             unoptimized
             sizes="100vw"
@@ -303,14 +303,14 @@ export function PantrySearchView({
               />
             </div>
           ) : (
-            <div className="pointer-events-none relative z-10 flex h-40 flex-col items-center justify-center px-4 sm:h-44">
-              <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-sm">
-                <ScanLine className="h-6 w-6 text-sv-primary" />
+            <div className="pointer-events-none relative z-10 flex h-40 flex-col items-center justify-center px-5 sm:h-44">
+              <div className="mb-2.5 flex h-12 w-12 items-center justify-center rounded-full bg-[#556B2F]/8">
+                <ScanLine className="h-6 w-6 text-[#3e5219]" strokeWidth={1.75} />
               </div>
-              <p className="text-sm font-medium text-sv-on-surface">
+              <p className="text-sm font-medium text-stone-800">
                 Toca para escanear tus ingredientes
               </p>
-              <p className="mt-0.5 text-xs text-sv-on-surface-variant">
+              <p className="mt-1 text-xs text-stone-500">
                 O arrastra y suelta una foto aquí
               </p>
             </div>
@@ -336,7 +336,7 @@ export function PantrySearchView({
 
       <section className="mb-4">
         {isPantryLoading ? (
-          <div className="h-12 animate-pulse rounded-full bg-sv-surface-low" />
+          <div className="h-12 animate-pulse rounded-full border border-stone-100 bg-stone-50" />
         ) : (
           <IngredientCombobox
             ingredients={masterIngredients}
@@ -409,7 +409,7 @@ export function PantrySearchView({
           return (
             <div
               key={key}
-              className={`rounded-lg bg-sv-surface-low p-3 shadow-[0_10px_20px_rgba(0,0,0,0.02)] ${
+              className={`rounded-2xl border border-stone-100/60 bg-white p-3.5 shadow-sm ${
                 isWide ? "md:col-span-2" : ""
               }`}
             >
@@ -421,12 +421,12 @@ export function PantrySearchView({
                 className="flex w-full items-center justify-between gap-2 rounded-md py-1 text-left"
               >
                 <div className="flex items-center gap-2">
-                  <Icon className="h-4 w-4 text-sv-primary" />
-                  <h3 className="text-[10px] font-bold uppercase tracking-[0.14em] text-sv-on-surface-variant">
+                  <Icon className="h-4 w-4 text-[#556B2F]" strokeWidth={1.5} />
+                  <h3 className="text-[10px] font-semibold uppercase tracking-[0.14em] text-stone-600">
                     {cat.title}
                   </h3>
                   {categoryFavorites.length > 0 ? (
-                    <span className="rounded-full bg-sv-secondary-container px-2 py-0.5 text-[10px] font-semibold text-sv-on-secondary-container">
+                    <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#dce7c3]/80 px-1.5 text-[10px] font-semibold text-[#3e5219]">
                       {categoryFavorites.length}
                     </span>
                   ) : null}
@@ -512,7 +512,7 @@ export function PantrySearchView({
           onClick={onFindRecipes}
           disabled={isBusy || !hasSelection}
           aria-label={hasSelection ? "Optimizar Receta Saludable" : "Escanear Nevera"}
-          className="pointer-events-auto flex w-full items-center justify-center gap-2.5 rounded-2xl bg-sv-primary px-4 py-3 text-center text-sm font-semibold leading-tight text-sv-on-primary shadow-[0_8px_30px_-10px_rgba(62,82,25,0.6)] transition hover:shadow-[0_12px_35px_-10px_rgba(62,82,25,0.8)] disabled:cursor-not-allowed disabled:opacity-50"
+          className="pointer-events-auto flex w-full items-center justify-center gap-2 rounded-full bg-[#4c6633] px-5 py-3.5 text-center text-sm font-semibold leading-tight text-white shadow-lg shadow-[#4c6633]/20 transition hover:bg-[#556B2F] hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50"
         >
           {hasSelection
             ? rateLimitSecondsLeft > 0

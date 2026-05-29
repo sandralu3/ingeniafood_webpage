@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Clock, UtensilsCrossed } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
+import { RecentRecipeCarouselCard } from "@/components/home/recent-recipe-carousel-card";
+import { WEEKLY_SANDRA_TIP } from "@/lib/content/weekly-tip";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import type { Database } from "@/types/database.types";
 
@@ -9,213 +12,220 @@ type RecipeRow = Database["public"]["Tables"]["recipes"]["Row"] & {
   tip_sandra?: string | null;
 };
 
+const RECENT_RECIPES_LIMIT = 8;
+
 function isMissingTipSandraColumnError(error: { code?: string; message?: string } | null): boolean {
   if (!error) return false;
   return error.code === "42703" || error.message?.includes("column recipes.tip_sandra does not exist") === true;
 }
 
-function formatDate(value: string): string {
-  const date = new Date(value);
-  return new Intl.DateTimeFormat("es-ES", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric"
-  }).format(date);
+function buildCategories(recipe: RecipeRow): string[] {
+  return [
+    recipe.is_airfryer ? "Airfryer" : null,
+    recipe.is_flourless ? "Sin Harinas" : null,
+    recipe.is_airfryer === false && recipe.is_flourless === false ? "Saludable" : null
+  ].filter((category): category is string => Boolean(category));
 }
 
-function parseIngredients(value: Database["public"]["Tables"]["recipes"]["Row"]["ingredients"]): string[] {
-  if (Array.isArray(value)) {
-    return value.map((item) => String(item));
+function resolveUserGreetingName(fullName: string | null, email: string | null): string {
+  const trimmed = fullName?.trim();
+  if (trimmed) {
+    return trimmed.split(/\s+/)[0] ?? trimmed;
   }
-  return [];
+  if (email) {
+    const localPart = email.split("@")[0] ?? "Chef";
+    return localPart.charAt(0).toUpperCase() + localPart.slice(1);
+  }
+  return "Chef";
 }
 
 export default function AppRecetasHomePage() {
   const [recipes, setRecipes] = useState<RecipeRow[]>([]);
+  const [userName, setUserName] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [selectedRecipe, setSelectedRecipe] = useState<RecipeRow | null>(null);
-
-  const loadRecipes = async () => {
-    setIsLoading(true);
-    setErrorMessage(null);
-
-    try {
-      const supabase = createSupabaseClient();
-      const {
-        data: { user }
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        setRecipes([]);
-        setIsLoading(false);
-        return;
-      }
-
-      const primaryQuery = await supabase
-        .from("recipes")
-        .select("id,user_id,title,ingredients,instructions,tip_sandra,image_url,created_at,description,cooking_time,is_airfryer,is_flourless,is_public")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
-
-      let recipesData = primaryQuery.data as RecipeRow[] | null;
-      let recipesError = primaryQuery.error;
-
-      if (isMissingTipSandraColumnError(recipesError)) {
-        const fallbackQuery = await supabase
-          .from("recipes")
-          .select(
-            "id,user_id,title,ingredients,instructions,image_url,created_at,description,cooking_time,is_airfryer,is_flourless,is_public"
-          )
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false });
-
-        recipesError = fallbackQuery.error;
-        recipesData = (fallbackQuery.data as RecipeRow[] | null)?.map((recipe) => ({
-          ...recipe,
-          tip_sandra: null
-        })) ?? null;
-      }
-
-      if (recipesError) {
-        const detailedMessage = recipesError.message?.trim()
-          ? `No pudimos cargar tu recetario en este momento. Detalle: ${recipesError.message}`
-          : "No pudimos cargar tu recetario en este momento.";
-        console.error("[recipes-home] Supabase select error:", recipesError);
-        setErrorMessage(detailedMessage);
-        setRecipes([]);
-      } else {
-        setRecipes(recipesData ?? []);
-      }
-    } catch (error) {
-      console.error("[recipes-home] Error cargando recetas:", error);
-      const fallbackMessage =
-        error instanceof Error && error.message.trim().length
-          ? `No pudimos cargar tu recetario en este momento. Detalle: ${error.message}`
-          : "No pudimos cargar tu recetario en este momento.";
-      setErrorMessage(fallbackMessage);
-      setRecipes([]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   useEffect(() => {
+    const loadRecipes = async () => {
+      setIsLoading(true);
+      setErrorMessage(null);
+
+      try {
+        const supabase = createSupabaseClient();
+        const {
+          data: { user }
+        } = await supabase.auth.getUser();
+
+        if (!user) {
+          setRecipes([]);
+          setUserName("Chef");
+          setIsLoading(false);
+          return;
+        }
+
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("full_name")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        setUserName(resolveUserGreetingName(profile?.full_name ?? null, user.email ?? null));
+
+        const primaryQuery = await supabase
+          .from("recipes")
+          .select(
+            "id,user_id,title,ingredients,instructions,tip_sandra,image_url,created_at,description,cooking_time,is_airfryer,is_flourless,is_public"
+          )
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(RECENT_RECIPES_LIMIT);
+
+        let recipesData = primaryQuery.data as RecipeRow[] | null;
+        let recipesError = primaryQuery.error;
+
+        if (isMissingTipSandraColumnError(recipesError)) {
+          const fallbackQuery = await supabase
+            .from("recipes")
+            .select(
+              "id,user_id,title,ingredients,instructions,image_url,created_at,description,cooking_time,is_airfryer,is_flourless,is_public"
+            )
+            .eq("user_id", user.id)
+            .order("created_at", { ascending: false })
+            .limit(RECENT_RECIPES_LIMIT);
+
+          recipesError = fallbackQuery.error;
+          recipesData =
+            (fallbackQuery.data as RecipeRow[] | null)?.map((recipe) => ({
+              ...recipe,
+              tip_sandra: null
+            })) ?? null;
+        }
+
+        if (recipesError) {
+          console.error("[home-dashboard] Supabase select error:", recipesError);
+          setErrorMessage("No pudimos cargar tus recetas recientes.");
+          setRecipes([]);
+        } else {
+          setRecipes(recipesData ?? []);
+        }
+      } catch (error) {
+        console.error("[home-dashboard] Error cargando recetas:", error);
+        setErrorMessage("No pudimos cargar tus recetas recientes.");
+        setRecipes([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
     void loadRecipes();
   }, []);
 
-  const pageContent = useMemo(() => {
-    if (isLoading) {
-      return (
-        <p className="rounded-2xl border border-[#556B2F]/15 bg-white px-4 py-3 text-sm text-stone-700">
-          Cargando tu recetario...
-        </p>
-      );
-    }
+  const recentRecipes = useMemo(() => recipes.slice(0, RECENT_RECIPES_LIMIT), [recipes]);
 
-    if (errorMessage) {
-      return (
-        <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {errorMessage}
-        </p>
-      );
-    }
-
-    if (!recipes.length) {
-      return (
-        <p className="rounded-2xl border border-[#556B2F]/15 bg-white px-4 py-3 text-sm text-stone-700">
-          Aún no tienes recetas guardadas. ¡Escanea tus ingredientes para empezar!
-        </p>
-      );
-    }
-
-    return (
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {recipes.map((recipe) => (
-          <button
-            key={recipe.id}
-            type="button"
-            onClick={() => setSelectedRecipe(recipe)}
-            className="rounded-2xl border border-[#556B2F]/20 bg-white p-4 text-left shadow-sm transition hover:border-[#556B2F]/35"
-          >
-            <p className="text-base font-semibold text-[#1F2937]">{recipe.title}</p>
-            <p className="mt-1 text-xs text-stone-600">{formatDate(recipe.created_at)}</p>
-          </button>
-        ))}
-      </div>
-    );
-  }, [errorMessage, isLoading, recipes]);
+  const greetingName = userName || "Chef";
 
   return (
-    <section className="space-y-4">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-bold tracking-tight text-[#1F2937]">Mi recetario</h1>
-        <p className="text-sm text-stone-600">
-          Tus recetas guardadas, listas para cocinar cuando quieras.
-        </p>
-      </header>
+    <section className="space-y-5 pb-8">
+      <h1 className="text-left font-sans text-2xl font-semibold tracking-tight text-stone-800">
+        ¡Hola, {greetingName}! 👋
+      </h1>
 
-      {pageContent}
+      {/* Hero Banner */}
+      <div className="hero-organic-texture relative overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-[#556B2F]/18 via-[#dce7c3]/35 to-[#FDFCFB] px-5 py-9 shadow-sm">
+        <div className="pointer-events-none absolute -left-6 top-0 h-40 w-40 rounded-full bg-[#556B2F]/10 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-4 -right-4 h-36 w-36 rounded-full bg-brand-green-light/20 blur-2xl" />
 
-      {selectedRecipe ? (
-        <div className="fixed inset-0 z-[130] flex items-end justify-center bg-black/30 px-4 pb-6 sm:items-center">
-          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-lg">
-            <div className="flex items-start justify-between gap-3">
-              <h2 className="text-xl font-bold text-[#1F2937]">{selectedRecipe.title}</h2>
-              <button
-                type="button"
-                onClick={() => setSelectedRecipe(null)}
-                className="rounded-full border border-stone-200 px-3 py-1 text-xs text-stone-600"
-              >
-                Cerrar
-              </button>
-            </div>
+        <div className="relative space-y-6 text-center">
+          <h2 className="font-serif text-[1.65rem] font-semibold leading-tight tracking-tight text-stone-800">
+            ¿Qué cocinamos hoy?
+          </h2>
 
-            <p className="mt-1 text-xs text-stone-500">{formatDate(selectedRecipe.created_at)}</p>
+          <p className="mx-auto max-w-xs text-lg leading-relaxed text-stone-800">
+            Escanea tu despensa. Descubre recetas saludables e instantáneas sin harinas ni azúcar
+            procesado.
+          </p>
 
-            <div className="mt-4 space-y-3">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#556B2F]">
-                  Ingredientes
-                </p>
-                <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-stone-700">
-                  {parseIngredients(selectedRecipe.ingredients).map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              </div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#556B2F]">
-                  Instrucciones
-                </p>
-                <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-stone-700">
-                  {selectedRecipe.instructions}
-                </p>
-              </div>
-              {selectedRecipe.cooking_time ? (
-                <p className="inline-flex items-center gap-1 text-xs text-stone-600">
-                  <Clock className="h-3.5 w-3.5 text-[#556B2F]" />
-                  {selectedRecipe.cooking_time} min
-                </p>
-              ) : null}
-              {selectedRecipe.tip_sandra ? (
-                <div className="rounded-xl border border-[#556B2F]/20 bg-[#F0F4ED] p-3">
-                  <p className="text-sm italic font-bold tracking-wide text-[#556B2F]">✨ Tip de Sandra</p>
-                  <p className="mt-1 text-sm text-stone-700">{selectedRecipe.tip_sandra}</p>
-                </div>
-              ) : null}
-            </div>
-          </div>
+          <Link
+            href="/app-recetas/scanner"
+            className="inline-flex w-full max-w-sm items-center justify-center gap-2 rounded-full bg-[#3e5219] px-6 py-4 text-sm font-semibold text-white shadow-lg shadow-[#3e5219]/25 transition hover:bg-[#556B2F] hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#556B2F]/40"
+          >
+            <span aria-hidden>🔍</span>
+            Escanear mis ingredientes
+          </Link>
         </div>
-      ) : null}
+      </div>
 
-      <a
-        href="/app-recetas/scanner"
-        className="inline-flex items-center gap-2 rounded-full bg-[#556B2F] px-5 py-3 text-sm font-semibold text-white shadow-md transition hover:brightness-110"
-      >
-        <UtensilsCrossed className="h-4 w-4" />
-        Escanear ingredientes
-      </a>
+      {/* Carrusel recientes */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between gap-3 px-0.5">
+          <h2 className="text-sm font-semibold tracking-tight text-stone-800">
+            Tus Últimas Creaciones
+          </h2>
+          {recentRecipes.length > 0 ? (
+            <Link
+              href="/app-recetas/recipes"
+              className="inline-flex shrink-0 items-center gap-0.5 text-xs font-medium text-[#556B2F] transition hover:opacity-75"
+            >
+              Ver todas
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          ) : null}
+        </div>
+
+        {isLoading ? (
+          <div className="no-scrollbar flex gap-4 overflow-x-auto pb-4">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <div
+                key={index}
+                className="h-[10.5rem] w-[11.5rem] shrink-0 animate-pulse rounded-2xl bg-stone-100"
+              />
+            ))}
+          </div>
+        ) : null}
+
+        {!isLoading && errorMessage ? (
+          <p className="rounded-2xl border border-stone-100 bg-white p-4 text-sm text-stone-600 shadow-sm">
+            {errorMessage}
+          </p>
+        ) : null}
+
+        {!isLoading && !errorMessage && recentRecipes.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-stone-200/80 bg-stone-50/60 px-4 py-8 text-center">
+            <p className="text-sm leading-relaxed text-stone-600">
+              Aún no tienes recetas guardadas. Escanea tus ingredientes para empezar.
+            </p>
+            <Link
+              href="/app-recetas/scanner"
+              className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-[#556B2F] transition hover:opacity-75"
+            >
+              Ir al escáner
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+        ) : null}
+
+        {!isLoading && !errorMessage && recentRecipes.length > 0 ? (
+          <div className="no-scrollbar -mx-0.5 flex gap-4 overflow-x-auto px-0.5 pb-4">
+            {recentRecipes.map((recipe) => (
+              <RecentRecipeCarouselCard
+                key={recipe.id}
+                title={recipe.title}
+                categories={buildCategories(recipe)}
+                imageUrl={recipe.image_url}
+                href={`/app-recetas/recipes/${recipe.id}`}
+              />
+            ))}
+          </div>
+        ) : null}
+      </section>
+
+      {/* Tip de Sandra */}
+      <aside className="rounded-2xl border border-brand-green-light/30 bg-brand-green-light/10 px-5 py-6 shadow-sm">
+        <h3 className="font-serif text-base font-semibold text-brand-green-dark">
+          💡 El Tip de Sandra
+        </h3>
+        <p className="mt-4 text-sm leading-7 text-stone-700">{WEEKLY_SANDRA_TIP}</p>
+      </aside>
     </section>
   );
 }

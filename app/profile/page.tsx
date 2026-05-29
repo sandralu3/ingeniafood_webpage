@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Camera } from "lucide-react";
 import { createSupabaseClient } from "@/lib/supabaseClient";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Toast } from "@/components/ui/toast";
@@ -15,6 +14,9 @@ type ToastState = {
   message: string;
   variant: "success" | "error";
 };
+
+const inputClassName =
+  "h-11 rounded-xl border-stone-200 bg-white focus-visible:border-[#4c6633]/35 focus-visible:ring-[#4c6633]/10";
 
 function getInitials(name?: string | null, email?: string | null): string {
   const source = name?.trim() || email?.trim() || "SV";
@@ -191,12 +193,13 @@ export default function ProfilePage() {
 
   if (isLoading) {
     return (
-      <section className="min-h-[calc(100dvh-10rem)] bg-brand-cream p-4">
-        <div className="mx-auto max-w-md animate-pulse rounded-2xl border border-brand-green-light/20 bg-white p-6">
-          <div className="mx-auto h-24 w-24 rounded-full bg-brand-green-light/20" />
-          <div className="mt-6 h-10 rounded-lg bg-brand-green-light/15" />
-          <div className="mt-3 h-10 rounded-lg bg-brand-green-light/15" />
-          <div className="mt-6 h-10 rounded-lg bg-brand-green-light/20" />
+      <section className="min-h-[calc(100dvh-10rem)] px-1 py-2">
+        <div className="mx-auto max-w-md animate-pulse space-y-6">
+          <div className="h-8 w-32 rounded-lg bg-stone-100" />
+          <div className="mx-auto h-28 w-28 rounded-full bg-stone-100" />
+          <div className="h-11 rounded-xl bg-stone-100" />
+          <div className="h-11 rounded-xl bg-stone-100" />
+          <div className="h-12 rounded-full bg-stone-100" />
         </div>
       </section>
     );
@@ -205,30 +208,36 @@ export default function ProfilePage() {
   return (
     <>
       <Toast message={toast.message} visible={toast.visible} variant={toast.variant} />
-      <section className="min-h-[calc(100dvh-10rem)] bg-brand-cream px-4 py-6">
-        <div className="mx-auto max-w-md rounded-2xl border border-brand-green-light/25 bg-white p-6 shadow-sm">
-          <header className="mb-6 text-center">
-            <h1 className="text-2xl font-bold text-brand-green-dark">Mi Perfil</h1>
-            <p className="mt-1 text-sm text-stone-600">Gestiona tus datos personales y tu foto.</p>
+      <section className="min-h-[calc(100dvh-10rem)] px-1 pb-8 pt-2">
+        <div className="mx-auto max-w-md space-y-8">
+          <header className="text-center">
+            <h1 className="font-serif text-2xl font-semibold tracking-tight text-stone-900">
+              Mi Perfil
+            </h1>
+            <p className="mt-2 text-sm leading-relaxed text-stone-500">
+              Gestiona tus datos personales y tu foto.
+            </p>
           </header>
 
-          <div className="mb-6 flex flex-col items-center gap-3">
+          <div className="flex flex-col items-center gap-3">
             <button
               type="button"
               onClick={handleAvatarClick}
-              className="relative h-28 w-28 overflow-hidden rounded-full border border-brand-green-light/40 bg-brand-green-light/15 text-brand-green-dark"
+              className="relative h-28 w-28 overflow-hidden rounded-full border border-[#4c6633]/35 bg-[#dce7c3]/20 text-[#4c6633]"
               aria-label="Actualizar foto de perfil"
             >
               {avatarUrl ? (
                 <img src={avatarUrl} alt="Avatar del usuario" className="h-full w-full object-cover" />
               ) : (
-                <span className="text-2xl font-semibold">{getInitials(fullName, email)}</span>
+                <span className="flex h-full w-full items-center justify-center text-2xl font-semibold">
+                  {getInitials(fullName, email)}
+                </span>
               )}
-              <span className="absolute bottom-1 right-1 inline-flex h-8 w-8 items-center justify-center rounded-full border border-brand-green-light/40 bg-white text-brand-green-dark shadow-sm">
-                <Camera className="h-4 w-4" />
+              <span className="absolute bottom-0.5 right-0.5 inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#4c6633] text-white shadow-sm">
+                <Camera className="h-3.5 w-3.5" strokeWidth={1.75} />
               </span>
               {isUploadingAvatar ? (
-                <span className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 text-xs font-medium text-white">
+                <span className="absolute inset-0 flex flex-col items-center justify-center bg-black/35 text-xs font-medium text-white">
                   <span className="mb-2 h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
                   Subiendo...
                 </span>
@@ -241,12 +250,16 @@ export default function ProfilePage() {
               className="hidden"
               onChange={(event) => void handleAvatarSelected(event)}
             />
-            {isPremium ? <Badge variant="secondary">Premium</Badge> : null}
+            {isPremium ? (
+              <Badge variant="secondary" className="border-[#4c6633]/15 bg-[#dce7c3]/30 text-[#4c6633]">
+                Premium
+              </Badge>
+            ) : null}
           </div>
 
-          <div className="space-y-4">
-            <div className="space-y-1">
-              <label htmlFor="fullName" className="text-sm font-medium text-stone-700">
+          <div className="space-y-5">
+            <div className="space-y-2">
+              <label htmlFor="fullName" className="text-sm font-medium text-stone-600">
                 Nombre completo
               </label>
               <Input
@@ -254,30 +267,31 @@ export default function ProfilePage() {
                 value={fullName}
                 onChange={(event) => setFullName(event.target.value)}
                 placeholder="Tu nombre completo"
+                className={inputClassName}
               />
             </div>
 
-            <div className="space-y-1">
-              <label htmlFor="email" className="text-sm font-medium text-stone-700">
+            <div className="space-y-2">
+              <label htmlFor="email" className="text-sm font-medium text-stone-600">
                 Correo electrónico
               </label>
-              <Input id="email" value={email} disabled />
+              <Input id="email" value={email} disabled className={inputClassName} />
             </div>
 
             {errorMessage ? (
-              <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              <p className="rounded-xl border border-red-100 bg-red-50/80 px-3 py-2.5 text-sm text-red-700">
                 {errorMessage}
               </p>
             ) : null}
 
-            <Button
+            <button
               type="button"
               onClick={() => void handleSaveChanges()}
               disabled={isSaving || isUploadingAvatar}
-              className="w-full"
+              className="w-full rounded-full bg-[#4c6633] px-5 py-3.5 text-sm font-semibold text-white shadow-lg shadow-[#4c6633]/20 transition hover:bg-[#556B2F] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSaving ? "Guardando..." : "Guardar Cambios"}
-            </Button>
+            </button>
           </div>
         </div>
       </section>
