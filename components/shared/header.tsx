@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Leaf, Menu } from "lucide-react";
+import { Menu } from "lucide-react";
+import { IngeniaFoodLogo } from "@/components/shared/ingenia-food-logo";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 
 function getInitials(name?: string | null, email?: string | null): string {
@@ -76,18 +77,7 @@ export function Header() {
         >
           <Menu className="h-5 w-5" strokeWidth={1.75} />
         </button>
-        <div className="min-w-0 font-sans leading-tight">
-          <p className="truncate text-[10px] font-medium uppercase tracking-[0.14em] text-sv-on-surface-variant">
-            Sandra Vergara
-          </p>
-          <div className="flex items-center gap-1">
-            <Leaf className="h-3.5 w-3.5 shrink-0 text-[#556B2F]" strokeWidth={2} />
-            <p className="truncate text-sm tracking-tight text-sv-on-surface">
-              <span className="font-semibold">Ingenia</span>
-              <span className="font-semibold text-[#556B2F]">Food</span>
-            </p>
-          </div>
-        </div>
+        <IngeniaFoodLogo />
       </div>
       <div className="relative ml-3 flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-sv-surface-low ring-1 ring-sv-outline-variant/40">
         {avatarContent}

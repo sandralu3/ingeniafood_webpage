@@ -8,7 +8,8 @@ import {
   Share2,
   UtensilsCrossed
 } from "lucide-react";
-import { RecipeShareCard } from "@/components/scanner/recipe-share-card";
+import { RecipeShareBranding } from "@/components/scanner/recipe-share-branding";
+import { IngeniaFoodLogo } from "@/components/shared/ingenia-food-logo";
 import { useShareRecipeImage } from "@/hooks/use-share-recipe-image";
 
 type GeneratedRecipe = {
@@ -37,9 +38,9 @@ function inferDifficulty(pasosCount: number): string {
 
 function formatTimeLabel(tiempo: string): string {
   const t = tiempo.trim().toUpperCase();
-  if (t.includes("MIN")) return t;
+  if (t.includes("MIN")) return t.replace(/\s+/g, "\u00A0");
   const n = tiempo.match(/\d+/);
-  return n ? `${n[0]} MIN` : tiempo;
+  return n ? `${n[0]}\u00A0MIN` : tiempo;
 }
 
 function buildMacroData(recipe: GeneratedRecipe) {
@@ -68,7 +69,7 @@ export function RecipeResultView({
   isSavedFavorites = false
 }: Props) {
   const macroData = buildMacroData(recipe);
-  const { cardRef, shareRecipeImage, isGenerating, errorMessage, clearError } =
+  const { captureRef, shareRecipeImage, isGenerating, errorMessage, clearError } =
     useShareRecipeImage();
 
   const handleShareImage = () => {
@@ -83,15 +84,9 @@ export function RecipeResultView({
   };
 
   return (
-    <article className="bg-[#FAFAFA] pb-28 pt-1 duration-500">
-      <div
-        aria-hidden
-        className="pointer-events-none fixed left-[-12000px] top-0 z-[-1] opacity-0"
-      >
-        <RecipeShareCard ref={cardRef} recipe={recipe} />
-      </div>
+    <article className="bg-[#FAFAFA] pb-28 pt-1 duration-500 has-[.recipe-share-capturing]:pb-4">
       {onNewSearch ? (
-        <div className="mb-2 px-1">
+        <div className="mb-2 px-1" data-share-exclude>
           <button
             type="button"
             onClick={onNewSearch}
@@ -102,136 +97,158 @@ export function RecipeResultView({
         </div>
       ) : null}
 
-      <section className="space-y-4 rounded-xl border border-sv-outline-variant/25 bg-white p-4">
-        <p className="text-xs font-medium text-sv-primary/80">
-          Receta optimizada a partir de tu escaneo
-        </p>
+      <div
+        id="recipe-container"
+        ref={captureRef}
+        className="recipe-capture-root space-y-4 bg-[#FAFAFA]"
+      >
+        <header data-share-only className="border-b border-sv-outline-variant/20 px-0.5 pb-4 pt-1">
+          <IngeniaFoodLogo variant="share" />
+        </header>
 
-        <h1 className="text-[1.6rem] font-semibold leading-tight tracking-tight text-sv-on-surface">
-          {recipe.titulo}
-        </h1>
+        <section className="space-y-4 rounded-xl border border-sv-outline-variant/25 bg-white p-4">
+          <p data-share-exclude className="text-xs font-medium text-sv-primary/80">
+            Receta optimizada a partir de tu escaneo
+          </p>
 
-        <div className="flex flex-wrap items-center justify-center gap-2 text-xs font-medium">
-          <span className="rounded-full border border-sv-primary/25 bg-sv-secondary-container/70 px-3 py-1 text-sv-on-secondary-container">
-            Sin Harinas
-          </span>
-          <span className="rounded-full border border-sv-primary/25 bg-sv-secondary-container/70 px-3 py-1 text-sv-on-secondary-container">
-            Apto para Airfryer
-          </span>
-          <span className="inline-flex items-center gap-1 rounded-full border border-sv-outline-variant/40 px-3 py-1 text-sv-on-surface-variant">
-            <Clock className="h-3.5 w-3.5 text-sv-primary" />
-            {formatTimeLabel(recipe.tiempo_preparacion)}
-          </span>
-          <span className="inline-flex items-center gap-1 rounded-full border border-sv-outline-variant/40 px-3 py-1 text-sv-on-surface-variant">
-            <UtensilsCrossed className="h-3.5 w-3.5 text-sv-primary" />
-            {inferDifficulty(recipe.pasos_ordenados.length)}
-          </span>
-        </div>
-      </section>
+          <h1 className="text-[1.6rem] font-semibold leading-tight tracking-tight text-sv-on-surface">
+            {recipe.titulo}
+          </h1>
 
-      <div className="mt-4 grid grid-cols-1 gap-4">
-        <div className="rounded-xl border border-sv-outline-variant/25 bg-white p-4">
-          <h3 className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-sv-primary">
-            Cálculo de Macronutrientes
-          </h3>
-          <div className="space-y-2.5">
-            {macroData.map((macro) => (
-              <div key={macro.label} className="space-y-1">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-medium text-sv-on-surface-variant">{macro.label}</span>
-                  <span className="font-semibold text-sv-on-surface">{macro.value}</span>
-                </div>
-                <div className="h-1.5 rounded-full bg-sv-surface-low">
-                  <div
-                    className="h-full rounded-full bg-sv-primary transition-all"
-                    style={{ width: `${macro.progress}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-sv-outline-variant/25 bg-white p-4">
-          <h3 className="mb-4 text-xs font-bold uppercase tracking-[0.2em] text-sv-primary">
-            Ingredientes Identificados
-          </h3>
-          <ul className="space-y-2.5">
-            {recipe.ingredientes_detallados.map((item) => (
-              <li
-                key={item}
-                className="flex items-start gap-3 border-b border-sv-outline-variant/20 pb-2.5 last:border-0"
-              >
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-sv-primary" />
-                <span className="text-sm leading-relaxed text-sv-on-surface">{item}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <div className="space-y-6 rounded-xl border border-sv-outline-variant/25 bg-white p-4">
-          <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-sv-primary">
-            Instrucciones de Preparación
-          </h3>
-          <div className="space-y-6">
-            {recipe.pasos_ordenados.map((step, index) => {
-              const num = String(index + 1).padStart(2, "0");
-              return (
-                <div key={`${num}-${step.slice(0, 24)}`} className="flex gap-4">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-sv-outline-variant text-xs font-semibold text-sv-primary">
-                    {num}
-                  </div>
-                  <div className="pt-0.5">
-                    <p className="text-sm leading-relaxed text-sv-on-surface-variant">{step}</p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="rounded-xl border border-[#556B2F]/20 bg-[#F0F4ED] p-4">
-            <p className="text-sm italic font-bold tracking-wide text-[#556B2F]">✨ Tip de Sandra</p>
-            <p className="mt-2 text-sm leading-relaxed text-sv-on-surface-variant">
-              {recipe.tip_sandra}
-            </p>
-          </div>
-
-          <div className="space-y-3 pt-2">
-            <button
-              type="button"
-              onClick={handleShareImage}
-              disabled={isGenerating}
-              className="group flex w-full items-center justify-center gap-2 rounded-xl border border-sv-primary/30 bg-white px-5 py-3 text-sm font-semibold tracking-wide text-sv-primary shadow-sm transition duration-300 hover:bg-sv-secondary-container/40 disabled:cursor-not-allowed disabled:opacity-60"
+          <div className="flex flex-wrap items-center justify-center gap-2.5 text-xs font-medium">
+            <span
+              data-share-exclude
+              className="rounded-full border border-sv-primary/25 bg-sv-secondary-container/70 px-3 py-1 text-sv-on-secondary-container"
             >
-              {isGenerating ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Share2 className="h-4 w-4" />
-              )}
-              {isGenerating ? "Generando imagen..." : "Compartir Receta (Imagen)"}
-            </button>
-            {errorMessage ? (
-              <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-                {errorMessage}
+              Sin Harinas
+            </span>
+            <span
+              data-share-exclude
+              className="rounded-full border border-sv-primary/25 bg-sv-secondary-container/70 px-3 py-1 text-sv-on-secondary-container"
+            >
+              Apto para Airfryer
+            </span>
+            <span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-sv-outline-variant/40 px-3.5 py-1.5 text-sv-on-surface-variant">
+              <Clock className="h-3.5 w-3.5 shrink-0 text-sv-primary" />
+              {formatTimeLabel(recipe.tiempo_preparacion)}
+            </span>
+            <span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-sv-outline-variant/40 px-3.5 py-1.5 text-sv-on-surface-variant">
+              <UtensilsCrossed className="h-3.5 w-3.5 shrink-0 text-sv-primary" />
+              {inferDifficulty(recipe.pasos_ordenados.length)}
+            </span>
+          </div>
+        </section>
+
+        <div className="grid grid-cols-1 gap-4">
+          <div className="rounded-xl border border-sv-outline-variant/25 bg-white p-4">
+            <h3 className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-sv-primary">
+              Cálculo de Macronutrientes
+            </h3>
+            <div className="space-y-2.5">
+              {macroData.map((macro) => (
+                <div key={macro.label} className="space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-medium text-sv-on-surface-variant">{macro.label}</span>
+                    <span className="font-semibold text-sv-on-surface">{macro.value}</span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-sv-surface-low">
+                    <div
+                      className="h-full rounded-full bg-sv-primary transition-all"
+                      style={{ width: `${macro.progress}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-sv-outline-variant/25 bg-white p-4">
+            <h3 className="mb-4 text-xs font-bold uppercase tracking-[0.2em] text-sv-primary">
+              Ingredientes Identificados
+            </h3>
+            <ul className="space-y-2.5">
+              {recipe.ingredientes_detallados.map((item) => (
+                <li
+                  key={item}
+                  className="flex items-start gap-3 border-b border-sv-outline-variant/20 pb-2.5 last:border-0"
+                >
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-sv-primary" />
+                  <span className="text-sm leading-relaxed text-sv-on-surface">{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="space-y-6 rounded-xl border border-sv-outline-variant/25 bg-white p-4">
+            <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-sv-primary">
+              Instrucciones de Preparación
+            </h3>
+            <div className="space-y-6">
+              {recipe.pasos_ordenados.map((step, index) => {
+                const num = String(index + 1).padStart(2, "0");
+                return (
+                  <div key={`${num}-${step.slice(0, 24)}`} className="flex gap-4">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-sv-outline-variant text-xs font-semibold text-sv-primary">
+                      {num}
+                    </div>
+                    <div className="pt-0.5">
+                      <p className="text-sm leading-relaxed text-sv-on-surface-variant">
+                        {step}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div
+              data-share-exclude
+              className="rounded-xl border border-[#556B2F]/20 bg-[#F0F4ED] p-4"
+            >
+              <p className="text-sm font-bold tracking-wide text-[#556B2F]">✨ Tip de Sandra</p>
+              <p className="mt-2 text-sm leading-relaxed text-sv-on-surface-variant">
+                {recipe.tip_sandra}
               </p>
-            ) : null}
-            <button
-              type="button"
-              onClick={onSaveFavorites}
-              disabled={isSavingFavorites || isSavedFavorites || isGenerating}
-              className="group flex w-full items-center justify-center gap-2 rounded-xl bg-sv-primary px-5 py-3 text-sm font-semibold tracking-wide text-sv-on-primary shadow-lg shadow-sv-primary/20 transition duration-300 hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <Bookmark className="h-4 w-4 fill-current" />
-              {isSavedFavorites
-                ? "Guardado"
-                : isSavingFavorites
-                  ? "Guardando..."
-                  : "Guardar en mi recetario"}
-            </button>
+            </div>
+
+            <div className="space-y-3 pt-2" data-share-exclude>
+              <button
+                type="button"
+                onClick={handleShareImage}
+                disabled={isGenerating}
+                className="group flex w-full items-center justify-center gap-2 rounded-xl border border-sv-primary/30 bg-white px-5 py-3 text-sm font-semibold tracking-wide text-sv-primary shadow-sm transition duration-300 hover:bg-sv-secondary-container/40 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isGenerating ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Share2 className="h-4 w-4" />
+                )}
+                {isGenerating ? "Generando imagen..." : "Compartir Receta (Imagen)"}
+              </button>
+              {errorMessage ? (
+                <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                  {errorMessage}
+                </p>
+              ) : null}
+              <button
+                type="button"
+                onClick={onSaveFavorites}
+                disabled={isSavingFavorites || isSavedFavorites || isGenerating}
+                className="group flex w-full items-center justify-center gap-2 rounded-xl bg-sv-primary px-5 py-3 text-sm font-semibold tracking-wide text-sv-on-primary shadow-lg shadow-sv-primary/20 transition duration-300 hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <Bookmark className="h-4 w-4 fill-current" />
+                {isSavedFavorites
+                  ? "Guardado"
+                  : isSavingFavorites
+                    ? "Guardando..."
+                    : "Guardar en mi recetario"}
+              </button>
+            </div>
           </div>
         </div>
+
+        <RecipeShareBranding tipSandra={recipe.tip_sandra} />
       </div>
     </article>
   );
 }
-

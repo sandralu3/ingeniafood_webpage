@@ -2,3 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer utilities {
+  [data-share-only] {
+    display: none;
+  }
+
+  .recipe-share-capturing [data-share-exclude] {
+    display: none !important;
+  }
+
+  .recipe-share-capturing [data-share-only] {
+    display: block;
+  }
+}
+
