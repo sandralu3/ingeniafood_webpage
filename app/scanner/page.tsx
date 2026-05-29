@@ -19,6 +19,7 @@ type ApiPayload = {
   error?: string;
   details?: string;
   code?: string;
+  mensaje?: string;
 };
 
 const RECIPE_CACHE_PREFIX = "recipe-cache-v1";
@@ -123,6 +124,12 @@ function resolveErrorMessage(
   if (payload.code === "NOT_FOOD" || payload.error === "NOT_FOOD") {
     return "🍎 ¡Ups! No hemos detectado ningún ingrediente en la foto. Por favor, asegúrate de enfocar bien tus alimentos para que pueda ayudarte con una receta.";
   }
+  if (payload.code === "INVALID_INGREDIENT" || payload.error === "ingrediente_invalido") {
+    return (
+      payload.mensaje ??
+      "Parece que hay algo en tu despensa que no es un alimento válido. ¡Revisa tus ingredientes seleccionados e inténtalo de nuevo!"
+    );
+  }
   if (status === 503) {
     return "El servidor de Google está saturado (Demanda alta). Por favor, intenta de nuevo en unos segundos.";
   }
@@ -145,7 +152,6 @@ function resolveErrorMessage(
 
 export default function ScannerPage() {
   const [selectedIngredients, setSelectedIngredients] = useState<string[]>([]);
-  const [addMoreValue, setAddMoreValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [retryMessage, setRetryMessage] = useState<string | null>(null);
@@ -154,6 +160,8 @@ export default function ScannerPage() {
   const [recipeFromPhoto, setRecipeFromPhoto] = useState(false);
   const [securityWarning, setSecurityWarning] = useState<string | null>(null);
   const [showNotFoodGuidance, setShowNotFoodGuidance] = useState(false);
+  const [showInvalidIngredientAlert, setShowInvalidIngredientAlert] = useState(false);
+  const [invalidIngredientMessage, setInvalidIngredientMessage] = useState<string | null>(null);
   const [isSavingRecipe, setIsSavingRecipe] = useState(false);
   const [isRecipeSaved, setIsRecipeSaved] = useState(false);
   const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null);
@@ -169,7 +177,6 @@ export default function ScannerPage() {
 
   const resetScannerState = () => {
     setSelectedIngredients([]);
-    setAddMoreValue("");
     setRecipe(null);
     setPantryImageFile(null);
     setRecipeFromPhoto(false);
@@ -177,6 +184,8 @@ export default function ScannerPage() {
     setRetryMessage(null);
     setIsLoading(false);
     setShowNotFoodGuidance(false);
+    setShowInvalidIngredientAlert(false);
+    setInvalidIngredientMessage(null);
     setSaveSuccessMessage(null);
     setIsRecipeSaved(false);
     setRateLimitSecondsLeft(0);
@@ -230,11 +239,8 @@ export default function ScannerPage() {
     setRateLimitSecondsLeft(0);
   };
 
-  const handleAddMoreSubmit = () => {
-    const v = addMoreValue.trim();
-    if (!v) return;
-    setSelectedIngredients((prev) => (prev.includes(v) ? prev : [...prev, v]));
-    setAddMoreValue("");
+  const handleAddIngredient = (name: string) => {
+    setSelectedIngredients((prev) => (prev.includes(name) ? prev : [...prev, name]));
     setRecipe(null);
     setRecipeFromPhoto(false);
     setErrorMessage(null);
@@ -384,6 +390,8 @@ export default function ScannerPage() {
     setRetryMessage(null);
     setRecipe(null);
     setShowNotFoodGuidance(false);
+    setShowInvalidIngredientAlert(false);
+    setInvalidIngredientMessage(null);
     setIsRecipeSaved(false);
     setRateLimitSecondsLeft(0);
 
@@ -426,18 +434,35 @@ export default function ScannerPage() {
 
       if (!response.ok || !payload.recipe) {
         setRecipe(null);
+
+        const isNotFood = payload.code === "NOT_FOOD" || payload.error === "NOT_FOOD";
+        if (isNotFood) {
+          setShowNotFoodGuidance(true);
+          setShowInvalidIngredientAlert(false);
+          setErrorMessage(null);
+          return;
+        }
+
+        const isInvalidIngredient =
+          response.status === 400 &&
+          (payload.code === "INVALID_INGREDIENT" || payload.error === "ingrediente_invalido");
+        if (isInvalidIngredient) {
+          setShowInvalidIngredientAlert(true);
+          setInvalidIngredientMessage(
+            payload.mensaje ??
+              resolveErrorMessage(response.status, payload, networkError)
+          );
+          setShowNotFoodGuidance(false);
+          setErrorMessage(null);
+          return;
+        }
+
         console.error("[generate-recipe] Error final:", {
           status: response.status,
           code: payload.code,
           error: payload.error,
           details: payload.details
         });
-        const isNotFood = payload.code === "NOT_FOOD" || payload.error === "NOT_FOOD";
-        if (isNotFood) {
-          setShowNotFoodGuidance(true);
-          setErrorMessage(null);
-          return;
-        }
         const nextRateLimitSeconds =
           response.status === 429 ? extractRetrySeconds(payload.details) : 0;
         if (nextRateLimitSeconds > 0) {
@@ -552,6 +577,64 @@ export default function ScannerPage() {
         </div>
       ) : null}
 
+      {showInvalidIngredientAlert ? (
+        <div className="fixed inset-0 z-[140] flex items-center justify-center bg-black/40 px-4">
+          <div
+            role="alertdialog"
+            aria-labelledby="invalid-ingredient-title"
+            className="w-full max-w-md rounded-2xl border border-amber-300/60 bg-[#FDFCFB] p-5 shadow-xl"
+          >
+            <p id="invalid-ingredient-title" className="text-lg font-semibold text-[#556B2F]">
+              ⚠️ Ingrediente no válido
+            </p>
+            <p className="mt-2 text-sm leading-relaxed text-stone-700">
+              {invalidIngredientMessage ??
+                "Parece que hay algo en tu despensa que no es un alimento válido. ¡Revisa tus ingredientes seleccionados e inténtalo de nuevo!"}
+            </p>
+            {selectedIngredients.length > 0 ? (
+              <div className="mt-3 rounded-xl border border-[#556B2F]/15 bg-white px-3 py-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">
+                  Revisa tu selección
+                </p>
+                <ul className="mt-2 space-y-1.5">
+                  {selectedIngredients.map((name) => (
+                    <li
+                      key={name}
+                      className="flex items-center justify-between gap-2 rounded-lg border border-stone-200 bg-stone-50 px-2 py-1.5 text-sm text-stone-700"
+                    >
+                      <span>{name}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleRemoveIngredient(name);
+                          if (selectedIngredients.length <= 1) {
+                            setShowInvalidIngredientAlert(false);
+                            setInvalidIngredientMessage(null);
+                          }
+                        }}
+                        className="shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold text-red-700 transition hover:bg-red-50"
+                      >
+                        Quitar
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => {
+                setShowInvalidIngredientAlert(false);
+                setInvalidIngredientMessage(null);
+              }}
+              className="mt-4 w-full rounded-full bg-[#556B2F] px-4 py-2.5 text-sm font-semibold text-white transition hover:brightness-110"
+            >
+              Entendido, revisaré mi despensa
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       {!isLoading && !recipe ? (
         <div className="animate-fade-in">
           {showNotFoodGuidance ? (
@@ -581,9 +664,7 @@ export default function ScannerPage() {
             selectedIngredients={selectedIngredients}
             pantryImageFile={pantryImageFile}
             onPantryImageChange={handlePantryImageChange}
-            addMoreValue={addMoreValue}
-            onAddMoreChange={setAddMoreValue}
-            onAddMoreSubmit={handleAddMoreSubmit}
+            onAddIngredient={handleAddIngredient}
             onRemoveIngredient={handleRemoveIngredient}
             onToggleFromCategory={handleToggleFromCategory}
             onFindRecipes={handleFindRecipes}

@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import {
-  Plus,
   ScanLine,
   X,
   Egg,
@@ -13,32 +12,42 @@ import {
   Sparkles,
   Check,
   Package,
-  ChevronDown
+  ChevronDown,
+  Bookmark,
+  BookmarkCheck
 } from "lucide-react";
+import { IngredientCombobox } from "@/components/scanner/ingredient-combobox";
+import { usePantryData } from "@/hooks/use-pantry-data";
+import {
+  CATEGORY_DB_TO_UI,
+  type CategoryKey,
+  type MasterIngredient,
+  type PantryCategoryDb
+} from "@/lib/pantry/types";
 
 const SCAN_ZONE_BG =
   "https://lh3.googleusercontent.com/aida-public/AB6AXuCKL8lGCHNP6y4RG_73y-09i4hv_25R-s5Csy2Fsl_s4M76iwhCC1rohFapVZfMqZuOr4DwzwcIaKMJJKgN983DAoHfezkVbeXDrCRCKlbyBWF1MS_ysUUuSe8KxAKTY3L0bxaiR2Geu1k1xdVxYwFyGP3iqE4NgHpc048y_iwnETEk0GSS7WgVfn-Lng0v8z3seLxYcLWYSuXtUpXIkrQbaT3yDzvDlpnevBL0UXHsL70_OrXIXco_ien6YSVyL_GWgomeQamGBDXN";
 
-export type CategoryKey = "Proteinas" | "Vegetales" | "Basicos de Despensa";
+export type { CategoryKey };
 
 export const PANTRY_CATEGORIES: Record<
   CategoryKey,
-  { title: string; icon: typeof Beef; items: string[] }
+  { title: string; icon: typeof Beef; dbCategory: PantryCategoryDb }
 > = {
   Proteinas: {
     title: "Proteinas",
     icon: Beef,
-    items: ["Filete de Salmon", "Tofu", "Frijoles Negros"]
+    dbCategory: "proteinas"
   },
   Vegetales: {
     title: "Vegetales",
     icon: Carrot,
-    items: ["Tomates Cherry", "Brocoli", "Pimientos"]
+    dbCategory: "vegetales"
   },
   "Basicos de Despensa": {
     title: "Basicos de Despensa",
     icon: Package,
-    items: ["Aceite de Oliva", "Arroz Integral", "Miel"]
+    dbCategory: "basicos_despensa"
   }
 };
 
@@ -55,9 +64,7 @@ type Props = {
   selectedIngredients: string[];
   pantryImageFile: File | null;
   onPantryImageChange: (file: File | null) => void;
-  addMoreValue: string;
-  onAddMoreChange: (v: string) => void;
-  onAddMoreSubmit: () => void;
+  onAddIngredient: (name: string) => void;
   onRemoveIngredient: (name: string) => void;
   onToggleFromCategory: (name: string) => void;
   onFindRecipes: () => void;
@@ -71,9 +78,7 @@ export function PantrySearchView({
   selectedIngredients,
   pantryImageFile,
   onPantryImageChange,
-  addMoreValue,
-  onAddMoreChange,
-  onAddMoreSubmit,
+  onAddIngredient,
   onRemoveIngredient,
   onToggleFromCategory,
   onFindRecipes,
@@ -83,11 +88,41 @@ export function PantrySearchView({
   rateLimitSecondsLeft = 0
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const {
+    masterIngredients,
+    favorites,
+    favoriteIngredientIds,
+    isLoading: isPantryLoading,
+    error: pantryError,
+    addFavorite,
+    createCustomIngredient,
+    removeFavorite
+  } = usePantryData();
+
   const [expandedCategories, setExpandedCategories] = useState<Record<CategoryKey, boolean>>({
     Proteinas: false,
     Vegetales: false,
     "Basicos de Despensa": false
   });
+
+  const masterByName = useMemo(() => {
+    const map = new Map<string, MasterIngredient>();
+    masterIngredients.forEach((item) => map.set(item.name.toLowerCase(), item));
+    return map;
+  }, [masterIngredients]);
+
+  const favoritesByCategory = useMemo(() => {
+    const grouped: Record<CategoryKey, typeof favorites> = {
+      Proteinas: [],
+      Vegetales: [],
+      "Basicos de Despensa": []
+    };
+    favorites.forEach((fav) => {
+      const uiCategory = CATEGORY_DB_TO_UI[fav.category];
+      grouped[uiCategory].push(fav);
+    });
+    return grouped;
+  }, [favorites]);
 
   const previewUrl = useMemo(() => {
     if (!pantryImageFile) {
@@ -105,7 +140,6 @@ export function PantrySearchView({
   }, [previewUrl]);
 
   const openFilePicker = useCallback(() => {
-    console.log("Abriendo selector de medios...");
     inputRef.current?.click();
   }, []);
 
@@ -144,12 +178,79 @@ export function PantrySearchView({
   );
 
   const hasSelection = selectedIngredients.length > 0 || pantryImageFile !== null;
+
   const toggleCategory = useCallback((category: CategoryKey) => {
     setExpandedCategories((prev) => ({
       ...prev,
       [category]: !prev[category]
     }));
   }, []);
+
+  const expandCategory = useCallback((category: CategoryKey) => {
+    setExpandedCategories((prev) => ({
+      ...prev,
+      [category]: true
+    }));
+  }, []);
+
+  const handleComboboxSelect = useCallback(
+    (ingredient: MasterIngredient) => {
+      if (!selectedIngredients.includes(ingredient.name)) {
+        onAddIngredient(ingredient.name);
+      }
+      expandCategory(CATEGORY_DB_TO_UI[ingredient.category]);
+    },
+    [onAddIngredient, selectedIngredients, expandCategory]
+  );
+
+  const handleCreateCustomIngredient = useCallback(
+    async (name: string, category: MasterIngredient["category"]) => {
+      const created = await createCustomIngredient(name, category);
+      if (created) {
+        handleComboboxSelect(created);
+      }
+      return created;
+    },
+    [createCustomIngredient, handleComboboxSelect]
+  );
+
+  const handleToggleFavorite = useCallback(
+    async (ingredientName: string) => {
+      const ingredient = masterByName.get(ingredientName.toLowerCase());
+      if (!ingredient) return;
+
+      if (favoriteIngredientIds.has(ingredient.id)) {
+        const favorite = favorites.find((fav) => fav.ingredientId === ingredient.id);
+        if (favorite) {
+          await removeFavorite(favorite.favoriteId);
+        }
+        return;
+      }
+
+      const created = await addFavorite(ingredient.id);
+      if (created) {
+        expandCategory(CATEGORY_DB_TO_UI[created.category]);
+      }
+    },
+    [
+      addFavorite,
+      expandCategory,
+      favoriteIngredientIds,
+      favorites,
+      masterByName,
+      removeFavorite
+    ]
+  );
+
+  const handleRemoveFavoriteFromAccordion = useCallback(
+    async (favoriteId: string, ingredientName: string) => {
+      const removed = await removeFavorite(favoriteId);
+      if (removed && selectedIngredients.includes(ingredientName)) {
+        onRemoveIngredient(ingredientName);
+      }
+    },
+    [onRemoveIngredient, removeFavorite, selectedIngredients]
+  );
 
   return (
     <div className="pb-36 pt-1.5 duration-300 sm:pb-40">
@@ -183,6 +284,8 @@ export function PantrySearchView({
           <Image
             src={SCAN_ZONE_BG}
             alt=""
+            priority
+            loading="eager"
             className="absolute inset-0 h-full w-full object-cover opacity-10 transition-opacity group-hover:opacity-20"
             fill
             unoptimized
@@ -232,47 +335,65 @@ export function PantrySearchView({
       </section>
 
       <section className="mb-4">
-        <div className="relative">
-          <input
-            type="text"
-            value={addMoreValue}
-            aria-label="Agregar mas ingredientes"
-            onChange={(e) => onAddMoreChange(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                onAddMoreSubmit();
-              }
-            }}
-            placeholder="Agrega mas: ej. Kale, Yogur griego, Quinoa"
-            className="w-full rounded-full border-none bg-sv-surface-low px-5 py-3 text-sm text-sv-on-surface shadow-sm placeholder:text-stone-400 transition focus:bg-white focus:ring-2 focus:ring-sv-primary/20"
+        {isPantryLoading ? (
+          <div className="h-12 animate-pulse rounded-full bg-sv-surface-low" />
+        ) : (
+          <IngredientCombobox
+            ingredients={masterIngredients}
+            disabled={isBusy}
+            onSelectIngredient={handleComboboxSelect}
+            onCreateCustomIngredient={handleCreateCustomIngredient}
           />
-          <button
-            type="button"
-            onClick={onAddMoreSubmit}
-            className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-sv-primary text-sv-on-primary transition hover:scale-95"
-            aria-label="Añadir ingrediente"
-          >
-            <Plus className="h-4 w-4" strokeWidth={2.5} />
-          </button>
-        </div>
+        )}
+        {pantryError ? (
+          <p className="mt-2 text-xs text-red-600">{pantryError}</p>
+        ) : null}
       </section>
 
       {selectedIngredients.length > 0 ? (
         <section className="mb-4 flex flex-wrap gap-2">
           {selectedIngredients.map((name) => {
             const Icon = pillIconFor(name);
+            const ingredient = masterByName.get(name.toLowerCase());
+            const isFavorite = ingredient ? favoriteIngredientIds.has(ingredient.id) : false;
             return (
-              <button
+              <div
                 key={name}
-                type="button"
-                onClick={() => onRemoveIngredient(name)}
-                className="flex items-center gap-1.5 rounded-full bg-sv-secondary-container px-3 py-1.5 text-xs font-medium text-sv-on-secondary-container transition hover:scale-105"
+                className="flex items-center gap-1 rounded-full bg-sv-secondary-container pl-3 pr-1 py-1.5 text-xs font-medium text-sv-on-secondary-container"
               >
-                <Icon className="h-3.5 w-3.5 shrink-0" />
-                {name}
-                <X className="h-3.5 w-3.5 opacity-50" aria-hidden />
-              </button>
+                <button
+                  type="button"
+                  onClick={() => onRemoveIngredient(name)}
+                  className="flex items-center gap-1.5"
+                >
+                  <Icon className="h-3.5 w-3.5 shrink-0" />
+                  {name}
+                </button>
+                {ingredient ? (
+                  <button
+                    type="button"
+                    onClick={() => void handleToggleFavorite(name)}
+                    className="ml-0.5 rounded-full p-1 transition hover:bg-white/50"
+                    aria-label={
+                      isFavorite ? "Quitar de favoritos de despensa" : "Guardar en favoritos de despensa"
+                    }
+                  >
+                    {isFavorite ? (
+                      <BookmarkCheck className="h-3.5 w-3.5 text-sv-primary" />
+                    ) : (
+                      <Bookmark className="h-3.5 w-3.5 opacity-70" />
+                    )}
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => onRemoveIngredient(name)}
+                  className="rounded-full p-1 opacity-60 transition hover:opacity-100"
+                  aria-label={`Quitar ${name}`}
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
             );
           })}
         </section>
@@ -284,6 +405,7 @@ export function PantrySearchView({
           const Icon = cat.icon;
           const isWide = key === "Basicos de Despensa";
           const isExpanded = expandedCategories[key];
+          const categoryFavorites = favoritesByCategory[key];
           return (
             <div
               key={key}
@@ -303,6 +425,11 @@ export function PantrySearchView({
                   <h3 className="text-[10px] font-bold uppercase tracking-[0.14em] text-sv-on-surface-variant">
                     {cat.title}
                   </h3>
+                  {categoryFavorites.length > 0 ? (
+                    <span className="rounded-full bg-sv-secondary-container px-2 py-0.5 text-[10px] font-semibold text-sv-on-secondary-container">
+                      {categoryFavorites.length}
+                    </span>
+                  ) : null}
                 </div>
                 <ChevronDown
                   className={`h-4 w-4 shrink-0 text-sv-on-surface-variant transition-transform duration-300 ${
@@ -313,34 +440,49 @@ export function PantrySearchView({
               <div
                 id={`accordion-${key}`}
                 className={`overflow-hidden transition-[max-height,opacity,margin] duration-300 ease-out ${
-                  isExpanded ? "mt-2 max-h-44 opacity-100" : "mt-0 max-h-0 opacity-0"
+                  isExpanded ? "mt-2 max-h-56 opacity-100" : "mt-0 max-h-0 opacity-0"
                 }`}
               >
-                <div className="grid grid-cols-2 gap-x-2.5 gap-y-1 md:grid-cols-3">
-                  {cat.items.map((item) => {
-                    const active = selectedIngredients.includes(item);
-                    return (
-                      <button
-                        key={item}
-                        type="button"
-                        onClick={() => onToggleFromCategory(item)}
-                        className={`flex w-full items-center justify-between rounded-md py-1 text-left text-xs transition ${
-                          active ? "text-sv-primary" : "text-sv-on-surface"
-                        }`}
-                      >
-                        <span className="pr-1.5 leading-tight">{item}</span>
-                        {active ? (
-                          <Check className="h-3.5 w-3.5 shrink-0 text-sv-primary" strokeWidth={2.5} />
-                        ) : (
-                          <Plus
-                            className="h-3.5 w-3.5 shrink-0 text-sv-outline transition hover:text-sv-primary"
-                            strokeWidth={2}
-                          />
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
+                {categoryFavorites.length === 0 ? (
+                  <p className="px-1 py-2 text-xs text-stone-500">
+                    Sin favoritos aquí. Busca un ingrediente y pulsa el marcador ★.
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-1 gap-1 md:grid-cols-2">
+                    {categoryFavorites.map((fav) => {
+                      const active = selectedIngredients.includes(fav.name);
+                      return (
+                        <div
+                          key={fav.favoriteId}
+                          className="flex items-center justify-between rounded-md py-1 pr-1"
+                        >
+                          <button
+                            type="button"
+                            onClick={() => onToggleFromCategory(fav.name)}
+                            className={`flex min-w-0 flex-1 items-center justify-between rounded-md px-1 text-left text-xs transition ${
+                              active ? "text-sv-primary" : "text-sv-on-surface"
+                            }`}
+                          >
+                            <span className="truncate pr-1.5 leading-tight">{fav.name}</span>
+                            {active ? (
+                              <Check className="h-3.5 w-3.5 shrink-0 text-sv-primary" strokeWidth={2.5} />
+                            ) : null}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void handleRemoveFavoriteFromAccordion(fav.favoriteId, fav.name)
+                            }
+                            className="ml-1 rounded-full p-1 text-stone-500 transition hover:bg-white hover:text-red-600"
+                            aria-label={`Eliminar ${fav.name} de favoritos`}
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           );

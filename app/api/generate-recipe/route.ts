@@ -4,6 +4,9 @@ import { NextResponse } from "next/server";
 /** Vision + JSON puede tardar más que solo texto (p. ej. en Vercel). */
 export const maxDuration = 30;
 
+const INGREDIENT_VALIDATION_RULE =
+  'Antes de generar cualquier receta, analiza minuciosamente la lista de ingredientes que te envía el usuario. Si detectas que alguno de los textos enviados NO es un ingrediente, condimento, bebida o alimento comestible real (por ejemplo: frases como "esto no es un ingrediente", "eres feo", "zapatos", etc.), debes abortar inmediatamente la creación de la receta y responder ÚNICAMENTE con este objeto JSON: {"error":"ingrediente_invalido","mensaje":"Parece que hay algo en tu despensa que no es un alimento válido. ¡Revisa tus ingredientes seleccionados e inténtalo de nuevo!"}. Si todos los ingredientes son válidos, procede a generar la estructura habitual de la receta en formato JSON.\n\n';
+
 const VISION_SYSTEM_PREFIX =
   "Tu primera tarea es analizar si la imagen contiene ingredientes, alimentos o comida. Si la imagen NO muestra nada comestible (por ejemplo: objetos, personas, paisajes, animales), debes responder ÚNICAMENTE con este código de error: { \"error\": \"NOT_FOOD\" }. No generes ninguna receta en ese caso.\nAnaliza esta imagen de una nevera o despensa. Identifica los ingredientes comestibles visibles. Úsalos como base para generar una receta que también incluya los ingredientes que el usuario haya seleccionado manualmente.\n\n";
 
@@ -55,6 +58,7 @@ const GEMINI_REQUEST_TIMEOUT_MS = 180_000;
 type ParseOutcome =
   | { status: "ok"; recipe: GeminiRecipe }
   | { status: "not_food" }
+  | { status: "invalid_ingredient"; message: string }
   | { status: "incomplete" }
   | { status: "invalid" };
 
@@ -103,9 +107,19 @@ function parseJsonResponse(rawText: string): ParseOutcome {
   const cleanedResponse = jsonString.replace(/,\s*([}\]])/g, "$1").trim();
 
   try {
-    const parsed = JSON.parse(cleanedResponse) as LooseGeminiRecipe & { error?: string };
+    const parsed = JSON.parse(cleanedResponse) as LooseGeminiRecipe & {
+      error?: string;
+      mensaje?: string;
+    };
     if (parsed.error === "NOT_FOOD") {
       return { status: "not_food" };
+    }
+    if (parsed.error === "ingrediente_invalido") {
+      const message =
+        typeof parsed.mensaje === "string" && parsed.mensaje.trim().length > 0
+          ? parsed.mensaje.trim()
+          : "Parece que hay algo en tu despensa que no es un alimento válido. ¡Revisa tus ingredientes seleccionados e inténtalo de nuevo!";
+      return { status: "invalid_ingredient", message };
     }
     return { status: "ok", recipe: normalizeRecipePayload(parsed) };
   } catch {
@@ -315,8 +329,8 @@ export async function POST(request: Request) {
       "Genera un 'Tip de Sandra' para cada receta. Debe ser un consejo experto de no mas de 2 frases sobre tecnica de cocina, nutricion o conservacion, escrito con un tono profesional, cercano y motivador.";
 
     const systemInstruction = hasImage
-      ? `${VISION_SYSTEM_PREFIX}${jsonRules} ${manualClause}`
-      : `Solo JSON valido. Usa ingredientes: [${selectedList}]. Entrega receta saludable, rapida y sin harinas con formato { "titulo": "", "tiempo_preparacion": "X min", "ingredientes_detallados": [], "pasos_ordenados": [], "tip_sandra": "" }. ${jsonRules}`;
+      ? `${INGREDIENT_VALIDATION_RULE}${VISION_SYSTEM_PREFIX}${jsonRules} ${manualClause}`
+      : `${INGREDIENT_VALIDATION_RULE}Solo JSON valido. Usa ingredientes: [${selectedList}]. Entrega receta saludable, rapida y sin harinas con formato { "titulo": "", "tiempo_preparacion": "X min", "ingredientes_detallados": [], "pasos_ordenados": [], "tip_sandra": "" }. ${jsonRules}`;
 
     const promptTail =
       selectedIngredients.length && hasImage
@@ -441,6 +455,17 @@ export async function POST(request: Request) {
           code: "NOT_FOOD"
         },
         422
+      );
+    }
+
+    if (parseOutcome?.status === "invalid_ingredient") {
+      return jsonResponse(
+        {
+          error: "ingrediente_invalido",
+          code: "INVALID_INGREDIENT",
+          mensaje: parseOutcome.message
+        },
+        400
       );
     }
 

@@ -4,8 +4,12 @@ import {
   Bookmark,
   CheckCircle2,
   Clock,
+  Loader2,
+  Share2,
   UtensilsCrossed
 } from "lucide-react";
+import { RecipeShareCard } from "@/components/scanner/recipe-share-card";
+import { useShareRecipeImage } from "@/hooks/use-share-recipe-image";
 
 type GeneratedRecipe = {
   titulo: string;
@@ -64,9 +68,28 @@ export function RecipeResultView({
   isSavedFavorites = false
 }: Props) {
   const macroData = buildMacroData(recipe);
+  const { cardRef, shareRecipeImage, isGenerating, errorMessage, clearError } =
+    useShareRecipeImage();
+
+  const handleShareImage = () => {
+    clearError();
+    void shareRecipeImage({
+      titulo: recipe.titulo,
+      tiempo_preparacion: recipe.tiempo_preparacion,
+      ingredientes_detallados: recipe.ingredientes_detallados,
+      pasos_ordenados: recipe.pasos_ordenados,
+      tip_sandra: recipe.tip_sandra
+    });
+  };
 
   return (
     <article className="bg-[#FAFAFA] pb-28 pt-1 duration-500">
+      <div
+        aria-hidden
+        className="pointer-events-none fixed left-[-12000px] top-0 z-[-1] opacity-0"
+      >
+        <RecipeShareCard ref={cardRef} recipe={recipe} />
+      </div>
       {onNewSearch ? (
         <div className="mb-2 px-1">
           <button
@@ -173,11 +196,29 @@ export function RecipeResultView({
             </p>
           </div>
 
-          <div className="pt-2">
+          <div className="space-y-3 pt-2">
+            <button
+              type="button"
+              onClick={handleShareImage}
+              disabled={isGenerating}
+              className="group flex w-full items-center justify-center gap-2 rounded-xl border border-sv-primary/30 bg-white px-5 py-3 text-sm font-semibold tracking-wide text-sv-primary shadow-sm transition duration-300 hover:bg-sv-secondary-container/40 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isGenerating ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Share2 className="h-4 w-4" />
+              )}
+              {isGenerating ? "Generando imagen..." : "Compartir Receta (Imagen)"}
+            </button>
+            {errorMessage ? (
+              <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                {errorMessage}
+              </p>
+            ) : null}
             <button
               type="button"
               onClick={onSaveFavorites}
-              disabled={isSavingFavorites || isSavedFavorites}
+              disabled={isSavingFavorites || isSavedFavorites || isGenerating}
               className="group flex w-full items-center justify-center gap-2 rounded-xl bg-sv-primary px-5 py-3 text-sm font-semibold tracking-wide text-sv-on-primary shadow-lg shadow-sv-primary/20 transition duration-300 hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60"
             >
               <Bookmark className="h-4 w-4 fill-current" />
@@ -193,3 +234,4 @@ export function RecipeResultView({
     </article>
   );
 }
+

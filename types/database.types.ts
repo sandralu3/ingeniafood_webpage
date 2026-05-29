@@ -106,6 +106,63 @@ export type Database = {
           }
         ];
       };
+      master_ingredients: {
+        Row: {
+          id: string;
+          name: string;
+          category: "proteinas" | "vegetales" | "basicos_despensa";
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          category: "proteinas" | "vegetales" | "basicos_despensa";
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          category?: "proteinas" | "vegetales" | "basicos_despensa";
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      user_pantry_favorites: {
+        Row: {
+          id: string;
+          user_id: string;
+          ingredient_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          ingredient_id: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          ingredient_id?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "user_pantry_favorites_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "user_pantry_favorites_ingredient_id_fkey";
+            columns: ["ingredient_id"];
+            isOneToOne: false;
+            referencedRelation: "master_ingredients";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
       saved_recipes: {
         Row: {
           user_id: string;

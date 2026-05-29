@@ -162,3 +162,5 @@ on public.saved_recipes
 for delete
 to authenticated
 using (auth.uid() = user_id);
+
+-- Pantry catalog + user favorites (see migrations/20260528160000_pantry_ingredients.sql)
