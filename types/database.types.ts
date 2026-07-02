@@ -15,6 +15,8 @@ export type Database = {
           full_name: string | null;
           avatar_url: string | null;
           is_premium: boolean;
+          generations_left: number;
+          health_score: number;
           created_at: string;
           updated_at: string;
         };
@@ -23,6 +25,8 @@ export type Database = {
           full_name?: string | null;
           avatar_url?: string | null;
           is_premium?: boolean;
+          generations_left?: number;
+          health_score?: number;
           created_at?: string;
           updated_at?: string;
         };
@@ -31,6 +35,8 @@ export type Database = {
           full_name?: string | null;
           avatar_url?: string | null;
           is_premium?: boolean;
+          generations_left?: number;
+          health_score?: number;
           created_at?: string;
           updated_at?: string;
         };
@@ -189,6 +195,101 @@ export type Database = {
           },
           {
             foreignKeyName: "saved_recipes_recipe_id_fkey";
+            columns: ["recipe_id"];
+            isOneToOne: false;
+            referencedRelation: "recipes";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      tips_saludables: {
+        Row: {
+          id: string;
+          contenido: string;
+          creado_at: string;
+        };
+        Insert: {
+          id?: string;
+          contenido: string;
+          creado_at?: string;
+        };
+        Update: {
+          id?: string;
+          contenido?: string;
+          creado_at?: string;
+        };
+        Relationships: [];
+      };
+      retos_usuarios: {
+        Row: {
+          id: string;
+          user_id: string;
+          reto_id: string;
+          completado_at: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          reto_id: string;
+          completado_at?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          reto_id?: string;
+          completado_at?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "retos_usuarios_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      plan_semanal: {
+        Row: {
+          id: string;
+          user_id: string;
+          semana_inicio: string;
+          dia_semana: string;
+          tipo_comida: string;
+          recipe_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          semana_inicio: string;
+          dia_semana: string;
+          tipo_comida: string;
+          recipe_id: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          semana_inicio?: string;
+          dia_semana?: string;
+          tipo_comida?: string;
+          recipe_id?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "plan_semanal_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "plan_semanal_recipe_id_fkey";
             columns: ["recipe_id"];
             isOneToOne: false;
             referencedRelation: "recipes";

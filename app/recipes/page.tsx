@@ -258,6 +258,7 @@ export default function RecipesPage() {
                   title={recipe.title}
                   categories={categories}
                   savedAtLabel={formatSavedDate(recipe.created_at)}
+                  imageUrl={recipe.image_url}
                   detailHref={`/app-recetas/recipes/${recipe.id}`}
                   onPrefetch={() => router.prefetch(`/app-recetas/recipes/${recipe.id}`)}
                   onShare={() => handleShareRecipe(recipe)}
@@ -302,13 +303,36 @@ export default function RecipesPage() {
     <section className="space-y-5">
       <RecipeShareCaptureHost captureRef={captureRef} recipe={captureRecipe} mode="offscreen" />
 
-      <header>
-        <h1 className="mb-2 font-serif text-xl font-semibold tracking-tight text-stone-900">
-          Mis Recetas ({recipes.length})
-        </h1>
-        <p className="text-sm leading-loose text-stone-500">
-          Explora tu historial y encuentra recetas por categoría o ingrediente.
-        </p>
+      <header className="space-y-4">
+        <div className="rounded-3xl border border-stone-100 bg-gradient-to-br from-white via-stone-50 to-[#F0F4ED]/60 p-5 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#556B2F]/80">
+            Tu biblioteca
+          </p>
+          <h1 className="mt-1 font-serif text-2xl font-semibold tracking-tight text-stone-900">
+            Recetas guardadas
+          </h1>
+          <p className="mt-2 text-sm leading-relaxed text-stone-500">
+            {recipes.length} {recipes.length === 1 ? "receta" : "recetas"} en tu libro de cocina
+            personal. Filtra por categoría o busca por ingrediente.
+          </p>
+          <div className="mt-4 grid grid-cols-3 gap-2">
+            {[
+              { label: "Airfryer", count: recipes.filter((r) => r.is_airfryer).length },
+              { label: "Sin harinas", count: recipes.filter((r) => r.is_flourless).length },
+              { label: "Saludables", count: recipes.length }
+            ].map((stat) => (
+              <div
+                key={stat.label}
+                className="rounded-2xl border border-stone-100 bg-white/80 px-3 py-2 text-center"
+              >
+                <p className="text-lg font-semibold text-[#3e5219]">{stat.count}</p>
+                <p className="text-[10px] font-medium uppercase tracking-wide text-stone-400">
+                  {stat.label}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
       </header>
 
       <div className="max-h-[68vh] overflow-y-auto pr-0.5">

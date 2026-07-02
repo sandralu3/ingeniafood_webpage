@@ -10,6 +10,8 @@ create table if not exists public.profiles (
   full_name text,
   avatar_url text,
   is_premium boolean not null default false,
+  generations_left integer not null default 5 check (generations_left >= 0),
+  health_score integer not null default 0 check (health_score >= 0),
   created_at timestamptz not null default now()
 );
 
@@ -67,11 +69,12 @@ security definer
 set search_path = public
 as $$
 begin
-  insert into public.profiles (id, full_name, avatar_url)
+  insert into public.profiles (id, full_name, avatar_url, generations_left)
   values (
     new.id,
     coalesce(new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'name'),
-    new.raw_user_meta_data->>'avatar_url'
+    new.raw_user_meta_data->>'avatar_url',
+    5
   )
   on conflict (id) do nothing;
   return new;

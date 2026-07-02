@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, Heart, Loader2, Share2 } from "lucide-react";
+import { RecipeMedia } from "@/components/recipes/recipe-media";
 import { cn } from "@/lib/utils";
 
 type RecipeCardProps = {
@@ -7,6 +8,8 @@ type RecipeCardProps = {
   categories: string[];
   savedAtLabel: string;
   detailHref: string;
+  imageUrl?: string | null;
+  isSocialVideo?: boolean;
   className?: string;
   onShare?: () => void;
   isSharing?: boolean;
@@ -22,6 +25,8 @@ export function RecipeCard({
   categories,
   savedAtLabel,
   detailHref,
+  imageUrl,
+  isSocialVideo = false,
   className,
   onShare,
   isSharing = false,
@@ -34,11 +39,18 @@ export function RecipeCard({
   return (
     <article
       className={cn(
-        "group rounded-2xl bg-white p-4 shadow-sm transition-shadow duration-300 hover:shadow-md",
+        "group overflow-hidden rounded-2xl bg-white shadow-sm transition-shadow duration-300 hover:shadow-md",
         className
       )}
     >
-      <div className="space-y-3">
+      <RecipeMedia
+        imageUrl={imageUrl}
+        isSocialVideo={isSocialVideo}
+        variant="card"
+        title={title}
+      />
+
+      <div className="space-y-3 p-4">
         <h3 className="text-base font-semibold leading-snug tracking-tight text-stone-800">
           {title}
         </h3>
@@ -57,7 +69,7 @@ export function RecipeCard({
         ) : null}
       </div>
 
-      <div className="mt-4 flex items-center justify-between gap-3 border-t border-stone-100/80 pt-3">
+      <div className="flex items-center justify-between gap-3 border-t border-stone-100/80 px-4 pb-4 pt-3">
         <p className="min-w-0 flex-1 text-xs leading-relaxed text-stone-400">{savedAtLabel}</p>
 
         <div className="flex shrink-0 items-center gap-0.5">

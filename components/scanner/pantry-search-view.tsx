@@ -72,6 +72,8 @@ type Props = {
   onRetry: () => void;
   isBusy: boolean;
   rateLimitSecondsLeft?: number;
+  generationsLeft?: number | null;
+  onGenerationsExhausted?: () => void;
 };
 
 export function PantrySearchView({
@@ -85,7 +87,9 @@ export function PantrySearchView({
   errorMessage,
   onRetry,
   isBusy,
-  rateLimitSecondsLeft = 0
+  rateLimitSecondsLeft = 0,
+  generationsLeft = null,
+  onGenerationsExhausted
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const {
@@ -178,6 +182,19 @@ export function PantrySearchView({
   );
 
   const hasSelection = selectedIngredients.length > 0 || pantryImageFile !== null;
+  const scansExhausted = generationsLeft !== null && generationsLeft <= 0;
+
+  const handlePrimaryAction = useCallback(() => {
+    if (scansExhausted) {
+      onGenerationsExhausted?.();
+      return;
+    }
+    if (hasSelection) {
+      onFindRecipes();
+      return;
+    }
+    openFilePicker();
+  }, [hasSelection, onFindRecipes, onGenerationsExhausted, openFilePicker, scansExhausted]);
 
   const toggleCategory = useCallback((category: CategoryKey) => {
     setExpandedCategories((prev) => ({
@@ -445,7 +462,7 @@ export function PantrySearchView({
               >
                 {categoryFavorites.length === 0 ? (
                   <p className="px-1 py-2 text-xs text-stone-500">
-                    Sin favoritos aquí. Busca un ingrediente y pulsa el marcador ★.
+                    Sin favoritos aquí. Busca un ingrediente y pulsa el marcador de guardar.
                   </p>
                 ) : (
                   <div className="grid grid-cols-1 gap-1 md:grid-cols-2">
@@ -507,21 +524,36 @@ export function PantrySearchView({
       ) : null}
 
       <div className="pointer-events-none fixed bottom-[4.75rem] left-1/2 z-[60] w-full max-w-md -translate-x-1/2 px-4 sm:bottom-20">
+        {generationsLeft !== null && generationsLeft > 0 ? (
+          <p className="pointer-events-auto mb-2 text-center text-[11px] font-medium text-stone-500">
+            {generationsLeft} {generationsLeft === 1 ? "escaneo gratuito restante" : "escaneos gratuitos restantes"}
+          </p>
+        ) : null}
         <button
           type="button"
-          onClick={onFindRecipes}
-          disabled={isBusy || !hasSelection}
-          aria-label={hasSelection ? "Optimizar Receta Saludable" : "Escanear Nevera"}
-          className="pointer-events-auto flex w-full items-center justify-center gap-2 rounded-full bg-[#4c6633] px-5 py-3.5 text-center text-sm font-semibold leading-tight text-white shadow-lg shadow-[#4c6633]/20 transition hover:bg-[#556B2F] hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50"
+          onClick={handlePrimaryAction}
+          disabled={isBusy}
+          aria-label={
+            scansExhausted
+              ? "Escaneos gratuitos agotados"
+              : hasSelection
+                ? "Optimizar Receta Saludable"
+                : "Escanear Nevera"
+          }
+          className="pointer-events-auto flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#3e5219] to-[#556B2F] px-5 py-3.5 text-center text-sm font-semibold leading-tight text-white shadow-lg shadow-[#3e5219]/25 transition hover:brightness-105 hover:shadow-xl disabled:cursor-not-allowed disabled:from-stone-300 disabled:to-stone-400 disabled:shadow-none"
         >
-          {hasSelection
-            ? rateLimitSecondsLeft > 0
-              ? `Reintentar en ${rateLimitSecondsLeft}s`
-              : "Optimizar Receta Saludable"
-            : "Escanear Nevera"}
-          <span aria-hidden className="transition group-hover:translate-x-1">
-            →
-          </span>
+          {scansExhausted
+            ? "Pruebas gratuitas agotadas"
+            : hasSelection
+              ? rateLimitSecondsLeft > 0
+                ? `Reintentar en ${rateLimitSecondsLeft}s`
+                : "Optimizar Receta Saludable"
+              : "Escanear Nevera"}
+          {!scansExhausted ? (
+            <span aria-hidden className="transition group-hover:translate-x-1">
+              →
+            </span>
+          ) : null}
         </button>
       </div>
     </div>

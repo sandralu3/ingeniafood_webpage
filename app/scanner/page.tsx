@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { PantrySearchView } from "@/components/scanner/pantry-search-view";
+import { GenerationsLimitModal } from "@/components/scanner/generations-limit-modal";
 import { RecipeGenerationState } from "@/components/scanner/recipe-generation-state";
 import { RecipeResultView } from "@/components/scanner/recipe-result-view";
+import { APP_ROUTES } from "@/lib/navigation/app-routes";
 import { tagsToLegacyFlags } from "@/lib/recipes/recipe-tags";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 
@@ -22,17 +24,8 @@ type ApiPayload = {
   details?: string;
   code?: string;
   mensaje?: string;
+  generationsLeft?: number;
 };
-
-const RECIPE_CACHE_PREFIX = "recipe-cache-v1";
-
-function buildIngredientsCacheKey(ingredients: string[]): string {
-  const normalized = ingredients
-    .map((ingredient) => ingredient.trim().toLowerCase())
-    .filter((ingredient) => ingredient.length > 0)
-    .sort();
-  return `${RECIPE_CACHE_PREFIX}:${normalized.join("|")}`;
-}
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => {
@@ -117,6 +110,15 @@ function resolveErrorMessage(
   if (isNetworkError) {
     return "No tienes conexión a internet o el servicio no está disponible.";
   }
+  if (payload.code === "GENERATIONS_EXHAUSTED") {
+    return (
+      payload.error ??
+      "Has completado tus 5 pruebas gratuitas. ¡Gracias por formar parte de IngeniaFood! Muy pronto abriremos la versión premium."
+    );
+  }
+  if (payload.code === "UNAUTHORIZED") {
+    return "Debes iniciar sesión para generar recetas.";
+  }
   if (payload.code === "INCOMPLETE_RESPONSE") {
     return "Respuesta incompleta del servidor, reintentando...";
   }
@@ -168,6 +170,43 @@ export default function ScannerPage() {
   const [isRecipeSaved, setIsRecipeSaved] = useState(false);
   const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null);
   const [rateLimitSecondsLeft, setRateLimitSecondsLeft] = useState(0);
+  const [generationsLeft, setGenerationsLeft] = useState<number | null>(null);
+  const [showGenerationsModal, setShowGenerationsModal] = useState(false);
+
+  useEffect(() => {
+    const loadGenerationsLeft = async () => {
+      try {
+        const supabase = createSupabaseClient();
+        const {
+          data: { user }
+        } = await supabase.auth.getUser();
+
+        if (!user) {
+          setGenerationsLeft(0);
+          return;
+        }
+
+        const { data: profile, error } = await supabase
+          .from("profiles")
+          .select("generations_left")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (error) {
+          console.error("[scanner] Error cargando generations_left:", error);
+          setGenerationsLeft(null);
+          return;
+        }
+
+        setGenerationsLeft(profile?.generations_left ?? 0);
+      } catch (error) {
+        console.error("[scanner] Error cargando cuota de escaneos:", error);
+        setGenerationsLeft(null);
+      }
+    };
+
+    void loadGenerationsLeft();
+  }, []);
 
   useEffect(() => {
     if (rateLimitSecondsLeft <= 0) return;
@@ -252,29 +291,16 @@ export default function ScannerPage() {
   };
 
   const generarReceta = async () => {
+    if (generationsLeft !== null && generationsLeft <= 0) {
+      setShowGenerationsModal(true);
+      return;
+    }
+
     if (!selectedIngredients.length && !pantryImageFile) {
       setErrorMessage(
         "Selecciona al menos un ingrediente o añade una foto de tu nevera o despensa."
       );
       return;
-    }
-
-    const cacheKey = buildIngredientsCacheKey(selectedIngredients);
-    const cachedRecipe =
-      !pantryImageFile && selectedIngredients.length
-        ? window.localStorage.getItem(cacheKey)
-        : null;
-    if (cachedRecipe) {
-      try {
-        const parsedRecipe = JSON.parse(cachedRecipe) as GeneratedRecipe;
-        setRecipe(parsedRecipe);
-        setRecipeFromPhoto(false);
-        setErrorMessage(null);
-        setRetryMessage(null);
-        return;
-      } catch {
-        window.localStorage.removeItem(cacheKey);
-      }
     }
 
     const FETCH_TIMEOUT_MS = 120_000;
@@ -437,6 +463,12 @@ export default function ScannerPage() {
       if (!response.ok || !payload.recipe) {
         setRecipe(null);
 
+        if (payload.code === "GENERATIONS_EXHAUSTED") {
+          setGenerationsLeft(0);
+          setShowGenerationsModal(true);
+          return;
+        }
+
         const isNotFood = payload.code === "NOT_FOOD" || payload.error === "NOT_FOOD";
         if (isNotFood) {
           setShowNotFoodGuidance(true);
@@ -486,8 +518,8 @@ export default function ScannerPage() {
       setRecipeFromPhoto(Boolean(pantryImageFile));
       setErrorMessage(null);
       setIsRecipeSaved(false);
-      if (!pantryImageFile) {
-        window.localStorage.setItem(cacheKey, JSON.stringify(payload.recipe));
+      if (typeof payload.generationsLeft === "number") {
+        setGenerationsLeft(payload.generationsLeft);
       }
     } catch (err) {
       showDebugError("manejo de respuesta", err);
@@ -548,7 +580,7 @@ export default function ScannerPage() {
       setSaveSuccessMessage("¡Receta guardada con éxito!");
       setIsRecipeSaved(true);
       window.setTimeout(() => {
-        window.location.assign("/app-recetas");
+        window.location.assign(APP_ROUTES.hoy);
       }, 600);
     } catch (error) {
       console.error("[save-recipe] Error guardando receta:", error);
@@ -698,6 +730,12 @@ export default function ScannerPage() {
             onRetry={() => void generarReceta()}
             isBusy={isLoading || rateLimitSecondsLeft > 0}
             rateLimitSecondsLeft={rateLimitSecondsLeft}
+            generationsLeft={generationsLeft}
+            onGenerationsExhausted={() => setShowGenerationsModal(true)}
+          />
+          <GenerationsLimitModal
+            open={showGenerationsModal}
+            onClose={() => setShowGenerationsModal(false)}
           />
           {securityWarning ? (
             <p className="mt-3 rounded-2xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-800">

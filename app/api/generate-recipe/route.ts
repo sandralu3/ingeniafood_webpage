@@ -1,9 +1,18 @@
 import { GoogleGenerativeAI, type Part } from "@google/generative-ai";
 import { NextResponse } from "next/server";
 import { normalizeRecipeTags } from "@/lib/recipes/recipe-tags";
+import { consumeGeneration, getGenerationsLeft } from "@/lib/generations/quota";
+import { createSupabaseRouteClient } from "@/lib/supabaseRoute";
 
 /** Vision + JSON puede tardar más que solo texto (p. ej. en Vercel). */
 export const maxDuration = 30;
+
+const PANTRY_PRIORITY_RULE =
+  "REGLA ABSOLUTA DE INGREDIENTES PRINCIPALES: La receta DEBE construirse PRINCIPALMENTE con los ingredientes que el usuario proporcionó (selección manual y/o detección en imagen). " +
+  "PROHIBIDO introducir ingredientes principales que no estén en esa lista. Ejemplo: si el usuario tiene arroz y tomates, NO sugieras fresas, yogur griego, salmón ni pollo. " +
+  "Solo puedes añadir condimentos básicos universales: sal, pimienta, aceite de oliva, agua, ajo en polvo. " +
+  "Al menos el 80% de los ingredientes_detallados deben provenir de la lista del usuario o de la imagen. " +
+  "Si no hay suficientes ingredientes para una receta coherente, simplifica el plato en lugar de inventar productos nuevos.\n\n";
 
 const INGREDIENT_VALIDATION_RULE =
   'Antes de generar cualquier receta, analiza minuciosamente la lista de ingredientes que te envía el usuario. Si detectas que alguno de los textos enviados NO es un ingrediente, condimento, bebida o alimento comestible real (por ejemplo: frases como "esto no es un ingrediente", "eres feo", "zapatos", etc.), debes abortar inmediatamente la creación de la receta y responder ÚNICAMENTE con este objeto JSON: {"error":"ingrediente_invalido","mensaje":"Parece que hay algo en tu despensa que no es un alimento válido. ¡Revisa tus ingredientes seleccionados e inténtalo de nuevo!"}. Si todos los ingredientes son válidos, procede a generar la estructura habitual de la receta en formato JSON.\n\n';
@@ -223,6 +232,52 @@ export async function OPTIONS() {
 
 export async function POST(request: Request) {
   try {
+    const supabase = await createSupabaseRouteClient();
+    if (!supabase) {
+      return jsonResponse(
+        { error: "Supabase no está configurado correctamente.", code: "CONFIG_ERROR" },
+        500
+      );
+    }
+
+    const {
+      data: { user },
+      error: authError
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return jsonResponse(
+        {
+          error: "Debes iniciar sesión para generar recetas.",
+          code: "UNAUTHORIZED"
+        },
+        401
+      );
+    }
+
+    const generationsLeft = await getGenerationsLeft(user.id);
+    if (generationsLeft === null) {
+      return jsonResponse(
+        {
+          error: "No pudimos verificar tu cuota de escaneos. Inténtalo de nuevo.",
+          code: "QUOTA_CHECK_FAILED"
+        },
+        503
+      );
+    }
+
+    if (generationsLeft <= 0) {
+      return jsonResponse(
+        {
+          error:
+            "Has completado tus 5 pruebas gratuitas. ¡Gracias por formar parte de IngeniaFood! Muy pronto abriremos la versión premium.",
+          code: "GENERATIONS_EXHAUSTED",
+          generationsLeft: 0
+        },
+        403
+      );
+    }
+
     let body: GenerateRecipePayload;
     try {
       body = (await request.json()) as GenerateRecipePayload;
@@ -328,10 +383,11 @@ export async function POST(request: Request) {
     const modelCandidates = buildModelCandidates(configuredModel);
 
     const manualClause = selectedIngredients.length
-      ? `Usa como referencia obligatoria los ingredientes seleccionados manualmente: [${selectedList}]. Combínalos de forma coherente con lo visible en la imagen (si aplica).`
-      : "El usuario no seleccionó ingredientes manualmente; infiere los ingredientes únicamente desde la imagen si es posible.";
+      ? `Usa como base OBLIGATORIA y PRINCIPAL los ingredientes seleccionados manualmente: [${selectedList}]. La receta debe girar en torno a ellos. Combínalos de forma coherente con lo visible en la imagen (si aplica). NO sustituyas ni añadas ingredientes principales ajenos a esta lista.`
+      : "El usuario no seleccionó ingredientes manualmente; infiere los ingredientes únicamente desde la imagen si es posible y no inventes ingredientes principales que no se vean.";
 
     const jsonRules =
+      PANTRY_PRIORITY_RULE +
       "Solo JSON valido. Entrega receta saludable y rapida. Formato esperado: { \"titulo\": \"\", \"tiempo\": \"X min\", \"ingredientes\": [], \"pasos\": [], \"tip_sandra\": \"\", \"etiquetas\": [] }. " +
       "ETIQUETAS (campo etiquetas): array de 1 a 3 strings que describan SOLO lo que aplica a ESTA receta concreta. Valores permitidos: \"Desayuno\", \"Cena\", \"Snack\", \"Sin Harinas\", \"Apto para Airfryer\", \"Alto en Proteína\". " +
       "Reglas estrictas: incluye \"Sin Harinas\" solo si la receta no usa harinas ni cereales refinados; incluye \"Apto para Airfryer\" solo si la cocción principal es en airfryer; incluye \"Desayuno\", \"Cena\" o \"Snack\" según el momento ideal del plato (ej. mug cake o bowl matutino = \"Desayuno\", no Airfryer). Si ninguna aplica, devuelve etiquetas: []. " +
@@ -357,7 +413,7 @@ export async function POST(request: Request) {
       "Primero valida si hay comida visible. Si NO hay comida, responde solo {\"error\":\"NOT_FOOD\"} y termina sin texto adicional. " +
       "Si sí hay comida, responde exclusivamente con JSON valido (sin markdown, sin bloques de codigo) usando esta estructura exacta: " +
       '{"titulo": string, "tiempo_preparacion": string, "ingredientes_detallados": string[], "pasos_ordenados": string[], "tip_sandra": string, "etiquetas": string[]}. ' +
-      `${promptTail} No inventes ingredientes imposibles; prioriza lo visible y lo indicado arriba.`;
+      `${promptTail} No inventes ingredientes principales imposibles; prioriza exclusivamente lo visible y lo indicado arriba. El titulo debe reflejar los ingredientes reales del usuario, no sabores inventados.`;
 
     let rawResponse = "";
 
@@ -569,9 +625,23 @@ export async function POST(request: Request) {
       tags: normalizeRecipeTags(recipe.tags)
     };
 
+    const remainingGenerations = await consumeGeneration(user.id);
+    if (remainingGenerations === null) {
+      return jsonResponse(
+        {
+          error:
+            "Has completado tus 5 pruebas gratuitas. ¡Gracias por formar parte de IngeniaFood! Muy pronto abriremos la versión premium.",
+          code: "GENERATIONS_EXHAUSTED",
+          generationsLeft: 0
+        },
+        403
+      );
+    }
+
     return jsonResponse({
       recipe: safeRecipe,
-      savedRecipe: null
+      savedRecipe: null,
+      generationsLeft: remainingGenerations
     });
   } catch (error) {
     const message =

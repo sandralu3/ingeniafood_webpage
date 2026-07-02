@@ -4,9 +4,11 @@ import { cookies } from "next/headers";
 import type { Database } from "@/types/database.types";
 import { getSupabaseProjectUrl } from "@/lib/supabaseConfig";
 
+import { APP_ROUTES } from "@/lib/navigation/app-routes";
+
 function resolveSafeNextPath(value: string | null): string {
-  if (!value) return "/app-recetas";
-  return value.startsWith("/app-recetas") ? value : "/app-recetas";
+  if (!value) return APP_ROUTES.hoy;
+  return value.startsWith("/app-recetas") ? value : APP_ROUTES.hoy;
 }
 
 export async function GET(request: Request) {

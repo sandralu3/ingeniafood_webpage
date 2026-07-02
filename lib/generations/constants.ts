@@ -1,0 +1,1 @@
+export const FREE_GENERATIONS_LIMIT = 5;

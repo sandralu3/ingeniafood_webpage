@@ -3,6 +3,7 @@
 import { FormEvent, Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { createSupabaseClient } from "@/lib/supabaseClient";
+import { APP_ROUTES } from "@/lib/navigation/app-routes";
 
 export default function AuthPage() {
   return (
@@ -29,7 +30,7 @@ function AuthForm() {
   const nextPath =
     requestedNextPath && requestedNextPath.startsWith("/app-recetas")
       ? requestedNextPath
-      : "/app-recetas";
+      : APP_ROUTES.hoy;
   const reason = searchParams.get("reason");
   const showAppRecetasMessage = reason === "app-recetas-auth";
   const initialMode: "login" | "signup" = "login";
@@ -86,7 +87,7 @@ function AuthForm() {
               },
               emailRedirectTo:
                 typeof window !== "undefined"
-                  ? `${window.location.origin}/auth/callback?next=${encodeURIComponent("/app-recetas")}`
+                  ? `${window.location.origin}/auth/callback?next=${encodeURIComponent(APP_ROUTES.hoy)}`
                   : undefined
             }
           })

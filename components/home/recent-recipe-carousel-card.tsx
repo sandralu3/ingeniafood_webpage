@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Leaf } from "lucide-react";
+import { RecipeMedia } from "@/components/recipes/recipe-media";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -7,6 +7,7 @@ type Props = {
   categories: string[];
   href: string;
   imageUrl?: string | null;
+  isSocialVideo?: boolean;
   className?: string;
 };
 
@@ -15,6 +16,7 @@ export function RecentRecipeCarouselCard({
   categories,
   href,
   imageUrl,
+  isSocialVideo = false,
   className
 }: Props) {
   return (
@@ -25,17 +27,12 @@ export function RecentRecipeCarouselCard({
         className
       )}
     >
-      <div className="relative h-24 w-full overflow-hidden bg-gradient-to-br from-[#556B2F]/10 via-[#F0F4ED] to-stone-50">
-        {imageUrl ? (
-          <img src={imageUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
-        ) : (
-          <div className="flex h-full items-center justify-center">
-            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-white/70 text-[#556B2F]/50">
-              <Leaf className="h-5 w-5" strokeWidth={1.25} />
-            </div>
-          </div>
-        )}
-      </div>
+      <RecipeMedia
+        imageUrl={imageUrl}
+        isSocialVideo={isSocialVideo}
+        variant="thumbnail"
+        title={title}
+      />
 
       <div className="flex flex-1 flex-col justify-between p-3.5">
         <h3 className="line-clamp-2 text-sm font-semibold leading-snug tracking-tight text-stone-800">
