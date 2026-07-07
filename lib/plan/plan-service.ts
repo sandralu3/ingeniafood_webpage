@@ -17,11 +17,18 @@ type RecipeRow = Database["public"]["Tables"]["recipes"]["Row"];
 
 export type RecipePickerItem = Pick<
   RecipeRow,
-  "id" | "title" | "image_url" | "cooking_time" | "is_airfryer" | "is_flourless" | "created_at"
+  | "id"
+  | "title"
+  | "image_url"
+  | "instagram_url"
+  | "cooking_time"
+  | "is_airfryer"
+  | "is_flourless"
+  | "created_at"
 >;
 
 type PlanRowWithRecipe = PlanRow & {
-  recipes: Pick<RecipeRow, "id" | "title" | "image_url" | "cooking_time"> | null;
+  recipes: Pick<RecipeRow, "id" | "title" | "image_url" | "instagram_url" | "cooking_time"> | null;
 };
 
 const PLAN_SELECT = `
@@ -36,6 +43,7 @@ const PLAN_SELECT = `
     id,
     title,
     image_url,
+    instagram_url,
     cooking_time
   )
 `;
@@ -58,7 +66,8 @@ function toPlanMeal(row: PlanRowWithRecipe): PlanMeal {
     title: recipe?.title ?? "Receta sin título",
     mealType: mapMealType(row.tipo_comida),
     imageUrl: recipe?.image_url ?? null,
-    isSocialVideo: !recipe?.image_url,
+    instagramUrl: recipe?.instagram_url ?? null,
+    isSocialVideo: Boolean(recipe?.instagram_url && !recipe?.image_url),
     calories: recipe?.cooking_time ?? undefined
   };
 }
@@ -131,7 +140,9 @@ export async function fetchRecipesForPicker(userId: string): Promise<RecipePicke
 
   const { data, error } = await supabase
     .from("recipes")
-    .select("id, title, image_url, cooking_time, is_airfryer, is_flourless, created_at")
+    .select(
+      "id, title, image_url, instagram_url, cooking_time, is_airfryer, is_flourless, created_at"
+    )
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
 

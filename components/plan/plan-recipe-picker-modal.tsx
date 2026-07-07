@@ -1,10 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, Search, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Loader2, ScanLine, Search, Sparkles, X } from "lucide-react";
+import { RecipeInstagramLink } from "@/components/recipes/recipe-instagram-link";
 import { RecipeMedia } from "@/components/recipes/recipe-media";
 import type { RecipePickerItem } from "@/lib/plan/plan-service";
-import type { MealType } from "@/lib/plan/constants";
+import type { MealType, WeekDay } from "@/lib/plan/constants";
+import { APP_ROUTES } from "@/lib/navigation/app-routes";
+import { savePendingPlanAssignment } from "@/lib/plan/plan-pending-assignment";
 import { cn } from "@/lib/utils";
 
 type PlanRecipePickerModalProps = {
@@ -38,6 +42,7 @@ export function PlanRecipePickerModal({
   onClose,
   onSelectRecipe
 }: PlanRecipePickerModalProps) {
+  const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
@@ -51,6 +56,12 @@ export function PlanRecipePickerModal({
     if (!query) return recipes;
     return recipes.filter((recipe) => recipe.title.toLowerCase().includes(query));
   }, [recipes, searchTerm]);
+
+  const goToScannerForPlan = () => {
+    savePendingPlanAssignment({ dayLabel: dayLabel as WeekDay, mealType });
+    onClose();
+    router.push(APP_ROUTES.scanner);
+  };
 
   if (!open) return null;
 
@@ -136,13 +147,20 @@ export function PlanRecipePickerModal({
                       "hover:-translate-y-0.5 hover:border-[#556B2F]/20 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
                     )}
                   >
-                    <RecipeMedia
-                      imageUrl={recipe.image_url}
-                      isSocialVideo={!recipe.image_url}
-                      variant="thumbnail"
-                      title={recipe.title}
-                      className="!h-28"
-                    />
+                    <div className="relative">
+                      <RecipeMedia
+                        imageUrl={recipe.image_url}
+                        isSocialVideo={Boolean(recipe.instagram_url && !recipe.image_url)}
+                        variant="thumbnail"
+                        title={recipe.title}
+                        className="!h-28"
+                      />
+                      {recipe.instagram_url ? (
+                        <div className="absolute right-2 top-2">
+                          <RecipeInstagramLink url={recipe.instagram_url} variant="icon" />
+                        </div>
+                      ) : null}
+                    </div>
                     <div className="space-y-2 p-3">
                       <h3 className="line-clamp-2 text-sm font-bold leading-snug text-stone-900">
                         {recipe.title}
@@ -165,6 +183,42 @@ export function PlanRecipePickerModal({
               })}
             </div>
           ) : null}
+        </div>
+
+        <div className="border-t border-stone-100 bg-stone-50/80 px-5 py-4">
+          <p className="mb-3 text-center text-xs font-medium text-stone-500">
+            ¿No encuentras la receta que quieres?
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              disabled={isAssigning}
+              onClick={goToScannerForPlan}
+              className={cn(
+                "inline-flex items-center justify-center gap-1.5 rounded-2xl border border-[#556B2F]/20 bg-white px-3 py-3 text-xs font-semibold text-[#3e5219] shadow-sm transition",
+                "hover:border-[#556B2F]/35 hover:bg-[#F0F4ED] disabled:cursor-not-allowed disabled:opacity-60"
+              )}
+            >
+              <ScanLine className="h-4 w-4 shrink-0" />
+              Escanear despensa
+            </button>
+            <button
+              type="button"
+              disabled={isAssigning}
+              onClick={goToScannerForPlan}
+              className={cn(
+                "inline-flex items-center justify-center gap-1.5 rounded-2xl bg-gradient-to-r from-[#556B2F] to-[#6b8a3e] px-3 py-3 text-xs font-semibold text-white shadow-md transition",
+                "hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+              )}
+            >
+              <Sparkles className="h-4 w-4 shrink-0" />
+              Crear receta
+            </button>
+          </div>
+          <p className="mt-2 text-center text-[10px] leading-relaxed text-stone-400">
+            Al guardar la receta, se asignará al {mealType.toLowerCase()} del {dayLabel}. ¿Viste una
+            receta en Instagram? Créala aquí con el escáner.
+          </p>
         </div>
 
         {isAssigning ? (

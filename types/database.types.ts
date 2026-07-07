@@ -62,6 +62,7 @@ export type Database = {
           tip_sandra: string | null;
           cooking_time: number | null;
           image_url: string | null;
+          instagram_url: string | null;
           is_airfryer: boolean;
           is_flourless: boolean;
           is_public: boolean;
@@ -79,6 +80,7 @@ export type Database = {
           tip_sandra?: string | null;
           cooking_time?: number | null;
           image_url?: string | null;
+          instagram_url?: string | null;
           is_airfryer?: boolean;
           is_flourless?: boolean;
           is_public?: boolean;
@@ -96,6 +98,7 @@ export type Database = {
           tip_sandra?: string | null;
           cooking_time?: number | null;
           image_url?: string | null;
+          instagram_url?: string | null;
           is_airfryer?: boolean;
           is_flourless?: boolean;
           is_public?: boolean;

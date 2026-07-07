@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, Heart, Loader2, Share2 } from "lucide-react";
+import { RecipeInstagramLink } from "@/components/recipes/recipe-instagram-link";
 import { RecipeMedia } from "@/components/recipes/recipe-media";
 import { cn } from "@/lib/utils";
 
@@ -9,6 +10,7 @@ type RecipeCardProps = {
   savedAtLabel: string;
   detailHref: string;
   imageUrl?: string | null;
+  instagramUrl?: string | null;
   isSocialVideo?: boolean;
   className?: string;
   onShare?: () => void;
@@ -26,6 +28,7 @@ export function RecipeCard({
   savedAtLabel,
   detailHref,
   imageUrl,
+  instagramUrl,
   isSocialVideo = false,
   className,
   onShare,
@@ -43,12 +46,19 @@ export function RecipeCard({
         className
       )}
     >
-      <RecipeMedia
-        imageUrl={imageUrl}
-        isSocialVideo={isSocialVideo}
-        variant="card"
-        title={title}
-      />
+      <div className="relative">
+        <RecipeMedia
+          imageUrl={imageUrl}
+          isSocialVideo={isSocialVideo}
+          variant="card"
+          title={title}
+        />
+        {instagramUrl ? (
+          <div className="absolute right-2 top-2">
+            <RecipeInstagramLink url={instagramUrl} variant="icon" />
+          </div>
+        ) : null}
+      </div>
 
       <div className="space-y-3 p-4">
         <h3 className="text-base font-semibold leading-snug tracking-tight text-stone-800">

@@ -3,12 +3,28 @@
 import { useEffect, useState } from "react";
 import { PantrySearchView } from "@/components/scanner/pantry-search-view";
 import { GenerationsLimitModal } from "@/components/scanner/generations-limit-modal";
+import {
+  InstagramImportSuccess,
+  InstagramImportView
+} from "@/components/scanner/instagram-import-view";
 import { RecipeGenerationState } from "@/components/scanner/recipe-generation-state";
 import { RecipeResultView } from "@/components/scanner/recipe-result-view";
+import { ScannerModeTabs, type ScannerMode } from "@/components/scanner/scanner-mode-tabs";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
 import { UNLIMITED_GENERATIONS_SENTINEL } from "@/lib/generations/constants";
 import { hasUnlimitedGenerations } from "@/lib/generations/admin-unlimited";
+import { completePendingPlanAssignment } from "@/lib/plan/complete-pending-assignment";
+import {
+  clearPendingPlanAssignment,
+  formatPendingPlanAssignmentLabel,
+  readPendingPlanAssignment,
+  type PendingPlanAssignment
+} from "@/lib/plan/plan-pending-assignment";
 import { tagsToLegacyFlags } from "@/lib/recipes/recipe-tags";
+import {
+  importRecipeFromInstagram,
+  type InstagramImportResult
+} from "@/lib/recipes/import-from-instagram";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 
 type GeneratedRecipe = {
@@ -174,6 +190,20 @@ export default function ScannerPage() {
   const [rateLimitSecondsLeft, setRateLimitSecondsLeft] = useState(0);
   const [generationsLeft, setGenerationsLeft] = useState<number | null>(null);
   const [showGenerationsModal, setShowGenerationsModal] = useState(false);
+  const [pendingPlanAssignment, setPendingPlanAssignment] = useState<PendingPlanAssignment | null>(
+    null
+  );
+  const [scannerMode, setScannerMode] = useState<ScannerMode>("pantry");
+  const [isImportingInstagram, setIsImportingInstagram] = useState(false);
+  const [instagramErrorMessage, setInstagramErrorMessage] = useState<string | null>(null);
+  const [instagramImportResult, setInstagramImportResult] = useState<InstagramImportResult | null>(
+    null
+  );
+  const [instagramSuccessMessage, setInstagramSuccessMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    setPendingPlanAssignment(readPendingPlanAssignment());
+  }, []);
 
   useEffect(() => {
     const loadGenerationsLeft = async () => {
@@ -237,6 +267,17 @@ export default function ScannerPage() {
     setSaveSuccessMessage(null);
     setIsRecipeSaved(false);
     setRateLimitSecondsLeft(0);
+    setInstagramErrorMessage(null);
+    setInstagramImportResult(null);
+    setInstagramSuccessMessage(null);
+    setIsImportingInstagram(false);
+  };
+
+  const resetInstagramImport = () => {
+    setInstagramErrorMessage(null);
+    setInstagramImportResult(null);
+    setInstagramSuccessMessage(null);
+    setIsImportingInstagram(false);
   };
 
   const showDebugError = (context: string, error: unknown) => {
@@ -565,22 +606,43 @@ export default function ScannerPage() {
       const recipeTags = recipe.tags ?? [];
       const { is_airfryer, is_flourless } = tagsToLegacyFlags(recipeTags);
 
-      const { error } = await supabase.from("recipes").insert({
-        user_id: user.id,
-        title: recipe.titulo,
-        ingredients: recipe.ingredientes_detallados,
-        steps: recipe.pasos_ordenados,
-        instructions: instructions || "Sin pasos detallados",
-        tip_sandra: recipe.tip_sandra,
-        image_url: null,
-        is_airfryer,
-        is_flourless,
-        is_public: false
-      });
+      const { data: inserted, error } = await supabase
+        .from("recipes")
+        .insert({
+          user_id: user.id,
+          title: recipe.titulo,
+          ingredients: recipe.ingredientes_detallados,
+          steps: recipe.pasos_ordenados,
+          instructions: instructions || "Sin pasos detallados",
+          tip_sandra: recipe.tip_sandra,
+          image_url: null,
+          is_airfryer,
+          is_flourless,
+          is_public: false
+        })
+        .select("id")
+        .single();
 
-      if (error) {
+      if (error || !inserted) {
         setErrorMessage("No pudimos guardar la receta. Inténtalo nuevamente.");
         setIsSavingRecipe(false);
+        return;
+      }
+
+      const pending = readPendingPlanAssignment();
+      if (pending) {
+        const assignment = await completePendingPlanAssignment(user.id, inserted.id);
+        setPendingPlanAssignment(null);
+
+        if (assignment.message) {
+          setSaveSuccessMessage(assignment.message);
+        } else {
+          setSaveSuccessMessage("¡Receta guardada con éxito!");
+        }
+        setIsRecipeSaved(true);
+        window.setTimeout(() => {
+          window.location.assign(assignment.hadPending ? APP_ROUTES.plan : APP_ROUTES.hoy);
+        }, assignment.hadPending ? 700 : 600);
         return;
       }
 
@@ -594,6 +656,62 @@ export default function ScannerPage() {
       setErrorMessage("No pudimos guardar la receta. Inténtalo nuevamente.");
     } finally {
       setIsSavingRecipe(false);
+    }
+  };
+
+  const handleImportFromInstagram = async (rawUrl: string) => {
+    if (isImportingInstagram) return;
+
+    setIsImportingInstagram(true);
+    setInstagramErrorMessage(null);
+    setInstagramSuccessMessage(null);
+
+    try {
+      const supabase = createSupabaseClient();
+      const {
+        data: { user }
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        setInstagramErrorMessage("Necesitas iniciar sesión para guardar recetas desde Instagram.");
+        return;
+      }
+
+      const outcome = await importRecipeFromInstagram({
+        supabase,
+        userId: user.id,
+        rawUrl
+      });
+
+      if ("error" in outcome) {
+        setInstagramErrorMessage(outcome.error);
+        return;
+      }
+
+      const assignment = await completePendingPlanAssignment(user.id, outcome.recipeId);
+      setPendingPlanAssignment(null);
+      setInstagramImportResult(outcome);
+
+      if (assignment.message) {
+        setInstagramSuccessMessage(assignment.message);
+        window.setTimeout(() => {
+          window.location.assign(APP_ROUTES.plan);
+        }, 1200);
+        return;
+      }
+
+      if (outcome.kind === "existing") {
+        setInstagramSuccessMessage("Esta receta ya estaba en tu biblioteca.");
+      } else if (outcome.kind === "curated") {
+        setInstagramSuccessMessage("¡Receta de Sandra importada a tu biblioteca!");
+      } else {
+        setInstagramSuccessMessage("Enlace guardado. Puedes ver el reel o generar la receta con el escáner.");
+      }
+    } catch (error) {
+      console.error("[scanner] Error importando desde Instagram:", error);
+      setInstagramErrorMessage("No pudimos importar el enlace. Inténtalo de nuevo.");
+    } finally {
+      setIsImportingInstagram(false);
     }
   };
 
@@ -611,6 +729,29 @@ export default function ScannerPage() {
 
   return (
     <div className="min-h-[calc(100dvh-10rem)] bg-sv-surface">
+      {pendingPlanAssignment ? (
+        <div className="mb-4 rounded-2xl border border-[#556B2F]/20 bg-[#F0F4ED]/80 px-4 py-3">
+          <p className="text-sm font-semibold text-[#3e5219]">Planificando tu semana</p>
+          <p className="mt-1 text-xs leading-relaxed text-stone-600">
+            Al guardar la receta, se asignará al{" "}
+            <span className="font-medium text-stone-800">
+              {formatPendingPlanAssignmentLabel(pendingPlanAssignment)}
+            </span>
+            .
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              clearPendingPlanAssignment();
+              setPendingPlanAssignment(null);
+            }}
+            className="mt-2 text-xs font-medium text-stone-500 underline-offset-2 hover:text-stone-700 hover:underline"
+          >
+            Cancelar asignación al plan
+          </button>
+        </div>
+      ) : null}
+
       {isLoading ? (
         <RecipeGenerationState variant="loading" retryMessage={retryMessage} />
       ) : null}
@@ -700,8 +841,45 @@ export default function ScannerPage() {
         </div>
       ) : null}
 
-      {!isLoading && !recipe && !showGenerationError ? (
-        <div className="animate-fade-in">
+      {!isLoading && !recipe && !showGenerationError && instagramImportResult ? (
+        <div className="animate-fade-in space-y-4">
+          <ScannerModeTabs
+            mode={scannerMode}
+            onChange={(mode) => {
+              setScannerMode(mode);
+              if (mode === "pantry") {
+                resetInstagramImport();
+              }
+            }}
+          />
+          <InstagramImportSuccess
+            result={instagramImportResult}
+            successMessage={instagramSuccessMessage}
+            onScanPantry={() => {
+              resetInstagramImport();
+              setScannerMode("pantry");
+            }}
+            onImportAnother={resetInstagramImport}
+          />
+        </div>
+      ) : null}
+
+      {!isLoading && !recipe && !showGenerationError && !instagramImportResult ? (
+        <div className="animate-fade-in space-y-4">
+          <ScannerModeTabs
+            mode={scannerMode}
+            onChange={setScannerMode}
+            disabled={isLoading || isImportingInstagram}
+          />
+
+          {scannerMode === "instagram" ? (
+            <InstagramImportView
+              onImport={handleImportFromInstagram}
+              isImporting={isImportingInstagram}
+              errorMessage={instagramErrorMessage}
+            />
+          ) : (
+            <>
           {showNotFoodGuidance ? (
             <div className="mb-4 rounded-2xl border border-[#556B2F]/25 bg-[#FDFCFB] p-4 shadow-sm">
               <p className="text-lg font-semibold text-[#556B2F]">🍎 ¡Vaya! No parece haber comida ahí.</p>
@@ -749,6 +927,8 @@ export default function ScannerPage() {
               {securityWarning}
             </p>
           ) : null}
+            </>
+          )}
         </div>
       ) : null}
     </div>

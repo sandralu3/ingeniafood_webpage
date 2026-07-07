@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
+import { PlanInstagramPromo } from "@/components/plan/plan-instagram-promo";
 import { PlanRecipePickerModal } from "@/components/plan/plan-recipe-picker-modal";
 import { WeeklyPlanDaySection } from "@/components/plan/weekly-plan-day-section";
 import type { PlanDay } from "@/lib/plan/types";
@@ -212,6 +213,8 @@ export function WeeklyPlanView() {
               onSwapError={handleSwapError}
             />
           ))}
+
+          <PlanInstagramPromo />
         </div>
       </section>
 

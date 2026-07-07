@@ -5,6 +5,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Heart, Loader2 } from "lucide-react";
 import { RecipeDetailMagazine } from "@/components/recipes/recipe-detail-magazine";
+import { RecipeInstagramAdminForm } from "@/components/recipes/recipe-instagram-admin-form";
+import { RecipeInstagramLink } from "@/components/recipes/recipe-instagram-link";
+import { isSandraAdmin } from "@/lib/auth/sandra-admin";
 import { handleRemoveFromFavorites } from "@/lib/recipes/remove-from-favorites";
 import { savedRecipeToShareable } from "@/lib/share/recipe-share-utils";
 import { createSupabaseClient } from "@/lib/supabaseClient";
@@ -13,9 +16,15 @@ import type { Database } from "@/types/database.types";
 
 type RecipeRow = Database["public"]["Tables"]["recipes"]["Row"];
 
-function isMissingTipSandraColumnError(error: { code?: string; message?: string } | null): boolean {
+function isMissingOptionalColumnError(
+  error: { code?: string; message?: string } | null,
+  column: string
+): boolean {
   if (!error) return false;
-  return error.code === "42703" || error.message?.includes("column recipes.tip_sandra does not exist") === true;
+  return (
+    error.code === "42703" ||
+    error.message?.includes(`column recipes.${column} does not exist`) === true
+  );
 }
 
 type RecipeDetailPageProps = {
@@ -30,6 +39,7 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isFavorite, setIsFavorite] = useState(true);
   const [isRemoving, setIsRemoving] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -78,10 +88,12 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
         return;
       }
 
+      setIsAdmin(isSandraAdmin(user.email));
+
       const primaryQuery = await supabase
         .from("recipes")
         .select(
-          "id,title,description,cooking_time,is_airfryer,is_flourless,is_public,created_at,user_id,ingredients,steps,instructions,image_url,tip_sandra"
+          "id,title,description,cooking_time,is_airfryer,is_flourless,is_public,created_at,user_id,ingredients,steps,instructions,image_url,tip_sandra,instagram_url"
         )
         .eq("id", recipeId)
         .eq("user_id", user.id)
@@ -90,11 +102,11 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
       let recipeData = primaryQuery.data as RecipeRow | null;
       let recipeError = primaryQuery.error;
 
-      if (isMissingTipSandraColumnError(recipeError)) {
+      if (isMissingOptionalColumnError(recipeError, "tip_sandra")) {
         const fallbackQuery = await supabase
           .from("recipes")
           .select(
-            "id,title,description,cooking_time,is_airfryer,is_flourless,is_public,created_at,user_id,ingredients,steps,instructions,image_url"
+            "id,title,description,cooking_time,is_airfryer,is_flourless,is_public,created_at,user_id,ingredients,steps,instructions,image_url,instagram_url"
           )
           .eq("id", recipeId)
           .eq("user_id", user.id)
@@ -105,6 +117,25 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
           ? ({
               ...fallbackQuery.data,
               tip_sandra: null
+            } as RecipeRow)
+          : null;
+      }
+
+      if (isMissingOptionalColumnError(recipeError, "instagram_url")) {
+        const fallbackQuery = await supabase
+          .from("recipes")
+          .select(
+            "id,title,description,cooking_time,is_airfryer,is_flourless,is_public,created_at,user_id,ingredients,steps,instructions,image_url,tip_sandra"
+          )
+          .eq("id", recipeId)
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        recipeError = fallbackQuery.error;
+        recipeData = fallbackQuery.data
+          ? ({
+              ...fallbackQuery.data,
+              instagram_url: null
             } as RecipeRow)
           : null;
       }
@@ -205,8 +236,18 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
       ) : null}
 
       {!isLoading && shareableRecipe && recipe ? (
-        <article className="animate-detail-enter">
+        <article className="animate-detail-enter space-y-5">
+          {recipe.instagram_url ? (
+            <RecipeInstagramLink url={recipe.instagram_url} />
+          ) : null}
           <RecipeDetailMagazine recipe={shareableRecipe} />
+          {isAdmin ? (
+            <RecipeInstagramAdminForm
+              recipeId={recipe.id}
+              initialUrl={recipe.instagram_url}
+              onUpdated={(url) => setRecipe((current) => (current ? { ...current, instagram_url: url } : current))}
+            />
+          ) : null}
         </article>
       ) : null}
 

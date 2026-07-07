@@ -142,7 +142,7 @@ export default function RecipesPage() {
       const primaryQuery = await supabase
         .from("recipes")
         .select(
-          "id,title,description,cooking_time,is_airfryer,is_flourless,is_public,created_at,user_id,ingredients,steps,instructions,image_url,tip_sandra"
+          "id,title,description,cooking_time,is_airfryer,is_flourless,is_public,created_at,user_id,ingredients,steps,instructions,image_url,tip_sandra,instagram_url"
         )
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
@@ -259,6 +259,8 @@ export default function RecipesPage() {
                   categories={categories}
                   savedAtLabel={formatSavedDate(recipe.created_at)}
                   imageUrl={recipe.image_url}
+                  instagramUrl={recipe.instagram_url}
+                  isSocialVideo={Boolean(recipe.instagram_url && !recipe.image_url)}
                   detailHref={`/app-recetas/recipes/${recipe.id}`}
                   onPrefetch={() => router.prefetch(`/app-recetas/recipes/${recipe.id}`)}
                   onShare={() => handleShareRecipe(recipe)}

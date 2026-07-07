@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Clock3, Loader2, RefreshCw } from "lucide-react";
+import { RecipeInstagramLink } from "@/components/recipes/recipe-instagram-link";
 import { RecipeMedia } from "@/components/recipes/recipe-media";
 import { swapPlanMeal } from "@/lib/plan/plan-service";
 import type { MealType } from "@/lib/plan/constants";
@@ -14,6 +15,7 @@ export type PlanMeal = {
   title: string;
   mealType: MealType;
   imageUrl?: string | null;
+  instagramUrl?: string | null;
   isSocialVideo?: boolean;
   calories?: number;
 };
@@ -70,7 +72,10 @@ export function PlanMealCard({
   const [isSwapping, setIsSwapping] = useState(false);
   const [isFading, setIsFading] = useState(false);
 
-  const isReelLayout = variant === "slot" || Boolean(meal.isSocialVideo || meal.imageUrl);
+  const isReelLayout =
+    variant === "slot"
+      ? Boolean(meal.imageUrl || meal.instagramUrl)
+      : Boolean(meal.imageUrl || meal.instagramUrl || meal.isSocialVideo);
   const swapDisabled = isSwapping;
 
   const handleSwap = async () => {
@@ -141,6 +146,10 @@ export function PlanMealCard({
           onClick={() => void handleSwap()}
         />
 
+        {meal.instagramUrl ? (
+          <RecipeInstagramLink url={meal.instagramUrl} variant="floating" />
+        ) : null}
+
         <div className="absolute inset-x-0 bottom-0 z-10 p-3 pt-10">
           {variant !== "slot" ? (
             <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/75">
@@ -195,14 +204,17 @@ export function PlanMealCard({
         </div>
 
         <div className="flex items-center justify-between gap-2">
-          {meal.calories ? (
-            <span className="inline-flex items-center gap-1 text-[11px] text-stone-400">
-              <Clock3 className="h-3 w-3" />
-              {meal.calories} min
-            </span>
-          ) : (
-            <span />
-          )}
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            {meal.calories ? (
+              <span className="inline-flex items-center gap-1 text-[11px] text-stone-400">
+                <Clock3 className="h-3 w-3" />
+                {meal.calories} min
+              </span>
+            ) : null}
+            {meal.instagramUrl ? (
+              <RecipeInstagramLink url={meal.instagramUrl} className="!px-2 !py-1 !text-[10px]" />
+            ) : null}
+          </div>
           <SwapButton
             isSwapping={isSwapping}
             disabled={swapDisabled}
