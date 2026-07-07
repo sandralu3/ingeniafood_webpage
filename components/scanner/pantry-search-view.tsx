@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
+import { isUnlimitedGenerationsCount } from "@/lib/generations/admin-unlimited";
 import {
   ScanLine,
   X,
@@ -524,9 +525,14 @@ export function PantrySearchView({
       ) : null}
 
       <div className="pointer-events-none fixed bottom-[4.75rem] left-1/2 z-[60] w-full max-w-md -translate-x-1/2 px-4 sm:bottom-20">
-        {generationsLeft !== null && generationsLeft > 0 ? (
+        {isUnlimitedGenerationsCount(generationsLeft) ? (
+          <p className="pointer-events-auto mb-2 text-center text-[11px] font-medium text-[#556B2F]">
+            Escaneos ilimitados · cuenta admin
+          </p>
+        ) : generationsLeft !== null && generationsLeft > 0 ? (
           <p className="pointer-events-auto mb-2 text-center text-[11px] font-medium text-stone-500">
-            {generationsLeft} {generationsLeft === 1 ? "escaneo gratuito restante" : "escaneos gratuitos restantes"}
+            {generationsLeft}{" "}
+            {generationsLeft === 1 ? "escaneo gratuito restante" : "escaneos gratuitos restantes"}
           </p>
         ) : null}
         <button

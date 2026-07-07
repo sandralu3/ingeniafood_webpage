@@ -255,7 +255,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const generationsLeft = await getGenerationsLeft(user.id);
+    const generationsLeft = await getGenerationsLeft(user.id, user.email);
     if (generationsLeft === null) {
       return jsonResponse(
         {
@@ -625,7 +625,7 @@ export async function POST(request: Request) {
       tags: normalizeRecipeTags(recipe.tags)
     };
 
-    const remainingGenerations = await consumeGeneration(user.id);
+    const remainingGenerations = await consumeGeneration(user.id, user.email);
     if (remainingGenerations === null) {
       return jsonResponse(
         {

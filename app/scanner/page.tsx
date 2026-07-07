@@ -6,6 +6,8 @@ import { GenerationsLimitModal } from "@/components/scanner/generations-limit-mo
 import { RecipeGenerationState } from "@/components/scanner/recipe-generation-state";
 import { RecipeResultView } from "@/components/scanner/recipe-result-view";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
+import { UNLIMITED_GENERATIONS_SENTINEL } from "@/lib/generations/constants";
+import { hasUnlimitedGenerations } from "@/lib/generations/admin-unlimited";
 import { tagsToLegacyFlags } from "@/lib/recipes/recipe-tags";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 
@@ -183,6 +185,11 @@ export default function ScannerPage() {
 
         if (!user) {
           setGenerationsLeft(0);
+          return;
+        }
+
+        if (hasUnlimitedGenerations(user.email)) {
+          setGenerationsLeft(UNLIMITED_GENERATIONS_SENTINEL);
           return;
         }
 

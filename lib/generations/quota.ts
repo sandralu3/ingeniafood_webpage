@@ -1,6 +1,17 @@
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin";
+import {
+  hasUnlimitedGenerations,
+  UNLIMITED_GENERATIONS_SENTINEL
+} from "@/lib/generations/admin-unlimited";
 
-export async function getGenerationsLeft(userId: string): Promise<number | null> {
+export async function getGenerationsLeft(
+  userId: string,
+  email?: string | null
+): Promise<number | null> {
+  if (hasUnlimitedGenerations(email)) {
+    return UNLIMITED_GENERATIONS_SENTINEL;
+  }
+
   try {
     const admin = getSupabaseAdminClient();
     const { data, error } = await admin
@@ -19,7 +30,14 @@ export async function getGenerationsLeft(userId: string): Promise<number | null>
   }
 }
 
-export async function consumeGeneration(userId: string): Promise<number | null> {
+export async function consumeGeneration(
+  userId: string,
+  email?: string | null
+): Promise<number | null> {
+  if (hasUnlimitedGenerations(email)) {
+    return UNLIMITED_GENERATIONS_SENTINEL;
+  }
+
   try {
     const admin = getSupabaseAdminClient();
     const { data: profile, error: readError } = await admin
