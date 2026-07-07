@@ -252,6 +252,99 @@ export type Database = {
           }
         ];
       };
+      retos_personalizados: {
+        Row: {
+          id: string;
+          user_id: string;
+          titulo: string;
+          puntos: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          titulo: string;
+          puntos?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          titulo?: string;
+          puntos?: number;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "retos_personalizados_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      retos_completados_diarios: {
+        Row: {
+          id: string;
+          user_id: string;
+          reto_id: string;
+          completado_at: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          reto_id: string;
+          completado_at?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          reto_id?: string;
+          completado_at?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "retos_completados_diarios_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      retos_hoy_activos: {
+        Row: {
+          id: string;
+          user_id: string;
+          reto_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          reto_id: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          reto_id?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "retos_hoy_activos_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
       plan_semanal: {
         Row: {
           id: string;

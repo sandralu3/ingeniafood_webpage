@@ -2,33 +2,34 @@
 
 import { useCallback, useEffect, useId, useState } from "react";
 import { Flame, Loader2, Sparkles, Target } from "lucide-react";
-import {
-  fetchHealthScore,
-  fetchTodayCompletedChallengeIds
-} from "@/lib/gamification/challenge-service";
-import {
-  DEFAULT_DAILY_CHALLENGES,
-  WEEKLY_HEALTH_SCORE_MAX
-} from "@/lib/gamification/challenges";
+import { fetchWeeklyHealthMetrics } from "@/lib/gamification/challenge-service";
+import type { WeeklyHealthMetrics } from "@/lib/gamification/weekly-metrics";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import { cn } from "@/lib/utils";
 
+const EMPTY_METRICS: WeeklyHealthMetrics = {
+  earnedPoints: 0,
+  maxPoints: 0,
+  percentage: 0,
+  completedToday: 0,
+  totalActiveChallenges: 0,
+  streakDays: 0,
+  activeDaysThisWeek: 0
+};
+
 type WeeklyHealthScoreProps = {
   refreshKey?: number;
-  maxScore?: number;
   label?: string;
   className?: string;
 };
 
 export function WeeklyHealthScore({
   refreshKey = 0,
-  maxScore = WEEKLY_HEALTH_SCORE_MAX,
   label = "Score Saludable Semanal",
   className
 }: WeeklyHealthScoreProps) {
   const gradientId = `health-score-${useId().replace(/:/g, "")}`;
-  const [score, setScore] = useState(0);
-  const [completedToday, setCompletedToday] = useState(0);
+  const [metrics, setMetrics] = useState<WeeklyHealthMetrics>(EMPTY_METRICS);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -43,23 +44,16 @@ export function WeeklyHealthScore({
       } = await supabase.auth.getUser();
 
       if (!user) {
-        setScore(0);
-        setCompletedToday(0);
+        setMetrics(EMPTY_METRICS);
         return;
       }
 
-      const [healthScore, completedIds] = await Promise.all([
-        fetchHealthScore(user.id),
-        fetchTodayCompletedChallengeIds(user.id)
-      ]);
-
-      setScore(healthScore);
-      setCompletedToday(completedIds.length);
+      const weeklyMetrics = await fetchWeeklyHealthMetrics(user.id);
+      setMetrics(weeklyMetrics);
     } catch (error) {
       console.error("[weekly-health-score] Error cargando score:", error);
       setErrorMessage("No pudimos cargar tu score.");
-      setScore(0);
-      setCompletedToday(0);
+      setMetrics(EMPTY_METRICS);
     } finally {
       setIsLoading(false);
     }
@@ -69,10 +63,8 @@ export function WeeklyHealthScore({
     void loadScore();
   }, [loadScore, refreshKey]);
 
-  const safeMax = maxScore > 0 ? maxScore : WEEKLY_HEALTH_SCORE_MAX;
-  const clamped = Math.min(Math.max(score, 0), safeMax);
-  const percentage = Math.round((clamped / safeMax) * 100);
-  const totalChallenges = DEFAULT_DAILY_CHALLENGES.length;
+  const { percentage, earnedPoints, maxPoints, completedToday, totalActiveChallenges, streakDays } =
+    metrics;
 
   const size = 118;
   const stroke = 9;
@@ -100,7 +92,9 @@ export function WeeklyHealthScore({
                 ? "Ritmo excelente. Sigue así."
                 : percentage >= 50
                   ? "Buen progreso. Completa los retos de hoy."
-                  : "Cada hábito suma. Empieza con uno hoy."}
+                  : totalActiveChallenges === 0
+                    ? "Activa retos en el módulo Retos para empezar."
+                    : "Cada hábito suma. Empieza con uno hoy."}
             </p>
           </div>
 
@@ -108,27 +102,37 @@ export function WeeklyHealthScore({
             <div className="rounded-2xl bg-green-50 px-3 py-2.5">
               <div className="mb-1 flex items-center gap-1.5 text-green-700">
                 <Sparkles className="h-3.5 w-3.5" />
-                <span className="text-[10px] font-bold uppercase tracking-wide">Logros</span>
+                <span className="text-[10px] font-bold uppercase tracking-wide">Hoy</span>
               </div>
               <p className="text-lg font-bold text-green-800">
-                {completedToday}/{totalChallenges}
+                {completedToday}/{totalActiveChallenges}
               </p>
             </div>
 
             <div className="rounded-2xl bg-amber-50 px-3 py-2.5">
               <div className="mb-1 flex items-center gap-1.5 text-amber-700">
                 <Target className="h-3.5 w-3.5" />
-                <span className="text-[10px] font-bold uppercase tracking-wide">Score</span>
+                <span className="text-[10px] font-bold uppercase tracking-wide">Semana</span>
               </div>
-              <p className="text-lg font-bold text-amber-900">{clamped} pts</p>
+              <p className="text-lg font-bold text-amber-900">
+                {earnedPoints}
+                {maxPoints > 0 ? (
+                  <span className="text-sm font-semibold text-amber-700/80">/{maxPoints}</span>
+                ) : null}
+                <span className="ml-1 text-xs font-semibold text-amber-700/80">pts</span>
+              </p>
             </div>
 
             <div className="col-span-2 rounded-2xl bg-orange-50 px-3 py-2.5">
               <div className="mb-1 flex items-center gap-1.5 text-orange-700">
                 <Flame className="h-3.5 w-3.5" />
-                <span className="text-[10px] font-bold uppercase tracking-wide">Energía</span>
+                <span className="text-[10px] font-bold uppercase tracking-wide">Racha</span>
               </div>
-              <p className="text-sm font-semibold text-orange-900">{percentage}% de tu meta semanal</p>
+              <p className="text-sm font-semibold text-orange-900">
+                {streakDays > 0
+                  ? `${streakDays} día${streakDays === 1 ? "" : "s"} seguidos · ${percentage}% de tu meta semanal`
+                  : `${percentage}% de tu meta semanal`}
+              </p>
             </div>
           </div>
         </div>

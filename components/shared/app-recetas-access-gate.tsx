@@ -233,7 +233,7 @@ export function AppRecetasAccessGate({ children }: { children: React.ReactNode }
       <div className="min-h-screen bg-sv-surface text-sv-on-surface">
         <div className="mx-auto flex min-h-screen w-full max-w-md flex-col pb-20">
           <Header />
-          <main className="flex-1 px-4 py-6">{children}</main>
+          <main className="flex-1 px-4 pt-3 pb-6">{children}</main>
         </div>
         <BottomNav />
       </div>

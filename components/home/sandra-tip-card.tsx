@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight, Loader2, Plus, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Loader2, Plus, X } from "lucide-react";
 import { isSandraAdmin } from "@/lib/auth/sandra-admin";
+import { pickDailyTipIndex } from "@/lib/content/daily-tip";
 import { WEEKLY_SANDRA_TIP } from "@/lib/content/weekly-tip";
 import {
   clearTipsCache,
@@ -12,14 +13,9 @@ import {
 } from "@/lib/content/tips-cache";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 
-function resolveDayIndex(tipsLength: number): number {
-  if (tipsLength <= 0) return 0;
-  return new Date().getDate() % tipsLength;
-}
-
 export function SandraTipCard() {
   const [tips, setTips] = useState<HealthyTip[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [userId, setUserId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -27,7 +23,6 @@ export function SandraTipCard() {
   const [newTipContent, setNewTipContent] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [hasInitializedIndex, setHasInitializedIndex] = useState(false);
 
   const fetchTips = useCallback(async (options?: { skipCache?: boolean }) => {
     const cached = options?.skipCache ? null : readTipsCache();
@@ -67,6 +62,8 @@ export function SandraTipCard() {
         const {
           data: { user }
         } = await supabase.auth.getUser();
+
+        setUserId(user?.id ?? null);
         setIsAdmin(isSandraAdmin(user?.email));
 
         await fetchTips();
@@ -80,26 +77,14 @@ export function SandraTipCard() {
     void load();
   }, [fetchTips]);
 
-  useEffect(() => {
-    if (tips.length > 0 && !hasInitializedIndex) {
-      setCurrentIndex(resolveDayIndex(tips.length));
-      setHasInitializedIndex(true);
-    }
-  }, [tips, hasInitializedIndex]);
+  const dailyTipIndex = useMemo(
+    () => pickDailyTipIndex({ userId, tipsLength: tips.length }),
+    [tips.length, userId]
+  );
 
   const hasTips = tips.length > 0;
-  const currentTip = hasTips ? tips[currentIndex] : null;
+  const currentTip = hasTips ? tips[dailyTipIndex] : null;
   const displayContent = currentTip?.contenido ?? WEEKLY_SANDRA_TIP;
-
-  const goToPrevious = () => {
-    if (!hasTips) return;
-    setCurrentIndex((prev) => (prev - 1 + tips.length) % tips.length);
-  };
-
-  const goToNext = () => {
-    if (!hasTips) return;
-    setCurrentIndex((prev) => (prev + 1) % tips.length);
-  };
 
   const handleOpenAddModal = () => {
     setSaveError(null);
@@ -141,7 +126,6 @@ export function SandraTipCard() {
       const updatedTips = [...tips, data];
       setTips(updatedTips);
       writeTipsCache(updatedTips);
-      setCurrentIndex(updatedTips.length - 1);
       setNewTipContent("");
       setShowAddModal(false);
     } catch (error) {
@@ -161,9 +145,16 @@ export function SandraTipCard() {
     <>
       <aside className="relative rounded-2xl border border-brand-green-light/30 bg-brand-green-light/10 px-5 py-6 shadow-sm">
         <div className="flex items-start justify-between gap-3">
-          <h3 className="font-serif text-base font-semibold text-brand-green-dark">
-            💡 El Tip de Sandra
-          </h3>
+          <div>
+            <h3 className="font-serif text-base font-semibold text-brand-green-dark">
+              💡 El Tip de Sandra
+            </h3>
+            {hasTips ? (
+              <p className="mt-0.5 text-[11px] font-medium uppercase tracking-wide text-stone-400">
+                Tu tip del día
+              </p>
+            ) : null}
+          </div>
 
           {isAdmin ? (
             <button
@@ -184,42 +175,12 @@ export function SandraTipCard() {
             Cargando tip del día...
           </div>
         ) : (
-          <div className="mt-4 flex items-center gap-2">
-            {hasTips ? (
-              <button
-                type="button"
-                onClick={goToPrevious}
-                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-stone-400 transition hover:bg-white/60 hover:text-[#556B2F]"
-                aria-label="Tip anterior"
-              >
-                <ChevronLeft className="h-4 w-4" strokeWidth={2} />
-              </button>
-            ) : null}
-
-            <div className="min-w-0 flex-1">
-              {loadError ? (
-                <p className="text-sm leading-7 text-red-700">{loadError}</p>
-              ) : (
-                <p className="text-sm leading-7 text-stone-700">{displayContent}</p>
-              )}
-
-              {hasTips ? (
-                <p className="mt-2 text-[11px] font-medium text-stone-400">
-                  {currentIndex + 1} de {tips.length}
-                </p>
-              ) : null}
-            </div>
-
-            {hasTips ? (
-              <button
-                type="button"
-                onClick={goToNext}
-                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-stone-400 transition hover:bg-white/60 hover:text-[#556B2F]"
-                aria-label="Tip siguiente"
-              >
-                <ChevronRight className="h-4 w-4" strokeWidth={2} />
-              </button>
-            ) : null}
+          <div className="mt-4">
+            {loadError ? (
+              <p className="text-sm leading-7 text-red-700">{loadError}</p>
+            ) : (
+              <p className="text-sm leading-7 text-stone-700">{displayContent}</p>
+            )}
           </div>
         )}
 

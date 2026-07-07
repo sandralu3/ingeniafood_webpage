@@ -1,21 +1,25 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Menu } from "lucide-react";
+import { AppDrawer } from "@/components/shared/app-drawer";
 import { IngeniaFoodLogo } from "@/components/shared/ingenia-food-logo";
+import { UserAvatar, getProfileInitials } from "@/components/shared/user-avatar";
+import { APP_ROUTES } from "@/lib/navigation/app-routes";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 
-function getInitials(name?: string | null, email?: string | null): string {
-  const base = name?.trim() || email?.trim() || "SV";
-  const parts = base.split(/\s+/).filter(Boolean);
-  if (!parts.length) return "SV";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return `${parts[0][0] ?? ""}${parts[1][0] ?? ""}`.toUpperCase();
+function shouldHideHeaderAvatar(pathname: string): boolean {
+  return pathname === APP_ROUTES.hoy || pathname === APP_ROUTES.root;
 }
 
 export function Header() {
+  const pathname = usePathname();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [initials, setInitials] = useState("SV");
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const hideAvatar = shouldHideHeaderAvatar(pathname);
 
   useEffect(() => {
     const supabase = createSupabaseClient();
@@ -32,7 +36,7 @@ export function Header() {
         return;
       }
 
-      setInitials(getInitials(user.user_metadata?.full_name as string | undefined, user.email));
+      setInitials(getProfileInitials(user.user_metadata?.full_name as string | undefined, user.email));
 
       const { data: profile } = await supabase
         .from("profiles")
@@ -43,7 +47,7 @@ export function Header() {
       if (isCancelled) return;
 
       setAvatarUrl(profile?.avatar_url ?? null);
-      setInitials(getInitials(profile?.full_name, user.email));
+      setInitials(getProfileInitials(profile?.full_name, user.email));
     };
 
     void syncProfile();
@@ -60,28 +64,29 @@ export function Header() {
     };
   }, []);
 
-  const avatarContent = useMemo(() => {
-    if (avatarUrl) {
-      return <img src={avatarUrl} alt="Perfil" className="h-full w-full object-cover" />;
-    }
-    return <span className="text-[11px] font-semibold text-brand-green-dark">{initials}</span>;
-  }, [avatarUrl, initials]);
-
   return (
-    <header className="sticky top-0 z-40 flex w-full items-center justify-between border-b border-sv-outline-variant/30 bg-sv-surface/80 px-4 py-3 backdrop-blur-xl sm:px-6">
-      <div className="flex min-w-0 flex-1 items-center gap-3">
-        <button
-          type="button"
-          className="text-sv-primary-container transition hover:opacity-80"
-          aria-label="Abrir menú"
-        >
-          <Menu className="h-5 w-5" strokeWidth={1.75} />
-        </button>
-        <IngeniaFoodLogo />
-      </div>
-      <div className="relative ml-3 flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-sv-surface-low ring-1 ring-sv-outline-variant/40">
-        {avatarContent}
-      </div>
-    </header>
+    <>
+      <header className="sticky top-0 z-40 flex w-full items-center justify-between border-b border-sv-outline-variant/30 bg-sv-surface/80 px-4 py-2.5 backdrop-blur-xl sm:px-6">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setIsDrawerOpen(true)}
+            className="text-sv-primary-container transition hover:opacity-80"
+            aria-label="Abrir menú"
+          >
+            <Menu className="h-5 w-5" strokeWidth={1.75} />
+          </button>
+          <IngeniaFoodLogo />
+        </div>
+
+        {!hideAvatar ? (
+          <Link href={APP_ROUTES.perfil} className="ml-3 shrink-0 transition hover:opacity-90">
+            <UserAvatar avatarUrl={avatarUrl} initials={initials} />
+          </Link>
+        ) : null}
+      </header>
+
+      <AppDrawer open={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} />
+    </>
   );
 }
