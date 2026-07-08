@@ -6,14 +6,14 @@ import { isUnlimitedGenerationsCount } from "@/lib/generations/admin-unlimited";
 import {
   ScanLine,
   X,
+  Plus,
+  Check,
   Egg,
   Leaf,
   Beef,
   Carrot,
   Sparkles,
-  Check,
   Package,
-  ChevronDown,
   Bookmark,
   BookmarkCheck
 } from "lucide-react";
@@ -47,6 +47,14 @@ export const PANTRY_CATEGORIES: Record<
     icon: Package,
     dbCategory: "basicos_despensa"
   }
+};
+
+const CATEGORY_KEYS: CategoryKey[] = ["Proteinas", "Vegetales", "Basicos de Despensa"];
+
+const CATEGORY_TAB_META: Record<CategoryKey, { label: string; emoji: string }> = {
+  Proteinas: { label: "Proteínas", emoji: "🥩" },
+  Vegetales: { label: "Vegetales", emoji: "🥦" },
+  "Basicos de Despensa": { label: "Básicos", emoji: "🌾" }
 };
 
 function pillIconFor(name: string) {
@@ -101,11 +109,7 @@ export function PantrySearchView({
     removeFavorite
   } = usePantryData();
 
-  const [expandedCategories, setExpandedCategories] = useState<Record<CategoryKey, boolean>>({
-    Proteinas: false,
-    Vegetales: false,
-    "Basicos de Despensa": false
-  });
+  const [activeCategory, setActiveCategory] = useState<CategoryKey>(CATEGORY_KEYS[0]);
 
   const masterByName = useMemo(() => {
     const map = new Map<string, MasterIngredient>();
@@ -194,28 +198,13 @@ export function PantrySearchView({
     openFilePicker();
   }, [hasSelection, onFindRecipes, onGenerationsExhausted, openFilePicker, scansExhausted]);
 
-  const toggleCategory = useCallback((category: CategoryKey) => {
-    setExpandedCategories((prev) => ({
-      ...prev,
-      [category]: !prev[category]
-    }));
-  }, []);
-
-  const expandCategory = useCallback((category: CategoryKey) => {
-    setExpandedCategories((prev) => ({
-      ...prev,
-      [category]: true
-    }));
-  }, []);
-
   const handleComboboxSelect = useCallback(
     (ingredient: MasterIngredient) => {
       if (!selectedIngredients.includes(ingredient.name)) {
         onAddIngredient(ingredient.name);
       }
-      expandCategory(CATEGORY_DB_TO_UI[ingredient.category]);
     },
-    [onAddIngredient, selectedIngredients, expandCategory]
+    [onAddIngredient, selectedIngredients]
   );
 
   const handleCreateCustomIngredient = useCallback(
@@ -244,12 +233,11 @@ export function PantrySearchView({
 
       const created = await addFavorite(ingredient.id);
       if (created) {
-        expandCategory(CATEGORY_DB_TO_UI[created.category]);
+        // La UI compacta muestra favoritos por categoría sin necesidad de acordeón
       }
     },
     [
       addFavorite,
-      expandCategory,
       favoriteIngredientIds,
       favorites,
       masterByName,
@@ -257,27 +245,17 @@ export function PantrySearchView({
     ]
   );
 
-  const handleRemoveFavoriteFromAccordion = useCallback(
-    async (favoriteId: string, ingredientName: string) => {
-      const removed = await removeFavorite(favoriteId);
-      if (removed && selectedIngredients.includes(ingredientName)) {
-        onRemoveIngredient(ingredientName);
-      }
-    },
-    [onRemoveIngredient, removeFavorite, selectedIngredients]
-  );
-
   return (
-    <div className="pb-36 pt-1.5 duration-300 sm:pb-40">
-      <section className="mb-5 px-1 pt-2">
-        <div className="mb-5 text-left">
-          <h2 className="text-xl font-bold tracking-tight text-stone-800">
-            ¿Qué hay en tu despensa?
-          </h2>
-        </div>
+    <div className="h-[calc(100vh-180px)] flex flex-col justify-between overflow-hidden duration-300 sm:h-[calc(100vh-200px)]">
+      <div className="flex-1 overflow-y-auto px-1 pt-2 pb-4">
 
         <div
-          className="group relative flex w-full aspect-[4/3] overflow-hidden rounded-2xl border border-dashed border-stone-200/80 bg-stone-50 p-4 shadow-[inset_0_1px_0_rgba(0,0,0,0.03)] transition-colors hover:border-stone-200"
+          className={[
+            "group relative flex w-full aspect-[4/3] overflow-hidden rounded-3xl shadow-md transition-colors",
+            previewUrl
+              ? "bg-white border border-stone-200/70"
+              : "bg-gradient-to-tr from-[#F4F7F2] to-[#E2ECDFA0] border border-[#D5E2D0]"
+          ].join(" ")}
           onDragOver={(e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -306,8 +284,8 @@ export function PantrySearchView({
             </div>
           ) : (
             <div className="pointer-events-none relative z-10 flex w-full flex-col items-center justify-center gap-2 sm:flex-row sm:justify-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-stone-50 ring-1 ring-stone-100">
-                <ScanLine className="h-6 w-6 text-stone-700" strokeWidth={1.75} />
+              <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-[#4C6B3F]/10 ring-1 ring-[#4C6B3F]/20">
+                <ScanLine className="h-7 w-7 text-[#4C6B3F]" strokeWidth={1.75} />
               </div>
               <div className="text-center sm:text-left">
                 <p className="text-sm font-medium text-stone-600">
@@ -334,7 +312,7 @@ export function PantrySearchView({
             aria-label="Abrir cámara o galería para foto de despensa"
           />
         </div>
-      </section>
+      
 
       <section className="mb-4">
         {isPantryLoading ? (
@@ -401,97 +379,99 @@ export function PantrySearchView({
         </section>
       ) : null}
 
-      <div className="mb-2 grid grid-cols-1 gap-2.5 md:grid-cols-2">
-        {(Object.keys(PANTRY_CATEGORIES) as CategoryKey[]).map((key) => {
-          const cat = PANTRY_CATEGORIES[key];
-          const Icon = cat.icon;
-          const isWide = key === "Basicos de Despensa";
-          const isExpanded = expandedCategories[key];
-          const categoryFavorites = favoritesByCategory[key];
-          return (
-            <div
-              key={key}
-          className={`rounded-2xl border border-stone-100 bg-white p-4 shadow-md shadow-stone-200/50 ${
-                isWide ? "md:col-span-2" : ""
-              }`}
-            >
-              <button
-                type="button"
-                onClick={() => toggleCategory(key)}
-                aria-expanded={isExpanded}
-                aria-controls={`accordion-${key}`}
-                className="flex w-full items-center justify-between gap-2 rounded-md py-1 text-left"
-              >
-                <div className="flex items-center gap-2">
-                  <Icon className="h-4 w-4 text-[#556B2F]" strokeWidth={1.5} />
-                  <h3 className="text-[10px] font-semibold uppercase tracking-[0.14em] text-stone-600">
-                    {cat.title}
-                  </h3>
-                  {categoryFavorites.length > 0 ? (
-                    <span className="flex items-center justify-center rounded-full bg-[#E9F0E6] px-2.5 py-0.5 text-xs font-bold text-[#4C6B3F]">
-                      {categoryFavorites.length}
+      <section className="mb-2">
+        <div className="rounded-2xl border border-stone-100 bg-white p-4 shadow-sm">
+          <span className="mb-3 block text-[11px] font-bold tracking-wider text-stone-400">
+            FAVORITOS
+          </span>
+
+          <div className="no-scrollbar mb-3 flex gap-2 overflow-x-auto border-b border-stone-100/60 pb-2">
+            {CATEGORY_KEYS.map((key) => {
+              const isActive = activeCategory === key;
+              const meta = CATEGORY_TAB_META[key];
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setActiveCategory(key)}
+                  aria-pressed={isActive}
+                  aria-label={`Ver favoritos de ${meta.label}`}
+                  className={[
+                    "flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors",
+                    isActive
+                      ? "border-[#D5E2D0] bg-[#E9F0E6] font-semibold text-[#4C6B3F]"
+                      : "border-stone-100 bg-stone-50 text-stone-600 hover:bg-stone-100"
+                  ].join(" ")}
+                >
+                  <span aria-hidden className="text-sm leading-none">
+                    {meta.emoji}
+                  </span>
+                  <span>{meta.label}</span>
+                  {favoritesByCategory[key].length > 0 ? (
+                    <span
+                      className={[
+                        "ml-0.5 min-w-[1.1rem] rounded-full px-1 text-[10px] font-bold leading-4",
+                        isActive ? "bg-[#4C6B3F]/15 text-[#4C6B3F]" : "bg-stone-200/70 text-stone-500"
+                      ].join(" ")}
+                    >
+                      {favoritesByCategory[key].length}
                     </span>
                   ) : null}
-                </div>
-                <ChevronDown
-                  className={`h-4 w-4 shrink-0 text-sv-on-surface-variant transition-transform duration-300 ${
-                    isExpanded ? "rotate-180" : "rotate-0"
-                  }`}
-                />
-              </button>
-              <div
-                id={`accordion-${key}`}
-                className={`overflow-hidden transition-[max-height,opacity,margin] duration-300 ease-out ${
-                  isExpanded
-                    ? "mt-2 max-h-56 opacity-100 rounded-2xl border border-stone-100 bg-white p-4 shadow-md shadow-stone-200/50"
-                    : "mt-0 max-h-0 opacity-0"
-                }`}
-              >
-                {categoryFavorites.length === 0 ? (
-                  <p className="px-1 py-2 text-xs text-stone-500">
-                    Sin favoritos aquí. Busca un ingrediente y pulsa el marcador de guardar.
-                  </p>
-                ) : (
-                  <div className="grid grid-cols-1 gap-1 md:grid-cols-2">
-                    {categoryFavorites.map((fav) => {
-                      const active = selectedIngredients.includes(fav.name);
-                      return (
-                        <div
-                          key={fav.favoriteId}
-                          className="flex items-center justify-between rounded-md py-1 pr-1"
-                        >
-                          <button
-                            type="button"
-                            onClick={() => onToggleFromCategory(fav.name)}
-                            className={`flex min-w-0 flex-1 items-center justify-between rounded-md px-1 text-left text-xs transition ${
-                              active ? "text-sv-primary" : "text-sv-on-surface"
-                            }`}
-                          >
-                            <span className="truncate pr-1.5 leading-tight">{fav.name}</span>
-                            {active ? (
-                              <Check className="h-3.5 w-3.5 shrink-0 text-sv-primary" strokeWidth={2.5} />
-                            ) : null}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              void handleRemoveFavoriteFromAccordion(fav.favoriteId, fav.name)
-                            }
-                            className="ml-1 rounded-full p-1 text-stone-500 transition hover:bg-white hover:text-red-600"
-                            aria-label={`Eliminar ${fav.name} de favoritos`}
-                          >
-                            <X className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+                </button>
+              );
+            })}
+          </div>
+
+          {favoritesByCategory[activeCategory].length > 0 ? (
+            <div className="max-h-28 overflow-y-auto pr-0.5">
+              <div className="grid grid-cols-2 gap-2">
+                {favoritesByCategory[activeCategory].map((fav) => {
+                  const isSelected = selectedIngredients.includes(fav.name);
+                  return (
+                    <button
+                      key={fav.favoriteId}
+                      type="button"
+                      onClick={() => onToggleFromCategory(fav.name)}
+                      aria-pressed={isSelected}
+                      aria-label={
+                        isSelected
+                          ? `Quitar ${fav.name} de la selección`
+                          : `Añadir ${fav.name} al escaneo`
+                      }
+                      className={[
+                        "flex cursor-pointer items-center justify-between rounded-xl border p-2.5 text-left text-xs font-medium shadow-sm transition-all",
+                        isSelected
+                          ? "border-[#4C6B3F]/35 bg-[#E9F0E6]/50 text-[#4C6B3F]"
+                          : "border-stone-200/60 bg-white text-stone-700 hover:border-[#4C6B3F]/30"
+                      ].join(" ")}
+                    >
+                      <span className="min-w-0 truncate pr-2">{fav.name}</span>
+                      <span
+                        className={[
+                          "flex h-5 w-5 shrink-0 items-center justify-center rounded-full",
+                          isSelected ? "bg-[#4C6B3F] text-white" : "bg-[#E9F0E6] text-[#4C6B3F]"
+                        ].join(" ")}
+                        aria-hidden
+                      >
+                        {isSelected ? (
+                          <Check className="h-3 w-3" strokeWidth={2.5} />
+                        ) : (
+                          <Plus className="h-3 w-3" strokeWidth={2.5} />
+                        )}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
-          );
-        })}
-      </div>
+          ) : (
+            <p className="text-xs leading-relaxed text-stone-500">
+              Sin favoritos en {CATEGORY_TAB_META[activeCategory].label.toLowerCase()}. Busca un
+              ingrediente arriba y pulsa el marcador para guardarlo aquí.
+            </p>
+          )}
+        </div>
+      </section>
 
       {errorMessage ? (
         <div
@@ -510,17 +490,25 @@ export function PantrySearchView({
         </div>
       ) : null}
 
-      <div className="pointer-events-none fixed bottom-[4.75rem] left-1/2 z-[60] w-full max-w-md -translate-x-1/2 px-4 sm:bottom-20">
+      </div>
+
+      {/* Bottom sticky (siempre visible dentro de la altura controlada) */}
+      <div className="bg-[#FBF9F6] px-4 pb-4 pt-2">
         {isUnlimitedGenerationsCount(generationsLeft) ? (
-          <p className="pointer-events-auto mb-2 text-center text-[11px] font-medium text-[#556B2F]">
+          <span className="text-[10px] text-stone-400 text-center block mb-1">
             Escaneos ilimitados · cuenta admin
-          </p>
+          </span>
         ) : generationsLeft !== null && generationsLeft > 0 ? (
-          <p className="pointer-events-auto mb-2 text-center text-[11px] font-medium text-stone-500">
+          <span className="text-[10px] text-stone-400 text-center block mb-1">
             {generationsLeft}{" "}
-            {generationsLeft === 1 ? "escaneo gratuito restante" : "escaneos gratuitos restantes"}
-          </p>
-        ) : null}
+            {generationsLeft === 1
+              ? "escaneo gratuito restante"
+              : "escaneos gratuitos restantes"}
+          </span>
+        ) : (
+          <span className="block mb-1" />
+        )}
+
         <button
           type="button"
           onClick={handlePrimaryAction}
@@ -532,7 +520,7 @@ export function PantrySearchView({
                 ? "Generar receta saludable"
                 : "Escanear Nevera"
           }
-          className="pointer-events-auto flex w-full items-center justify-center gap-2 rounded-full bg-[#4C6B3F] px-5 py-3.5 text-center text-sm font-semibold tracking-tight leading-tight text-white shadow-lg shadow-[#4C6B3F]/20 transition hover:brightness-105 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-60 disabled:shadow-none"
+          className="w-full bg-[#4C6B3F] text-white font-bold py-3.5 rounded-2xl shadow-lg shadow-[#4C6B3F]/20 text-center tracking-wide hover:bg-[#3D5632] transition-all disabled:cursor-not-allowed disabled:opacity-60"
         >
           {scansExhausted
             ? "Pruebas gratuitas agotadas"
@@ -541,11 +529,6 @@ export function PantrySearchView({
                 ? `Reintentar en ${rateLimitSecondsLeft}s`
                 : "Generar receta saludable"
               : "Escanear Nevera"}
-          {!scansExhausted ? (
-            <span aria-hidden className="transition group-hover:translate-x-1">
-              →
-            </span>
-          ) : null}
         </button>
       </div>
     </div>

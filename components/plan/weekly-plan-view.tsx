@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Loader2, ShoppingBag, Zap } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, MoreVertical, ShoppingBag } from "lucide-react";
 import { PlanDayCarousel } from "@/components/plan/plan-day-carousel";
 import { PlanDayMealsPanel } from "@/components/plan/plan-day-meals-panel";
 import { PlanRecipePickerModal } from "@/components/plan/plan-recipe-picker-modal";
@@ -385,41 +385,45 @@ export function WeeklyPlanView() {
     <div className="min-h-full bg-[#FBF9F6] pb-8 pt-1">
       <section className="space-y-5">
         <header className="pt-2">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <h1 className="text-xl font-bold tracking-tight text-stone-800">Tu plan semanal</h1>
+          <div className="w-full mb-4">
+            <h1 className="text-xl font-bold tracking-tight text-stone-800">Tu plan semanal</h1>
+          </div>
 
-              <div className="mt-2 flex items-center justify-center gap-3">
-                <button
-                  type="button"
-                  onClick={goPrevWeek}
-                  disabled={isLoading || isCloningWeek}
-                  className={cn(
-                    "inline-flex h-9 w-9 items-center justify-center rounded-full border border-stone-200 bg-white text-stone-600 transition",
-                    "hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
-                  )}
-                  aria-label="Semana anterior"
-                >
-                  <ChevronLeft className="h-4 w-4" strokeWidth={2.25} />
-                </button>
+          <div className="flex items-center justify-between w-full gap-2">
+            {/* Izquierda: selector de semanas con ancho fijo */}
+            <div className="flex items-center bg-stone-100/80 p-1 rounded-full border border-stone-200/50">
+              <button
+                type="button"
+                onClick={goPrevWeek}
+                disabled={isLoading || isCloningWeek}
+                className={cn(
+                  "p-1.5 hover:bg-white rounded-full transition-colors",
+                  isLoading || isCloningWeek ? "opacity-50 cursor-not-allowed" : "text-stone-600"
+                )}
+                aria-label="Semana anterior"
+              >
+                <ChevronLeft className="h-4 w-4" strokeWidth={2.25} />
+              </button>
 
-                <span className="text-sm font-medium text-stone-600">{weekRangeLabel}</span>
+              <span className="w-28 text-center text-xs font-semibold text-stone-700 select-none truncate">
+                {weekRangeLabel}
+              </span>
 
-                <button
-                  type="button"
-                  onClick={goNextWeek}
-                  disabled={isLoading || isCloningWeek}
-                  className={cn(
-                    "inline-flex h-9 w-9 items-center justify-center rounded-full border border-stone-200 bg-white text-stone-600 transition",
-                    "hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
-                  )}
-                  aria-label="Semana siguiente"
-                >
-                  <ChevronRight className="h-4 w-4" strokeWidth={2.25} />
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={goNextWeek}
+                disabled={isLoading || isCloningWeek}
+                className={cn(
+                  "p-1.5 hover:bg-white rounded-full transition-colors",
+                  isLoading || isCloningWeek ? "opacity-50 cursor-not-allowed" : "text-stone-600"
+                )}
+                aria-label="Semana siguiente"
+              >
+                <ChevronRight className="h-4 w-4" strokeWidth={2.25} />
+              </button>
             </div>
 
+            {/* Derecha: botones */}
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -440,13 +444,12 @@ export function WeeklyPlanView() {
                   onClick={() => setActionsOpen((current) => !current)}
                   disabled={isLoading || isCloningWeek}
                   className={cn(
-                    "flex shrink-0 items-center gap-1.5 rounded-full border border-stone-200 bg-white px-3 py-1.5 text-xs font-medium text-stone-700 transition",
-                    "hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
+                    "w-8 h-8 flex items-center justify-center bg-stone-100 rounded-full border border-stone-200/50 text-stone-600 hover:bg-stone-200/50 transition",
+                    isLoading || isCloningWeek ? "opacity-60 cursor-not-allowed" : ""
                   )}
                   aria-label="Acciones"
                 >
-                  <Zap className="h-3.5 w-3.5" strokeWidth={2.25} />
-                  Acciones
+                  <MoreVertical className="h-4 w-4" strokeWidth={2.25} />
                 </button>
 
                 {actionsOpen ? (

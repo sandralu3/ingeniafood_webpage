@@ -174,7 +174,7 @@ export function IngredientCombobox({
           }
         }}
         placeholder="Agrega mas: ej. Kale, Yogur griego, Quinoa"
-        className="w-full rounded-full border border-stone-200/80 bg-stone-50/90 px-5 py-3 pr-12 text-sm text-stone-800 shadow-sm placeholder:text-stone-400 transition focus:border-[#556B2F]/25 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#556B2F]/10 disabled:opacity-60"
+        className="w-full rounded-full border border-stone-200/80 bg-stone-50/90 px-4 py-2 pr-11 text-sm text-stone-800 shadow-sm placeholder:text-stone-400 transition focus:border-[#556B2F]/25 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#556B2F]/10 disabled:opacity-60"
       />
       <button
         type="button"
