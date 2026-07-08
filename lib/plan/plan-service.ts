@@ -28,7 +28,10 @@ export type RecipePickerItem = Pick<
 >;
 
 type PlanRowWithRecipe = PlanRow & {
-  recipes: Pick<RecipeRow, "id" | "title" | "image_url" | "instagram_url" | "cooking_time"> | null;
+  recipes: Pick<
+    RecipeRow,
+    "id" | "title" | "image_url" | "instagram_url" | "cooking_time" | "is_airfryer" | "is_flourless"
+  > | null;
 };
 
 const PLAN_SELECT = `
@@ -44,7 +47,9 @@ const PLAN_SELECT = `
     title,
     image_url,
     instagram_url,
-    cooking_time
+    cooking_time,
+    is_airfryer,
+    is_flourless
   )
 `;
 
@@ -68,7 +73,9 @@ function toPlanMeal(row: PlanRowWithRecipe): PlanMeal {
     imageUrl: recipe?.image_url ?? null,
     instagramUrl: recipe?.instagram_url ?? null,
     isSocialVideo: Boolean(recipe?.instagram_url && !recipe?.image_url),
-    calories: recipe?.cooking_time ?? undefined
+    calories: recipe?.cooking_time ?? undefined,
+    isAirfryer: recipe?.is_airfryer ?? false,
+    isFlourless: recipe?.is_flourless ?? false
   };
 }
 
@@ -162,17 +169,35 @@ export async function assignRecipeToPlan(params: {
   const supabase = createSupabaseClient();
   const semanaInicio = toISODateString(getMondayOfWeek());
 
-  const { data, error } = await supabase
+  const { data: existing, error: existingError } = await supabase
     .from("plan_semanal")
-    .insert({
-      user_id: params.userId,
-      semana_inicio: semanaInicio,
-      dia_semana: params.diaSemana,
-      tipo_comida: params.tipoComida,
-      recipe_id: params.recipeId
-    })
-    .select(PLAN_SELECT)
-    .single();
+    .select("id")
+    .eq("user_id", params.userId)
+    .eq("semana_inicio", semanaInicio)
+    .eq("dia_semana", params.diaSemana)
+    .eq("tipo_comida", params.tipoComida)
+    .maybeSingle();
+
+  if (existingError) {
+    console.error("[plan] Error comprobando slot del plan:", existingError);
+    return null;
+  }
+
+  const query = existing
+    ? supabase
+        .from("plan_semanal")
+        .update({ recipe_id: params.recipeId })
+        .eq("id", existing.id)
+        .eq("user_id", params.userId)
+    : supabase.from("plan_semanal").insert({
+        user_id: params.userId,
+        semana_inicio: semanaInicio,
+        dia_semana: params.diaSemana,
+        tipo_comida: params.tipoComida,
+        recipe_id: params.recipeId
+      });
+
+  const { data, error } = await query.select(PLAN_SELECT).single();
 
   if (error || !data) {
     console.error("[plan] Error asignando receta al plan:", error);
@@ -218,4 +243,24 @@ export async function swapPlanMeal(params: {
   }
 
   return toPlanMeal(updated as PlanRowWithRecipe);
+}
+
+export async function removePlanMeal(params: {
+  userId: string;
+  planEntryId: string;
+}): Promise<boolean> {
+  const supabase = createSupabaseClient();
+
+  const { error } = await supabase
+    .from("plan_semanal")
+    .delete()
+    .eq("id", params.planEntryId)
+    .eq("user_id", params.userId);
+
+  if (error) {
+    console.error("[plan] Error quitando receta del plan:", error);
+    return false;
+  }
+
+  return true;
 }

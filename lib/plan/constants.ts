@@ -14,6 +14,16 @@ export const MEAL_TYPES = ["Desayuno", "Almuerzo", "Cena"] as const;
 
 export type MealType = (typeof MEAL_TYPES)[number];
 
+export const WEEK_DAY_SHORT: Record<WeekDay, string> = {
+  Lunes: "Lun",
+  Martes: "Mar",
+  Miércoles: "Mié",
+  Jueves: "Jue",
+  Viernes: "Vie",
+  Sábado: "Sáb",
+  Domingo: "Dom"
+};
+
 export const WEEK_DAY_SHORT_IDS: Record<WeekDay, string> = {
   Lunes: "mon",
   Martes: "tue",

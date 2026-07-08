@@ -216,8 +216,7 @@ export function PlanRecipePickerModal({
             </button>
           </div>
           <p className="mt-2 text-center text-[10px] leading-relaxed text-stone-400">
-            Al guardar la receta, se asignará al {mealType.toLowerCase()} del {dayLabel}. ¿Viste una
-            receta en Instagram? Créala aquí con el escáner.
+            Al guardar la receta, se asignará al {mealType.toLowerCase()} del {dayLabel}.
           </p>
         </div>
 

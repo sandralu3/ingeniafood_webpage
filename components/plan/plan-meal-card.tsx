@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Clock3, Loader2, RefreshCw } from "lucide-react";
+import Link from "next/link";
+import { Coffee, Clock3, Loader2, RefreshCw, Soup, Trash2, Utensils } from "lucide-react";
 import { RecipeInstagramLink } from "@/components/recipes/recipe-instagram-link";
 import { RecipeMedia } from "@/components/recipes/recipe-media";
-import { swapPlanMeal } from "@/lib/plan/plan-service";
+import { removePlanMeal, swapPlanMeal } from "@/lib/plan/plan-service";
 import type { MealType } from "@/lib/plan/constants";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import { cn } from "@/lib/utils";
@@ -18,15 +19,145 @@ export type PlanMeal = {
   instagramUrl?: string | null;
   isSocialVideo?: boolean;
   calories?: number;
+  isAirfryer?: boolean;
+  isFlourless?: boolean;
 };
 
 type PlanMealCardProps = {
   meal: PlanMeal;
   onMealSwapped?: (updatedMeal: PlanMeal) => void;
   onSwapError?: (message: string) => void;
-  variant?: "default" | "slot";
+  onMealRemoved?: (mealType: MealType) => void;
+  onRemoveError?: (message: string) => void;
+  variant?: "default" | "slot" | "panel";
   className?: string;
 };
+
+function buildNutritionPills(meal: PlanMeal): string[] {
+  const pills: string[] = [];
+
+  if (meal.isFlourless) pills.push("Sin harinas");
+  if (meal.isAirfryer) pills.push("Airfryer");
+  if (!meal.isAirfryer && !meal.isFlourless) pills.push("Saludable");
+
+  return pills.slice(0, 2);
+}
+
+function recipeDetailHref(recipeId: string) {
+  return `/app-recetas/recipes/${recipeId}`;
+}
+
+function getMealPlaceholderStyle(mealType: MealType): {
+  className: string;
+  Icon: typeof Coffee;
+} {
+  switch (mealType) {
+    case "Desayuno":
+      return {
+        className: "bg-amber-50 text-amber-700 ring-amber-100/80",
+        Icon: Coffee
+      };
+    case "Almuerzo":
+      return {
+        className: "bg-emerald-50 text-emerald-700 ring-emerald-100/80",
+        Icon: Utensils
+      };
+    case "Cena":
+      return {
+        className: "bg-indigo-50/70 text-indigo-700 ring-indigo-100/80",
+        Icon: Soup
+      };
+    default:
+      return {
+        className: "bg-emerald-50 text-emerald-700 ring-emerald-100/80",
+        Icon: Utensils
+      };
+  }
+}
+
+function MealThumbnail({
+  imageUrl,
+  title,
+  mealType
+}: {
+  imageUrl?: string | null;
+  title: string;
+  mealType: MealType;
+}) {
+  if (imageUrl) {
+    return (
+      <img
+        src={imageUrl}
+        alt={title ? `Imagen de ${title}` : "Imagen de la receta"}
+        className="h-20 w-20 shrink-0 rounded-xl object-cover ring-1 ring-stone-100"
+        loading="lazy"
+      />
+    );
+  }
+
+  const { className, Icon } = getMealPlaceholderStyle(mealType);
+
+  return (
+    <div
+      className={cn(
+        "flex h-20 w-20 shrink-0 items-center justify-center rounded-xl ring-1",
+        className
+      )}
+      aria-hidden
+    >
+      <Icon className="h-7 w-7 stroke-[1.75]" />
+    </div>
+  );
+}
+
+function CompactActionButtons({
+  isSwapping,
+  isRemoving,
+  swapDisabled,
+  removeDisabled,
+  onSwap,
+  onRemove
+}: {
+  isSwapping: boolean;
+  isRemoving: boolean;
+  swapDisabled: boolean;
+  removeDisabled: boolean;
+  onSwap: () => void;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="flex shrink-0 flex-col items-center gap-1.5 sm:flex-row">
+      <button
+        type="button"
+        onClick={onRemove}
+        disabled={removeDisabled}
+        aria-label="Quitar receta del día"
+        className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-stone-100 text-stone-600 transition hover:bg-stone-200 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {isRemoving ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        ) : (
+          <Trash2 className="h-3.5 w-3.5" strokeWidth={2.25} />
+        )}
+      </button>
+
+      <button
+        type="button"
+        onClick={onSwap}
+        disabled={swapDisabled}
+        aria-label="Intercambiar receta"
+        className="inline-flex items-center gap-1 rounded-full bg-stone-100 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide text-stone-600 transition hover:bg-stone-200 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {isSwapping ? (
+          <Loader2 className="h-3 w-3 animate-spin" />
+        ) : (
+          <RefreshCw className="h-3 w-3" strokeWidth={2.5} />
+        )}
+        Swap
+      </button>
+    </div>
+  );
+}
 
 function SwapButton({
   isSwapping,
@@ -62,21 +193,123 @@ function SwapButton({
   );
 }
 
+function HorizontalMealCard({
+  meal,
+  isFading,
+  showMealType = true,
+  isSwapping,
+  isRemoving,
+  swapDisabled,
+  removeDisabled,
+  onSwap,
+  onRemove,
+  className
+}: {
+  meal: PlanMeal;
+  isFading: boolean;
+  showMealType?: boolean;
+  isSwapping: boolean;
+  isRemoving: boolean;
+  swapDisabled: boolean;
+  removeDisabled: boolean;
+  onSwap: () => void;
+  onRemove: () => void;
+  className?: string;
+}) {
+  const nutritionPills = buildNutritionPills(meal);
+
+  return (
+    <article
+      className={cn(
+        "flex items-center gap-3 rounded-2xl border border-stone-100/80 bg-white p-3 shadow-md shadow-stone-200/40 transition-all duration-300",
+        isFading && "scale-[0.98] opacity-70",
+        className
+      )}
+    >
+      <Link
+        href={recipeDetailHref(meal.recipeId)}
+        className="flex min-w-0 flex-1 items-center gap-4 rounded-xl transition hover:bg-stone-50/60 active:bg-stone-50"
+        aria-label={`Ver receta: ${meal.title}`}
+      >
+        <MealThumbnail imageUrl={meal.imageUrl} title={meal.title} mealType={meal.mealType} />
+
+        <div className="min-w-0 flex-1">
+          {showMealType ? (
+            <p className="text-xs font-semibold uppercase tracking-wider text-stone-400">
+              {meal.mealType}
+            </p>
+          ) : null}
+
+          <h3
+            className={cn(
+              "line-clamp-2 text-base font-bold leading-snug text-stone-800",
+              showMealType ? "mt-0.5" : ""
+            )}
+          >
+            {meal.title}
+          </h3>
+
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            {meal.calories ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700">
+                <Clock3 className="h-3 w-3" />
+                {meal.calories} min
+              </span>
+            ) : null}
+
+            {nutritionPills.map((pill) => (
+              <span
+                key={pill}
+                className="rounded-full bg-stone-50 px-2.5 py-0.5 text-xs font-medium text-stone-600 ring-1 ring-stone-200/70"
+              >
+                {pill}
+              </span>
+            ))}
+          </div>
+        </div>
+      </Link>
+
+      <div className="flex shrink-0 flex-col items-center gap-2">
+        {meal.instagramUrl ? (
+          <RecipeInstagramLink
+            url={meal.instagramUrl}
+            className="!border-stone-200 !bg-stone-50 !px-2 !py-0.5 !text-[10px] !text-stone-600"
+          />
+        ) : null}
+
+        <CompactActionButtons
+          isSwapping={isSwapping}
+          isRemoving={isRemoving}
+          swapDisabled={swapDisabled}
+          removeDisabled={removeDisabled}
+          onSwap={onSwap}
+          onRemove={onRemove}
+        />
+      </div>
+    </article>
+  );
+}
+
 export function PlanMealCard({
   meal,
   onMealSwapped,
   onSwapError,
+  onMealRemoved,
+  onRemoveError,
   variant = "default",
   className
 }: PlanMealCardProps) {
   const [isSwapping, setIsSwapping] = useState(false);
+  const [isRemoving, setIsRemoving] = useState(false);
   const [isFading, setIsFading] = useState(false);
 
-  const isReelLayout =
-    variant === "slot"
-      ? Boolean(meal.imageUrl || meal.instagramUrl)
-      : Boolean(meal.imageUrl || meal.instagramUrl || meal.isSocialVideo);
+  const isPanel = variant === "panel";
+  const isCompact = variant === "slot";
+  const hasReel = Boolean(meal.instagramUrl && !meal.imageUrl);
+  const useHeroLayout = isCompact && (Boolean(meal.imageUrl) || hasReel);
+
   const swapDisabled = isSwapping;
+  const removeDisabled = isRemoving || isSwapping;
 
   const handleSwap = async () => {
     if (swapDisabled) return;
@@ -120,19 +353,83 @@ export function PlanMealCard({
     }
   };
 
-  if (isReelLayout) {
+  const handleRemove = async () => {
+    if (removeDisabled) return;
+
+    const ok = window.confirm("¿Quitar esta receta del día?");
+    if (!ok) return;
+
+    setIsRemoving(true);
+
+    try {
+      const supabase = createSupabaseClient();
+      const {
+        data: { user }
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        onRemoveError?.("Inicia sesión para editar tu plan semanal.");
+        return;
+      }
+
+      const removed = await removePlanMeal({
+        userId: user.id,
+        planEntryId: meal.id
+      });
+
+      if (!removed) {
+        onRemoveError?.("No pudimos quitar la receta del plan.");
+        return;
+      }
+
+      onMealRemoved?.(meal.mealType);
+    } catch (error) {
+      console.error("[plan-meal-card] Error quitando receta:", error);
+      onRemoveError?.("Ocurrió un error al quitar la receta del plan.");
+    } finally {
+      setIsRemoving(false);
+    }
+  };
+
+  const actionProps = {
+    isSwapping,
+    isRemoving,
+    swapDisabled,
+    removeDisabled,
+    onSwap: () => void handleSwap(),
+    onRemove: () => void handleRemove()
+  };
+
+  if (isPanel || variant === "default") {
+    return (
+      <HorizontalMealCard
+        meal={meal}
+        isFading={isFading}
+        showMealType={!isPanel}
+        className={className}
+        {...actionProps}
+      />
+    );
+  }
+
+  if (useHeroLayout) {
     return (
       <article
         className={cn(
-          "group relative overflow-hidden rounded-3xl border border-neutral-100 bg-white shadow-xl shadow-stone-100/50 transition-all duration-300",
-          variant === "slot" ? "h-36" : "h-44",
+          "group relative h-36 overflow-hidden rounded-2xl border border-stone-100 bg-white shadow-md shadow-stone-200/40 transition-all duration-300",
           isFading && "scale-[0.98] opacity-70",
           className
         )}
       >
+        <Link
+          href={recipeDetailHref(meal.recipeId)}
+          className="absolute inset-0 z-10"
+          aria-label={`Ver receta: ${meal.title}`}
+        />
+
         <RecipeMedia
           imageUrl={meal.imageUrl}
-          isSocialVideo={meal.isSocialVideo}
+          isSocialVideo={hasReel}
           variant="fill"
           className="absolute inset-0 h-full w-full"
         />
@@ -146,26 +443,29 @@ export function PlanMealCard({
           onClick={() => void handleSwap()}
         />
 
+        <button
+          type="button"
+          onClick={() => void handleRemove()}
+          disabled={removeDisabled}
+          aria-label="Quitar receta del día"
+          className={cn(
+            "absolute left-3 top-3 z-20 inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/30 bg-white/80 text-stone-700 shadow-lg backdrop-blur-md transition hover:bg-white",
+            "disabled:cursor-not-allowed disabled:opacity-60"
+          )}
+        >
+          <Trash2 className="h-4 w-4" strokeWidth={2.25} />
+        </button>
+
         {meal.instagramUrl ? (
           <RecipeInstagramLink url={meal.instagramUrl} variant="floating" />
         ) : null}
 
-        <div className="absolute inset-x-0 bottom-0 z-10 p-3 pt-10">
-          {variant !== "slot" ? (
-            <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/75">
-              {meal.mealType}
-            </p>
-          ) : null}
-          <h3
-            className={cn(
-              "line-clamp-2 font-bold leading-snug text-white drop-shadow-sm",
-              variant === "slot" ? "text-sm" : "text-base"
-            )}
-          >
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 p-3 pt-10">
+          <h3 className="line-clamp-2 text-sm font-bold leading-snug text-white drop-shadow-md">
             {meal.title}
           </h3>
           {meal.calories ? (
-            <p className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-medium text-white/80">
+            <p className="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-white/80">
               <Clock3 className="h-3 w-3" />
               {meal.calories} min
             </p>
@@ -176,52 +476,12 @@ export function PlanMealCard({
   }
 
   return (
-    <article
-      className={cn(
-        "flex gap-3 overflow-hidden rounded-3xl border border-neutral-100 bg-white p-3 shadow-xl shadow-stone-100/50 transition-all duration-300",
-        isFading && "scale-[0.98] opacity-70",
-        className
-      )}
-    >
-      <div className="h-24 w-20 shrink-0 overflow-hidden rounded-2xl">
-        <RecipeMedia
-          imageUrl={meal.imageUrl}
-          isSocialVideo={meal.isSocialVideo}
-          variant="thumbnail"
-          title={meal.title}
-          className="!h-24 rounded-2xl"
-        />
-      </div>
-
-      <div className="flex min-w-0 flex-1 flex-col justify-between py-0.5">
-        <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#556B2F]/80">
-            {meal.mealType}
-          </p>
-          <h3 className="line-clamp-2 text-sm font-bold leading-snug text-stone-900 transition-opacity duration-300">
-            {meal.title}
-          </h3>
-        </div>
-
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
-            {meal.calories ? (
-              <span className="inline-flex items-center gap-1 text-[11px] text-stone-400">
-                <Clock3 className="h-3 w-3" />
-                {meal.calories} min
-              </span>
-            ) : null}
-            {meal.instagramUrl ? (
-              <RecipeInstagramLink url={meal.instagramUrl} className="!px-2 !py-1 !text-[10px]" />
-            ) : null}
-          </div>
-          <SwapButton
-            isSwapping={isSwapping}
-            disabled={swapDisabled}
-            onClick={() => void handleSwap()}
-          />
-        </div>
-      </div>
-    </article>
+    <HorizontalMealCard
+      meal={meal}
+      isFading={isFading}
+      showMealType={false}
+      className={className}
+      {...actionProps}
+    />
   );
 }

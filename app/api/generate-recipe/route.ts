@@ -1,6 +1,7 @@
 import { GoogleGenerativeAI, type Part } from "@google/generative-ai";
 import { NextResponse } from "next/server";
 import { normalizeRecipeTags } from "@/lib/recipes/recipe-tags";
+import { normalizeLooseGeminiIngredients } from "@/lib/recipes/structured-ingredients";
 import { consumeGeneration, getGenerationsLeft } from "@/lib/generations/quota";
 import { createSupabaseRouteClient } from "@/lib/supabaseRoute";
 
@@ -13,6 +14,13 @@ const PANTRY_PRIORITY_RULE =
   "Solo puedes añadir condimentos básicos universales: sal, pimienta, aceite de oliva, agua, ajo en polvo. " +
   "Al menos el 80% de los ingredientes_detallados deben provenir de la lista del usuario o de la imagen. " +
   "Si no hay suficientes ingredientes para una receta coherente, simplifica el plato en lugar de inventar productos nuevos.\n\n";
+
+const INGREDIENT_QUANTITY_RULE =
+  "FORMATO OBLIGATORIO DE INGREDIENTES (1-2 porciones): cada ingrediente DEBE incluir cantidad y unidad. " +
+  "En ingredientes_detallados usa strings como '1/2 taza de avena en hojuelas', '200 g de yogur natural', '30 g de chocolate negro'. " +
+  "Unidades permitidas: g, kg, ml, l, cdita, cda, taza, ud. Para condimentos sin medida exacta: 'Sal (al gusto)'. " +
+  "PROHIBIDO devolver solo el nombre del ingrediente sin cantidad. " +
+  "Además incluye ingredientes_estructurados: [{\"name\": string, \"amount\": number, \"unit\": string, \"optional\": boolean}].\n\n";
 
 const INGREDIENT_VALIDATION_RULE =
   'Antes de generar cualquier receta, analiza minuciosamente la lista de ingredientes que te envía el usuario. Si detectas que alguno de los textos enviados NO es un ingrediente, condimento, bebida o alimento comestible real (por ejemplo: frases como "esto no es un ingrediente", "eres feo", "zapatos", etc.), debes abortar inmediatamente la creación de la receta y responder ÚNICAMENTE con este objeto JSON: {"error":"ingrediente_invalido","mensaje":"Parece que hay algo en tu despensa que no es un alimento válido. ¡Revisa tus ingredientes seleccionados e inténtalo de nuevo!"}. Si todos los ingredientes son válidos, procede a generar la estructura habitual de la receta en formato JSON.\n\n';
@@ -47,7 +55,8 @@ type GeminiRecipe = {
 
 type LooseGeminiRecipe = Partial<GeminiRecipe> & {
   tiempo?: string;
-  ingredientes?: string[];
+  ingredientes?: unknown[];
+  ingredientes_estructurados?: unknown[];
   pasos?: string[];
   etiquetas?: string[];
 };
@@ -86,11 +95,7 @@ function normalizeRecipePayload(recipe: LooseGeminiRecipe): GeminiRecipe {
   return {
     titulo: recipe.titulo ?? "Receta Saludable de Sandra",
     tiempo_preparacion: recipe.tiempo_preparacion ?? recipe.tiempo ?? "20 min",
-    ingredientes_detallados: Array.isArray(recipe.ingredientes_detallados)
-      ? recipe.ingredientes_detallados
-      : Array.isArray(recipe.ingredientes)
-        ? recipe.ingredientes
-        : [],
+    ingredientes_detallados: normalizeLooseGeminiIngredients(recipe),
     pasos_ordenados: Array.isArray(recipe.pasos_ordenados)
       ? recipe.pasos_ordenados
       : Array.isArray(recipe.pasos)
@@ -388,6 +393,7 @@ export async function POST(request: Request) {
 
     const jsonRules =
       PANTRY_PRIORITY_RULE +
+      INGREDIENT_QUANTITY_RULE +
       "Solo JSON valido. Entrega receta saludable y rapida. Formato esperado: { \"titulo\": \"\", \"tiempo\": \"X min\", \"ingredientes\": [], \"pasos\": [], \"tip_sandra\": \"\", \"etiquetas\": [] }. " +
       "ETIQUETAS (campo etiquetas): array de 1 a 3 strings que describan SOLO lo que aplica a ESTA receta concreta. Valores permitidos: \"Desayuno\", \"Cena\", \"Snack\", \"Sin Harinas\", \"Apto para Airfryer\", \"Alto en Proteína\". " +
       "Reglas estrictas: incluye \"Sin Harinas\" solo si la receta no usa harinas ni cereales refinados; incluye \"Apto para Airfryer\" solo si la cocción principal es en airfryer; incluye \"Desayuno\", \"Cena\" o \"Snack\" según el momento ideal del plato (ej. mug cake o bowl matutino = \"Desayuno\", no Airfryer). Si ninguna aplica, devuelve etiquetas: []. " +
@@ -399,20 +405,20 @@ export async function POST(request: Request) {
       "Genera un 'Tip de Sandra' para cada receta. Debe ser un consejo experto de no mas de 2 frases sobre tecnica de cocina, nutricion o conservacion, escrito con un tono profesional, cercano y motivador.";
 
     const systemInstruction = hasImage
-      ? `${INGREDIENT_VALIDATION_RULE}${VISION_SYSTEM_PREFIX}${jsonRules} ${manualClause}`
-      : `${INGREDIENT_VALIDATION_RULE}Solo JSON valido. Usa ingredientes: [${selectedList}]. Entrega receta saludable y rapida con formato { "titulo": "", "tiempo_preparacion": "X min", "ingredientes_detallados": [], "pasos_ordenados": [], "tip_sandra": "", "etiquetas": [] }. ${jsonRules}`;
+      ? `${INGREDIENT_VALIDATION_RULE}${INGREDIENT_QUANTITY_RULE}${VISION_SYSTEM_PREFIX}${jsonRules} ${manualClause}`
+      : `${INGREDIENT_VALIDATION_RULE}${INGREDIENT_QUANTITY_RULE}Solo JSON valido. Usa ingredientes: [${selectedList}]. Entrega receta saludable y rapida con formato { "titulo": "", "tiempo_preparacion": "X min", "ingredientes_detallados": [], "ingredientes_estructurados": [], "pasos_ordenados": [], "tip_sandra": "", "etiquetas": [] }. ${jsonRules}`;
 
     const promptTail =
       selectedIngredients.length && hasImage
-        ? "Incluye en ingredientes_detallados los seleccionados por el usuario más los inferidos de la imagen que uses en la receta."
+        ? "Incluye en ingredientes_detallados (con cantidades) los seleccionados por el usuario más los inferidos de la imagen que uses en la receta."
         : selectedIngredients.length
-          ? "Incluye en ingredientes_detallados los ingredientes seleccionados por el usuario en la receta."
-          : "Completa ingredientes_detallados con lo que propongas para la receta.";
+          ? "Incluye en ingredientes_detallados (con cantidades) los ingredientes seleccionados por el usuario en la receta."
+          : "Completa ingredientes_detallados (con cantidades) con lo que propongas para la receta.";
 
     const prompt =
       "Primero valida si hay comida visible. Si NO hay comida, responde solo {\"error\":\"NOT_FOOD\"} y termina sin texto adicional. " +
       "Si sí hay comida, responde exclusivamente con JSON valido (sin markdown, sin bloques de codigo) usando esta estructura exacta: " +
-      '{"titulo": string, "tiempo_preparacion": string, "ingredientes_detallados": string[], "pasos_ordenados": string[], "tip_sandra": string, "etiquetas": string[]}. ' +
+      '{"titulo": string, "tiempo_preparacion": string, "ingredientes_detallados": string[], "ingredientes_estructurados": [{"name": string, "amount": number, "unit": string, "optional": boolean}], "pasos_ordenados": string[], "tip_sandra": string, "etiquetas": string[]}. ' +
       `${promptTail} No inventes ingredientes principales imposibles; prioriza exclusivamente lo visible y lo indicado arriba. El titulo debe reflejar los ingredientes reales del usuario, no sabores inventados.`;
 
     let rawResponse = "";
@@ -613,10 +619,13 @@ export async function POST(request: Request) {
     const safeRecipe: GeminiRecipe = {
       titulo: recipe.titulo || "Receta Saludable de Sandra",
       tiempo_preparacion: recipe.tiempo_preparacion || "20 min",
-      ingredientes_detallados:
-        Array.isArray(recipe.ingredientes_detallados) && recipe.ingredientes_detallados.length
-          ? recipe.ingredientes_detallados
-          : selectedIngredients,
+      ingredientes_detallados: (() => {
+        const normalized = normalizeLooseGeminiIngredients(recipe);
+        if (normalized.length > 0) {
+          return normalized;
+        }
+        return selectedIngredients;
+      })(),
       pasos_ordenados: Array.isArray(recipe.pasos_ordenados) ? recipe.pasos_ordenados : [],
       tip_sandra:
         typeof recipe.tip_sandra === "string" && recipe.tip_sandra.trim().length > 0

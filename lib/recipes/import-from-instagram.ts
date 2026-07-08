@@ -3,6 +3,10 @@ import {
   instagramUrlsMatch,
   normalizeInstagramUrl
 } from "@/lib/recipes/instagram-url";
+import {
+  normalizeIngredientsJson,
+  structuredIngredientsToJson
+} from "@/lib/recipes/structured-ingredients";
 import type { Database, Json } from "@/types/database.types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -173,7 +177,7 @@ export async function importRecipeFromInstagram(params: {
       user_id: params.userId,
       title: curated.title,
       description: curated.description,
-      ingredients: curated.ingredients as Json,
+      ingredients: structuredIngredientsToJson(normalizeIngredientsJson(curated.ingredients)),
       steps: curated.steps as Json,
       instructions: curated.instructions,
       tip_sandra: curated.tip_sandra,

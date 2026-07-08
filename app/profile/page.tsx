@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Camera } from "lucide-react";
+import Link from "next/link";
+import { Camera, Wand2 } from "lucide-react";
+import { isSandraAdmin } from "@/lib/auth/sandra-admin";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -41,6 +43,7 @@ export default function ProfilePage() {
   const [email, setEmail] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [isPremium, setIsPremium] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [toast, setToast] = useState<ToastState>({
     visible: false,
@@ -68,6 +71,7 @@ export default function ProfilePage() {
 
         setUserId(user.id);
         setEmail(user.email ?? "");
+        setIsAdmin(isSandraAdmin(user.email));
 
         const { data: profile, error: profileError } = await supabase
           .from("profiles")
@@ -292,6 +296,28 @@ export default function ProfilePage() {
             >
               {isSaving ? "Guardando..." : "Guardar Cambios"}
             </button>
+
+            {isAdmin ? (
+              <section className="rounded-2xl border border-[#4C6B3F]/15 bg-gradient-to-br from-[#F0F4ED] to-white p-4 shadow-sm">
+                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#4C6B3F]/80">
+                  Admin · IngeniaFood
+                </p>
+                <h2 className="mt-1 text-sm font-semibold text-stone-900">
+                  Importar receta desde Instagram
+                </h2>
+                <p className="mt-1 text-xs leading-relaxed text-stone-500">
+                  Pega la descripción del post, estructura la receta con IA y publícala en el
+                  recetario.
+                </p>
+                <Link
+                  href="/admin/importar-receta"
+                  className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#4C6B3F] px-4 py-3 text-sm font-semibold text-white shadow-md transition hover:brightness-105"
+                >
+                  <Wand2 className="h-4 w-4" />
+                  Ir a importar receta
+                </Link>
+              </section>
+            ) : null}
           </div>
         </div>
       </section>

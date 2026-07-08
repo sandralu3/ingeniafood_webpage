@@ -1,6 +1,7 @@
 import type { Json } from "@/types/database.types";
 import type { ShareableRecipe } from "@/lib/share/recipe-share-image";
 import { resolveRecipeTags } from "@/lib/recipes/recipe-tags";
+import { ingredientsJsonToDisplayStrings } from "@/lib/recipes/structured-ingredients";
 export function inferDifficulty(pasosCount: number): string {
   if (pasosCount <= 3) return "FÁCIL";
   if (pasosCount <= 5) return "INTERMEDIO";
@@ -16,6 +17,11 @@ export function formatTimeLabel(tiempo: string): string {
 
 export function jsonToStringList(value: Json): string[] {
   if (Array.isArray(value)) {
+    const structured = ingredientsJsonToDisplayStrings(value);
+    if (structured.length > 0) {
+      return structured;
+    }
+
     return value
       .map((item) => (typeof item === "string" ? item.trim() : String(item).trim()))
       .filter(Boolean);

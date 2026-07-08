@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
-import { PlanInstagramPromo } from "@/components/plan/plan-instagram-promo";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Loader2, ShoppingBag } from "lucide-react";
+import { PlanDayCarousel } from "@/components/plan/plan-day-carousel";
+import { PlanDayMealsPanel } from "@/components/plan/plan-day-meals-panel";
 import { PlanRecipePickerModal } from "@/components/plan/plan-recipe-picker-modal";
-import { WeeklyPlanDaySection } from "@/components/plan/weekly-plan-day-section";
-import type { PlanDay } from "@/lib/plan/types";
+import { ShoppingListModal } from "@/components/plan/shopping-list-modal";
 import type { PlanMeal } from "@/components/plan/plan-meal-card";
+import type { PlanDay } from "@/lib/plan/types";
 import type { MealType, WeekDay } from "@/lib/plan/constants";
 import {
   assignRecipeToPlan,
@@ -15,16 +16,24 @@ import {
   fetchWeeklyPlan,
   type RecipePickerItem
 } from "@/lib/plan/plan-service";
-import { getMondayOfWeek } from "@/lib/plan/week-utils";
+import { buildShoppingListItems, type ShoppingListItem } from "@/lib/plan/shopping-list";
+import { fetchWeeklyPlanRecipesForShoppingList } from "@/lib/plan/shopping-list-service";
+import { formatWeekDateLabel, getMondayOfWeek } from "@/lib/plan/week-utils";
 import { createSupabaseClient } from "@/lib/supabaseClient";
+import { cn } from "@/lib/utils";
 
 type PickerTarget = {
   dayLabel: WeekDay;
   mealType: MealType;
 };
 
+function resolveInitialDay(days: PlanDay[]): WeekDay {
+  return days.find((day) => day.isToday)?.label ?? days[0]?.label ?? "Lunes";
+}
+
 export function WeeklyPlanView() {
   const [days, setDays] = useState<PlanDay[]>(() => buildEmptyWeekDays(getMondayOfWeek()));
+  const [selectedDay, setSelectedDay] = useState<WeekDay>(() => resolveInitialDay(buildEmptyWeekDays(getMondayOfWeek())));
   const [userId, setUserId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -35,6 +44,16 @@ export function WeeklyPlanView() {
   const [isPickerLoading, setIsPickerLoading] = useState(false);
   const [isAssigning, setIsAssigning] = useState(false);
   const [pickerError, setPickerError] = useState<string | null>(null);
+
+  const [shoppingListOpen, setShoppingListOpen] = useState(false);
+  const [shoppingListItems, setShoppingListItems] = useState<ShoppingListItem[]>([]);
+  const [isShoppingListLoading, setIsShoppingListLoading] = useState(false);
+  const [shoppingListError, setShoppingListError] = useState<string | null>(null);
+
+  const selectedDayData = useMemo(
+    () => days.find((day) => day.label === selectedDay) ?? days[0],
+    [days, selectedDay]
+  );
 
   const loadWeeklyPlan = useCallback(async () => {
     setIsLoading(true);
@@ -48,7 +67,9 @@ export function WeeklyPlanView() {
 
       if (!user) {
         setUserId(null);
-        setDays(buildEmptyWeekDays(getMondayOfWeek()));
+        const emptyDays = buildEmptyWeekDays(getMondayOfWeek());
+        setDays(emptyDays);
+        setSelectedDay(resolveInitialDay(emptyDays));
         setErrorMessage("Inicia sesión para ver tu plan semanal.");
         return;
       }
@@ -56,10 +77,17 @@ export function WeeklyPlanView() {
       setUserId(user.id);
       const { days: fetchedDays } = await fetchWeeklyPlan(user.id);
       setDays(fetchedDays);
+      setSelectedDay((current) =>
+        fetchedDays.some((day) => day.label === current)
+          ? current
+          : resolveInitialDay(fetchedDays)
+      );
     } catch (error) {
       console.error("[weekly-plan] Error cargando plan:", error);
       setErrorMessage("No pudimos cargar tu plan semanal.");
-      setDays(buildEmptyWeekDays(getMondayOfWeek()));
+      const emptyDays = buildEmptyWeekDays(getMondayOfWeek());
+      setDays(emptyDays);
+      setSelectedDay(resolveInitialDay(emptyDays));
     } finally {
       setIsLoading(false);
     }
@@ -131,6 +159,7 @@ export function WeeklyPlanView() {
         )
       );
 
+      setSelectedDay(pickerTarget.dayLabel);
       setSwapNotice(`«${assigned.title}» añadida al ${pickerTarget.mealType.toLowerCase()} del ${pickerTarget.dayLabel}.`);
       window.setTimeout(() => setSwapNotice(null), 2800);
       setPickerTarget(null);
@@ -165,30 +194,84 @@ export function WeeklyPlanView() {
     window.setTimeout(() => setSwapNotice(null), 3200);
   };
 
+  const handleMealRemoved = (dayLabel: WeekDay, mealType: MealType) => {
+    setDays((prev) =>
+      prev.map((day) =>
+        day.label === dayLabel
+          ? {
+              ...day,
+              slots: {
+                ...day.slots,
+                [mealType]: null
+              }
+            }
+          : day
+      )
+    );
+
+    setSwapNotice(`Receta quitada del ${mealType.toLowerCase()} de ${dayLabel}.`);
+    window.setTimeout(() => setSwapNotice(null), 3200);
+  };
+
+  const openShoppingList = async () => {
+    setShoppingListOpen(true);
+    setIsShoppingListLoading(true);
+    setShoppingListError(null);
+    setShoppingListItems([]);
+
+    try {
+      if (!userId) {
+        setShoppingListError("Inicia sesión para generar tu lista de compra.");
+        return;
+      }
+
+      const planRows = await fetchWeeklyPlanRecipesForShoppingList(userId);
+      const items = buildShoppingListItems({
+        recipes: planRows.map((r) => ({ ingredients: r.ingredients }))
+      });
+
+      setShoppingListItems(items);
+    } catch (error) {
+      console.error("[weekly-plan] Error generando lista de compra:", error);
+      setShoppingListError("No pudimos generar la lista de compra.");
+    } finally {
+      setIsShoppingListLoading(false);
+    }
+  };
+
+  const monday = getMondayOfWeek();
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  const shoppingListTitle = `${formatWeekDateLabel(monday)} - ${formatWeekDateLabel(sunday)}`;
+
   return (
-    <div className="-mx-4 min-h-full bg-gradient-to-b from-stone-50 via-amber-50/20 to-white px-4 pb-8 pt-1">
-      <section className="space-y-6">
-        <header className="px-0.5 pt-2">
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-700/70">
-            Nutrición inteligente
-          </p>
-          <h1 className="mt-1 font-serif text-3xl font-semibold tracking-tight text-stone-900">
-            Tu plan semanal
-          </h1>
-          <p className="mt-2 text-sm leading-relaxed text-stone-500">
-            Asigna desayuno, almuerzo y cena para cada día. Toca + para elegir desde tus recetas.
-          </p>
+    <div className="min-h-full bg-[#FBF9F6] pb-8 pt-1">
+      <section className="space-y-5">
+        <header className="flex items-center justify-between gap-3 pt-2">
+          <h1 className="text-xl font-bold tracking-tight text-stone-800">Tu plan semanal</h1>
+          <button
+            type="button"
+            onClick={() => void openShoppingList()}
+            disabled={isLoading || isShoppingListLoading}
+            className={cn(
+              "flex shrink-0 items-center gap-1.5 rounded-full bg-stone-100 px-3 py-1.5 text-xs font-medium text-stone-700 transition",
+              "hover:bg-stone-200 disabled:cursor-not-allowed disabled:opacity-60"
+            )}
+          >
+            <ShoppingBag className="h-3.5 w-3.5" strokeWidth={2} />
+            Lista
+          </button>
         </header>
 
         {isLoading ? (
-          <div className="flex items-center gap-2 rounded-3xl border border-neutral-100 bg-white px-4 py-5 text-sm text-stone-500 shadow-xl shadow-stone-100/50">
-            <Loader2 className="h-4 w-4 animate-spin text-[#556B2F]" />
+          <div className="flex items-center gap-2 rounded-2xl border border-stone-100 bg-white px-4 py-4 text-sm text-stone-500 shadow-sm">
+            <Loader2 className="h-4 w-4 animate-spin text-olive-600" />
             Cargando tu plan...
           </div>
         ) : null}
 
         {!isLoading && errorMessage ? (
-          <p className="rounded-3xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 shadow-sm">
+          <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {errorMessage}
           </p>
         ) : null}
@@ -196,26 +279,28 @@ export function WeeklyPlanView() {
         {swapNotice ? (
           <p
             role="status"
-            className="rounded-3xl border border-[#556B2F]/15 bg-white/90 px-4 py-3 text-sm font-medium text-[#3e5219] shadow-lg shadow-stone-100/40 backdrop-blur-sm transition-opacity duration-300"
+            className="rounded-2xl border border-olive-200 bg-olive-50 px-4 py-3 text-sm font-medium text-olive-800 transition-opacity duration-300"
           >
             {swapNotice}
           </p>
         ) : null}
 
-        <div className="space-y-4">
-          {days.map((day) => (
-            <WeeklyPlanDaySection
-              key={day.id}
-              day={day}
-              defaultExpanded={day.isToday}
-              onAddMeal={(dayLabel, mealType) => void openPicker(dayLabel, mealType)}
-              onMealSwapped={handleMealSwapped}
-              onSwapError={handleSwapError}
-            />
-          ))}
+        {!isLoading ? (
+          <>
+            <PlanDayCarousel days={days} selectedDay={selectedDay} onSelectDay={setSelectedDay} />
 
-          <PlanInstagramPromo />
-        </div>
+            {selectedDayData ? (
+              <PlanDayMealsPanel
+                day={selectedDayData}
+                onAddMeal={(dayLabel, mealType) => void openPicker(dayLabel, mealType)}
+                onMealSwapped={handleMealSwapped}
+                onSwapError={handleSwapError}
+                onMealRemoved={handleMealRemoved}
+                onRemoveError={handleSwapError}
+              />
+            ) : null}
+          </>
+        ) : null}
       </section>
 
       <PlanRecipePickerModal
@@ -229,6 +314,31 @@ export function WeeklyPlanView() {
         onClose={closePicker}
         onSelectRecipe={(recipeId) => void handleSelectRecipe(recipeId)}
       />
+
+      <ShoppingListModal
+        open={shoppingListOpen}
+        title={shoppingListTitle}
+        items={shoppingListItems}
+        isLoading={isShoppingListLoading}
+        errorMessage={shoppingListError}
+        onClose={() => setShoppingListOpen(false)}
+      />
+
+      <style jsx global>{`
+        @keyframes fade-in {
+          from {
+            opacity: 0;
+            transform: translateY(6px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .animate-fade-in {
+          animation: fade-in 280ms ease-out both;
+        }
+      `}</style>
     </div>
   );
 }

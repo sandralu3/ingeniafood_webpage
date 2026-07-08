@@ -15,6 +15,8 @@ type WeeklyPlanDaySectionProps = {
   onAddMeal?: (dayLabel: WeekDay, mealType: MealType) => void;
   onMealSwapped?: (dayLabel: WeekDay, updatedMeal: PlanMeal) => void;
   onSwapError?: (message: string) => void;
+  onMealRemoved?: (dayLabel: WeekDay, mealType: MealType) => void;
+  onRemoveError?: (message: string) => void;
   className?: string;
 };
 
@@ -45,6 +47,8 @@ export function WeeklyPlanDaySection({
   onAddMeal,
   onMealSwapped,
   onSwapError,
+  onMealRemoved,
+  onRemoveError,
   className
 }: WeeklyPlanDaySectionProps) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded || day.isToday);
@@ -120,6 +124,8 @@ export function WeeklyPlanDaySection({
                         variant="slot"
                         onMealSwapped={(updated) => onMealSwapped?.(day.label, updated)}
                         onSwapError={onSwapError}
+                        onMealRemoved={(mealType) => onMealRemoved?.(day.label, mealType)}
+                        onRemoveError={onRemoveError}
                         className="h-full"
                       />
                     ) : (

@@ -30,7 +30,16 @@ const config: Config = {
         "sv-outline": "#75796b",
         "sv-outline-variant": "#c5c8b8",
         "sv-primary-container": "#556b2f",
-        "sv-on-primary-container": "#d0eba1"
+        "sv-on-primary-container": "#d0eba1",
+        olive: {
+          50: "#f7f8f3",
+          100: "#eef1e6",
+          200: "#dce7c3",
+          500: "#6b8a3e",
+          600: "#556b2f",
+          700: "#4a5d29",
+          800: "#3e5219"
+        }
       },
       borderRadius: {
         lg: "0.75rem",

@@ -1,3 +1,18 @@
+import type { WeekDay } from "@/lib/plan/constants";
+
+export function getTodayWeekDay(): WeekDay {
+  const weekDays: WeekDay[] = [
+    "Domingo",
+    "Lunes",
+    "Martes",
+    "Miércoles",
+    "Jueves",
+    "Viernes",
+    "Sábado"
+  ];
+  return weekDays[new Date().getDay()];
+}
+
 export function getMondayOfWeek(date = new Date()): Date {
   const copy = new Date(date);
   const day = copy.getDay();
