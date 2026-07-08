@@ -24,7 +24,8 @@ export async function completePendingPlanAssignment(
     userId,
     diaSemana: pending.dayLabel,
     tipoComida: pending.mealType,
-    recipeId
+    recipeId,
+    semanaInicioISO: pending.weekStartISO
   });
 
   clearPendingPlanAssignment();

@@ -15,6 +15,7 @@ type PlanRecipePickerModalProps = {
   open: boolean;
   dayLabel: string;
   mealType: MealType;
+  weekStartISO: string;
   recipes: RecipePickerItem[];
   isLoading: boolean;
   isAssigning: boolean;
@@ -35,6 +36,7 @@ export function PlanRecipePickerModal({
   open,
   dayLabel,
   mealType,
+  weekStartISO,
   recipes,
   isLoading,
   isAssigning,
@@ -58,7 +60,11 @@ export function PlanRecipePickerModal({
   }, [recipes, searchTerm]);
 
   const goToScannerForPlan = () => {
-    savePendingPlanAssignment({ dayLabel: dayLabel as WeekDay, mealType });
+    savePendingPlanAssignment({
+      dayLabel: dayLabel as WeekDay,
+      mealType,
+      weekStartISO
+    });
     onClose();
     router.push(APP_ROUTES.scanner);
   };

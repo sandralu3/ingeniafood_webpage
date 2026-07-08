@@ -15,11 +15,14 @@ export type PlanRecipeIngredientsRow = {
   ingredients: Json;
 };
 
-export async function fetchWeeklyPlanRecipesForShoppingList(userId: string): Promise<
+export async function fetchWeeklyPlanRecipesForShoppingList(
+  userId: string,
+  weekStartDate: Date = getMondayOfWeek()
+): Promise<
   PlanRecipeIngredientsRow[]
 > {
   const supabase = createSupabaseClient();
-  const semanaInicio = toISODateString(getMondayOfWeek());
+  const semanaInicio = toISODateString(weekStartDate);
 
   const { data, error } = await supabase
     .from("plan_semanal")

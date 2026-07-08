@@ -49,3 +49,35 @@ export function getDateForWeekDay(monday: Date, dayIndex: number): Date {
   date.setDate(monday.getDate() + dayIndex);
   return date;
 }
+
+export function addDays(date: Date, days: number): Date {
+  const copy = new Date(date);
+  copy.setDate(copy.getDate() + days);
+  return copy;
+}
+
+export function parseISODateToLocalDate(isoDate: string): Date {
+  // isoDate: YYYY-MM-DD -> Date a medianoche local
+  const [y, m, d] = isoDate.split("-").map((v) => Number(v));
+  const date = new Date();
+  date.setFullYear(y, (m ?? 1) - 1, d ?? 1);
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function formatMonthShortWithoutDot(date: Date): string {
+  // es-ES suele devolver "jul." con punto; lo removemos para que quede "jul"
+  return new Intl.DateTimeFormat("es-ES", { month: "short" })
+    .format(date)
+    .replace(/\./g, "");
+}
+
+export function formatWeekRangeLabel(weekStart: Date): string {
+  const start = new Intl.DateTimeFormat("es-ES", { day: "numeric" }).format(weekStart);
+  const startMonth = formatMonthShortWithoutDot(weekStart);
+  const weekEnd = addDays(weekStart, 6);
+  const end = new Intl.DateTimeFormat("es-ES", { day: "numeric" }).format(weekEnd);
+  const endMonth = formatMonthShortWithoutDot(weekEnd);
+  return `${start} ${startMonth} - ${end} ${endMonth}`;
+}
+

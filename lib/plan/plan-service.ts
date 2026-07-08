@@ -117,13 +117,16 @@ export function groupPlanRowsIntoDays(rows: PlanRowWithRecipe[], weekStart: Date
   });
 }
 
-export async function fetchWeeklyPlan(userId: string): Promise<{
+export async function fetchWeeklyPlan(
+  userId: string,
+  weekStartDate: Date = getMondayOfWeek()
+): Promise<{
   weekStart: string;
   days: PlanDay[];
 }> {
   const supabase = createSupabaseClient();
-  const monday = getMondayOfWeek();
-  const semanaInicio = toISODateString(monday);
+  const weekStart = weekStartDate;
+  const semanaInicio = toISODateString(weekStart);
 
   const { data, error } = await supabase
     .from("plan_semanal")
@@ -138,7 +141,7 @@ export async function fetchWeeklyPlan(userId: string): Promise<{
   const rows = (data ?? []) as PlanRowWithRecipe[];
   return {
     weekStart: semanaInicio,
-    days: groupPlanRowsIntoDays(rows, monday)
+    days: groupPlanRowsIntoDays(rows, weekStart)
   };
 }
 
@@ -165,9 +168,13 @@ export async function assignRecipeToPlan(params: {
   diaSemana: WeekDay;
   tipoComida: MealType;
   recipeId: string;
+  semanaInicioISO?: string;
+  weekStartDate?: Date;
 }): Promise<PlanMeal | null> {
   const supabase = createSupabaseClient();
-  const semanaInicio = toISODateString(getMondayOfWeek());
+  const semanaInicio =
+    params.semanaInicioISO ??
+    toISODateString(params.weekStartDate ?? getMondayOfWeek());
 
   const { data: existing, error: existingError } = await supabase
     .from("plan_semanal")

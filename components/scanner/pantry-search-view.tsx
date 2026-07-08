@@ -26,9 +26,6 @@ import {
   type PantryCategoryDb
 } from "@/lib/pantry/types";
 
-const SCAN_ZONE_BG =
-  "https://lh3.googleusercontent.com/aida-public/AB6AXuCKL8lGCHNP6y4RG_73y-09i4hv_25R-s5Csy2Fsl_s4M76iwhCC1rohFapVZfMqZuOr4DwzwcIaKMJJKgN983DAoHfezkVbeXDrCRCKlbyBWF1MS_ysUUuSe8KxAKTY3L0bxaiR2Geu1k1xdVxYwFyGP3iqE4NgHpc048y_iwnETEk0GSS7WgVfn-Lng0v8z3seLxYcLWYSuXtUpXIkrQbaT3yDzvDlpnevBL0UXHsL70_OrXIXco_ien6YSVyL_GWgomeQamGBDXN";
-
 export type { CategoryKey };
 
 export const PANTRY_CATEGORIES: Record<
@@ -273,17 +270,14 @@ export function PantrySearchView({
   return (
     <div className="pb-36 pt-1.5 duration-300 sm:pb-40">
       <section className="mb-5 px-1 pt-2">
-        <div className="mb-5 text-center">
-          <h2 className="mb-2.5 font-serif text-[1.65rem] font-semibold leading-tight tracking-tight text-stone-900">
+        <div className="mb-5 text-left">
+          <h2 className="text-xl font-bold tracking-tight text-stone-800">
             ¿Qué hay en tu despensa?
           </h2>
-          <p className="text-sm leading-relaxed text-stone-500 sm:text-[0.9rem]">
-            Toma una foto de tu nevera o escribe ingredientes para optimizar tu próxima receta.
-          </p>
         </div>
 
         <div
-          className="group relative h-40 overflow-hidden rounded-2xl border border-dashed border-[#556B2F]/25 bg-white bg-gradient-to-br from-white via-[#FDFCFB] to-[#556B2F]/6 transition-colors hover:border-[#556B2F]/40 sm:h-44"
+          className="group relative flex w-full aspect-[4/3] overflow-hidden rounded-2xl border border-dashed border-stone-200/80 bg-stone-50 p-4 shadow-[inset_0_1px_0_rgba(0,0,0,0.03)] transition-colors hover:border-stone-200"
           onDragOver={(e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -299,45 +293,35 @@ export function PantrySearchView({
             aria-label="Elegir foto de cámara o galería"
             onChange={handleFileChange}
           />
-          <Image
-            src={SCAN_ZONE_BG}
-            alt=""
-            priority
-            loading="eager"
-            className="absolute inset-0 h-full w-full object-cover opacity-[0.04] transition-opacity group-hover:opacity-[0.07]"
-            fill
-            unoptimized
-            sizes="100vw"
-          />
           {previewUrl ? (
             <div className="absolute inset-0 z-[5]">
               <Image
                 src={previewUrl}
                 alt="Vista previa de tu despensa"
                 fill
-                className="object-cover"
+                className="object-contain"
                 unoptimized
                 sizes="100vw"
               />
             </div>
           ) : (
-            <div className="pointer-events-none relative z-10 flex h-40 flex-col items-center justify-center px-5 sm:h-44">
-              <div className="mb-2.5 flex h-12 w-12 items-center justify-center rounded-full bg-[#556B2F]/8">
-                <ScanLine className="h-6 w-6 text-[#3e5219]" strokeWidth={1.75} />
+            <div className="pointer-events-none relative z-10 flex w-full flex-col items-center justify-center gap-2 sm:flex-row sm:justify-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-stone-50 ring-1 ring-stone-100">
+                <ScanLine className="h-6 w-6 text-stone-700" strokeWidth={1.75} />
               </div>
-              <p className="text-sm font-medium text-stone-800">
-                Toca para escanear tus ingredientes
-              </p>
-              <p className="mt-1 text-xs text-stone-500">
-                O arrastra y suelta una foto aquí
-              </p>
+              <div className="text-center sm:text-left">
+                <p className="text-sm font-medium text-stone-600">
+                  Toca para escanear tus ingredientes
+                </p>
+                <p className="mt-0.5 text-xs text-stone-500">O arrastra y suelta una foto aquí</p>
+              </div>
             </div>
           )}
           {previewUrl ? (
             <button
               type="button"
               onClick={clearImage}
-              className="absolute right-3 top-3 z-[20] flex h-9 w-9 items-center justify-center rounded-full bg-sv-surface/90 text-sv-on-surface shadow-md ring-1 ring-sv-outline-variant/40 transition hover:bg-white"
+              className="absolute right-3 top-3 z-[20] flex h-9 w-9 items-center justify-center rounded-full bg-white text-stone-700 shadow-md ring-1 ring-stone-200/70 transition hover:bg-stone-50"
               aria-label="Quitar foto"
             >
               <X className="h-5 w-5" strokeWidth={2.5} />
@@ -427,7 +411,7 @@ export function PantrySearchView({
           return (
             <div
               key={key}
-              className={`rounded-2xl border border-stone-100/60 bg-white p-3.5 shadow-sm ${
+          className={`rounded-2xl border border-stone-100 bg-white p-4 shadow-md shadow-stone-200/50 ${
                 isWide ? "md:col-span-2" : ""
               }`}
             >
@@ -444,7 +428,7 @@ export function PantrySearchView({
                     {cat.title}
                   </h3>
                   {categoryFavorites.length > 0 ? (
-                    <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#dce7c3]/80 px-1.5 text-[10px] font-semibold text-[#3e5219]">
+                    <span className="flex items-center justify-center rounded-full bg-[#E9F0E6] px-2.5 py-0.5 text-xs font-bold text-[#4C6B3F]">
                       {categoryFavorites.length}
                     </span>
                   ) : null}
@@ -458,7 +442,9 @@ export function PantrySearchView({
               <div
                 id={`accordion-${key}`}
                 className={`overflow-hidden transition-[max-height,opacity,margin] duration-300 ease-out ${
-                  isExpanded ? "mt-2 max-h-56 opacity-100" : "mt-0 max-h-0 opacity-0"
+                  isExpanded
+                    ? "mt-2 max-h-56 opacity-100 rounded-2xl border border-stone-100 bg-white p-4 shadow-md shadow-stone-200/50"
+                    : "mt-0 max-h-0 opacity-0"
                 }`}
               >
                 {categoryFavorites.length === 0 ? (
@@ -543,17 +529,17 @@ export function PantrySearchView({
             scansExhausted
               ? "Escaneos gratuitos agotados"
               : hasSelection
-                ? "Optimizar Receta Saludable"
+                ? "Generar receta saludable"
                 : "Escanear Nevera"
           }
-          className="pointer-events-auto flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#3e5219] to-[#556B2F] px-5 py-3.5 text-center text-sm font-semibold leading-tight text-white shadow-lg shadow-[#3e5219]/25 transition hover:brightness-105 hover:shadow-xl disabled:cursor-not-allowed disabled:from-stone-300 disabled:to-stone-400 disabled:shadow-none"
+          className="pointer-events-auto flex w-full items-center justify-center gap-2 rounded-full bg-[#4C6B3F] px-5 py-3.5 text-center text-sm font-semibold tracking-tight leading-tight text-white shadow-lg shadow-[#4C6B3F]/20 transition hover:brightness-105 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-60 disabled:shadow-none"
         >
           {scansExhausted
             ? "Pruebas gratuitas agotadas"
             : hasSelection
               ? rateLimitSecondsLeft > 0
                 ? `Reintentar en ${rateLimitSecondsLeft}s`
-                : "Optimizar Receta Saludable"
+                : "Generar receta saludable"
               : "Escanear Nevera"}
           {!scansExhausted ? (
             <span aria-hidden className="transition group-hover:translate-x-1">

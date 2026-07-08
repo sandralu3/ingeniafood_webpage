@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Loader2, ShoppingBag } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, ShoppingBag, Zap } from "lucide-react";
 import { PlanDayCarousel } from "@/components/plan/plan-day-carousel";
 import { PlanDayMealsPanel } from "@/components/plan/plan-day-meals-panel";
 import { PlanRecipePickerModal } from "@/components/plan/plan-recipe-picker-modal";
@@ -18,9 +18,20 @@ import {
 } from "@/lib/plan/plan-service";
 import { buildShoppingListItems, type ShoppingListItem } from "@/lib/plan/shopping-list";
 import { fetchWeeklyPlanRecipesForShoppingList } from "@/lib/plan/shopping-list-service";
-import { formatWeekDateLabel, getMondayOfWeek } from "@/lib/plan/week-utils";
+import {
+  addDays,
+  formatWeekDateLabel,
+  formatWeekRangeLabel,
+  getMondayOfWeek,
+  parseISODateToLocalDate,
+  toISODateString
+} from "@/lib/plan/week-utils";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import { cn } from "@/lib/utils";
+import {
+  readLastPlanWeekStartISO,
+  saveLastPlanWeekStartISO
+} from "@/lib/plan/plan-pending-assignment";
 
 type PickerTarget = {
   dayLabel: WeekDay;
@@ -32,8 +43,15 @@ function resolveInitialDay(days: PlanDay[]): WeekDay {
 }
 
 export function WeeklyPlanView() {
-  const [days, setDays] = useState<PlanDay[]>(() => buildEmptyWeekDays(getMondayOfWeek()));
-  const [selectedDay, setSelectedDay] = useState<WeekDay>(() => resolveInitialDay(buildEmptyWeekDays(getMondayOfWeek())));
+  const [weekStartDate, setWeekStartDate] = useState<Date>(() => {
+    const last = readLastPlanWeekStartISO();
+    return last ? parseISODateToLocalDate(last) : getMondayOfWeek();
+  });
+
+  const [days, setDays] = useState<PlanDay[]>(() => buildEmptyWeekDays(weekStartDate));
+  const [selectedDay, setSelectedDay] = useState<WeekDay>(() =>
+    resolveInitialDay(buildEmptyWeekDays(weekStartDate))
+  );
   const [userId, setUserId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -50,12 +68,17 @@ export function WeeklyPlanView() {
   const [isShoppingListLoading, setIsShoppingListLoading] = useState(false);
   const [shoppingListError, setShoppingListError] = useState<string | null>(null);
 
+  const [actionsOpen, setActionsOpen] = useState(false);
+  const [isCloningWeek, setIsCloningWeek] = useState(false);
+  const [isCheckingCloneAvailability, setIsCheckingCloneAvailability] = useState(false);
+  const [canClonePreviousWeek, setCanClonePreviousWeek] = useState<boolean | null>(null);
+
   const selectedDayData = useMemo(
     () => days.find((day) => day.label === selectedDay) ?? days[0],
     [days, selectedDay]
   );
 
-  const loadWeeklyPlan = useCallback(async () => {
+  const loadWeeklyPlan = useCallback(async (anchorWeekStart: Date) => {
     setIsLoading(true);
     setErrorMessage(null);
 
@@ -67,7 +90,7 @@ export function WeeklyPlanView() {
 
       if (!user) {
         setUserId(null);
-        const emptyDays = buildEmptyWeekDays(getMondayOfWeek());
+        const emptyDays = buildEmptyWeekDays(anchorWeekStart);
         setDays(emptyDays);
         setSelectedDay(resolveInitialDay(emptyDays));
         setErrorMessage("Inicia sesión para ver tu plan semanal.");
@@ -75,7 +98,7 @@ export function WeeklyPlanView() {
       }
 
       setUserId(user.id);
-      const { days: fetchedDays } = await fetchWeeklyPlan(user.id);
+      const { days: fetchedDays } = await fetchWeeklyPlan(user.id, anchorWeekStart);
       setDays(fetchedDays);
       setSelectedDay((current) =>
         fetchedDays.some((day) => day.label === current)
@@ -85,7 +108,7 @@ export function WeeklyPlanView() {
     } catch (error) {
       console.error("[weekly-plan] Error cargando plan:", error);
       setErrorMessage("No pudimos cargar tu plan semanal.");
-      const emptyDays = buildEmptyWeekDays(getMondayOfWeek());
+      const emptyDays = buildEmptyWeekDays(anchorWeekStart);
       setDays(emptyDays);
       setSelectedDay(resolveInitialDay(emptyDays));
     } finally {
@@ -94,8 +117,55 @@ export function WeeklyPlanView() {
   }, []);
 
   useEffect(() => {
-    void loadWeeklyPlan();
-  }, [loadWeeklyPlan]);
+    void loadWeeklyPlan(weekStartDate);
+  }, [loadWeeklyPlan, weekStartDate]);
+
+  useEffect(() => {
+    saveLastPlanWeekStartISO(toISODateString(weekStartDate));
+  }, [weekStartDate]);
+
+  useEffect(() => {
+    if (!userId) {
+      setCanClonePreviousWeek(null);
+      return;
+    }
+
+    let alive = true;
+    const run = async () => {
+      setIsCheckingCloneAvailability(true);
+      try {
+        const supabase = createSupabaseClient();
+        const previousWeekISO = toISODateString(addDays(weekStartDate, -7));
+
+        const { data, error } = await supabase
+          .from("plan_semanal")
+          .select("id")
+          .eq("user_id", userId)
+          .eq("semana_inicio", previousWeekISO)
+          .limit(1);
+
+        if (!alive) return;
+        if (error) {
+          setCanClonePreviousWeek(false);
+          return;
+        }
+
+        setCanClonePreviousWeek(Boolean(data && data.length > 0));
+      } catch {
+        if (!alive) return;
+        setCanClonePreviousWeek(false);
+      } finally {
+        if (!alive) return;
+        setIsCheckingCloneAvailability(false);
+      }
+    };
+
+    void run();
+
+    return () => {
+      alive = false;
+    };
+  }, [userId, weekStartDate]);
 
   const openPicker = async (dayLabel: WeekDay, mealType: MealType) => {
     if (!userId) {
@@ -137,7 +207,8 @@ export function WeeklyPlanView() {
         userId,
         diaSemana: pickerTarget.dayLabel,
         tipoComida: pickerTarget.mealType,
-        recipeId
+        recipeId,
+        semanaInicioISO: toISODateString(weekStartDate)
       });
 
       if (!assigned) {
@@ -225,7 +296,7 @@ export function WeeklyPlanView() {
         return;
       }
 
-      const planRows = await fetchWeeklyPlanRecipesForShoppingList(userId);
+      const planRows = await fetchWeeklyPlanRecipesForShoppingList(userId, weekStartDate);
       const items = buildShoppingListItems({
         recipes: planRows.map((r) => ({ ingredients: r.ingredients }))
       });
@@ -239,28 +310,176 @@ export function WeeklyPlanView() {
     }
   };
 
-  const monday = getMondayOfWeek();
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
-  const shoppingListTitle = `${formatWeekDateLabel(monday)} - ${formatWeekDateLabel(sunday)}`;
+  const goPrevWeek = () => {
+    setWeekStartDate((current) => addDays(current, -7));
+  };
+
+  const goNextWeek = () => {
+    setWeekStartDate((current) => addDays(current, 7));
+  };
+
+  const clonePreviousWeek = async () => {
+    if (!userId) {
+      setSwapNotice("Inicia sesión para clonar menús.");
+      window.setTimeout(() => setSwapNotice(null), 2800);
+      return;
+    }
+
+    if (isCloningWeek) return;
+
+    setIsCloningWeek(true);
+    setActionsOpen(false);
+    setSwapNotice(null);
+
+    try {
+      const supabase = createSupabaseClient();
+      const currentWeekISO = toISODateString(weekStartDate);
+      const previousWeekISO = toISODateString(addDays(weekStartDate, -7));
+
+      const { data, error } = await supabase
+        .from("plan_semanal")
+        .select("dia_semana,tipo_comida,recipe_id")
+        .eq("user_id", userId)
+        .eq("semana_inicio", previousWeekISO);
+
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        setSwapNotice("No encontramos una semana anterior para clonar.");
+        window.setTimeout(() => setSwapNotice(null), 3200);
+        return;
+      }
+
+      const upsertRows = data.map((row) => ({
+        user_id: userId,
+        semana_inicio: currentWeekISO,
+        dia_semana: row.dia_semana,
+        tipo_comida: row.tipo_comida,
+        recipe_id: row.recipe_id
+      }));
+
+      const { error: upsertError } = await supabase.from("plan_semanal").upsert(upsertRows, {
+        onConflict: "user_id,semana_inicio,dia_semana,tipo_comida"
+      });
+
+      if (upsertError) throw upsertError;
+
+      setSwapNotice("Semana anterior copiada con éxito.");
+      window.setTimeout(() => setSwapNotice(null), 3200);
+      await loadWeeklyPlan(weekStartDate);
+    } catch (error) {
+      console.error("[weekly-plan] Error clonando semana anterior:", error);
+      setSwapNotice("No pudimos clonar la semana anterior.");
+      window.setTimeout(() => setSwapNotice(null), 3200);
+    } finally {
+      setIsCloningWeek(false);
+    }
+  };
+
+  const weekStart = weekStartDate;
+  const weekEnd = addDays(weekStart, 6);
+  const weekRangeLabel = formatWeekRangeLabel(weekStartDate);
+  const shoppingListTitle = `${formatWeekDateLabel(weekStart)} - ${formatWeekDateLabel(weekEnd)}`;
 
   return (
     <div className="min-h-full bg-[#FBF9F6] pb-8 pt-1">
       <section className="space-y-5">
-        <header className="flex items-center justify-between gap-3 pt-2">
-          <h1 className="text-xl font-bold tracking-tight text-stone-800">Tu plan semanal</h1>
-          <button
-            type="button"
-            onClick={() => void openShoppingList()}
-            disabled={isLoading || isShoppingListLoading}
-            className={cn(
-              "flex shrink-0 items-center gap-1.5 rounded-full bg-stone-100 px-3 py-1.5 text-xs font-medium text-stone-700 transition",
-              "hover:bg-stone-200 disabled:cursor-not-allowed disabled:opacity-60"
-            )}
-          >
-            <ShoppingBag className="h-3.5 w-3.5" strokeWidth={2} />
-            Lista
-          </button>
+        <header className="pt-2">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h1 className="text-xl font-bold tracking-tight text-stone-800">Tu plan semanal</h1>
+
+              <div className="mt-2 flex items-center justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={goPrevWeek}
+                  disabled={isLoading || isCloningWeek}
+                  className={cn(
+                    "inline-flex h-9 w-9 items-center justify-center rounded-full border border-stone-200 bg-white text-stone-600 transition",
+                    "hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  )}
+                  aria-label="Semana anterior"
+                >
+                  <ChevronLeft className="h-4 w-4" strokeWidth={2.25} />
+                </button>
+
+                <span className="text-sm font-medium text-stone-600">{weekRangeLabel}</span>
+
+                <button
+                  type="button"
+                  onClick={goNextWeek}
+                  disabled={isLoading || isCloningWeek}
+                  className={cn(
+                    "inline-flex h-9 w-9 items-center justify-center rounded-full border border-stone-200 bg-white text-stone-600 transition",
+                    "hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  )}
+                  aria-label="Semana siguiente"
+                >
+                  <ChevronRight className="h-4 w-4" strokeWidth={2.25} />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => void openShoppingList()}
+                disabled={isLoading || isShoppingListLoading}
+                className={cn(
+                  "flex shrink-0 items-center gap-1.5 rounded-full bg-stone-100 px-3 py-1.5 text-xs font-medium text-stone-700 transition",
+                  "hover:bg-stone-200 disabled:cursor-not-allowed disabled:opacity-60"
+                )}
+              >
+                <ShoppingBag className="h-3.5 w-3.5" strokeWidth={2} />
+                Lista de compras
+              </button>
+
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setActionsOpen((current) => !current)}
+                  disabled={isLoading || isCloningWeek}
+                  className={cn(
+                    "flex shrink-0 items-center gap-1.5 rounded-full border border-stone-200 bg-white px-3 py-1.5 text-xs font-medium text-stone-700 transition",
+                    "hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  )}
+                  aria-label="Acciones"
+                >
+                  <Zap className="h-3.5 w-3.5" strokeWidth={2.25} />
+                  Acciones
+                </button>
+
+                {actionsOpen ? (
+                  <div className="absolute right-0 z-30 mt-2 w-64 overflow-hidden rounded-2xl border border-stone-100 bg-white shadow-lg">
+                    <button
+                      type="button"
+                      onClick={() => void clonePreviousWeek()}
+                      disabled={
+                        isCloningWeek ||
+                        isCheckingCloneAvailability ||
+                        canClonePreviousWeek === false
+                      }
+                      className={cn(
+                        "flex w-full items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-stone-800 transition",
+                        "hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
+                      )}
+                    >
+                      <span>
+                        {isCheckingCloneAvailability
+                          ? "Comprobando..."
+                          : canClonePreviousWeek
+                            ? "Copiar semana anterior"
+                            : "Sin semana anterior"}
+                      </span>
+                      {isCloningWeek || isCheckingCloneAvailability ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : null}
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          </div>
         </header>
 
         {isLoading ? (
@@ -307,6 +526,7 @@ export function WeeklyPlanView() {
         open={pickerTarget !== null}
         dayLabel={pickerTarget?.dayLabel ?? ""}
         mealType={pickerTarget?.mealType ?? "Almuerzo"}
+        weekStartISO={toISODateString(weekStartDate)}
         recipes={pickerRecipes}
         isLoading={isPickerLoading}
         isAssigning={isAssigning}

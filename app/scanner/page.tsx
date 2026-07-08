@@ -665,7 +665,7 @@ export default function ScannerPage() {
   };
 
   return (
-    <div className="min-h-[calc(100dvh-10rem)] bg-sv-surface">
+    <div className="min-h-[calc(100dvh-10rem)] bg-[#FBF9F6]">
       {pendingPlanAssignment ? (
         <div className="mb-4 rounded-2xl border border-[#556B2F]/20 bg-[#F0F4ED]/80 px-4 py-3">
           <p className="text-sm font-semibold text-[#3e5219]">Planificando tu semana</p>
