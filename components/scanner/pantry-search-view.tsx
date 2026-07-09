@@ -97,7 +97,9 @@ export function PantrySearchView({
   generationsLeft = null,
   onGenerationsExhausted
 }: Props) {
-  const inputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+  const [showSourceModal, setShowSourceModal] = useState(false);
   const {
     masterIngredients,
     favorites,
@@ -145,9 +147,41 @@ export function PantrySearchView({
     };
   }, [previewUrl]);
 
-  const openFilePicker = useCallback(() => {
-    inputRef.current?.click();
+  const openSourceModal = useCallback(() => {
+    if (isBusy) return;
+    setShowSourceModal(true);
+  }, [isBusy]);
+
+  const closeSourceModal = useCallback(() => {
+    setShowSourceModal(false);
   }, []);
+
+  const openCameraInput = useCallback(() => {
+    setShowSourceModal(false);
+    window.setTimeout(() => {
+      cameraInputRef.current?.click();
+    }, 0);
+  }, []);
+
+  const openGalleryInput = useCallback(() => {
+    setShowSourceModal(false);
+    window.setTimeout(() => {
+      galleryInputRef.current?.click();
+    }, 0);
+  }, []);
+
+  useEffect(() => {
+    if (!showSourceModal) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setShowSourceModal(false);
+      }
+    };
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [showSourceModal]);
 
   const handleFileChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -195,8 +229,8 @@ export function PantrySearchView({
       onFindRecipes();
       return;
     }
-    openFilePicker();
-  }, [hasSelection, onFindRecipes, onGenerationsExhausted, openFilePicker, scansExhausted]);
+    openSourceModal();
+  }, [hasSelection, onFindRecipes, onGenerationsExhausted, openSourceModal, scansExhausted]);
 
   const handleComboboxSelect = useCallback(
     (ingredient: MasterIngredient) => {
@@ -263,12 +297,22 @@ export function PantrySearchView({
           onDrop={handleDrop}
         >
           <input
-            ref={inputRef}
-            id="fileInput"
+            ref={cameraInputRef}
+            id="cameraInput"
             type="file"
-            accept="image/jpeg, image/png, image/*"
-            className="sr-only"
-            aria-label="Elegir foto de cámara o galería"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            aria-label="Tomar foto con la cámara"
+            onChange={handleFileChange}
+          />
+          <input
+            ref={galleryInputRef}
+            id="galleryInput"
+            type="file"
+            accept="image/jpeg, image/png"
+            className="hidden"
+            aria-label="Elegir foto de la galería"
             onChange={handleFileChange}
           />
           {previewUrl ? (
@@ -307,8 +351,9 @@ export function PantrySearchView({
           ) : null}
           <button
             type="button"
-            onClick={openFilePicker}
-            className="absolute inset-0 z-[11] cursor-pointer bg-transparent"
+            onClick={openSourceModal}
+            disabled={isBusy}
+            className="absolute inset-0 z-[11] cursor-pointer bg-transparent disabled:cursor-not-allowed"
             aria-label="Abrir cámara o galería para foto de despensa"
           />
         </div>
@@ -531,6 +576,59 @@ export function PantrySearchView({
               : "Escanear Nevera"}
         </button>
       </div>
+
+      {showSourceModal ? (
+        <>
+          <button
+            type="button"
+            aria-label="Cerrar selector de origen de foto"
+            className="fixed inset-0 z-[70] bg-black/40"
+            onClick={closeSourceModal}
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="source-modal-title"
+            className="fixed inset-x-0 bottom-0 z-[80] rounded-t-3xl border-t border-stone-100 bg-white p-4 pb-6 shadow-2xl"
+          >
+            <p
+              id="source-modal-title"
+              className="mb-3 text-center text-[11px] font-bold uppercase tracking-wider text-stone-400"
+            >
+              Añadir foto de tu despensa
+            </p>
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={openCameraInput}
+                className="flex w-full items-center gap-3 rounded-2xl border border-stone-100 bg-stone-50 px-4 py-3.5 text-left text-sm font-semibold text-stone-800 transition hover:border-[#4C6B3F]/30 hover:bg-[#F4F7F2]"
+              >
+                <span className="text-xl" aria-hidden>
+                  📸
+                </span>
+                Tomar Foto
+              </button>
+              <button
+                type="button"
+                onClick={openGalleryInput}
+                className="flex w-full items-center gap-3 rounded-2xl border border-stone-100 bg-stone-50 px-4 py-3.5 text-left text-sm font-semibold text-stone-800 transition hover:border-[#4C6B3F]/30 hover:bg-[#F4F7F2]"
+              >
+                <span className="text-xl" aria-hidden>
+                  🖼️
+                </span>
+                Elegir de la Galería
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={closeSourceModal}
+              className="mt-3 w-full rounded-2xl py-3 text-sm font-semibold text-stone-500 transition hover:bg-stone-50 hover:text-stone-700"
+            >
+              Cancelar
+            </button>
+          </div>
+        </>
+      ) : null}
     </div>
   );
 }
