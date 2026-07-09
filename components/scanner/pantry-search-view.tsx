@@ -267,7 +267,6 @@ export function PantrySearchView({
             id="fileInput"
             type="file"
             accept="image/*"
-            capture="environment"
             className="sr-only"
             aria-label="Elegir foto de cámara o galería"
             onChange={handleFileChange}
