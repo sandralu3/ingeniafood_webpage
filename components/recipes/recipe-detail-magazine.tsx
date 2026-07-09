@@ -4,6 +4,7 @@ import { Clock, UtensilsCrossed } from "lucide-react";
 import { SandraTipCard } from "@/components/recipes/sandra-tip-card";
 import { resolveRecipeTags, isShareExcludedTag } from "@/lib/recipes/recipe-tags";
 import type { ShareableRecipe } from "@/lib/share/recipe-share-image";
+import { normalizeRecipeSteps } from "@/lib/recipes/sentence-case";
 import {
   buildMacroData,
   formatTimeLabel,
@@ -25,7 +26,7 @@ export function RecipeDetailMagazine({
   hideInlineTipOnShare = false
 }: Props) {
   const macroData = buildMacroData(recipe);
-  const steps = recipe.pasos_ordenados ?? [];
+  const steps = normalizeRecipeSteps(recipe.pasos_ordenados ?? []);
   const tags = resolveRecipeTags({ tags: recipe.tags });
 
   return (
@@ -118,7 +119,9 @@ export function RecipeDetailMagazine({
                 <span className="w-8 shrink-0 font-serif text-xl font-medium leading-none text-[#4c6633]/85">
                   {num}
                 </span>
-                <p className="flex-1 pt-0.5 text-sm leading-[1.75] text-stone-700">{step}</p>
+                <p className="flex-1 pt-0.5 text-sm leading-[1.75] text-stone-700 normal-case">
+                  {step}
+                </p>
               </div>
             );
           })}

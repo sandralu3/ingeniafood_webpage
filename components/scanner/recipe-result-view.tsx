@@ -1,10 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import {
   Bookmark,
+  Calendar,
   Loader2,
   Share2
 } from "lucide-react";
+import { AddToPlanSheet } from "@/components/scanner/add-to-plan-sheet";
 import { RecipeShareCapture } from "@/components/share/recipe-share-capture";
 import { useShareRecipeImage } from "@/hooks/use-share-recipe-image";
 import type { ShareableRecipe } from "@/lib/share/recipe-share-image";
@@ -15,6 +18,8 @@ type Props = {
   showPhotoBanner?: boolean;
   onSaveFavorites?: () => void;
   onNewSearch?: () => void;
+  onPersistRecipeId: () => Promise<string | null>;
+  onPlanAssigned?: (message: string) => void;
   isSavingFavorites?: boolean;
   isSavedFavorites?: boolean;
 };
@@ -23,9 +28,12 @@ export function RecipeResultView({
   recipe,
   onSaveFavorites,
   onNewSearch,
+  onPersistRecipeId,
+  onPlanAssigned,
   isSavingFavorites = false,
   isSavedFavorites = false
 }: Props) {
+  const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
   const { captureRef, shareRecipeImage, isGenerating, errorMessage, clearError } =
     useShareRecipeImage();
 
@@ -33,6 +41,8 @@ export function RecipeResultView({
     clearError();
     void shareRecipeImage(recipe, { useExistingCapture: true });
   };
+
+  const actionsDisabled = isGenerating || isSavingFavorites;
 
   return (
     <article className="bg-[#FAFAFA] pb-28 pt-1 duration-500 has-[.recipe-share-capturing]:pb-4">
@@ -51,6 +61,16 @@ export function RecipeResultView({
       <RecipeShareCapture ref={captureRef} recipe={recipe} showScanBanner />
 
       <div className="mt-4 space-y-3 px-0" data-share-exclude>
+        <button
+          type="button"
+          onClick={() => setIsPlanModalOpen(true)}
+          disabled={actionsDisabled}
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#E9F0E6] px-4 py-3 font-semibold text-[#4C6B3F] transition-all hover:bg-[#DEE8DA] disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <Calendar size={16} />
+          Añadir al plan semanal
+        </button>
+
         <button
           type="button"
           onClick={handleShareImage}
@@ -72,7 +92,7 @@ export function RecipeResultView({
         <button
           type="button"
           onClick={onSaveFavorites}
-          disabled={isSavingFavorites || isSavedFavorites || isGenerating}
+          disabled={actionsDisabled || isSavedFavorites}
           className="group flex w-full items-center justify-center gap-2 rounded-full bg-[#4c6633] px-5 py-3.5 text-sm font-semibold text-white shadow-lg shadow-[#4c6633]/20 transition hover:bg-[#556B2F] disabled:cursor-not-allowed disabled:opacity-60"
         >
           <Bookmark className="h-4 w-4 fill-current" />
@@ -83,6 +103,13 @@ export function RecipeResultView({
               : "Guardar en mi recetario"}
         </button>
       </div>
+
+      <AddToPlanSheet
+        isOpen={isPlanModalOpen}
+        onClose={() => setIsPlanModalOpen(false)}
+        persistRecipeId={onPersistRecipeId}
+        onSuccess={onPlanAssigned}
+      />
     </article>
   );
 }

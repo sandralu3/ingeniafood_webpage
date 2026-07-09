@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { ArrowRight, Heart, Loader2, Share2 } from "lucide-react";
+import { Heart, Loader2, Play, Share2 } from "lucide-react";
 import { RecipeInstagramLink } from "@/components/recipes/recipe-instagram-link";
-import { RecipeMedia } from "@/components/recipes/recipe-media";
+import { getRecipePlaceholder } from "@/lib/recipes/recipe-placeholder";
 import { cn } from "@/lib/utils";
 
 type RecipeCardProps = {
@@ -9,6 +9,7 @@ type RecipeCardProps = {
   categories: string[];
   savedAtLabel: string;
   detailHref: string;
+  recipeId?: string;
   imageUrl?: string | null;
   instagramUrl?: string | null;
   isSocialVideo?: boolean;
@@ -22,11 +23,75 @@ type RecipeCardProps = {
   onPrefetch?: () => void;
 };
 
+const thumbnailClass =
+  "relative h-14 w-14 shrink-0 overflow-hidden rounded-lg";
+
+function RecipeCardThumbnail({
+  title,
+  recipeKey,
+  imageUrl,
+  isSocialVideo
+}: {
+  title: string;
+  recipeKey?: string;
+  imageUrl?: string | null;
+  isSocialVideo?: boolean;
+}) {
+  if (imageUrl) {
+    return (
+      <div className={cn(thumbnailClass, "border border-stone-200/40 bg-stone-100")}>
+        <img
+          src={imageUrl}
+          alt={title ? `Imagen de ${title}` : ""}
+          className="h-full w-full object-cover"
+          loading="lazy"
+        />
+      </div>
+    );
+  }
+
+  if (isSocialVideo) {
+    return (
+      <div
+        className={cn(
+          thumbnailClass,
+          "flex items-center justify-center border border-stone-200/40 bg-gradient-to-br from-stone-800 to-[#3d2e28]"
+        )}
+      >
+        <div className="relative flex h-6 w-6 items-center justify-center rounded-full bg-white/15 ring-1 ring-white/20 backdrop-blur-sm">
+          <Play className="ml-0.5 h-3 w-3 fill-white text-white" />
+        </div>
+      </div>
+    );
+  }
+
+  const placeholder = getRecipePlaceholder(title, recipeKey);
+  const PlaceholderIcon = placeholder.Icon;
+
+  return (
+    <div
+      className={cn(
+        thumbnailClass,
+        "flex items-center justify-center border border-stone-200/40",
+        placeholder.containerClass
+      )}
+      aria-hidden
+    >
+      <PlaceholderIcon className={cn("h-3.5 w-3.5", placeholder.iconClass)} strokeWidth={1.75} />
+    </div>
+  );
+}
+
+function compactSavedDate(label: string): string {
+  return label.replace(/^Guardado el\s+/i, "");
+}
+
 export function RecipeCard({
   title,
   categories,
   savedAtLabel,
   detailHref,
+  recipeId,
   imageUrl,
   instagramUrl,
   isSocialVideo = false,
@@ -39,50 +104,58 @@ export function RecipeCard({
   isRemoveDisabled = false,
   onPrefetch
 }: RecipeCardProps) {
+  const primaryCategory = categories[0];
+
   return (
     <article
       className={cn(
-        "group overflow-hidden rounded-2xl bg-white shadow-sm transition-shadow duration-300 hover:shadow-md",
+        "mb-2 flex h-20 w-full items-center justify-between rounded-xl border border-stone-200/60 bg-white p-2.5 shadow-sm",
         className
       )}
     >
-      <div className="relative">
-        <RecipeMedia
-          imageUrl={imageUrl}
-          isSocialVideo={isSocialVideo}
-          variant="card"
-          title={title}
-        />
+      <div className="relative shrink-0">
+        <Link
+          href={detailHref}
+          onMouseEnter={onPrefetch}
+          onFocus={onPrefetch}
+          className="block"
+          aria-label={`Ver ${title}`}
+        >
+          <RecipeCardThumbnail
+            title={title}
+            recipeKey={recipeId}
+            imageUrl={imageUrl}
+            isSocialVideo={isSocialVideo}
+          />
+        </Link>
         {instagramUrl ? (
-          <div className="absolute right-2 top-2">
+          <div className="absolute -right-0.5 -top-0.5 z-10 scale-90">
             <RecipeInstagramLink url={instagramUrl} variant="icon" />
           </div>
         ) : null}
       </div>
 
-      <div className="space-y-3 p-4">
-        <h3 className="text-base font-semibold leading-snug tracking-tight text-stone-800">
-          {title}
-        </h3>
+      <Link
+        href={detailHref}
+        onMouseEnter={onPrefetch}
+        onFocus={onPrefetch}
+        className="flex h-full min-w-0 flex-1 flex-col justify-center px-3"
+      >
+        <h3 className="mb-0.5 truncate text-xs font-bold text-stone-800">{title}</h3>
 
-        {categories.length > 0 ? (
-          <div className="flex flex-wrap gap-1.5">
-            {categories.map((category) => (
-              <span
-                key={category}
-                className="rounded-full border border-[#4c6633]/12 bg-[#4c6633]/5 px-2.5 py-0.5 text-xs font-medium uppercase tracking-wide text-[#4c6633]/80"
-              >
-                {category}
-              </span>
-            ))}
-          </div>
+        {primaryCategory ? (
+          <span className="w-fit rounded-md bg-[#F5EBE6] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[#C06A4F]">
+            {primaryCategory}
+          </span>
         ) : null}
-      </div>
+      </Link>
 
-      <div className="flex items-center justify-between gap-3 border-t border-stone-100/80 px-4 pb-4 pt-3">
-        <p className="min-w-0 flex-1 text-xs leading-relaxed text-stone-400">{savedAtLabel}</p>
+      <div className="flex h-full shrink-0 flex-col items-end justify-between">
+        <span className="max-w-[5.5rem] truncate text-[10px] text-stone-400">
+          {compactSavedDate(savedAtLabel)}
+        </span>
 
-        <div className="flex shrink-0 items-center gap-0.5">
+        <div className="flex items-center gap-0.5">
           {onRemove ? (
             <button
               type="button"
@@ -90,15 +163,15 @@ export function RecipeCard({
               disabled={isRemoveDisabled || isRemoving}
               onClick={onRemove}
               className={cn(
-                "inline-flex h-8 w-8 items-center justify-center rounded-full text-stone-400 transition",
-                "hover:bg-red-50 hover:text-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-200/60",
+                "inline-flex h-6 w-6 items-center justify-center rounded-full text-[#D07D62] transition hover:text-[#B8654D]",
+                "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#D07D62]/30",
                 "disabled:cursor-not-allowed disabled:opacity-40"
               )}
             >
               {isRemoving ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin text-stone-400" />
+                <Loader2 className="h-3 w-3 animate-spin" />
               ) : (
-                <Heart className="h-3.5 w-3.5 fill-current" strokeWidth={1.5} />
+                <Heart className="h-3 w-3 fill-current" strokeWidth={1.5} />
               )}
             </button>
           ) : null}
@@ -110,28 +183,18 @@ export function RecipeCard({
               disabled={isShareDisabled || isSharing}
               onClick={onShare}
               className={cn(
-                "inline-flex h-8 w-8 items-center justify-center rounded-full text-[#4c6633]/55 transition",
-                "hover:bg-[#4c6633]/6 hover:text-[#4c6633] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4c6633]/15",
+                "inline-flex h-6 w-6 items-center justify-center rounded-full text-stone-400 transition hover:text-stone-600",
+                "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-stone-300",
                 "disabled:cursor-not-allowed disabled:opacity-40"
               )}
             >
               {isSharing ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin text-[#4c6633]" />
+                <Loader2 className="h-3 w-3 animate-spin" />
               ) : (
-                <Share2 className="h-3.5 w-3.5" strokeWidth={1.5} />
+                <Share2 className="h-3 w-3" strokeWidth={1.5} />
               )}
             </button>
           ) : null}
-
-          <Link
-            href={detailHref}
-            onMouseEnter={onPrefetch}
-            onFocus={onPrefetch}
-            className="inline-flex items-center gap-0.5 rounded-full px-2 py-1 text-xs font-normal text-[#4c6633]/75 transition hover:bg-[#4c6633]/6 hover:text-[#4c6633] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4c6633]/15"
-          >
-            Ver preparación
-            <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" strokeWidth={1.5} />
-          </Link>
         </div>
       </div>
     </article>

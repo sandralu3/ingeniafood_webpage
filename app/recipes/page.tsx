@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Search } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { MoreVertical, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { RecipeCard } from "@/components/recipes/RecipeCard";
 import { RecipeShareCaptureHost } from "@/components/share/recipe-share-capture-host";
@@ -9,6 +9,7 @@ import { useShareRecipeImage } from "@/hooks/use-share-recipe-image";
 import { savedRecipeToShareable } from "@/lib/share/recipe-share-utils";
 import { handleRemoveFromFavorites } from "@/lib/recipes/remove-from-favorites";
 import { createSupabaseClient } from "@/lib/supabaseClient";
+import { cn } from "@/lib/utils";
 import type { Database, Json } from "@/types/database.types";
 
 type RecipeRow = Database["public"]["Tables"]["recipes"]["Row"];
@@ -68,6 +69,8 @@ export default function RecipesPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilter, setActiveFilter] = useState<FilterChip>("Todas");
+  const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
+  const filterMenuRef = useRef<HTMLDivElement>(null);
   const [mostrarTodas, setMostrarTodas] = useState(false);
   const [removingRecipeId, setRemovingRecipeId] = useState<string | null>(null);
   const [removeMessage, setRemoveMessage] = useState<string | null>(null);
@@ -201,6 +204,19 @@ export default function RecipesPage() {
     }
   }, [isSearchActive]);
 
+  useEffect(() => {
+    if (!isFilterMenuOpen) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (filterMenuRef.current && !filterMenuRef.current.contains(event.target as Node)) {
+        setIsFilterMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isFilterMenuOpen]);
+
   const pageContent = useMemo(() => {
     if (isLoading) {
       return (
@@ -229,14 +245,14 @@ export default function RecipesPage() {
     if (filteredRecipes.length === 0) {
       return (
         <p className="rounded-2xl border border-stone-100 bg-white p-5 text-sm text-stone-500 shadow-sm">
-          Sandra no encontró esa receta en tu historial. Prueba con otro ingrediente.
+          No encontré ninguna receta con ese nombre o ingrediente en tu biblioteca. ¡Prueba con otra palabra!
         </p>
       );
     }
 
     return (
-      <div className="space-y-4">
-        <div className="grid grid-cols-1 gap-4">
+      <div className="space-y-0">
+        <div className="grid grid-cols-1">
           {visibleRecipes.map((recipe, index) => {
             const categories = [
               recipe.is_airfryer ? "Airfryer" : null,
@@ -256,6 +272,7 @@ export default function RecipesPage() {
               >
                 <RecipeCard
                   title={recipe.title}
+                  recipeId={recipe.id}
                   categories={categories}
                   savedAtLabel={formatSavedDate(recipe.created_at)}
                   imageUrl={recipe.image_url}
@@ -280,7 +297,7 @@ export default function RecipesPage() {
             <button
               type="button"
               onClick={() => setMostrarTodas((previous) => !previous)}
-              className="inline-flex items-center justify-center rounded-full border border-stone-200 bg-white px-6 py-2.5 text-sm font-medium text-[#4c6633] shadow-sm transition hover:border-stone-300 hover:bg-stone-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4c6633]/10"
+              className="inline-flex items-center justify-center rounded-full border border-stone-200/60 bg-white px-6 py-2.5 text-sm font-medium text-[#4C6B3F] shadow-sm transition hover:border-stone-300 hover:bg-stone-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#4C6B3F]"
             >
               {mostrarTodas ? "Ver menos" : `Ver todas mis recetas (${recipes.length})`}
             </button>
@@ -301,82 +318,96 @@ export default function RecipesPage() {
     visibleRecipes
   ]);
 
-  return (
-    <section className="space-y-5">
-      <RecipeShareCaptureHost captureRef={captureRef} recipe={captureRecipe} mode="offscreen" />
+  const categoryStats = useMemo(
+    () => [
+      { label: "Airfryer", count: recipes.filter((recipe) => recipe.is_airfryer).length },
+      { label: "Sin harinas", count: recipes.filter((recipe) => recipe.is_flourless).length },
+      { label: "Saludables", count: recipes.length }
+    ],
+    [recipes]
+  );
 
-      <header className="space-y-4">
-        <div className="rounded-3xl border border-stone-100 bg-gradient-to-br from-white via-stone-50 to-[#F0F4ED]/60 p-5 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#556B2F]/80">
-            Tu biblioteca
-          </p>
-          <h1 className="mt-1 font-serif text-2xl font-semibold tracking-tight text-stone-900">
-            Recetas guardadas
-          </h1>
-          <p className="mt-2 text-sm leading-relaxed text-stone-500">
+  return (
+    <div className="min-h-full bg-[#FAF8F5] pb-8 pt-1">
+      <section className="space-y-3">
+        <RecipeShareCaptureHost captureRef={captureRef} recipe={captureRecipe} mode="offscreen" />
+
+        <header className="pt-2">
+          <h1 className="text-xl font-bold tracking-tight text-stone-800">Recetas guardadas</h1>
+          <p className="mt-1 text-sm leading-relaxed text-stone-500">
             {recipes.length} {recipes.length === 1 ? "receta" : "recetas"} en tu libro de cocina
             personal. Filtra por categoría o busca por ingrediente.
           </p>
-          <div className="mt-4 grid grid-cols-3 gap-2">
-            {[
-              { label: "Airfryer", count: recipes.filter((r) => r.is_airfryer).length },
-              { label: "Sin harinas", count: recipes.filter((r) => r.is_flourless).length },
-              { label: "Saludables", count: recipes.length }
-            ].map((stat) => (
-              <div
-                key={stat.label}
-                className="rounded-2xl border border-stone-100 bg-white/80 px-3 py-2 text-center"
-              >
-                <p className="text-lg font-semibold text-[#3e5219]">{stat.count}</p>
-                <p className="text-[10px] font-medium uppercase tracking-wide text-stone-400">
-                  {stat.label}
-                </p>
-              </div>
+
+          <div className="my-2 flex flex-wrap gap-4 text-xs font-medium text-stone-500">
+            {categoryStats.map((stat) => (
+              <span key={stat.label}>
+                • {stat.count} {stat.label}
+              </span>
             ))}
           </div>
-        </div>
-      </header>
+        </header>
 
-      <div className="max-h-[68vh] overflow-y-auto pr-0.5">
-        <div className="sticky top-0 z-20 -mx-0.5 space-y-4 bg-[#FAFAFA]/95 px-0.5 pb-3 pt-0.5 backdrop-blur-md">
-          <label className="relative block">
-            <Search
-              className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400/80"
-              strokeWidth={1.35}
-              aria-hidden="true"
-            />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder="Buscar en mis recetas..."
-              className="w-full rounded-full border border-stone-200/80 bg-white py-3 pl-11 pr-4 text-sm text-stone-700 placeholder:text-stone-400 transition focus:border-[#4c6633]/30 focus:outline-none focus:ring-2 focus:ring-[#4c6633]/8"
-            />
-          </label>
+        <div className="relative z-20 bg-[#FAF8F5]/95 pb-2 backdrop-blur-md">
+          <div className="flex w-full items-center gap-2">
+            <label className="relative flex-1">
+              <Search
+                className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400"
+                strokeWidth={1.5}
+                aria-hidden="true"
+              />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder="Buscar en mis recetas..."
+                className="w-full rounded-full border border-stone-200/80 bg-white px-4 py-2.5 pl-11 text-sm text-stone-700 shadow-sm outline-none placeholder:text-stone-400 transition focus:border-[#4C6B3F] focus:ring-1 focus:ring-[#4C6B3F]"
+              />
+            </label>
 
-          <div className="no-scrollbar flex gap-2 overflow-x-auto pb-2">
-            {FILTER_CHIPS.map((chip) => {
-              const isActive = chip === activeFilter;
-              return (
-                <button
-                  key={chip}
-                  type="button"
-                  onClick={() => setActiveFilter(chip)}
-                  className={
-                    isActive
-                      ? "shrink-0 whitespace-nowrap rounded-full bg-[#4c6633] px-4 py-2 text-xs font-medium text-white transition"
-                      : "shrink-0 whitespace-nowrap rounded-full border border-stone-200 bg-white px-4 py-2 text-xs font-medium text-stone-600 transition hover:border-stone-300 hover:text-stone-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4c6633]/10"
-                  }
-                >
-                  {chip}
-                </button>
-              );
-            })}
+            <div className="relative shrink-0" ref={filterMenuRef}>
+              <button
+                type="button"
+                onClick={() => setIsFilterMenuOpen((current) => !current)}
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-stone-200/60 bg-stone-100 text-stone-600 transition-colors hover:bg-stone-200/50"
+                aria-label="Filtrar recetas"
+                aria-expanded={isFilterMenuOpen}
+              >
+                <MoreVertical size={18} />
+              </button>
+
+              {isFilterMenuOpen ? (
+                <div className="absolute right-0 z-50 mt-2 w-48 animate-fade-in overflow-hidden rounded-2xl border border-stone-100 bg-white p-2 shadow-xl">
+                  {FILTER_CHIPS.map((chip) => {
+                    const isActive = chip === activeFilter;
+                    return (
+                      <button
+                        key={chip}
+                        type="button"
+                        onClick={() => {
+                          setActiveFilter(chip);
+                          setIsFilterMenuOpen(false);
+                        }}
+                        className={cn(
+                          "flex w-full rounded-xl px-3 py-2 text-left text-sm transition-colors",
+                          isActive
+                            ? "bg-[#F5EBE6] font-semibold text-[#C06A4F]"
+                            : "text-stone-600 hover:bg-stone-50"
+                        )}
+                      >
+                        {chip}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </div>
           </div>
         </div>
 
-        {pageContent}
-      </div>
+        <div className="max-h-[68vh] overflow-y-auto pr-0.5">
+          {pageContent}
+        </div>
 
       {shareErrorMessage ? (
         <p className="rounded-2xl border border-red-100 bg-red-50/80 px-4 py-3 text-sm text-red-700">
@@ -405,6 +436,7 @@ export default function RecipesPage() {
           animation: fadeInDown 260ms ease-out both;
         }
       `}</style>
-    </section>
+      </section>
+    </div>
   );
 }

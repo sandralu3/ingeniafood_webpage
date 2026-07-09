@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI, type Part } from "@google/generative-ai";
 import { NextResponse } from "next/server";
+import { normalizeRecipeSteps } from "@/lib/recipes/sentence-case";
 import { normalizeRecipeTags } from "@/lib/recipes/recipe-tags";
 import { normalizeRecipeMacros, type RecipeMacros } from "@/lib/recipes/recipe-macros";
 import { normalizeLooseGeminiIngredients } from "@/lib/recipes/structured-ingredients";
@@ -105,11 +106,13 @@ function normalizeRecipePayload(recipe: LooseGeminiRecipe): GeminiRecipe {
     titulo: recipe.titulo ?? "Receta Saludable de Sandra",
     tiempo_preparacion: recipe.tiempo_preparacion ?? recipe.tiempo ?? "20 min",
     ingredientes_detallados: normalizeLooseGeminiIngredients(recipe),
-    pasos_ordenados: Array.isArray(recipe.pasos_ordenados)
-      ? recipe.pasos_ordenados
-      : Array.isArray(recipe.pasos)
-        ? recipe.pasos
-        : [],
+    pasos_ordenados: normalizeRecipeSteps(
+      Array.isArray(recipe.pasos_ordenados)
+        ? recipe.pasos_ordenados
+        : Array.isArray(recipe.pasos)
+          ? recipe.pasos
+          : []
+    ),
     tip_sandra:
       typeof recipe.tip_sandra === "string" && recipe.tip_sandra.trim().length > 0
         ? recipe.tip_sandra.trim()
@@ -637,7 +640,9 @@ export async function POST(request: Request) {
         }
         return selectedIngredients;
       })(),
-      pasos_ordenados: Array.isArray(recipe.pasos_ordenados) ? recipe.pasos_ordenados : [],
+      pasos_ordenados: normalizeRecipeSteps(
+        Array.isArray(recipe.pasos_ordenados) ? recipe.pasos_ordenados : []
+      ),
       tip_sandra:
         typeof recipe.tip_sandra === "string" && recipe.tip_sandra.trim().length > 0
           ? recipe.tip_sandra.trim()

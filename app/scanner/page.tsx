@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { PantrySearchView } from "@/components/scanner/pantry-search-view";
 import { GenerationsLimitModal } from "@/components/scanner/generations-limit-modal";
 import { InstagramCuratedCatalog } from "@/components/scanner/instagram-curated-catalog";
@@ -187,6 +187,7 @@ export default function ScannerPage() {
   const [invalidIngredientMessage, setInvalidIngredientMessage] = useState<string | null>(null);
   const [isSavingRecipe, setIsSavingRecipe] = useState(false);
   const [isRecipeSaved, setIsRecipeSaved] = useState(false);
+  const [savedRecipeId, setSavedRecipeId] = useState<string | null>(null);
   const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null);
   const [saveErrorMessage, setSaveErrorMessage] = useState<string | null>(null);
   const [rateLimitSecondsLeft, setRateLimitSecondsLeft] = useState(0);
@@ -263,6 +264,8 @@ export default function ScannerPage() {
     setSaveSuccessMessage(null);
     setSaveErrorMessage(null);
     setIsRecipeSaved(false);
+    setSavedRecipeId(null);
+    setSavedRecipeId(null);
     setRateLimitSecondsLeft(0);
   };
 
@@ -289,6 +292,7 @@ export default function ScannerPage() {
     setErrorMessage(null);
     setShowNotFoodGuidance(false);
     setIsRecipeSaved(false);
+    setSavedRecipeId(null);
     setSaveErrorMessage(null);
     setRateLimitSecondsLeft(0);
   };
@@ -302,6 +306,7 @@ export default function ScannerPage() {
     setErrorMessage(null);
     setShowNotFoodGuidance(false);
     setIsRecipeSaved(false);
+    setSavedRecipeId(null);
     setSaveErrorMessage(null);
     setRateLimitSecondsLeft(0);
   };
@@ -313,6 +318,7 @@ export default function ScannerPage() {
     setErrorMessage(null);
     setShowNotFoodGuidance(false);
     setIsRecipeSaved(false);
+    setSavedRecipeId(null);
     setSaveErrorMessage(null);
     setRateLimitSecondsLeft(0);
   };
@@ -324,6 +330,7 @@ export default function ScannerPage() {
     setErrorMessage(null);
     setShowNotFoodGuidance(false);
     setIsRecipeSaved(false);
+    setSavedRecipeId(null);
     setSaveErrorMessage(null);
     setRateLimitSecondsLeft(0);
   };
@@ -459,6 +466,7 @@ export default function ScannerPage() {
     setShowInvalidIngredientAlert(false);
     setInvalidIngredientMessage(null);
     setIsRecipeSaved(false);
+    setSavedRecipeId(null);
     setSaveErrorMessage(null);
     setRateLimitSecondsLeft(0);
 
@@ -557,6 +565,7 @@ export default function ScannerPage() {
       setRecipeFromPhoto(Boolean(pantryImageFile));
       setErrorMessage(null);
       setIsRecipeSaved(false);
+    setSavedRecipeId(null);
     setSaveErrorMessage(null);
       if (typeof payload.generationsLeft === "number") {
         setGenerationsLeft(payload.generationsLeft);
@@ -573,6 +582,53 @@ export default function ScannerPage() {
   const handleFindRecipes = () => {
     void generarReceta();
   };
+
+  const persistGeneratedRecipe = useCallback(async (): Promise<string | null> => {
+    if (savedRecipeId) return savedRecipeId;
+    if (!recipe) return null;
+
+    const supabase = createSupabaseClient();
+    const {
+      data: { user }
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      setSaveErrorMessage("Necesitas iniciar sesión para guardar recetas en tu recetario.");
+      return null;
+    }
+
+    const instructions = recipe.pasos_ordenados
+      .map((step, index) => `${index + 1}. ${step}`)
+      .join("\n");
+
+    const recipeTags = recipe.tags ?? [];
+    const { is_airfryer, is_flourless } = tagsToLegacyFlags(recipeTags);
+
+    const structuredIngredients = structuredIngredientsToJson(
+      stringsToStructuredIngredients(recipe.ingredientes_detallados)
+    );
+
+    const saveResult = await saveGeneratedRecipeToLibrary(supabase, {
+      userId: user.id,
+      title: recipe.titulo,
+      ingredients: structuredIngredients,
+      steps: recipe.pasos_ordenados,
+      instructions: instructions || "Sin pasos detallados",
+      tipSandra: recipe.tip_sandra,
+      isAirfryer: is_airfryer,
+      isFlourless: is_flourless,
+      macronutrientes: recipe.macronutrientes
+    });
+
+    if ("error" in saveResult) {
+      setSaveErrorMessage(saveResult.error);
+      return null;
+    }
+
+    setSavedRecipeId(saveResult.recipeId);
+    setIsRecipeSaved(true);
+    return saveResult.recipeId;
+  }, [recipe, savedRecipeId]);
 
   const handleSaveRecipe = async () => {
     if (!recipe || isSavingRecipe || isRecipeSaved) return;
@@ -591,38 +647,15 @@ export default function ScannerPage() {
         return;
       }
 
-      const instructions = recipe.pasos_ordenados
-        .map((step, index) => `${index + 1}. ${step}`)
-        .join("\n");
-
-      const recipeTags = recipe.tags ?? [];
-      const { is_airfryer, is_flourless } = tagsToLegacyFlags(recipeTags);
-
-      const structuredIngredients = structuredIngredientsToJson(
-        stringsToStructuredIngredients(recipe.ingredientes_detallados)
-      );
-
-      const saveResult = await saveGeneratedRecipeToLibrary(supabase, {
-        userId: user.id,
-        title: recipe.titulo,
-        ingredients: structuredIngredients,
-        steps: recipe.pasos_ordenados,
-        instructions: instructions || "Sin pasos detallados",
-        tipSandra: recipe.tip_sandra,
-        isAirfryer: is_airfryer,
-        isFlourless: is_flourless,
-        macronutrientes: recipe.macronutrientes
-      });
-
-      if ("error" in saveResult) {
-        setSaveErrorMessage(saveResult.error);
+      const recipeId = await persistGeneratedRecipe();
+      if (!recipeId) {
         setIsSavingRecipe(false);
         return;
       }
 
       const pending = readPendingPlanAssignment();
       if (pending) {
-        const assignment = await completePendingPlanAssignment(user.id, saveResult.recipeId);
+        const assignment = await completePendingPlanAssignment(user.id, recipeId);
         setPendingPlanAssignment(null);
 
         if (assignment.message) {
@@ -630,7 +663,6 @@ export default function ScannerPage() {
         } else {
           setSaveSuccessMessage("¡Receta guardada con éxito!");
         }
-        setIsRecipeSaved(true);
         window.setTimeout(() => {
           window.location.assign(assignment.hadPending ? APP_ROUTES.plan : APP_ROUTES.guardadas);
         }, assignment.hadPending ? 700 : 600);
@@ -638,7 +670,6 @@ export default function ScannerPage() {
       }
 
       setSaveSuccessMessage("¡Receta guardada con éxito!");
-      setIsRecipeSaved(true);
       window.setTimeout(() => {
         window.location.assign(APP_ROUTES.guardadas);
       }, 600);
@@ -728,6 +759,8 @@ export default function ScannerPage() {
             showPhotoBanner={recipeFromPhoto}
             onNewSearch={resetScannerState}
             onSaveFavorites={() => void handleSaveRecipe()}
+            onPersistRecipeId={persistGeneratedRecipe}
+            onPlanAssigned={(message) => setSaveSuccessMessage(message)}
             isSavingFavorites={isSavingRecipe}
             isSavedFavorites={isRecipeSaved}
           />

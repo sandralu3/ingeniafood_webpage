@@ -32,15 +32,15 @@ export function IngeniaFoodLogo({ variant = "header", className }: Props) {
 
   return (
     <div className={cn("min-w-0 font-sans leading-tight", className)}>
-      <p className="truncate text-[10px] font-medium uppercase tracking-[0.14em] text-sv-on-surface-variant">
-        Sandra Vergara
-      </p>
-      <div className="flex items-center gap-1">
-        <Leaf className="h-3.5 w-3.5 shrink-0 text-[#556B2F]" strokeWidth={2} />
+      <div className="flex items-baseline gap-1.5">
+        <Leaf className="h-3.5 w-3.5 shrink-0 translate-y-px text-[#556B2F]" strokeWidth={2} />
         <p className="truncate text-sm tracking-tight text-sv-on-surface">
           <span className="font-semibold">Ingenia</span>
           <span className="font-semibold text-[#556B2F]">Food</span>
         </p>
+        <span className="text-[10px] font-medium lowercase italic tracking-normal text-stone-400">
+          by sandra
+        </span>
       </div>
     </div>
   );

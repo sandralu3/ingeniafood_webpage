@@ -1,6 +1,10 @@
 import type { WeekDay } from "@/lib/plan/constants";
 
 export function getTodayWeekDay(): WeekDay {
+  return getWeekDayFromDate(new Date());
+}
+
+export function getWeekDayFromDate(date: Date): WeekDay {
   const weekDays: WeekDay[] = [
     "Domingo",
     "Lunes",
@@ -10,7 +14,35 @@ export function getTodayWeekDay(): WeekDay {
     "Viernes",
     "Sábado"
   ];
-  return weekDays[new Date().getDay()];
+  return weekDays[date.getDay()];
+}
+
+export type UpcomingPlanDay = {
+  date: Date;
+  isoDate: string;
+  weekDay: WeekDay;
+  shortLabel: string;
+  dayNumber: number;
+};
+
+export function buildUpcomingPlanDays(count = 7, startDate = new Date()): UpcomingPlanDay[] {
+  const start = new Date(startDate);
+  start.setHours(0, 0, 0, 0);
+
+  return Array.from({ length: count }, (_, index) => {
+    const date = addDays(start, index);
+    const weekDay = getWeekDayFromDate(date);
+    return {
+      date,
+      isoDate: toISODateString(date),
+      weekDay,
+      shortLabel: new Intl.DateTimeFormat("es-ES", { weekday: "short" })
+        .format(date)
+        .replace(/\./g, "")
+        .slice(0, 3),
+      dayNumber: date.getDate()
+    };
+  });
 }
 
 export function getMondayOfWeek(date = new Date()): Date {
