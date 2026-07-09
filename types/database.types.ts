@@ -67,6 +67,7 @@ export type Database = {
           is_flourless: boolean;
           is_public: boolean;
           es_instagram: boolean;
+          macros: Json | null;
           created_at: string;
           updated_at: string;
         };
@@ -86,6 +87,7 @@ export type Database = {
           is_flourless?: boolean;
           is_public?: boolean;
           es_instagram?: boolean;
+          macros?: Json | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -105,6 +107,7 @@ export type Database = {
           is_flourless?: boolean;
           is_public?: boolean;
           es_instagram?: boolean;
+          macros?: Json | null;
           created_at?: string;
           updated_at?: string;
         };

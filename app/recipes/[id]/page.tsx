@@ -93,7 +93,7 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
       const primaryQuery = await supabase
         .from("recipes")
         .select(
-          "id,title,description,cooking_time,is_airfryer,is_flourless,is_public,created_at,user_id,ingredients,steps,instructions,image_url,tip_sandra,instagram_url"
+          "id,title,description,cooking_time,is_airfryer,is_flourless,is_public,created_at,user_id,ingredients,steps,instructions,image_url,tip_sandra,instagram_url,macros"
         )
         .eq("id", recipeId)
         .eq("user_id", user.id)
@@ -136,6 +136,25 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
           ? ({
               ...fallbackQuery.data,
               instagram_url: null
+            } as RecipeRow)
+          : null;
+      }
+
+      if (isMissingOptionalColumnError(recipeError, "macros")) {
+        const fallbackQuery = await supabase
+          .from("recipes")
+          .select(
+            "id,title,description,cooking_time,is_airfryer,is_flourless,is_public,created_at,user_id,ingredients,steps,instructions,image_url,tip_sandra,instagram_url"
+          )
+          .eq("id", recipeId)
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        recipeError = fallbackQuery.error;
+        recipeData = fallbackQuery.data
+          ? ({
+              ...fallbackQuery.data,
+              macros: null
             } as RecipeRow)
           : null;
       }

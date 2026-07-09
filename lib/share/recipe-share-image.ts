@@ -1,3 +1,5 @@
+import type { RecipeMacros } from "@/lib/recipes/recipe-macros";
+
 export type ShareableRecipe = {
   titulo: string;
   tiempo_preparacion: string;
@@ -5,6 +7,7 @@ export type ShareableRecipe = {
   pasos_ordenados?: string[];
   tip_sandra?: string;
   tags?: string[];
+  macronutrientes?: RecipeMacros | null;
 };
 
 function slugifyRecipeTitle(title: string): string {

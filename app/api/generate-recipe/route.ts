@@ -1,6 +1,7 @@
 import { GoogleGenerativeAI, type Part } from "@google/generative-ai";
 import { NextResponse } from "next/server";
 import { normalizeRecipeTags } from "@/lib/recipes/recipe-tags";
+import { normalizeRecipeMacros, type RecipeMacros } from "@/lib/recipes/recipe-macros";
 import { normalizeLooseGeminiIngredients } from "@/lib/recipes/structured-ingredients";
 import { consumeGeneration, getGenerationsLeft } from "@/lib/generations/quota";
 import { createSupabaseRouteClient } from "@/lib/supabaseRoute";
@@ -28,6 +29,12 @@ const INGREDIENT_VALIDATION_RULE =
 const VISION_SYSTEM_PREFIX =
   "Tu primera tarea es analizar si la imagen contiene ingredientes, alimentos o comida. Si la imagen NO muestra nada comestible (por ejemplo: objetos, personas, paisajes, animales), debes responder ÚNICAMENTE con este código de error: { \"error\": \"NOT_FOOD\" }. No generes ninguna receta en ese caso.\nAnaliza esta imagen de una nevera o despensa. Identifica los ingredientes comestibles visibles. Úsalos como base para generar una receta que también incluya los ingredientes que el usuario haya seleccionado manualmente.\n\n";
 
+const MACRO_ESTIMATION_RULE =
+  "MACRONUTRIENTES (obligatorio): incluye el objeto macronutrientes con estimación REAL por 1 porción de la receta, basada en ingredientes y cantidades. " +
+  'Formato: {"proteinas_g": number, "carbohidratos_g": number, "grasas_g": number, "calorias": number}. ' +
+  "proteinas_g, carbohidratos_g y grasas_g en gramos enteros; calorias en kcal enteras coherentes con 4×proteínas + 4×carbohidratos + 9×grasas (±10%). " +
+  "No inventes valores decorativos: deben reflejar el plato generado.\n\n";
+
 const ALLOWED_IMAGE_MIME = new Set([
   "image/jpeg",
   "image/png",
@@ -51,6 +58,7 @@ type GeminiRecipe = {
   pasos_ordenados: string[];
   tip_sandra: string;
   tags: string[];
+  macronutrientes: RecipeMacros | null;
 };
 
 type LooseGeminiRecipe = Partial<GeminiRecipe> & {
@@ -59,6 +67,7 @@ type LooseGeminiRecipe = Partial<GeminiRecipe> & {
   ingredientes_estructurados?: unknown[];
   pasos?: string[];
   etiquetas?: string[];
+  macronutrientes?: unknown;
 };
 
 function sleep(ms: number): Promise<void> {
@@ -105,7 +114,8 @@ function normalizeRecipePayload(recipe: LooseGeminiRecipe): GeminiRecipe {
       typeof recipe.tip_sandra === "string" && recipe.tip_sandra.trim().length > 0
         ? recipe.tip_sandra.trim()
         : "Tip de Sandra: Equilibra tu plato con proteína magra, vegetales y una grasa saludable.",
-    tags
+    tags,
+    macronutrientes: normalizeRecipeMacros(recipe)
   };
 }
 
@@ -394,7 +404,8 @@ export async function POST(request: Request) {
     const jsonRules =
       PANTRY_PRIORITY_RULE +
       INGREDIENT_QUANTITY_RULE +
-      "Solo JSON valido. Entrega receta saludable y rapida. Formato esperado: { \"titulo\": \"\", \"tiempo\": \"X min\", \"ingredientes\": [], \"pasos\": [], \"tip_sandra\": \"\", \"etiquetas\": [] }. " +
+      MACRO_ESTIMATION_RULE +
+      "Solo JSON valido. Entrega receta saludable y rapida. Formato esperado: { \"titulo\": \"\", \"tiempo\": \"X min\", \"ingredientes\": [], \"pasos\": [], \"tip_sandra\": \"\", \"etiquetas\": [], \"macronutrientes\": {\"proteinas_g\": 0, \"carbohidratos_g\": 0, \"grasas_g\": 0, \"calorias\": 0} }. " +
       "ETIQUETAS (campo etiquetas): array de 1 a 3 strings que describan SOLO lo que aplica a ESTA receta concreta. Valores permitidos: \"Desayuno\", \"Cena\", \"Snack\", \"Sin Harinas\", \"Apto para Airfryer\", \"Alto en Proteína\". " +
       "Reglas estrictas: incluye \"Sin Harinas\" solo si la receta no usa harinas ni cereales refinados; incluye \"Apto para Airfryer\" solo si la cocción principal es en airfryer; incluye \"Desayuno\", \"Cena\" o \"Snack\" según el momento ideal del plato (ej. mug cake o bowl matutino = \"Desayuno\", no Airfryer). Si ninguna aplica, devuelve etiquetas: []. " +
       "REGLA DE ORO DE INVENTARIO (obligatoria): PROHIBIDO añadir ingredientes al titulo o a las instrucciones que no hayan sido detectados en la imagen ni seleccionados por el usuario, salvo basicos de despensa permitidos (sal, pimienta, aceite, agua). " +
@@ -406,7 +417,7 @@ export async function POST(request: Request) {
 
     const systemInstruction = hasImage
       ? `${INGREDIENT_VALIDATION_RULE}${INGREDIENT_QUANTITY_RULE}${VISION_SYSTEM_PREFIX}${jsonRules} ${manualClause}`
-      : `${INGREDIENT_VALIDATION_RULE}${INGREDIENT_QUANTITY_RULE}Solo JSON valido. Usa ingredientes: [${selectedList}]. Entrega receta saludable y rapida con formato { "titulo": "", "tiempo_preparacion": "X min", "ingredientes_detallados": [], "ingredientes_estructurados": [], "pasos_ordenados": [], "tip_sandra": "", "etiquetas": [] }. ${jsonRules}`;
+      : `${INGREDIENT_VALIDATION_RULE}${INGREDIENT_QUANTITY_RULE}Solo JSON valido. Usa ingredientes: [${selectedList}]. Entrega receta saludable y rapida con formato { "titulo": "", "tiempo_preparacion": "X min", "ingredientes_detallados": [], "ingredientes_estructurados": [], "pasos_ordenados": [], "tip_sandra": "", "etiquetas": [], "macronutrientes": {"proteinas_g": 0, "carbohidratos_g": 0, "grasas_g": 0, "calorias": 0} }. ${jsonRules}`;
 
     const promptTail =
       selectedIngredients.length && hasImage
@@ -418,7 +429,7 @@ export async function POST(request: Request) {
     const prompt =
       "Primero valida si hay comida visible. Si NO hay comida, responde solo {\"error\":\"NOT_FOOD\"} y termina sin texto adicional. " +
       "Si sí hay comida, responde exclusivamente con JSON valido (sin markdown, sin bloques de codigo) usando esta estructura exacta: " +
-      '{"titulo": string, "tiempo_preparacion": string, "ingredientes_detallados": string[], "ingredientes_estructurados": [{"name": string, "amount": number, "unit": string, "optional": boolean}], "pasos_ordenados": string[], "tip_sandra": string, "etiquetas": string[]}. ' +
+      '{"titulo": string, "tiempo_preparacion": string, "ingredientes_detallados": string[], "ingredientes_estructurados": [{"name": string, "amount": number, "unit": string, "optional": boolean}], "pasos_ordenados": string[], "tip_sandra": string, "etiquetas": string[], "macronutrientes": {"proteinas_g": number, "carbohidratos_g": number, "grasas_g": number, "calorias": number}}. ' +
       `${promptTail} No inventes ingredientes principales imposibles; prioriza exclusivamente lo visible y lo indicado arriba. El titulo debe reflejar los ingredientes reales del usuario, no sabores inventados.`;
 
     let rawResponse = "";
@@ -631,7 +642,8 @@ export async function POST(request: Request) {
         typeof recipe.tip_sandra === "string" && recipe.tip_sandra.trim().length > 0
           ? recipe.tip_sandra.trim()
           : "Tip de Sandra: organiza todos tus ingredientes antes de cocinar para ganar tiempo y mantener una preparación más eficiente.",
-      tags: normalizeRecipeTags(recipe.tags)
+      tags: normalizeRecipeTags(recipe.tags),
+      macronutrientes: recipe.macronutrientes
     };
 
     const remainingGenerations = await consumeGeneration(user.id, user.email);

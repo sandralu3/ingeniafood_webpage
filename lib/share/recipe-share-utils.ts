@@ -2,6 +2,7 @@ import type { Json } from "@/types/database.types";
 import type { ShareableRecipe } from "@/lib/share/recipe-share-image";
 import { resolveRecipeTags } from "@/lib/recipes/recipe-tags";
 import { ingredientsJsonToDisplayStrings } from "@/lib/recipes/structured-ingredients";
+import { buildMacroDisplay, parseMacrosFromJson } from "@/lib/recipes/recipe-macros";
 export function inferDifficulty(pasosCount: number): string {
   if (pasosCount <= 3) return "FÁCIL";
   if (pasosCount <= 5) return "INTERMEDIO";
@@ -43,25 +44,7 @@ export function parseInstructionsToSteps(instructions: string): string[] {
 }
 
 export function buildMacroData(recipe: ShareableRecipe) {
-  const ingredientCount = Math.max(recipe.ingredientes_detallados.length, 1);
-  const stepCount = Math.max(recipe.pasos_ordenados?.length ?? 0, 1);
-
-  const proteinas = Math.min(18 + ingredientCount * 2, 42);
-  const carbs = Math.min(24 + stepCount * 3, 58);
-  const grasas = Math.min(10 + ingredientCount, 28);
-  const calorias = 220 + proteinas * 4 + carbs * 4 + grasas * 9;
-
-  const maxGram = 60;
-  return [
-    { label: "Proteínas", value: `${proteinas} g`, progress: Math.round((proteinas / maxGram) * 100) },
-    { label: "Carbs", value: `${carbs} g`, progress: Math.round((carbs / maxGram) * 100) },
-    { label: "Grasas", value: `${grasas} g`, progress: Math.round((grasas / maxGram) * 100) },
-    {
-      label: "Calorías",
-      value: `${calorias} kcal`,
-      progress: Math.min(Math.round((calorias / 520) * 100), 100)
-    }
-  ];
+  return buildMacroDisplay(recipe);
 }
 
 type SavedRecipeSource = {
@@ -74,6 +57,7 @@ type SavedRecipeSource = {
   is_airfryer?: boolean;
   is_flourless?: boolean;
   tags?: Json;
+  macros?: Json | null;
 };
 export function savedRecipeToShareable(recipe: SavedRecipeSource): ShareableRecipe {
   const ingredientes = jsonToStringList(recipe.ingredients);
@@ -97,5 +81,7 @@ export function savedRecipeToShareable(recipe: SavedRecipeSource): ShareableReci
       tags: recipe.tags,
       is_airfryer: recipe.is_airfryer,
       is_flourless: recipe.is_flourless
-    })
-  };}
+    }),
+    macronutrientes: parseMacrosFromJson(recipe.macros)
+  };
+}

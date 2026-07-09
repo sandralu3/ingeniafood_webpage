@@ -23,6 +23,8 @@ import {
   stringsToStructuredIngredients,
   structuredIngredientsToJson
 } from "@/lib/recipes/structured-ingredients";
+import { type RecipeMacros } from "@/lib/recipes/recipe-macros";
+import { saveGeneratedRecipeToLibrary } from "@/lib/recipes/save-generated-recipe";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 
 type GeneratedRecipe = {
@@ -32,6 +34,7 @@ type GeneratedRecipe = {
   pasos_ordenados: string[];
   tip_sandra: string;
   tags?: string[];
+  macronutrientes?: RecipeMacros | null;
 };
 
 type ApiPayload = {
@@ -185,6 +188,7 @@ export default function ScannerPage() {
   const [isSavingRecipe, setIsSavingRecipe] = useState(false);
   const [isRecipeSaved, setIsRecipeSaved] = useState(false);
   const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null);
+  const [saveErrorMessage, setSaveErrorMessage] = useState<string | null>(null);
   const [rateLimitSecondsLeft, setRateLimitSecondsLeft] = useState(0);
   const [generationsLeft, setGenerationsLeft] = useState<number | null>(null);
   const [showGenerationsModal, setShowGenerationsModal] = useState(false);
@@ -257,6 +261,7 @@ export default function ScannerPage() {
     setShowInvalidIngredientAlert(false);
     setInvalidIngredientMessage(null);
     setSaveSuccessMessage(null);
+    setSaveErrorMessage(null);
     setIsRecipeSaved(false);
     setRateLimitSecondsLeft(0);
   };
@@ -284,6 +289,7 @@ export default function ScannerPage() {
     setErrorMessage(null);
     setShowNotFoodGuidance(false);
     setIsRecipeSaved(false);
+    setSaveErrorMessage(null);
     setRateLimitSecondsLeft(0);
   };
 
@@ -296,6 +302,7 @@ export default function ScannerPage() {
     setErrorMessage(null);
     setShowNotFoodGuidance(false);
     setIsRecipeSaved(false);
+    setSaveErrorMessage(null);
     setRateLimitSecondsLeft(0);
   };
 
@@ -306,6 +313,7 @@ export default function ScannerPage() {
     setErrorMessage(null);
     setShowNotFoodGuidance(false);
     setIsRecipeSaved(false);
+    setSaveErrorMessage(null);
     setRateLimitSecondsLeft(0);
   };
 
@@ -316,6 +324,7 @@ export default function ScannerPage() {
     setErrorMessage(null);
     setShowNotFoodGuidance(false);
     setIsRecipeSaved(false);
+    setSaveErrorMessage(null);
     setRateLimitSecondsLeft(0);
   };
 
@@ -450,6 +459,7 @@ export default function ScannerPage() {
     setShowInvalidIngredientAlert(false);
     setInvalidIngredientMessage(null);
     setIsRecipeSaved(false);
+    setSaveErrorMessage(null);
     setRateLimitSecondsLeft(0);
 
     const longWaitTimer = window.setTimeout(() => {
@@ -547,6 +557,7 @@ export default function ScannerPage() {
       setRecipeFromPhoto(Boolean(pantryImageFile));
       setErrorMessage(null);
       setIsRecipeSaved(false);
+    setSaveErrorMessage(null);
       if (typeof payload.generationsLeft === "number") {
         setGenerationsLeft(payload.generationsLeft);
       }
@@ -566,7 +577,7 @@ export default function ScannerPage() {
   const handleSaveRecipe = async () => {
     if (!recipe || isSavingRecipe || isRecipeSaved) return;
     setIsSavingRecipe(true);
-    setErrorMessage(null);
+    setSaveErrorMessage(null);
 
     try {
       const supabase = createSupabaseClient();
@@ -575,7 +586,7 @@ export default function ScannerPage() {
       } = await supabase.auth.getUser();
 
       if (!user) {
-        setErrorMessage("Necesitas iniciar sesión para guardar recetas en tu recetario.");
+        setSaveErrorMessage("Necesitas iniciar sesión para guardar recetas en tu recetario.");
         setIsSavingRecipe(false);
         return;
       }
@@ -591,32 +602,27 @@ export default function ScannerPage() {
         stringsToStructuredIngredients(recipe.ingredientes_detallados)
       );
 
-      const { data: inserted, error } = await supabase
-        .from("recipes")
-        .insert({
-          user_id: user.id,
-          title: recipe.titulo,
-          ingredients: structuredIngredients,
-          steps: recipe.pasos_ordenados,
-          instructions: instructions || "Sin pasos detallados",
-          tip_sandra: recipe.tip_sandra,
-          image_url: null,
-          is_airfryer,
-          is_flourless,
-          is_public: false
-        })
-        .select("id")
-        .single();
+      const saveResult = await saveGeneratedRecipeToLibrary(supabase, {
+        userId: user.id,
+        title: recipe.titulo,
+        ingredients: structuredIngredients,
+        steps: recipe.pasos_ordenados,
+        instructions: instructions || "Sin pasos detallados",
+        tipSandra: recipe.tip_sandra,
+        isAirfryer: is_airfryer,
+        isFlourless: is_flourless,
+        macronutrientes: recipe.macronutrientes
+      });
 
-      if (error || !inserted) {
-        setErrorMessage("No pudimos guardar la receta. Inténtalo nuevamente.");
+      if ("error" in saveResult) {
+        setSaveErrorMessage(saveResult.error);
         setIsSavingRecipe(false);
         return;
       }
 
       const pending = readPendingPlanAssignment();
       if (pending) {
-        const assignment = await completePendingPlanAssignment(user.id, inserted.id);
+        const assignment = await completePendingPlanAssignment(user.id, saveResult.recipeId);
         setPendingPlanAssignment(null);
 
         if (assignment.message) {
@@ -626,7 +632,7 @@ export default function ScannerPage() {
         }
         setIsRecipeSaved(true);
         window.setTimeout(() => {
-          window.location.assign(assignment.hadPending ? APP_ROUTES.plan : APP_ROUTES.hoy);
+          window.location.assign(assignment.hadPending ? APP_ROUTES.plan : APP_ROUTES.guardadas);
         }, assignment.hadPending ? 700 : 600);
         return;
       }
@@ -634,11 +640,11 @@ export default function ScannerPage() {
       setSaveSuccessMessage("¡Receta guardada con éxito!");
       setIsRecipeSaved(true);
       window.setTimeout(() => {
-        window.location.assign(APP_ROUTES.hoy);
+        window.location.assign(APP_ROUTES.guardadas);
       }, 600);
     } catch (error) {
       console.error("[save-recipe] Error guardando receta:", error);
-      setErrorMessage("No pudimos guardar la receta. Inténtalo nuevamente.");
+      setSaveErrorMessage("No pudimos guardar la receta. Inténtalo nuevamente.");
     } finally {
       setIsSavingRecipe(false);
     }
@@ -707,6 +713,14 @@ export default function ScannerPage() {
           {saveSuccessMessage ? (
             <div className="mb-3 rounded-xl border border-[#556B2F]/30 bg-[#FDFCFB] px-4 py-2 text-sm font-medium text-[#556B2F]">
               {saveSuccessMessage}
+            </div>
+          ) : null}
+          {saveErrorMessage ? (
+            <div
+              role="alert"
+              className="mb-3 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800"
+            >
+              {saveErrorMessage}
             </div>
           ) : null}
           <RecipeResultView
