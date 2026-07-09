@@ -1,14 +1,18 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, ScanLine, Search, Sparkles, X } from "lucide-react";
-import { RecipeInstagramLink } from "@/components/recipes/recipe-instagram-link";
-import { RecipeMedia } from "@/components/recipes/recipe-media";
+import { Loader2, MoreVertical, ScanLine, Search, Sparkles, X } from "lucide-react";
+import { PlanRecipePickerRow } from "@/components/plan/plan-recipe-picker-row";
 import type { RecipePickerItem } from "@/lib/plan/plan-service";
 import type { MealType, WeekDay } from "@/lib/plan/constants";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
 import { savePendingPlanAssignment } from "@/lib/plan/plan-pending-assignment";
+import {
+  filterPickerRecipes,
+  SAVED_RECIPE_FILTERS,
+  type SavedRecipeFilter
+} from "@/lib/recipes/saved-recipes-filter";
 import { cn } from "@/lib/utils";
 
 type PlanRecipePickerModalProps = {
@@ -24,14 +28,6 @@ type PlanRecipePickerModalProps = {
   onSelectRecipe: (recipeId: string) => void;
 };
 
-function buildCategories(recipe: RecipePickerItem): string[] {
-  return [
-    recipe.is_airfryer ? "Airfryer" : null,
-    recipe.is_flourless ? "Sin Harinas" : null,
-    !recipe.is_airfryer && !recipe.is_flourless ? "Saludable" : null
-  ].filter((category): category is string => Boolean(category));
-}
-
 export function PlanRecipePickerModal({
   open,
   dayLabel,
@@ -46,18 +42,39 @@ export function PlanRecipePickerModal({
 }: PlanRecipePickerModalProps) {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
+  const [activeFilter, setActiveFilter] = useState<SavedRecipeFilter>("Todas");
+  const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
+  const filterMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) {
       setSearchTerm("");
+      setActiveFilter("Todas");
+      setIsFilterMenuOpen(false);
     }
   }, [open]);
 
-  const filteredRecipes = useMemo(() => {
-    const query = searchTerm.trim().toLowerCase();
-    if (!query) return recipes;
-    return recipes.filter((recipe) => recipe.title.toLowerCase().includes(query));
-  }, [recipes, searchTerm]);
+  useEffect(() => {
+    if (!isFilterMenuOpen) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (filterMenuRef.current && !filterMenuRef.current.contains(event.target as Node)) {
+        setIsFilterMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isFilterMenuOpen]);
+
+  const filteredRecipes = useMemo(
+    () =>
+      filterPickerRecipes(recipes, {
+        searchTerm,
+        categoryFilter: activeFilter
+      }),
+    [activeFilter, recipes, searchTerm]
+  );
 
   const goToScannerForPlan = () => {
     savePendingPlanAssignment({
@@ -79,7 +96,7 @@ export function PlanRecipePickerModal({
         aria-labelledby="plan-picker-title"
         className="flex max-h-[88vh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border border-neutral-100 bg-white shadow-2xl sm:rounded-3xl"
       >
-        <div className="flex items-start justify-between gap-3 border-b border-stone-100 px-5 py-4">
+        <div className="flex items-start justify-between gap-3 border-b border-stone-100 bg-white px-5 py-4">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-amber-700/80">
               {dayLabel} · {mealType}
@@ -102,20 +119,64 @@ export function PlanRecipePickerModal({
           </button>
         </div>
 
-        <div className="border-b border-stone-100 px-5 py-3">
-          <label className="relative block">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
-            <input
-              type="search"
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder="Buscar receta..."
-              className="w-full rounded-2xl border border-stone-200 bg-stone-50 py-2.5 pl-10 pr-3 text-sm text-stone-800 outline-none transition focus:border-[#556B2F]/30 focus:ring-2 focus:ring-[#556B2F]/10"
-            />
-          </label>
+        <div className="relative z-20 border-b border-stone-100 bg-white px-5 py-3">
+          <div className="flex w-full items-center gap-2">
+            <label className="relative flex-1">
+              <Search
+                className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400"
+                strokeWidth={1.5}
+                aria-hidden="true"
+              />
+              <input
+                type="search"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder="Buscar receta..."
+                className="w-full rounded-full border border-stone-200/80 bg-white py-2.5 pl-11 pr-4 text-sm text-stone-700 shadow-sm outline-none placeholder:text-stone-400 transition focus:border-[#4C6B3F] focus:ring-1 focus:ring-[#4C6B3F]"
+              />
+            </label>
+
+            <div className="relative shrink-0" ref={filterMenuRef}>
+              <button
+                type="button"
+                onClick={() => setIsFilterMenuOpen((current) => !current)}
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-stone-200/60 bg-stone-100 text-stone-600 transition-colors hover:bg-stone-200/50"
+                aria-label="Filtrar recetas"
+                aria-expanded={isFilterMenuOpen}
+              >
+                <MoreVertical size={18} />
+              </button>
+
+              {isFilterMenuOpen ? (
+                <div className="absolute right-0 z-50 mt-2 w-48 animate-fade-in overflow-hidden rounded-2xl border border-stone-100 bg-white p-2 shadow-xl">
+                  {SAVED_RECIPE_FILTERS.map((chip) => {
+                    const isActive = chip === activeFilter;
+                    return (
+                      <button
+                        key={chip}
+                        type="button"
+                        onClick={() => {
+                          setActiveFilter(chip);
+                          setIsFilterMenuOpen(false);
+                        }}
+                        className={cn(
+                          "flex w-full rounded-xl px-3 py-2 text-left text-sm transition-colors",
+                          isActive
+                            ? "bg-[#F5EBE6] font-semibold text-[#C06A4F]"
+                            : "text-stone-600 hover:bg-stone-50"
+                        )}
+                      >
+                        {chip}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </div>
+          </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-5 py-4">
+        <div className="flex-1 overflow-y-auto bg-[#FAF8F5] px-5 py-4">
           {errorMessage ? (
             <p role="alert" className="mb-3 rounded-2xl bg-red-50 px-3 py-2 text-sm text-red-700">
               {errorMessage}
@@ -130,63 +191,24 @@ export function PlanRecipePickerModal({
           ) : null}
 
           {!isLoading && filteredRecipes.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-amber-200/80 bg-amber-50/40 px-4 py-8 text-center">
+            <div className="rounded-2xl border border-dashed border-stone-200 bg-white px-4 py-8 text-center">
               <p className="text-sm font-medium text-stone-700">No hay recetas disponibles.</p>
               <p className="mt-1 text-xs text-stone-500">
-                Escanea ingredientes y guarda recetas para asignarlas al plan.
+                Prueba otro término o filtro, o escanea ingredientes para crear nuevas recetas.
               </p>
             </div>
           ) : null}
 
           {!isLoading && filteredRecipes.length > 0 ? (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {filteredRecipes.map((recipe) => {
-                const categories = buildCategories(recipe);
-                return (
-                  <button
-                    key={recipe.id}
-                    type="button"
-                    disabled={isAssigning}
-                    onClick={() => onSelectRecipe(recipe.id)}
-                    className={cn(
-                      "overflow-hidden rounded-2xl border border-neutral-100 bg-white text-left shadow-md shadow-stone-100/50 transition",
-                      "hover:-translate-y-0.5 hover:border-[#556B2F]/20 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
-                    )}
-                  >
-                    <div className="relative">
-                      <RecipeMedia
-                        imageUrl={recipe.image_url}
-                        isSocialVideo={Boolean(recipe.instagram_url && !recipe.image_url)}
-                        variant="thumbnail"
-                        title={recipe.title}
-                        className="!h-28"
-                      />
-                      {recipe.instagram_url ? (
-                        <div className="absolute right-2 top-2">
-                          <RecipeInstagramLink url={recipe.instagram_url} variant="icon" />
-                        </div>
-                      ) : null}
-                    </div>
-                    <div className="space-y-2 p-3">
-                      <h3 className="line-clamp-2 text-sm font-bold leading-snug text-stone-900">
-                        {recipe.title}
-                      </h3>
-                      {categories.length > 0 ? (
-                        <div className="flex flex-wrap gap-1">
-                          {categories.slice(0, 2).map((category) => (
-                            <span
-                              key={category}
-                              className="rounded-full bg-[#F0F4ED] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[#556B2F]"
-                            >
-                              {category}
-                            </span>
-                          ))}
-                        </div>
-                      ) : null}
-                    </div>
-                  </button>
-                );
-              })}
+            <div className="space-y-0">
+              {filteredRecipes.map((recipe) => (
+                <PlanRecipePickerRow
+                  key={recipe.id}
+                  recipe={recipe}
+                  disabled={isAssigning}
+                  onSelect={() => onSelectRecipe(recipe.id)}
+                />
+              ))}
             </div>
           ) : null}
         </div>

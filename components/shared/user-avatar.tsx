@@ -57,3 +57,16 @@ export function resolveProfileDisplayName(
 
   return "Chef";
 }
+
+export function resolveProfileFirstName(
+  fullName: string | null | undefined,
+  email: string | null | undefined
+): string {
+  const trimmed = fullName?.trim();
+  if (trimmed) {
+    const firstName = trimmed.split(/\s+/).filter(Boolean)[0];
+    if (firstName) return firstName;
+  }
+
+  return resolveProfileDisplayName(fullName, email);
+}

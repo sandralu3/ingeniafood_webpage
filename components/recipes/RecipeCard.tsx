@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 
 type RecipeCardProps = {
   title: string;
-  categories: string[];
+  categoryLabel?: string | null;
   savedAtLabel: string;
   detailHref: string;
   recipeId?: string;
@@ -88,7 +88,7 @@ function compactSavedDate(label: string): string {
 
 export function RecipeCard({
   title,
-  categories,
+  categoryLabel,
   savedAtLabel,
   detailHref,
   recipeId,
@@ -104,8 +104,6 @@ export function RecipeCard({
   isRemoveDisabled = false,
   onPrefetch
 }: RecipeCardProps) {
-  const primaryCategory = categories[0];
-
   return (
     <article
       className={cn(
@@ -143,9 +141,9 @@ export function RecipeCard({
       >
         <h3 className="mb-0.5 truncate text-xs font-bold text-stone-800">{title}</h3>
 
-        {primaryCategory ? (
+        {categoryLabel ? (
           <span className="w-fit rounded-md bg-[#F5EBE6] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[#C06A4F]">
-            {primaryCategory}
+            {categoryLabel}
           </span>
         ) : null}
       </Link>

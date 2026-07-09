@@ -14,6 +14,7 @@ export type Database = {
           id: string;
           full_name: string | null;
           avatar_url: string | null;
+          country: string | null;
           is_premium: boolean;
           generations_left: number;
           health_score: number;
@@ -24,6 +25,7 @@ export type Database = {
           id: string;
           full_name?: string | null;
           avatar_url?: string | null;
+          country?: string | null;
           is_premium?: boolean;
           generations_left?: number;
           health_score?: number;
@@ -34,6 +36,7 @@ export type Database = {
           id?: string;
           full_name?: string | null;
           avatar_url?: string | null;
+          country?: string | null;
           is_premium?: boolean;
           generations_left?: number;
           health_score?: number;

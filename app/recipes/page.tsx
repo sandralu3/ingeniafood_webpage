@@ -8,45 +8,20 @@ import { RecipeShareCaptureHost } from "@/components/share/recipe-share-capture-
 import { useShareRecipeImage } from "@/hooks/use-share-recipe-image";
 import { savedRecipeToShareable } from "@/lib/share/recipe-share-utils";
 import { handleRemoveFromFavorites } from "@/lib/recipes/remove-from-favorites";
+import {
+  filterSavedRecipes,
+  getRecipeCardLabel,
+  normalizeSearchText,
+  SAVED_RECIPE_FILTERS,
+  type SavedRecipeFilter
+} from "@/lib/recipes/saved-recipes-filter";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import { cn } from "@/lib/utils";
-import type { Database, Json } from "@/types/database.types";
+import type { Database } from "@/types/database.types";
 
 type RecipeRow = Database["public"]["Tables"]["recipes"]["Row"];
-type FilterChip = "Todas" | "Airfryer" | "Desayunos" | "Cenas" | "Sin Harinas";
 
-const FILTER_CHIPS: FilterChip[] = ["Todas", "Airfryer", "Desayunos", "Cenas", "Sin Harinas"];
-
-function normalizeText(value: string): string {
-  return value.trim().toLowerCase();
-}
-
-function jsonToSearchableText(value: Json): string {
-  if (value === null) return "";
-  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
-    return String(value);
-  }
-  if (Array.isArray(value)) {
-    return value.map(jsonToSearchableText).join(" ");
-  }
-  return Object.values(value)
-    .map((entry) => (entry === undefined ? "" : jsonToSearchableText(entry)))
-    .join(" ");
-}
-
-function matchesQuickFilter(recipe: RecipeRow, quickFilter: FilterChip): boolean {
-  if (quickFilter === "Todas") return true;
-
-  const combinedText = normalizeText(
-    `${recipe.title} ${recipe.description ?? ""} ${jsonToSearchableText(recipe.ingredients)}`
-  );
-
-  if (quickFilter === "Airfryer") return recipe.is_airfryer || combinedText.includes("airfryer");
-  if (quickFilter === "Sin Harinas") return recipe.is_flourless || combinedText.includes("sin harinas");
-  if (quickFilter === "Desayunos") return combinedText.includes("desayuno");
-  if (quickFilter === "Cenas") return combinedText.includes("cena");
-  return true;
-}
+const FILTER_CHIPS = SAVED_RECIPE_FILTERS;
 
 function isMissingTipSandraColumnError(error: { code?: string; message?: string } | null): boolean {
   if (!error) return false;
@@ -68,7 +43,7 @@ export default function RecipesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeFilter, setActiveFilter] = useState<FilterChip>("Todas");
+  const [activeFilter, setActiveFilter] = useState<SavedRecipeFilter>("Todas");
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
   const filterMenuRef = useRef<HTMLDivElement>(null);
   const [mostrarTodas, setMostrarTodas] = useState(false);
@@ -183,26 +158,25 @@ export default function RecipesPage() {
     void loadRecipes();
   }, []);
 
-  const filteredRecipes = useMemo(() => {
-    const normalizedSearchTerm = normalizeText(searchTerm);
+  const filteredRecipes = useMemo(
+    () =>
+      filterSavedRecipes(recipes, {
+        searchTerm,
+        categoryFilter: activeFilter
+      }),
+    [activeFilter, recipes, searchTerm]
+  );
 
-    return recipes.filter((recipe) => {
-      const searchableText = normalizeText(`${recipe.title} ${jsonToSearchableText(recipe.ingredients)}`);
-      const matchesSearch =
-        normalizedSearchTerm.length === 0 || searchableText.includes(normalizedSearchTerm);
-      const matchesFilter = matchesQuickFilter(recipe, activeFilter);
-      return matchesSearch && matchesFilter;
-    });
-  }, [activeFilter, recipes, searchTerm]);
-
-  const isSearchActive = normalizeText(searchTerm).length > 0;
-  const visibleRecipes = mostrarTodas || isSearchActive ? filteredRecipes : filteredRecipes.slice(0, 5);
+  const isSearchActive = normalizeSearchText(searchTerm).length > 0;
+  const isCategoryFilterActive = activeFilter !== "Todas";
+  const shouldShowAllResults = mostrarTodas || isSearchActive || isCategoryFilterActive;
+  const visibleRecipes = shouldShowAllResults ? filteredRecipes : filteredRecipes.slice(0, 5);
 
   useEffect(() => {
-    if (isSearchActive) {
+    if (isSearchActive || isCategoryFilterActive) {
       setMostrarTodas(true);
     }
-  }, [isSearchActive]);
+  }, [isCategoryFilterActive, isSearchActive]);
 
   useEffect(() => {
     if (!isFilterMenuOpen) return;
@@ -254,11 +228,7 @@ export default function RecipesPage() {
       <div className="space-y-0">
         <div className="grid grid-cols-1">
           {visibleRecipes.map((recipe, index) => {
-            const categories = [
-              recipe.is_airfryer ? "Airfryer" : null,
-              recipe.is_flourless ? "Sin Harinas" : null,
-              recipe.is_airfryer === false && recipe.is_flourless === false ? "Saludable" : null
-            ].filter((category): category is string => Boolean(category));
+            const cardLabel = getRecipeCardLabel(recipe);
 
             return (
               <div
@@ -273,7 +243,7 @@ export default function RecipesPage() {
                 <RecipeCard
                   title={recipe.title}
                   recipeId={recipe.id}
-                  categories={categories}
+                  categoryLabel={cardLabel}
                   savedAtLabel={formatSavedDate(recipe.created_at)}
                   imageUrl={recipe.image_url}
                   instagramUrl={recipe.instagram_url}
@@ -299,7 +269,7 @@ export default function RecipesPage() {
               onClick={() => setMostrarTodas((previous) => !previous)}
               className="inline-flex items-center justify-center rounded-full border border-stone-200/60 bg-white px-6 py-2.5 text-sm font-medium text-[#4C6B3F] shadow-sm transition hover:border-stone-300 hover:bg-stone-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#4C6B3F]"
             >
-              {mostrarTodas ? "Ver menos" : `Ver todas mis recetas (${recipes.length})`}
+              {mostrarTodas ? "Ver menos" : `Ver todas mis recetas (${filteredRecipes.length})`}
             </button>
           </div>
         ) : null}
@@ -318,15 +288,6 @@ export default function RecipesPage() {
     visibleRecipes
   ]);
 
-  const categoryStats = useMemo(
-    () => [
-      { label: "Airfryer", count: recipes.filter((recipe) => recipe.is_airfryer).length },
-      { label: "Sin harinas", count: recipes.filter((recipe) => recipe.is_flourless).length },
-      { label: "Saludables", count: recipes.length }
-    ],
-    [recipes]
-  );
-
   return (
     <div className="min-h-full bg-[#FAF8F5] pb-8 pt-1">
       <section className="space-y-3">
@@ -334,18 +295,10 @@ export default function RecipesPage() {
 
         <header className="pt-2">
           <h1 className="text-xl font-bold tracking-tight text-stone-800">Recetas guardadas</h1>
-          <p className="mt-1 text-sm leading-relaxed text-stone-500">
+          <p className="mb-4 mt-1 text-sm leading-relaxed text-stone-500">
             {recipes.length} {recipes.length === 1 ? "receta" : "recetas"} en tu libro de cocina
             personal. Filtra por categoría o busca por ingrediente.
           </p>
-
-          <div className="my-2 flex flex-wrap gap-4 text-xs font-medium text-stone-500">
-            {categoryStats.map((stat) => (
-              <span key={stat.label}>
-                • {stat.count} {stat.label}
-              </span>
-            ))}
-          </div>
         </header>
 
         <div className="relative z-20 bg-[#FAF8F5]/95 pb-2 backdrop-blur-md">

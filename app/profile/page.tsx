@@ -2,12 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Camera, Wand2 } from "lucide-react";
+import { Camera, ChevronDown, Wand2 } from "lucide-react";
+import { AvatarCropModal } from "@/components/profile/avatar-crop-modal";
 import { isSandraAdmin } from "@/lib/auth/sandra-admin";
+import { PROFILE_COUNTRIES } from "@/lib/profile/profile-countries";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Toast } from "@/components/ui/toast";
+import { cn } from "@/lib/utils";
 import type { Database } from "@/types/database.types";
 
 type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
@@ -20,6 +23,14 @@ type ToastState = {
 const inputClassName =
   "h-11 rounded-xl border-stone-200 bg-white focus-visible:border-[#4c6633]/35 focus-visible:ring-[#4c6633]/10";
 
+const selectClassName =
+  "h-11 w-full appearance-none rounded-xl border border-stone-200 bg-white px-3 pr-10 text-sm text-stone-800 focus:border-[#4c6633]/35 focus:outline-none focus:ring-2 focus:ring-[#4c6633]/10";
+
+function isMissingCountryColumnError(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  return error.code === "42703" || error.message?.includes("column profiles.country does not exist") === true;
+}
+
 function getInitials(name?: string | null, email?: string | null): string {
   const source = name?.trim() || email?.trim() || "SV";
   const parts = source.split(/\s+/).filter(Boolean);
@@ -28,18 +39,12 @@ function getInitials(name?: string | null, email?: string | null): string {
   return `${parts[0][0] ?? ""}${parts[1][0] ?? ""}`.toUpperCase();
 }
 
-function getFileExtension(file: File): string {
-  const fromType = file.type.split("/")[1]?.toLowerCase();
-  if (fromType) return fromType === "jpeg" ? "jpg" : fromType;
-  const nameParts = file.name.split(".");
-  return (nameParts[nameParts.length - 1] ?? "jpg").toLowerCase();
-}
-
 export default function ProfilePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [fullName, setFullName] = useState("");
+  const [country, setCountry] = useState("");
   const [email, setEmail] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [isPremium, setIsPremium] = useState(false);
@@ -50,8 +55,12 @@ export default function ProfilePage() {
     message: "",
     variant: "success"
   });
+  const [isCropModalOpen, setIsCropModalOpen] = useState(false);
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const cropObjectUrlRef = useRef<string | null>(null);
+  const previewObjectUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -75,9 +84,28 @@ export default function ProfilePage() {
 
         const { data: profile, error: profileError } = await supabase
           .from("profiles")
-          .select("id, full_name, avatar_url, is_premium, created_at, updated_at")
+          .select("id, full_name, avatar_url, country, is_premium, created_at, updated_at")
           .eq("id", user.id)
           .maybeSingle<ProfileRow>();
+
+        if (profileError && isMissingCountryColumnError(profileError)) {
+          const { data: fallbackProfile, error: fallbackError } = await supabase
+            .from("profiles")
+            .select("id, full_name, avatar_url, is_premium, created_at, updated_at")
+            .eq("id", user.id)
+            .maybeSingle<ProfileRow>();
+
+          if (fallbackError) {
+            setErrorMessage("No pudimos cargar tu perfil. Intenta nuevamente.");
+            return;
+          }
+
+          setFullName(fallbackProfile?.full_name ?? "");
+          setCountry("");
+          setAvatarUrl(fallbackProfile?.avatar_url ?? null);
+          setIsPremium(Boolean(fallbackProfile?.is_premium));
+          return;
+        }
 
         if (profileError) {
           setErrorMessage("No pudimos cargar tu perfil. Intenta nuevamente.");
@@ -85,6 +113,7 @@ export default function ProfilePage() {
         }
 
         setFullName(profile?.full_name ?? "");
+        setCountry(profile?.country ?? "");
         setAvatarUrl(profile?.avatar_url ?? null);
         setIsPremium(Boolean(profile?.is_premium));
       } catch (error) {
@@ -106,8 +135,28 @@ export default function ProfilePage() {
     return () => window.clearTimeout(timer);
   }, [toast.visible]);
 
+  useEffect(() => {
+    return () => {
+      if (cropObjectUrlRef.current) {
+        URL.revokeObjectURL(cropObjectUrlRef.current);
+      }
+      if (previewObjectUrlRef.current) {
+        URL.revokeObjectURL(previewObjectUrlRef.current);
+      }
+    };
+  }, []);
+
   const showToast = (message: string, variant: ToastState["variant"] = "success") => {
     setToast({ visible: true, message, variant });
+  };
+
+  const closeCropModal = () => {
+    if (cropObjectUrlRef.current) {
+      URL.revokeObjectURL(cropObjectUrlRef.current);
+      cropObjectUrlRef.current = null;
+    }
+    setCropImageSrc(null);
+    setIsCropModalOpen(false);
   };
 
   const handleAvatarClick = () => {
@@ -115,9 +164,9 @@ export default function ProfilePage() {
     fileInputRef.current?.click();
   };
 
-  const handleAvatarSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file || !userId) return;
+    if (!file) return;
 
     if (!file.type.startsWith("image/")) {
       showToast("Selecciona un archivo de imagen válido.", "error");
@@ -125,13 +174,24 @@ export default function ProfilePage() {
       return;
     }
 
+    closeCropModal();
+
+    const objectUrl = URL.createObjectURL(file);
+    cropObjectUrlRef.current = objectUrl;
+    setCropImageSrc(objectUrl);
+    setIsCropModalOpen(true);
+    event.target.value = "";
+  };
+
+  const uploadAvatarFile = async (file: File) => {
+    if (!userId) return;
+
     setIsUploadingAvatar(true);
     setErrorMessage(null);
 
     try {
       const supabase = createSupabaseClient();
-      const extension = getFileExtension(file);
-      const filePath = `${userId}/avatar.${extension}`;
+      const filePath = `${userId}/avatar.jpg`;
 
       const { error: uploadError } = await supabase.storage.from("avatars").upload(filePath, file, {
         upsert: true,
@@ -157,6 +217,11 @@ export default function ProfilePage() {
         return;
       }
 
+      if (previewObjectUrlRef.current) {
+        URL.revokeObjectURL(previewObjectUrlRef.current);
+        previewObjectUrlRef.current = null;
+      }
+
       setAvatarUrl(nextAvatarUrl);
       showToast("¡Foto de perfil actualizada!");
     } catch (error) {
@@ -164,8 +229,20 @@ export default function ProfilePage() {
       showToast("Ocurrió un error al subir tu foto.", "error");
     } finally {
       setIsUploadingAvatar(false);
-      event.target.value = "";
     }
+  };
+
+  const handleCropConfirm = async (croppedBlob: Blob) => {
+    const previewUrl = URL.createObjectURL(croppedBlob);
+    if (previewObjectUrlRef.current) {
+      URL.revokeObjectURL(previewObjectUrlRef.current);
+    }
+    previewObjectUrlRef.current = previewUrl;
+    setAvatarUrl(previewUrl);
+    closeCropModal();
+
+    const croppedFile = new File([croppedBlob], "avatar.jpg", { type: "image/jpeg" });
+    await uploadAvatarFile(croppedFile);
   };
 
   const handleSaveChanges = async () => {
@@ -174,10 +251,28 @@ export default function ProfilePage() {
     setErrorMessage(null);
     try {
       const supabase = createSupabaseClient();
-      const { error } = await supabase
-        .from("profiles")
-        .update({ full_name: fullName.trim() || null })
-        .eq("id", userId);
+      const payload = {
+        full_name: fullName.trim() || null,
+        country: country || null
+      };
+
+      const { error } = await supabase.from("profiles").update(payload).eq("id", userId);
+
+      if (error && isMissingCountryColumnError(error)) {
+        const { error: fallbackError } = await supabase
+          .from("profiles")
+          .update({ full_name: fullName.trim() || null })
+          .eq("id", userId);
+
+        if (fallbackError) {
+          setErrorMessage("No pudimos guardar los cambios del perfil.");
+          showToast("No se pudo guardar el perfil.", "error");
+          return;
+        }
+
+        showToast("¡Perfil actualizado! (País pendiente de migración en Supabase)");
+        return;
+      }
 
       if (error) {
         setErrorMessage("No pudimos guardar los cambios del perfil.");
@@ -203,6 +298,7 @@ export default function ProfilePage() {
           <div className="mx-auto h-28 w-28 rounded-full bg-stone-100" />
           <div className="h-11 rounded-xl bg-stone-100" />
           <div className="h-11 rounded-xl bg-stone-100" />
+          <div className="h-11 rounded-xl bg-stone-100" />
           <div className="h-12 rounded-full bg-stone-100" />
         </div>
       </section>
@@ -212,6 +308,13 @@ export default function ProfilePage() {
   return (
     <>
       <Toast message={toast.message} visible={toast.visible} variant={toast.variant} />
+      <AvatarCropModal
+        open={isCropModalOpen}
+        imageSrc={cropImageSrc}
+        isProcessing={isUploadingAvatar}
+        onClose={closeCropModal}
+        onConfirm={(croppedBlob) => void handleCropConfirm(croppedBlob)}
+      />
       <section className="min-h-[calc(100dvh-10rem)] px-1 pb-8 pt-2">
         <div className="mx-auto max-w-md space-y-8">
           <header className="text-center">
@@ -252,7 +355,7 @@ export default function ProfilePage() {
               type="file"
               accept="image/*"
               className="hidden"
-              onChange={(event) => void handleAvatarSelected(event)}
+              onChange={handleAvatarSelected}
             />
             {isPremium ? (
               <Badge variant="secondary" className="border-[#4c6633]/15 bg-[#dce7c3]/30 text-[#4c6633]">
@@ -280,6 +383,32 @@ export default function ProfilePage() {
                 Correo electrónico
               </label>
               <Input id="email" value={email} disabled className={inputClassName} />
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="country" className="text-sm font-medium text-stone-600">
+                País / Región
+              </label>
+              <div className="relative">
+                <select
+                  id="country"
+                  value={country}
+                  onChange={(event) => setCountry(event.target.value)}
+                  className={cn(selectClassName, !country && "text-stone-400")}
+                >
+                  <option value="">Selecciona tu país</option>
+                  {PROFILE_COUNTRIES.map((option) => (
+                    <option key={option.code} value={option.code}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown
+                  className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400"
+                  strokeWidth={1.75}
+                  aria-hidden="true"
+                />
+              </div>
             </div>
 
             {errorMessage ? (

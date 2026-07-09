@@ -430,7 +430,7 @@ export function PantrySearchView({
             FAVORITOS
           </span>
 
-          <div className="no-scrollbar mb-3 flex gap-2 overflow-x-auto border-b border-stone-100/60 pb-2">
+          <div className="mb-3 grid grid-cols-3 gap-1.5 border-b border-stone-100/60 pb-2">
             {CATEGORY_KEYS.map((key) => {
               const isActive = activeCategory === key;
               const meta = CATEGORY_TAB_META[key];
@@ -442,20 +442,20 @@ export function PantrySearchView({
                   aria-pressed={isActive}
                   aria-label={`Ver favoritos de ${meta.label}`}
                   className={[
-                    "flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors",
+                    "flex min-w-0 items-center justify-center gap-1 rounded-full border px-2 py-1.5 text-[11px] transition-colors sm:gap-1.5 sm:px-3 sm:text-xs",
                     isActive
                       ? "border-[#D5E2D0] bg-[#E9F0E6] font-semibold text-[#4C6B3F]"
                       : "border-stone-100 bg-stone-50 text-stone-600 hover:bg-stone-100"
                   ].join(" ")}
                 >
-                  <span aria-hidden className="text-sm leading-none">
+                  <span aria-hidden className="shrink-0 text-sm leading-none">
                     {meta.emoji}
                   </span>
-                  <span>{meta.label}</span>
+                  <span className="truncate">{meta.label}</span>
                   {favoritesByCategory[key].length > 0 ? (
                     <span
                       className={[
-                        "ml-0.5 min-w-[1.1rem] rounded-full px-1 text-[10px] font-bold leading-4",
+                        "shrink-0 rounded-full px-1 text-[10px] font-bold leading-4",
                         isActive ? "bg-[#4C6B3F]/15 text-[#4C6B3F]" : "bg-stone-200/70 text-stone-500"
                       ].join(" ")}
                     >

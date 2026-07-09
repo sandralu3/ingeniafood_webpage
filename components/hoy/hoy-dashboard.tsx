@@ -10,7 +10,7 @@ import { WeeklyHealthScore } from "@/components/hoy/weekly-health-score";
 import { SandraTipCard } from "@/components/home/sandra-tip-card";
 import {
   getProfileInitials,
-  resolveProfileDisplayName
+  resolveProfileFirstName
 } from "@/components/shared/user-avatar";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
 import { createSupabaseClient } from "@/lib/supabaseClient";
@@ -36,7 +36,7 @@ export function HoyDashboard() {
         .eq("id", user.id)
         .maybeSingle();
 
-      setDisplayName(resolveProfileDisplayName(profile?.full_name, user.email));
+      setDisplayName(resolveProfileFirstName(profile?.full_name, user.email));
       setAvatarUrl(profile?.avatar_url ?? null);
       setInitials(getProfileInitials(profile?.full_name, user.email));
     };

@@ -191,51 +191,51 @@ export function InstagramCuratedCatalog({ className }: InstagramCuratedCatalogPr
 
   if (isLoading) {
     return (
-      <div className={cn("mt-6 flex items-center justify-center gap-2 py-16 text-sm text-stone-500", className)}>
-        <Loader2 className="h-4 w-4 animate-spin text-[#4C6B3F]" />
+      <div className={cn("mt-4 flex items-center justify-center gap-1.5 py-10 text-xs text-stone-500", className)}>
+        <Loader2 className="h-3.5 w-3.5 animate-spin text-[#4C6B3F]" />
         Cargando catálogo de Instagram...
       </div>
     );
   }
 
   return (
-    <section className={cn("mt-6 space-y-4", className)}>
-      <div className="flex items-start gap-3 rounded-2xl border border-[#C13584]/15 bg-gradient-to-br from-[#fdf2f8] via-white to-[#F0F4ED] p-4">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-[#C13584] shadow-sm">
-          <Instagram className="h-5 w-5" strokeWidth={1.75} />
+    <section className={cn("mt-4 space-y-2.5", className)}>
+      <div className="flex items-start gap-2 rounded-xl border border-[#C13584]/15 bg-gradient-to-br from-[#fdf2f8] via-white to-[#F0F4ED] p-2">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white text-[#C13584] shadow-sm">
+          <Instagram className="h-3.5 w-3.5" strokeWidth={1.75} />
         </span>
-        <div>
-          <h2 className="font-serif text-lg font-semibold text-stone-900">
-            Recetas curadas de Sandra
+        <div className="min-w-0">
+          <h2 className="text-base font-semibold leading-tight text-stone-900">
+            Catálogo IngeniaFood
           </h2>
-          <p className="mt-1 text-xs leading-relaxed text-stone-500">
-            Elige una receta del catálogo, guárdala en favoritos o añádela directamente a tu plan
-            semanal.
+          <p className="mt-0.5 text-[11px] leading-snug text-stone-500">
+            Explora nuestras ideas saludables favoritas. Guárdalas en tu biblioteca o añádelas
+            directamente a tu plan semanal.
           </p>
         </div>
       </div>
 
       {errorMessage ? (
-        <p role="alert" className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
           {errorMessage}
         </p>
       ) : null}
 
       {statusMessage ? (
-        <p role="status" className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+        <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
           {statusMessage}
         </p>
       ) : null}
 
       {recipes.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-stone-200 bg-white px-4 py-10 text-center">
-          <p className="text-sm font-medium text-stone-700">Aún no hay recetas en el catálogo.</p>
-          <p className="mt-1 text-xs text-stone-500">
+        <div className="rounded-xl border border-dashed border-stone-200 bg-white px-3 py-6 text-center">
+          <p className="text-xs font-medium text-stone-700">Aún no hay recetas en el catálogo.</p>
+          <p className="mt-0.5 text-[11px] text-stone-500">
             Sandra publicará aquí las recetas importadas desde Instagram.
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-2.5">
           {recipes.map((recipe) => {
             const isSaved = Boolean(userCopyIds[recipe.id]);
             const isSaving = savingRecipeId === recipe.id;
@@ -244,42 +244,43 @@ export function InstagramCuratedCatalog({ className }: InstagramCuratedCatalogPr
             return (
               <article
                 key={recipe.id}
-                className="overflow-hidden rounded-2xl border border-stone-100 bg-white shadow-md shadow-stone-200/40 transition hover:-translate-y-0.5 hover:shadow-lg"
+                className="overflow-hidden rounded-xl border border-stone-100 bg-white shadow-sm transition hover:shadow-md"
               >
                 <button
                   type="button"
                   onClick={() => void handleOpenRecipe(recipe)}
                   className="block w-full text-left"
                 >
-                  <div className="relative aspect-square overflow-hidden bg-stone-50">
+                  <div className="relative aspect-[3/2] overflow-hidden bg-stone-50">
                     <RecipeCatalogThumbnail
                       title={recipe.title}
                       imageUrl={recipe.image_url}
                       isAirfryer={recipe.is_airfryer}
                       isFlourless={recipe.is_flourless}
+                      className="[&_svg]:h-5 [&_svg]:w-5"
                     />
                   </div>
                 </button>
 
-                <div className="space-y-3 p-3">
+                <div className="space-y-1.5 p-2">
                   <button
                     type="button"
                     onClick={() => void handleOpenRecipe(recipe)}
                     className="w-full text-left"
                   >
-                    <h3 className="line-clamp-2 text-sm font-bold leading-snug text-stone-800">
+                    <h3 className="line-clamp-2 text-xs font-semibold leading-snug text-stone-800">
                       {recipe.title}
                     </h3>
                   </button>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     <button
                       type="button"
                       onClick={() => void handleSaveFavorite(recipe)}
                       disabled={isSaving || Boolean(assigningMealType)}
                       aria-label={isSaved ? "Receta guardada en favoritos" : "Guardar en favoritos"}
                       className={cn(
-                        "inline-flex h-9 w-9 items-center justify-center rounded-full border transition",
+                        "inline-flex h-8 w-8 items-center justify-center rounded-full border transition",
                         isSaved
                           ? "border-rose-200 bg-rose-50 text-rose-600"
                           : "border-stone-200 bg-stone-50 text-stone-500 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600",
@@ -287,9 +288,9 @@ export function InstagramCuratedCatalog({ className }: InstagramCuratedCatalogPr
                       )}
                     >
                       {isSaving ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
                       ) : (
-                        <Heart className={cn("h-4 w-4", isSaved && "fill-current")} />
+                        <Heart className={cn("h-3.5 w-3.5", isSaved && "fill-current")} />
                       )}
                     </button>
 
@@ -300,29 +301,29 @@ export function InstagramCuratedCatalog({ className }: InstagramCuratedCatalogPr
                       }
                       disabled={isSaving || Boolean(assigningMealType)}
                       aria-label="Añadir al plan semanal"
-                      className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#4C6B3F]/20 bg-[#F0F4ED] text-[#4C6B3F] transition hover:bg-[#dce7c3] disabled:cursor-not-allowed disabled:opacity-60"
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#4C6B3F]/20 bg-[#F0F4ED] text-[#4C6B3F] transition hover:bg-[#dce7c3] disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      <Plus className="h-4 w-4" strokeWidth={2.25} />
+                      <Plus className="h-3.5 w-3.5" strokeWidth={2} />
                     </button>
                   </div>
 
                   {showPlanPicker ? (
-                    <div className="space-y-2 rounded-xl border border-stone-100 bg-stone-50/80 p-2">
-                      <p className="text-[10px] font-semibold uppercase tracking-wide text-stone-500">
+                    <div className="space-y-1.5 rounded-lg border border-stone-100 bg-stone-50/80 p-1.5">
+                      <p className="text-[9px] font-semibold uppercase tracking-wide text-stone-500">
                         Añadir hoy
                       </p>
-                      <div className="grid grid-cols-1 gap-1.5">
+                      <div className="grid grid-cols-1 gap-1">
                         {MEAL_TYPES.map((mealType) => (
                           <button
                             key={mealType}
                             type="button"
                             onClick={() => void handleAssignToPlan(recipe, mealType)}
                             disabled={Boolean(assigningMealType)}
-                            className="rounded-lg bg-white px-2.5 py-2 text-xs font-semibold text-stone-700 transition hover:bg-[#F0F4ED] disabled:opacity-60"
+                            className="rounded-md bg-white px-2 py-1.5 text-[11px] font-semibold text-stone-700 transition hover:bg-[#F0F4ED] disabled:opacity-60"
                           >
                             {assigningMealType === mealType ? (
-                              <span className="inline-flex items-center gap-1.5">
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              <span className="inline-flex items-center gap-1">
+                                <Loader2 className="h-3 w-3 animate-spin" />
                                 Añadiendo...
                               </span>
                             ) : (
