@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   Bookmark,
   CalendarDays,
+  LogOut,
   ScanLine,
   Sparkles,
   Target,
@@ -13,6 +14,7 @@ import {
   X,
   type LucideIcon
 } from "lucide-react";
+import { signOutUser } from "@/lib/auth/sign-out";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
 import { cn } from "@/lib/utils";
 
@@ -50,6 +52,21 @@ export function AppDrawer({ open, onClose }: AppDrawerProps) {
   const pathname = usePathname();
   const [isMounted, setIsMounted] = useState(open);
   const [isVisible, setIsVisible] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
+
+  const handleSignOut = async () => {
+    if (isSigningOut) return;
+
+    setIsSigningOut(true);
+    onClose();
+
+    try {
+      await signOutUser("/login");
+    } catch (error) {
+      console.error("[drawer] Error cerrando sesión:", error);
+      setIsSigningOut(false);
+    }
+  };
 
   useEffect(() => {
     if (open) {
@@ -156,6 +173,18 @@ export function AppDrawer({ open, onClose }: AppDrawerProps) {
             );
           })}
         </nav>
+
+        <div className="border-t border-stone-100 px-3 py-4">
+          <button
+            type="button"
+            onClick={() => void handleSignOut()}
+            disabled={isSigningOut}
+            className="flex w-full items-center gap-3 rounded-2xl px-3.5 py-3 text-sm font-medium text-stone-500 transition hover:bg-red-50 hover:text-red-700 disabled:opacity-60"
+          >
+            <LogOut className="h-4 w-4 shrink-0" strokeWidth={1.75} />
+            {isSigningOut ? "Cerrando sesión..." : "Cerrar sesión"}
+          </button>
+        </div>
       </aside>
     </div>
   );

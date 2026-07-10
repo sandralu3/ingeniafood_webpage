@@ -24,6 +24,14 @@ function AuthFallback() {
   );
 }
 
+type AuthMode = "login" | "signup" | "forgot";
+
+function resolveInitialMode(modeParam: string | null): AuthMode {
+  if (modeParam === "signup") return "signup";
+  if (modeParam === "forgot") return "forgot";
+  return "login";
+}
+
 function AuthForm() {
   const searchParams = useSearchParams();
   const requestedNextPath = searchParams.get("next");
@@ -33,8 +41,9 @@ function AuthForm() {
       : APP_ROUTES.hoy;
   const reason = searchParams.get("reason");
   const showAppRecetasMessage = reason === "app-recetas-auth";
-  const initialMode: "login" | "signup" = "login";
-  const [modeOverride, setModeOverride] = useState<"login" | "signup" | null>(null);
+  const passwordResetSuccess = searchParams.get("reset") === "1";
+  const initialMode = resolveInitialMode(searchParams.get("mode"));
+  const [modeOverride, setModeOverride] = useState<AuthMode | null>(null);
   const mode = modeOverride ?? initialMode;
   const verifiedFromLink = searchParams.get("verified") === "1";
   const [fullName, setFullName] = useState("");
@@ -49,6 +58,50 @@ function AuthForm() {
 
     setErrorMessage(null);
     setSuccessMessage(null);
+
+    if (mode === "forgot") {
+      const emailValue = email.trim();
+      if (!emailValue) {
+        setErrorMessage("Ingresa el correo asociado a tu cuenta.");
+        return;
+      }
+
+      setIsSubmitting(true);
+
+      let supabase;
+      try {
+        supabase = createSupabaseClient();
+      } catch (error) {
+        setErrorMessage(
+          error instanceof Error
+            ? error.message
+            : "No se pudo inicializar Supabase. Revisa tus variables de entorno."
+        );
+        setIsSubmitting(false);
+        return;
+      }
+
+      const redirectTo =
+        typeof window !== "undefined"
+          ? `${window.location.origin}/auth/callback?next=${encodeURIComponent("/auth/reset-password")}`
+          : undefined;
+
+      const { error } = await supabase.auth.resetPasswordForEmail(emailValue, {
+        redirectTo
+      });
+
+      if (error) {
+        setErrorMessage(error.message);
+        setIsSubmitting(false);
+        return;
+      }
+
+      setSuccessMessage(
+        "Te enviamos un correo con el enlace para restablecer tu contraseña. Revisa tu bandeja de entrada."
+      );
+      setIsSubmitting(false);
+      return;
+    }
 
     if (mode === "signup" && !fullName.trim()) {
       setErrorMessage("Ingresa tu nombre completo para crear tu perfil.");
@@ -129,11 +182,21 @@ function AuthForm() {
     setIsSubmitting(false);
   };
 
-  const handleModeChange = (nextMode: "login" | "signup") => {
+  const handleModeChange = (nextMode: AuthMode) => {
     setModeOverride(nextMode);
     setErrorMessage(null);
     setSuccessMessage(null);
   };
+
+  const title =
+    mode === "signup" ? "Crear cuenta" : mode === "forgot" ? "Recuperar contraseña" : "Iniciar sesión";
+
+  const subtitle =
+    mode === "signup"
+      ? "Regístrate para guardar recetas saludables y escanear tu nevera."
+      : mode === "forgot"
+        ? "Te enviaremos un enlace a tu correo para elegir una nueva contraseña."
+        : "Ingresa para continuar con tu plan de cocina saludable.";
 
   return (
     <div className="flex min-h-[80vh] items-center justify-center bg-[#FDFCFB] px-4 py-10">
@@ -145,14 +208,8 @@ function AuthForm() {
             <span className="font-light text-[#444444]">Ingenia</span>
             <span className="font-bold text-[#556B2F]">Food</span>
           </p>
-          <h1 className="mt-4 text-3xl font-bold tracking-tight text-[#1F2937]">
-            {mode === "signup" ? "Crear cuenta" : "Iniciar sesión"}
-          </h1>
-          <p className="mt-2 text-sm text-[#6B7280]">
-            {mode === "signup"
-              ? "Regístrate para guardar recetas saludables y escanear tu nevera."
-              : "Ingresa para continuar con tu plan de cocina saludable."}
-          </p>
+          <h1 className="mt-4 text-3xl font-bold tracking-tight text-[#1F2937]">{title}</h1>
+          <p className="mt-2 text-sm text-[#6B7280]">{subtitle}</p>
           {showAppRecetasMessage ? (
             <p className="mt-2 text-xs font-medium text-[#6B7280]">
               Para guardar tus recetas y usar la IA, necesitas crear una cuenta gratuita.
@@ -160,30 +217,42 @@ function AuthForm() {
           ) : null}
         </header>
 
-        <div className="mt-5 grid grid-cols-2 rounded-full bg-[#F3F4F6] p-1">
+        {mode !== "forgot" ? (
+          <div className="mt-5 grid grid-cols-2 rounded-full bg-[#F3F4F6] p-1">
+            <button
+              type="button"
+              onClick={() => handleModeChange("login")}
+              className={`rounded-full px-3 py-2 text-sm font-medium transition ${
+                mode === "login"
+                  ? "bg-[#556B2F]/15 text-[#556B2F] shadow-sm"
+                  : "text-[#6B7280] hover:text-[#374151]"
+              }`}
+            >
+              Login
+            </button>
+            <button
+              type="button"
+              onClick={() => handleModeChange("signup")}
+              className={`rounded-full px-3 py-2 text-sm font-medium transition ${
+                mode === "signup"
+                  ? "bg-[#556B2F]/15 text-[#556B2F] shadow-sm"
+                  : "text-[#6B7280] hover:text-[#374151]"
+              }`}
+            >
+              Registro
+            </button>
+          </div>
+        ) : null}
+
+        {mode === "forgot" ? (
           <button
             type="button"
             onClick={() => handleModeChange("login")}
-            className={`rounded-full px-3 py-2 text-sm font-medium transition ${
-              mode === "login"
-                ? "bg-[#556B2F]/15 text-[#556B2F] shadow-sm"
-                : "text-[#6B7280] hover:text-[#374151]"
-            }`}
+            className="mt-5 text-sm font-medium text-[#556B2F] hover:underline"
           >
-            Login
+            ← Volver al inicio de sesión
           </button>
-          <button
-            type="button"
-            onClick={() => handleModeChange("signup")}
-            className={`rounded-full px-3 py-2 text-sm font-medium transition ${
-              mode === "signup"
-                ? "bg-[#556B2F]/15 text-[#556B2F] shadow-sm"
-                : "text-[#6B7280] hover:text-[#374151]"
-            }`}
-          >
-            Registro
-          </button>
-        </div>
+        ) : null}
 
         <form onSubmit={handleSubmit} className="mt-5 space-y-4">
         {mode === "signup" ? (
@@ -222,23 +291,37 @@ function AuthForm() {
           />
         </div>
 
-        <div className="space-y-1.5">
-          <label htmlFor="password" className="text-sm font-medium text-[#374151]">
-            Contraseña
-          </label>
-          <input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            suppressHydrationWarning
-            className="h-12 w-full rounded-xl border border-[#E5E7EB] bg-white px-4 text-sm text-[#1F2937] outline-none transition focus:border-[#556B2F]/55 focus:ring-2 focus:ring-[#556B2F]/15"
-            placeholder="Minimo 6 caracteres"
-            autoComplete={mode === "signup" ? "new-password" : "current-password"}
-            minLength={6}
-            required
-          />
-        </div>
+        {mode !== "forgot" ? (
+          <div className="space-y-1.5">
+            <label htmlFor="password" className="text-sm font-medium text-[#374151]">
+              Contraseña
+            </label>
+            <input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              suppressHydrationWarning
+              className="h-12 w-full rounded-xl border border-[#E5E7EB] bg-white px-4 text-sm text-[#1F2937] outline-none transition focus:border-[#556B2F]/55 focus:ring-2 focus:ring-[#556B2F]/15"
+              placeholder="Minimo 6 caracteres"
+              autoComplete={mode === "signup" ? "new-password" : "current-password"}
+              minLength={6}
+              required
+            />
+          </div>
+        ) : null}
+
+        {mode === "login" ? (
+          <div className="text-right">
+            <button
+              type="button"
+              onClick={() => handleModeChange("forgot")}
+              className="text-sm font-medium text-[#556B2F] hover:underline"
+            >
+              ¿Olvidaste tu contraseña?
+            </button>
+          </div>
+        ) : null}
 
         {errorMessage ? (
           <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -246,9 +329,12 @@ function AuthForm() {
           </p>
         ) : null}
 
-        {successMessage || verifiedFromLink ? (
+        {successMessage || verifiedFromLink || passwordResetSuccess ? (
           <p className="rounded-xl border border-brand-green-light/35 bg-brand-green-light/10 px-3 py-2 text-sm text-brand-green-dark">
-            {successMessage ?? "Correo confirmado. Ahora inicia sesion."}
+            {successMessage ??
+              (passwordResetSuccess
+                ? "Contraseña actualizada. Ya puedes iniciar sesión."
+                : "Correo confirmado. Ahora inicia sesion.")}
           </p>
         ) : null}
 
@@ -260,10 +346,14 @@ function AuthForm() {
           {isSubmitting
             ? mode === "signup"
               ? "Creando cuenta..."
-              : "Ingresando..."
+              : mode === "forgot"
+                ? "Enviando enlace..."
+                : "Ingresando..."
             : mode === "signup"
               ? "Crear cuenta"
-              : "Iniciar sesion"}
+              : mode === "forgot"
+                ? "Enviar enlace de recuperación"
+                : "Iniciar sesion"}
         </button>
         </form>
       </section>

@@ -7,6 +7,7 @@ const PUBLIC_ROUTES = new Set([
   "/",
   "/auth",
   "/auth/callback",
+  "/auth/reset-password",
   "/login",
   "/registro",
   "/app-recetas",
@@ -124,7 +125,10 @@ export async function proxy(request: NextRequest) {
   const isAppRoute = pathname === "/app-recetas" || pathname.startsWith("/app-recetas/");
   const isPublicRoute = PUBLIC_ROUTES.has(pathname) || isAppRoute;
 
-  if (session && (pathname === "/login" || pathname === "/auth" || pathname === "/registro")) {
+  if (
+    session &&
+    (pathname === "/login" || pathname === "/auth" || pathname === "/registro")
+  ) {
     const targetUrl = request.nextUrl.clone();
     targetUrl.pathname = "/app-recetas";
     targetUrl.search = "";

@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Camera, ChevronDown, Pencil, Wand2 } from "lucide-react";
+import { Camera, ChevronDown, LogOut, Pencil, Wand2 } from "lucide-react";
 import { AvatarCropModal } from "@/components/profile/avatar-crop-modal";
 import { isSandraAdmin } from "@/lib/auth/sandra-admin";
+import { signOutUser } from "@/lib/auth/sign-out";
 import { PROFILE_COUNTRIES } from "@/lib/profile/profile-countries";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import { Input } from "@/components/ui/input";
@@ -42,6 +43,7 @@ function getInitials(name?: string | null, email?: string | null): string {
 export default function ProfilePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [fullName, setFullName] = useState("");
   const [country, setCountry] = useState("");
@@ -290,6 +292,22 @@ export default function ProfilePage() {
     }
   };
 
+  const handleSignOut = async () => {
+    if (isSigningOut) return;
+
+    setIsSigningOut(true);
+    setErrorMessage(null);
+
+    try {
+      await signOutUser("/login");
+    } catch (error) {
+      console.error("[profile] Error cerrando sesión:", error);
+      setErrorMessage("No se pudo cerrar sesión. Intenta de nuevo.");
+      showToast("No se pudo cerrar sesión.", "error");
+      setIsSigningOut(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <section className="min-h-[calc(100dvh-10rem)] px-1 py-2">
@@ -424,10 +442,20 @@ export default function ProfilePage() {
             <button
               type="button"
               onClick={() => void handleSaveChanges()}
-              disabled={isSaving || isUploadingAvatar}
+              disabled={isSaving || isUploadingAvatar || isSigningOut}
               className="w-full rounded-full bg-[#4c6633] px-5 py-3.5 text-sm font-semibold text-white shadow-lg shadow-[#4c6633]/20 transition hover:bg-[#556B2F] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSaving ? "Guardando..." : "Guardar Cambios"}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => void handleSignOut()}
+              disabled={isSaving || isUploadingAvatar || isSigningOut}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-stone-200 bg-white px-5 py-3.5 text-sm font-semibold text-stone-600 transition hover:border-stone-300 hover:bg-stone-50 hover:text-stone-800 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <LogOut className="h-4 w-4" />
+              {isSigningOut ? "Cerrando sesión..." : "Cerrar sesión"}
             </button>
 
             {isAdmin ? (
