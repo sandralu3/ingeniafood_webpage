@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { SupabaseAuthRedirect } from "@/components/auth/supabase-auth-redirect";
+import { AppUpdateBanner } from "@/components/shared/app-update-banner";
 import { APP_ICON_METADATA } from "@/lib/metadata/app-icons";
 import "./globals.css";
 
@@ -41,6 +42,7 @@ export default function RootLayout({
     <html lang="es">
       <body>
         <SupabaseAuthRedirect />
+        <AppUpdateBanner />
         {children}
       </body>
     </html>
