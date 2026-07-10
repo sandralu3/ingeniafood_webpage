@@ -11,6 +11,8 @@ import {
 } from "@/components/hoy/progress-board/progress-board-modals";
 import {
   ConsistencyDots,
+  METRIC_DENOMINATOR_CLASS,
+  METRIC_NUMBER_CLASS,
   MiniRingChart,
   MiniSemiArc,
   MiniSparkline,
@@ -143,17 +145,17 @@ export function ProgressBoard({ refreshKey = 0, className }: ProgressBoardProps)
 
   return (
     <>
-      <section className={cn("space-y-3", className)}>
-        <p className="px-1 text-[10px] font-bold uppercase tracking-[0.18em] text-stone-400">
+      <section className={cn("space-y-2", className)}>
+        <p className="px-0.5 text-[10px] font-bold uppercase tracking-[0.18em] text-stone-400">
           Tablero de progreso
         </p>
 
         {isLoading ? (
-          <div className="flex h-40 items-center justify-center rounded-3xl border border-stone-100 bg-white shadow-sm">
+          <div className="flex h-28 items-center justify-center rounded-2xl border border-stone-100 bg-white shadow-sm">
             <Loader2 className="h-6 w-6 animate-spin text-[#556B2F]/60" />
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-2.5">
             <ProgressBoardCard
               title="Hoy: Logros"
               accentBarClass="bg-[#88ab75]"
@@ -161,10 +163,11 @@ export function ProgressBoard({ refreshKey = 0, className }: ProgressBoardProps)
               icon={Sparkles}
               onClick={() => setActiveModal("today")}
             >
-              <p className="font-serif text-2xl font-bold leading-none text-stone-900">
-                {completedToday}/{totalActiveChallenges}
+              <p className={METRIC_NUMBER_CLASS}>
+                {completedToday}
+                <span className={METRIC_DENOMINATOR_CLASS}>/{totalActiveChallenges}</span>
               </p>
-              <p className="mt-1 text-[11px] font-medium text-stone-500">Retos completados</p>
+              <p className="mt-0.5 text-[10px] font-medium text-stone-500">Retos completados</p>
             </ProgressBoardCard>
 
             <ProgressBoardCard
@@ -174,26 +177,26 @@ export function ProgressBoard({ refreshKey = 0, className }: ProgressBoardProps)
               icon={Target}
               onClick={() => setActiveModal("weekly")}
             >
-              <div className="flex items-end justify-between gap-2">
+              <div className="flex items-end justify-between gap-1.5">
                 <div>
-                  <p className="text-lg font-bold leading-none text-stone-900">
+                  <p className={METRIC_NUMBER_CLASS}>
                     {earnedPoints}
                     {maxPoints > 0 ? (
-                      <span className="text-sm font-semibold text-stone-500">/{maxPoints}</span>
+                      <span className={METRIC_DENOMINATOR_CLASS}>/{maxPoints}</span>
                     ) : null}
                   </p>
-                  <p className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-amber-800/80">
+                  <p className="mt-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-800/80">
                     PTS
                   </p>
                 </div>
                 <div className="relative flex items-center justify-center">
                   <MiniRingChart value={percentage} />
-                  <span className="absolute text-[10px] font-bold text-[#3e5219]">{percentage}%</span>
+                  <span className="absolute text-[9px] font-bold text-[#3e5219]">{percentage}%</span>
                 </div>
               </div>
               <MiniSparkline
                 values={dailyPoints.map((day) => day.points)}
-                className="mt-1 opacity-80"
+                className="mt-0.5 opacity-80"
               />
             </ProgressBoardCard>
 
@@ -205,7 +208,7 @@ export function ProgressBoard({ refreshKey = 0, className }: ProgressBoardProps)
               onClick={() => setActiveModal("streak")}
             >
               <StreakBadge days={streakDays} />
-              <ConsistencyDots days={weekConsistency} className="mt-2" />
+              <ConsistencyDots days={weekConsistency} className="mt-1.5" />
             </ProgressBoardCard>
 
             <ProgressBoardCard
@@ -215,13 +218,13 @@ export function ProgressBoard({ refreshKey = 0, className }: ProgressBoardProps)
               icon={Leaf}
               onClick={() => setActiveModal("nutrition")}
             >
-              <div className="flex items-end justify-between gap-1 px-0.5">
+              <div className="flex items-end justify-between gap-0.5 px-0.5">
                 <MiniSemiArc value={nutrition.hydration} color="#38bdf8" label="Agua" />
                 <MiniSemiArc value={nutrition.vegetables} color="#34d399" label="Veg." />
                 <MiniSemiArc value={nutrition.protein} color="#fbbf24" label="Prot." />
               </div>
-              <p className="mt-1 flex items-center gap-1 text-[10px] text-stone-400">
-                <Droplets className="h-3 w-3" />
+              <p className="mt-0.5 flex items-center gap-1 text-[9px] text-stone-400">
+                <Droplets className="h-2.5 w-2.5" />
                 Basado en tus retos de hoy
               </p>
             </ProgressBoardCard>

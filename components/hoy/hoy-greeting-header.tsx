@@ -21,13 +21,13 @@ export function HoyGreetingHeader({
   return (
     <header
       className={cn(
-        "flex w-full items-center justify-between gap-3 border-b border-stone-100 pb-3",
+        "flex w-full items-center justify-between gap-3 border-b border-stone-100 pb-2",
         className
       )}
     >
       <div className="min-w-0 flex-1">
-        <p className="text-xs font-medium tracking-wide text-stone-400">Tu día en marcha</p>
-        <h1 className="truncate text-xl font-bold text-stone-800">{displayName}</h1>
+        <p className="text-[11px] font-medium tracking-wide text-stone-400">Tu día en marcha</p>
+        <h1 className="truncate text-lg font-bold leading-tight text-stone-800">{displayName}</h1>
       </div>
 
       <Link

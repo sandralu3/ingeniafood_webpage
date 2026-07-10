@@ -2,6 +2,9 @@ import { Check, Flame } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { WeekConsistencyDay } from "@/lib/gamification/week-consistency";
 
+export const METRIC_NUMBER_CLASS = "text-2xl font-bold leading-none text-stone-900";
+export const METRIC_DENOMINATOR_CLASS = "text-sm font-semibold text-stone-500";
+
 type MiniRingChartProps = {
   value: number;
   size?: number;
@@ -11,8 +14,8 @@ type MiniRingChartProps = {
 
 export function MiniRingChart({
   value,
-  size = 52,
-  strokeWidth = 5,
+  size = 44,
+  strokeWidth = 4,
   className
 }: MiniRingChartProps) {
   const radius = (size - strokeWidth) / 2;
@@ -58,10 +61,10 @@ type MiniSemiArcProps = {
 };
 
 export function MiniSemiArc({ value, color, trackColor = "#f5f5f4", label }: MiniSemiArcProps) {
-  const width = 44;
-  const height = 26;
-  const stroke = 4;
-  const radius = 16;
+  const width = 38;
+  const height = 22;
+  const stroke = 3.5;
+  const radius = 14;
   const centerX = width / 2;
   const centerY = height - 2;
   const clamped = Math.min(100, Math.max(0, value));
@@ -103,12 +106,12 @@ type ConsistencyDotsProps = {
 
 export function ConsistencyDots({ days, className }: ConsistencyDotsProps) {
   return (
-    <div className={cn("flex items-center justify-between gap-1", className)}>
+    <div className={cn("flex items-center justify-between gap-0.5", className)}>
       {days.map((day) => (
-        <div key={day.isoDate} className="flex flex-col items-center gap-1">
+        <div key={day.isoDate} className="flex flex-col items-center gap-0.5">
           <span
             className={cn(
-              "flex h-5 w-5 items-center justify-center rounded-full border text-[8px] font-bold transition-colors",
+              "flex h-4 w-4 items-center justify-center rounded-full border text-[8px] font-bold transition-colors",
               day.completed
                 ? "border-orange-300 bg-orange-100 text-orange-700"
                 : "border-stone-200 bg-stone-50 text-stone-300",
@@ -116,7 +119,7 @@ export function ConsistencyDots({ days, className }: ConsistencyDotsProps) {
             )}
             aria-label={`${day.label}${day.completed ? " completado" : " pendiente"}`}
           >
-            {day.completed ? <Check className="h-2.5 w-2.5" strokeWidth={3} /> : null}
+            {day.completed ? <Check className="h-2 w-2" strokeWidth={3} /> : null}
           </span>
           <span className="text-[8px] font-medium text-stone-400">{day.label}</span>
         </div>
@@ -135,7 +138,7 @@ export function MiniSparkline({ values, className }: MiniSparklineProps) {
 
   const max = Math.max(...values, 1);
   const width = 56;
-  const height = 24;
+  const height = 18;
   const step = width / Math.max(values.length - 1, 1);
 
   const points = values
@@ -162,10 +165,10 @@ export function MiniSparkline({ values, className }: MiniSparklineProps) {
 
 export function StreakBadge({ days }: { days: number }) {
   return (
-    <div className="flex items-baseline gap-1.5">
-      <Flame className="h-4 w-4 shrink-0 text-orange-500" />
-      <span className="font-serif text-2xl font-bold leading-none text-stone-900">{days}</span>
-      <span className="text-xs font-medium text-stone-500">
+    <div className="flex items-baseline gap-1">
+      <Flame className="h-3.5 w-3.5 shrink-0 text-orange-500" />
+      <span className={METRIC_NUMBER_CLASS}>{days}</span>
+      <span className="text-[10px] font-medium text-stone-500">
         día{days === 1 ? "" : "s"}
       </span>
     </div>
