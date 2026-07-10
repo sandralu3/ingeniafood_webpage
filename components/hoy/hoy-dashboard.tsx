@@ -48,7 +48,7 @@ export function HoyDashboard() {
           onDataChange={() => void refresh({ force: true })}
         />
 
-        <SandraTipCard />
+        <SandraTipCard variant="hoy" />
       </section>
     </div>
   );

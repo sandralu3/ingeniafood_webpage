@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Loader2, Plus, X } from "lucide-react";
+import { Lightbulb, Loader2, Plus, X } from "lucide-react";
 import { isSandraAdmin } from "@/lib/auth/sandra-admin";
 import { pickDailyTipIndex } from "@/lib/content/daily-tip";
 import { WEEKLY_SANDRA_TIP } from "@/lib/content/weekly-tip";
@@ -12,8 +12,14 @@ import {
   type HealthyTip
 } from "@/lib/content/tips-cache";
 import { createSupabaseClient } from "@/lib/supabaseClient";
+import { cn } from "@/lib/utils";
 
-export function SandraTipCard() {
+type SandraTipCardProps = {
+  variant?: "default" | "hoy";
+  className?: string;
+};
+
+export function SandraTipCard({ variant = "default", className }: SandraTipCardProps) {
   const [tips, setTips] = useState<HealthyTip[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -141,45 +147,96 @@ export function SandraTipCard() {
     void fetchTips({ skipCache: true });
   };
 
+  const isHoyVariant = variant === "hoy";
+
   return (
     <>
-      <aside className="relative rounded-2xl border border-brand-green-light/30 bg-brand-green-light/10 px-5 py-6 shadow-sm">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h3 className="font-serif text-base font-semibold text-brand-green-dark">
-              💡 El Tip de Sandra
-            </h3>
-            {hasTips ? (
-              <p className="mt-0.5 text-[11px] font-medium uppercase tracking-wide text-stone-400">
-                Tu tip del día
-              </p>
-            ) : null}
+      <aside
+        className={cn(
+          isHoyVariant
+            ? "rounded-2xl border border-neutral-100 bg-white/90 px-3.5 py-3.5 shadow-md shadow-stone-100/40 backdrop-blur-sm"
+            : "relative rounded-2xl border border-brand-green-light/30 bg-brand-green-light/10 px-5 py-6 shadow-sm",
+          className
+        )}
+      >
+        <div className="flex items-start justify-between gap-2.5">
+          <div className="min-w-0">
+            {isHoyVariant ? (
+              <>
+                <div className="flex items-center gap-1.5">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-[#556B2F]/10 text-[#556B2F]">
+                    <Lightbulb className="h-3.5 w-3.5" strokeWidth={1.75} />
+                  </span>
+                  <h3 className="text-sm font-semibold text-stone-900">Consejo del día</h3>
+                </div>
+                {hasTips ? (
+                  <p className="mt-1 pl-7 text-[10px] font-bold uppercase tracking-[0.18em] text-stone-400">
+                    Un impulso saludable
+                  </p>
+                ) : null}
+              </>
+            ) : (
+              <>
+                <h3 className="font-serif text-base font-semibold text-brand-green-dark">
+                  💡 El Tip de Sandra
+                </h3>
+                {hasTips ? (
+                  <p className="mt-0.5 text-[11px] font-medium uppercase tracking-wide text-stone-400">
+                    Tu tip del día
+                  </p>
+                ) : null}
+              </>
+            )}
           </div>
 
           {isAdmin ? (
             <button
               type="button"
               onClick={handleOpenAddModal}
-              className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[#556B2F]/20 bg-white/80 px-2.5 py-1 text-[11px] font-medium text-[#556B2F] shadow-sm transition hover:border-[#556B2F]/35 hover:bg-white"
+              className={cn(
+                "inline-flex shrink-0 items-center gap-1 rounded-full border border-[#556B2F]/20 bg-white/80 text-[#556B2F] shadow-sm transition hover:border-[#556B2F]/35 hover:bg-white",
+                isHoyVariant
+                  ? "px-2 py-0.5 text-[10px] font-semibold"
+                  : "px-2.5 py-1 text-[11px] font-medium"
+              )}
               aria-label="Añadir tip saludable"
             >
-              <Plus className="h-3.5 w-3.5" strokeWidth={2} />
+              <Plus className={cn(isHoyVariant ? "h-3 w-3" : "h-3.5 w-3.5")} strokeWidth={2} />
               Añadir Tip
             </button>
           ) : null}
         </div>
 
         {isLoading ? (
-          <div className="mt-4 flex items-center gap-2 text-sm text-stone-500">
-            <Loader2 className="h-4 w-4 animate-spin text-[#556B2F]" />
-            Cargando tip del día...
+          <div
+            className={cn(
+              "flex items-center gap-1.5 text-stone-500",
+              isHoyVariant ? "mt-2.5 text-xs" : "mt-4 text-sm"
+            )}
+          >
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-[#556B2F]" />
+            {isHoyVariant ? "Cargando consejo del día..." : "Cargando tip del día..."}
           </div>
         ) : (
-          <div className="mt-4">
+          <div className={isHoyVariant ? "mt-2.5" : "mt-4"}>
             {loadError ? (
-              <p className="text-sm leading-7 text-red-700">{loadError}</p>
+              <p
+                className={cn(
+                  "text-red-700",
+                  isHoyVariant ? "text-xs leading-relaxed" : "text-sm leading-7"
+                )}
+              >
+                {isHoyVariant ? "No pudimos cargar el consejo del día." : loadError}
+              </p>
             ) : (
-              <p className="text-sm leading-7 text-stone-700">{displayContent}</p>
+              <p
+                className={cn(
+                  "text-stone-600",
+                  isHoyVariant ? "text-xs leading-relaxed" : "text-sm leading-7 text-stone-700"
+                )}
+              >
+                {displayContent}
+              </p>
             )}
           </div>
         )}
@@ -188,7 +245,7 @@ export function SandraTipCard() {
           <button
             type="button"
             onClick={handleRefreshTips}
-            className="mt-3 text-xs font-medium text-[#556B2F] underline-offset-2 hover:underline"
+            className="mt-2 text-[10px] font-medium text-[#556B2F] underline-offset-2 hover:underline"
           >
             Reintentar carga
           </button>
