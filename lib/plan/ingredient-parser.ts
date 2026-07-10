@@ -24,6 +24,8 @@ const UNIT_ALIASES: Record<string, string> = {
   cucharadas: "cda",
   taza: "taza",
   tazas: "taza",
+  tz: "taza",
+  tzs: "taza",
   unidad: "ud",
   unidades: "ud",
   ud: "ud",
@@ -33,7 +35,16 @@ const UNIT_ALIASES: Record<string, string> = {
 };
 
 const QUANTITY_LINE_PATTERN =
-  /^(\d+(?:[.,]\d+)?|\d+\s*\/\s*\d+)\s*(g|kg|ml|l|litros?|gramos?|cditas?|cdas?|cucharaditas?|cucharadas?|tazas?|unidades?|uds?\.?|pizcas?)?\s*(?:de\s+)?(.+)$/i;
+  /^(\d+(?:[.,]\d+)?|\d+\s*\/\s*\d+)\s*(g|kg|ml|l|litros?|gramos?|cditas?|cdas?|cucharaditas?|cucharadas?|tazas?|tzs?\.?|unidades?|uds?\.?|pizcas?)?\s*(?:de\s+)?(.+)$/i;
+
+export function ingredientNameEmbedsQuantity(name: string): boolean {
+  const cleaned = cleanMalformedIngredientName(stripAnnotations(name.trim()));
+  return QUANTITY_LINE_PATTERN.test(cleaned);
+}
+
+export function normalizeIngredientUnit(raw?: string | null): string | null {
+  return normalizeUnit(raw);
+}
 
 function parseAmount(raw: string): number | null {
   const trimmed = raw.trim().replace(",", ".");
@@ -74,6 +85,10 @@ function toTitleCase(name: string): string {
     .join(" ");
 }
 
+export function toTitleCaseForIngredient(name: string): string {
+  return toTitleCase(name);
+}
+
 function stripAccents(text: string): string {
   return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
@@ -90,18 +105,44 @@ function isQualitativeQuantity(quantity: string | null | undefined): boolean {
   return /al gusto|opcional|cantidad necesaria|qb|q\.b\./i.test(quantity);
 }
 
+function cleanMalformedIngredientName(name: string): string {
+  return name
+    .trim()
+    .replace(/^\.\s*(de\s+)?/i, "")
+    .replace(/^\/(?=\d)/, "1/")
+    .replace(/^\s*de\s+/i, "");
+}
+
+const QUALITATIVE_PREFIX_PATTERN =
+  /^(?:un|una|unos|unas)?\s*(?:toque|chorrito|poco|poquito|puñado|manojo|gota|gotas|hilo|hilos|pizca|pizcas|cucharadita|cucharaditas|cucharada|cucharadas)\s+(?:de\s+)?/i;
+
+const DESCRIPTOR_PREFIX_PATTERN =
+  /^(?:esencia|extracto|mezcla|mezcla de|un toque de|un chorrito de)\s+/i;
+
+export function stripIngredientDescriptors(name: string): string {
+  let result = cleanMalformedIngredientName(name);
+
+  for (let i = 0; i < 3; i += 1) {
+    const next = result.replace(QUALITATIVE_PREFIX_PATTERN, "").trim();
+    if (next === result) break;
+    result = next;
+  }
+
+  return result.replace(DESCRIPTOR_PREFIX_PATTERN, "").replace(/^\s*de\s+/i, "").trim();
+}
+
 export function parseIngredientString(raw: string): ParsedIngredient | null {
   const trimmed = raw.trim();
   if (!trimmed) return null;
 
   const qualitativeInText = /\(?(opcional|al gusto)\)?/i.test(trimmed);
-  const withoutAnnotations = stripAnnotations(trimmed);
+  const withoutAnnotations = cleanMalformedIngredientName(stripAnnotations(trimmed));
   const quantityMatch = withoutAnnotations.match(QUANTITY_LINE_PATTERN);
 
   if (quantityMatch) {
     const amount = parseAmount(quantityMatch[1]);
     const unit = normalizeUnit(quantityMatch[2]);
-    const name = toTitleCase(quantityMatch[3].trim());
+    const name = toTitleCase(stripIngredientDescriptors(quantityMatch[3].trim()));
 
     return {
       name,
@@ -112,7 +153,7 @@ export function parseIngredientString(raw: string): ParsedIngredient | null {
   }
 
   return {
-    name: toTitleCase(withoutAnnotations),
+    name: toTitleCase(stripIngredientDescriptors(withoutAnnotations)),
     amount: null,
     unit: null,
     qualitative: qualitativeInText
@@ -123,7 +164,7 @@ export function parseIngredientObject(
   name: string,
   quantity?: string | null
 ): ParsedIngredient | null {
-  const cleanName = stripAnnotations(name.trim());
+  const cleanName = cleanMalformedIngredientName(stripAnnotations(name.trim()));
   if (!cleanName) return null;
 
   if (!quantity || isQualitativeQuantity(quantity)) {
@@ -137,7 +178,7 @@ export function parseIngredientObject(
 
   const trimmedQuantity = quantity.trim();
   const amountUnitOnly = trimmedQuantity.match(
-    /^(\d+(?:[.,]\d+)?|\d+\s*\/\s*\d+)\s*(g|kg|ml|l|litros?|gramos?|cditas?|cdas?|cucharaditas?|cucharadas?|tazas?|unidades?|uds?\.?|pizcas?)?$/i
+    /^(\d+(?:[.,]\d+)?|\d+\s*\/\s*\d+)\s*(g|kg|ml|l|litros?|gramos?|cditas?|cdas?|cucharaditas?|cucharadas?|tazas?|tzs?\.?|unidades?|uds?\.?|pizcas?)?$/i
   );
 
   if (amountUnitOnly) {
@@ -218,7 +259,7 @@ export function formatAggregatedQuantities(
 
 export function pickDisplayName(candidates: string[]): string {
   const cleaned = candidates
-    .map((name) => stripAnnotations(name))
+    .map((name) => cleanMalformedIngredientName(stripAnnotations(name)))
     .filter(Boolean)
     .sort((a, b) => b.length - a.length);
 

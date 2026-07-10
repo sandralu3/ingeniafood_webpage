@@ -1,8 +1,11 @@
 import type { Json } from "@/types/database.types";
 import {
   formatQuantityLabel,
+  ingredientNameEmbedsQuantity,
+  normalizeIngredientUnit,
   parseIngredientObject,
   parseIngredientString,
+  stripIngredientDescriptors,
   type ParsedIngredient
 } from "@/lib/plan/ingredient-parser";
 
@@ -32,6 +35,56 @@ function parsedToStructured(parsed: ParsedIngredient, originalRaw?: string): Str
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+function cleanMalformedIngredientName(name: string): string {
+  return name
+    .trim()
+    .replace(/^\.\s*(de\s+)?/i, "")
+    .replace(/^\/(?=\d)/, "1/")
+    .replace(/^\s*de\s+/i, "");
+}
+
+export function refineStructuredIngredient(item: StructuredIngredient): StructuredIngredient {
+  const cleanedName = cleanMalformedIngredientName(item.name);
+  const normalizedUnit = item.unit ? normalizeIngredientUnit(item.unit) ?? item.unit : null;
+
+  const parsedFromName = parseIngredientString(cleanedName);
+  if (parsedFromName && parsedFromName.amount !== null) {
+    const nameEmbedsQuantity = ingredientNameEmbedsQuantity(cleanedName);
+
+    return {
+      name: parsedFromName.name,
+      amount: nameEmbedsQuantity ? parsedFromName.amount : (item.amount ?? parsedFromName.amount),
+      unit: nameEmbedsQuantity
+        ? (parsedFromName.unit ?? normalizedUnit)
+        : (normalizedUnit ?? parsedFromName.unit),
+      optional: item.optional
+    };
+  }
+
+  const parsedFromOriginal = parseIngredientString(item.name);
+  if (
+    parsedFromOriginal &&
+    parsedFromOriginal.amount !== null &&
+    parsedFromOriginal.name !== cleanedName
+  ) {
+    return {
+      name: parsedFromOriginal.name,
+      amount: item.amount ?? parsedFromOriginal.amount,
+      unit: normalizedUnit ?? parsedFromOriginal.unit,
+      optional: item.optional
+    };
+  }
+
+  return {
+    name: stripIngredientDescriptors(
+      parsedFromName?.name ?? parsedFromOriginal?.name ?? cleanedName
+    ),
+    amount: item.amount,
+    unit: normalizedUnit,
+    optional: item.optional
+  };
 }
 
 function normalizeStructuredRecord(record: Record<string, unknown>): StructuredIngredient | null {
@@ -67,35 +120,47 @@ function normalizeStructuredRecord(record: Record<string, unknown>): StructuredI
       const parsed = parseIngredientObject(name, record.cantidad);
       if (!parsed) return null;
       const structured = parsedToStructured(parsed);
-      return optional ? { ...structured, optional: true } : structured;
+      return refineStructuredIngredient(optional ? { ...structured, optional: true } : structured);
     }
 
-    return {
+    if (ingredientNameEmbedsQuantity(name)) {
+      const parsed = parseIngredientString(name);
+      if (parsed && parsed.amount !== null) {
+        return refineStructuredIngredient({
+          name: parsed.name,
+          amount: parsed.amount,
+          unit: parsed.unit,
+          optional: optional || undefined
+        });
+      }
+    }
+
+    return refineStructuredIngredient({
       name,
       amount: amountValue,
-      unit: unitValue,
+      unit: unitValue ? normalizeIngredientUnit(unitValue) ?? unitValue : null,
       optional: optional || undefined
-    };
+    });
   }
 
   if (typeof record.quantity === "string") {
     const parsed = parseIngredientObject(name, record.quantity);
     if (!parsed) return null;
     const structured = parsedToStructured(parsed);
-    return optional ? { ...structured, optional: true } : structured;
+    return refineStructuredIngredient(optional ? { ...structured, optional: true } : structured);
   }
 
   const parsed = parseIngredientString(name);
   if (!parsed) return null;
   const structured = parsedToStructured(parsed, name);
-  return optional ? { ...structured, optional: true } : structured;
+  return refineStructuredIngredient(optional ? { ...structured, optional: true } : structured);
 }
 
 export function normalizeIngredientEntry(entry: unknown): StructuredIngredient | null {
   if (typeof entry === "string") {
     const parsed = parseIngredientString(entry);
     if (!parsed) return null;
-    return parsedToStructured(parsed, entry);
+    return refineStructuredIngredient(parsedToStructured(parsed, entry));
   }
 
   if (isRecord(entry)) {

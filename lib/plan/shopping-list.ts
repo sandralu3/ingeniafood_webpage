@@ -1,11 +1,20 @@
 import type { Json } from "@/types/database.types";
 import {
-  formatAggregatedQuantities,
-  normalizeIngredientKey,
-  pickDisplayName
-} from "@/lib/plan/ingredient-parser";
+  categorizeShoppingIngredient,
+  compareShoppingListItems,
+  groupShoppingListByCategory,
+  type ShoppingListCategoryGroup,
+  type ShoppingListCategoryId
+} from "@/lib/plan/shopping-list-categories";
+import {
+  pickCanonicalDisplayName,
+  resolveCanonicalIngredient,
+  splitCompoundIngredientName
+} from "@/lib/plan/shopping-list-canonical";
+import { formatAggregatedQuantities } from "@/lib/plan/ingredient-parser";
 import {
   normalizeIngredientsJson,
+  refineStructuredIngredient,
   type StructuredIngredient
 } from "@/lib/recipes/structured-ingredients";
 
@@ -14,6 +23,7 @@ export type ShoppingListItem = {
   name: string;
   quantityLabel: string | null;
   usedInRecipes: number;
+  category: ShoppingListCategoryId;
 };
 
 type IngredientGroup = {
@@ -23,11 +33,28 @@ type IngredientGroup = {
   usedInRecipes: number;
 };
 
+function expandShoppingIngredients(item: StructuredIngredient): StructuredIngredient[] {
+  const refined = refineStructuredIngredient(item);
+  const parts = splitCompoundIngredientName(refined.name);
+
+  if (parts.length === 1) {
+    return [refined];
+  }
+
+  return parts.map((part) => ({
+    ...refined,
+    name: part
+  }));
+}
+
 function addToGroup(group: IngredientGroup, item: StructuredIngredient): void {
   group.names.push(item.name);
-  group.usedInRecipes += 1;
 
-  if (item.optional && item.amount === null && !item.unit) {
+  const isQualitativeOnly =
+    item.optional ||
+    (item.amount === null && !item.unit && /al gusto|opcional|toque|chorrito|pizca|poco/i.test(item.name));
+
+  if (isQualitativeOnly && item.amount === null && !item.unit) {
     group.qualitativeCount += 1;
     return;
   }
@@ -41,6 +68,11 @@ function addToGroup(group: IngredientGroup, item: StructuredIngredient): void {
   if (item.amount !== null && !item.unit) {
     const current = group.amounts.get("ud") ?? 0;
     group.amounts.set("ud", current + item.amount);
+    return;
+  }
+
+  if (isQualitativeOnly) {
+    group.qualitativeCount += 1;
   }
 }
 
@@ -53,48 +85,71 @@ export function buildShoppingListItems(params: {
 
   for (const recipe of params.recipes) {
     const structuredIngredients = normalizeIngredientsJson(recipe.ingredients);
+    const keysInRecipe = new Set<string>();
 
-    for (const item of structuredIngredients) {
-      const key = normalizeIngredientKey(item.name);
-      const existing = groups.get(key);
+    for (const rawItem of structuredIngredients) {
+      for (const item of expandShoppingIngredients(rawItem)) {
+        const key = resolveCanonicalIngredient(item.name).key;
 
-      if (!existing) {
-        groups.set(key, {
-          names: [item.name],
-          amounts: new Map(),
-          qualitativeCount: 0,
-          usedInRecipes: 0
-        });
+        if (!groups.has(key)) {
+          groups.set(key, {
+            names: [],
+            amounts: new Map(),
+            qualitativeCount: 0,
+            usedInRecipes: 0
+          });
+        }
+
+        const group = groups.get(key)!;
+        addToGroup(group, item);
+        keysInRecipe.add(key);
       }
+    }
 
-      addToGroup(groups.get(key)!, item);
+    for (const key of Array.from(keysInRecipe)) {
+      groups.get(key)!.usedInRecipes += 1;
     }
   }
 
   return Array.from(groups.entries())
-    .map(([key, group]) => ({
-      id: key,
-      name: pickDisplayName(group.names),
-      quantityLabel: formatAggregatedQuantities(group.amounts, group.qualitativeCount),
-      usedInRecipes: group.usedInRecipes
-    }))
-    .sort((a, b) => a.name.localeCompare(b.name, "es"));
+    .map(([key, group]) => {
+      const name = pickCanonicalDisplayName(group.names, key);
+      const qualitativeCount = group.amounts.size > 0 ? 0 : group.qualitativeCount;
+
+      return {
+        id: key,
+        name,
+        quantityLabel: formatAggregatedQuantities(group.amounts, qualitativeCount),
+        usedInRecipes: group.usedInRecipes,
+        category: categorizeShoppingIngredient(name)
+      };
+    })
+    .sort(compareShoppingListItems);
 }
+
+export { groupShoppingListByCategory, type ShoppingListCategoryGroup };
 
 export function formatShoppingListText(items: ShoppingListItem[]): string {
   if (!items.length) return "Tu lista de compra está vacía esta semana.";
 
-  return items
-    .map((item) => {
-      if (item.quantityLabel) {
-        return `• ${item.name} — ${item.quantityLabel}`;
-      }
+  const groups = groupShoppingListByCategory(items);
 
-      if (item.usedInRecipes > 1) {
-        return `• ${item.name} (en ${item.usedInRecipes} comidas)`;
-      }
+  return groups
+    .map((group) => {
+      const header = `${group.category.emoji} ${group.category.label.toUpperCase()}`;
+      const lines = group.items.map((item) => {
+        if (item.quantityLabel) {
+          return `  • ${item.name} — ${item.quantityLabel}`;
+        }
 
-      return `• ${item.name}`;
+        if (item.usedInRecipes > 1) {
+          return `  • ${item.name} (en ${item.usedInRecipes} comidas)`;
+        }
+
+        return `  • ${item.name}`;
+      });
+
+      return [header, ...lines].join("\n");
     })
-    .join("\n");
+    .join("\n\n");
 }
