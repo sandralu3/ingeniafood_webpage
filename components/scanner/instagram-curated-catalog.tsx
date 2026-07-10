@@ -12,8 +12,8 @@ import {
   type PendingPlanAssignment
 } from "@/lib/plan/plan-pending-assignment";
 import { getTodayWeekDay } from "@/lib/plan/week-utils";
+import { fetchInstagramCatalogFromApi } from "@/lib/recipes/fetch-instagram-catalog-api";
 import {
-  fetchInstagramCatalogRecipes,
   findUserCatalogRecipeCopiesBatch,
   saveCatalogRecipeToLibrary,
   type InstagramCatalogRecipe
@@ -67,14 +67,16 @@ export function InstagramCuratedCatalog({
 
     try {
       const supabase = createSupabaseClient();
-      const {
-        data: { user }
-      } = await supabase.auth.getUser();
 
-      const catalog = await fetchInstagramCatalogRecipes(supabase);
+      const [catalog, userResult] = await Promise.all([
+        fetchInstagramCatalogFromApi(),
+        supabase.auth.getUser()
+      ]);
+
       setRecipes(catalog);
       writeInstagramCatalogCache(catalog);
 
+      const user = userResult.data.user;
       if (!user) {
         setUserCopyIds({});
         return;

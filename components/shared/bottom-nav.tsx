@@ -10,6 +10,8 @@ import {
   UserRound,
   type LucideIcon
 } from "lucide-react";
+import { prefetchHoyPageData } from "@/lib/gamification/prefetch-hoy-page-data";
+import { prefetchInstagramCatalog } from "@/lib/recipes/prefetch-instagram-catalog";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
 import { cn } from "@/lib/utils";
 
@@ -35,6 +37,17 @@ function isNavItemActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+function prefetchNavTarget(href: string) {
+  if (href === APP_ROUTES.hoy) {
+    void prefetchHoyPageData();
+    return;
+  }
+
+  if (href === APP_ROUTES.scanner) {
+    void prefetchInstagramCatalog();
+  }
+}
+
 export function BottomNav() {
   const pathname = usePathname();
 
@@ -48,6 +61,8 @@ export function BottomNav() {
           <Link
             key={href}
             href={href}
+            onMouseEnter={() => prefetchNavTarget(href)}
+            onTouchStart={() => prefetchNavTarget(href)}
             className={cn(
               "flex min-w-0 flex-1 flex-col items-center justify-center px-0.5 py-0.5 transition-all duration-200",
               isActive && highlight

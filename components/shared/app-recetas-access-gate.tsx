@@ -5,6 +5,11 @@ import { Download } from "lucide-react";
 import AuthPage from "@/app/auth/page";
 import { resolveSupabaseAuthLandingUrl } from "@/lib/auth/resolve-supabase-auth-landing";
 import { IngeniaFoodLogo } from "@/components/shared/ingenia-food-logo";
+import {
+  prefetchHoyPageData,
+  refreshHoyPageDataInBackground
+} from "@/lib/gamification/prefetch-hoy-page-data";
+import { prefetchInstagramCatalog } from "@/lib/recipes/prefetch-instagram-catalog";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import { Header } from "@/components/shared/header";
 import { BottomNav } from "@/components/shared/bottom-nav";
@@ -111,6 +116,7 @@ export function AppRecetasAccessGate({ children }: { children: React.ReactNode }
   const [checkedStandalone, setCheckedStandalone] = useState(false);
   const [allowWebAccess, setAllowWebAccess] = useState(false);
   const [authState, setAuthState] = useState<AuthState>("loading");
+  const [authenticatedUserId, setAuthenticatedUserId] = useState<string | null>(null);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isIos, setIsIos] = useState(false);
   const [showIosModal, setShowIosModal] = useState(false);
@@ -181,6 +187,7 @@ export function AppRecetasAccessGate({ children }: { children: React.ReactNode }
     let cancelled = false;
     void supabase.auth.getSession().then(({ data }) => {
       if (cancelled) return;
+      setAuthenticatedUserId(data.session?.user.id ?? null);
       setAuthState(data.session ? "authenticated" : "unauthenticated");
     });
 
@@ -188,6 +195,7 @@ export function AppRecetasAccessGate({ children }: { children: React.ReactNode }
       data: { subscription }
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (cancelled) return;
+      setAuthenticatedUserId(session?.user.id ?? null);
       setAuthState(session ? "authenticated" : "unauthenticated");
     });
 
@@ -196,6 +204,25 @@ export function AppRecetasAccessGate({ children }: { children: React.ReactNode }
       subscription.unsubscribe();
     };
   }, [allowWebAccess, checkedStandalone, isStandalone]);
+
+  useEffect(() => {
+    if (authState !== "authenticated" || !authenticatedUserId) return;
+
+    void prefetchHoyPageData({ userId: authenticatedUserId });
+    void prefetchInstagramCatalog();
+  }, [authState, authenticatedUserId]);
+
+  useEffect(() => {
+    if (authState !== "authenticated" || !authenticatedUserId) return;
+
+    const onFocus = () => {
+      void refreshHoyPageDataInBackground(authenticatedUserId);
+      void prefetchInstagramCatalog({ background: true });
+    };
+
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [authState, authenticatedUserId]);
 
   const handleInstallClick = async () => {
     if (isIos) {
