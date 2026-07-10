@@ -2,12 +2,26 @@ import { Leaf } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Props = {
-  /** Compacto como el header de la app; auth = centrado en formularios; share = fila para imagen exportada */
-  variant?: "header" | "auth" | "share";
+  /** Compacto como el header de la app; auth = centrado en formularios; share = fila para imagen exportada; drawer = menú lateral */
+  variant?: "header" | "auth" | "share" | "drawer";
   className?: string;
 };
 
 export function IngeniaFoodLogo({ variant = "header", className }: Props) {
+  if (variant === "drawer") {
+    return (
+      <div className={cn("flex items-center gap-2 font-sans leading-tight", className)}>
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#556B2F]/10">
+          <Leaf className="h-4 w-4 text-[#556B2F]" strokeWidth={2} />
+        </span>
+        <p className="text-lg tracking-tight text-stone-900">
+          <span className="font-semibold">Ingenia</span>
+          <span className="font-semibold text-[#556B2F]">Food</span>
+        </p>
+      </div>
+    );
+  }
+
   if (variant === "share") {
     return (
       <div

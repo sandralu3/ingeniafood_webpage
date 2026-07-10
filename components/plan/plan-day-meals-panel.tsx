@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus } from "lucide-react";
+import { EmptyMealSlot } from "@/components/plan/empty-meal-slot";
 import { PlanMealCard, type PlanMeal } from "@/components/plan/plan-meal-card";
 import { MEAL_TYPES, type MealType, type WeekDay } from "@/lib/plan/constants";
 import type { PlanDay } from "@/lib/plan/types";
@@ -15,30 +15,6 @@ type PlanDayMealsPanelProps = {
   onRemoveError?: (message: string) => void;
   className?: string;
 };
-
-function EmptyMealSlot({
-  mealType,
-  onAdd
-}: {
-  mealType: MealType;
-  onAdd: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onAdd}
-      className={cn(
-        "group flex w-full cursor-pointer items-center justify-between rounded-2xl border border-dashed border-amber-200/60 bg-amber-50/30 p-5",
-        "text-amber-800/80 transition-all duration-300 hover:border-amber-300/70 hover:bg-amber-50/50 active:scale-[0.99]"
-      )}
-    >
-      <span className="text-sm font-medium">Añadir {mealType}</span>
-      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100/80 text-amber-800/70 transition group-hover:bg-amber-200/80 group-hover:text-amber-900">
-        <Plus className="h-4 w-4" strokeWidth={2.25} />
-      </span>
-    </button>
-  );
-}
 
 export function PlanDayMealsPanel({
   day,

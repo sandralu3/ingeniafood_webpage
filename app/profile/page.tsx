@@ -8,6 +8,10 @@ import { isSandraAdmin } from "@/lib/auth/sandra-admin";
 import { signOutUser } from "@/lib/auth/sign-out";
 import { PROFILE_COUNTRIES } from "@/lib/profile/profile-countries";
 import { createSupabaseClient } from "@/lib/supabaseClient";
+import {
+  getPersonNameValidationError,
+  sanitizePersonNameInput
+} from "@/lib/validation/person-name";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Toast } from "@/components/ui/toast";
@@ -249,6 +253,14 @@ export default function ProfilePage() {
 
   const handleSaveChanges = async () => {
     if (!userId) return;
+
+    const nameError = getPersonNameValidationError(fullName, { allowEmpty: true });
+    if (nameError) {
+      setErrorMessage(nameError);
+      showToast(nameError, "error");
+      return;
+    }
+
     setIsSaving(true);
     setErrorMessage(null);
     try {
@@ -394,7 +406,7 @@ export default function ProfilePage() {
               <Input
                 id="fullName"
                 value={fullName}
-                onChange={(event) => setFullName(event.target.value)}
+                onChange={(event) => setFullName(sanitizePersonNameInput(event.target.value))}
                 placeholder="Tu nombre completo"
                 className={inputClassName}
               />

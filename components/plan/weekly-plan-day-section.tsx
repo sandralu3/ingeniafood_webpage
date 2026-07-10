@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, Plus } from "lucide-react";
+import { ChevronDown } from "lucide-react";
+import { EmptyMealSlot } from "@/components/plan/empty-meal-slot";
 import { PlanMealCard, type PlanMeal } from "@/components/plan/plan-meal-card";
 import { MEAL_TYPES, type MealType, type WeekDay } from "@/lib/plan/constants";
 import type { PlanDay } from "@/lib/plan/types";
@@ -19,27 +20,6 @@ type WeeklyPlanDaySectionProps = {
   onRemoveError?: (message: string) => void;
   className?: string;
 };
-
-function EmptyMealSlot({
-  mealType,
-  onAdd
-}: {
-  mealType: MealType;
-  onAdd: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onAdd}
-      className="flex min-h-[8.5rem] w-full flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-stone-300/90 bg-stone-50/60 px-3 py-4 text-center text-xs font-medium text-stone-500 transition hover:border-[#556B2F]/35 hover:bg-amber-50/40 hover:text-[#3e5219] sm:text-sm"
-    >
-      <span className="flex h-7 w-7 items-center justify-center rounded-full border border-stone-300 bg-white text-stone-500">
-        <Plus className="h-4 w-4" strokeWidth={2} />
-      </span>
-      Añadir {mealType}
-    </button>
-  );
-}
 
 export function WeeklyPlanDaySection({
   day,
@@ -130,6 +110,7 @@ export function WeeklyPlanDaySection({
                       />
                     ) : (
                       <EmptyMealSlot
+                        variant="slot"
                         mealType={mealType}
                         onAdd={() => onAddMeal?.(day.label, mealType)}
                       />

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Coffee, Clock3, Loader2, RefreshCw, Soup, Trash2, Utensils } from "lucide-react";
 import { RecipeInstagramLink } from "@/components/recipes/recipe-instagram-link";
 import { RecipeMedia } from "@/components/recipes/recipe-media";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { removePlanMeal, swapPlanMeal } from "@/lib/plan/plan-service";
 import type { MealType } from "@/lib/plan/constants";
 import { createSupabaseClient } from "@/lib/supabaseClient";
@@ -302,6 +303,7 @@ export function PlanMealCard({
   const [isSwapping, setIsSwapping] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
   const [isFading, setIsFading] = useState(false);
+  const [isRemoveDialogOpen, setIsRemoveDialogOpen] = useState(false);
 
   const isPanel = variant === "panel";
   const isCompact = variant === "slot";
@@ -356,9 +358,6 @@ export function PlanMealCard({
   const handleRemove = async () => {
     if (removeDisabled) return;
 
-    const ok = window.confirm("¿Quitar esta receta del día?");
-    if (!ok) return;
-
     setIsRemoving(true);
 
     try {
@@ -382,6 +381,7 @@ export function PlanMealCard({
         return;
       }
 
+      setIsRemoveDialogOpen(false);
       onMealRemoved?.(meal.mealType);
     } catch (error) {
       console.error("[plan-meal-card] Error quitando receta:", error);
@@ -391,29 +391,52 @@ export function PlanMealCard({
     }
   };
 
+  const requestRemove = () => {
+    if (removeDisabled) return;
+    setIsRemoveDialogOpen(true);
+  };
+
   const actionProps = {
     isSwapping,
     isRemoving,
     swapDisabled,
     removeDisabled,
     onSwap: () => void handleSwap(),
-    onRemove: () => void handleRemove()
+    onRemove: requestRemove
   };
+
+  const confirmDialog = (
+    <ConfirmDialog
+      open={isRemoveDialogOpen}
+      onOpenChange={setIsRemoveDialogOpen}
+      title="¿Quitar esta receta del día?"
+      description={`Se eliminará "${meal.title}" de tu plan de ${meal.mealType.toLowerCase()}.`}
+      confirmLabel="Quitar receta"
+      cancelLabel="Cancelar"
+      onConfirm={() => void handleRemove()}
+      isLoading={isRemoving}
+      destructive
+    />
+  );
 
   if (isPanel || variant === "default") {
     return (
-      <HorizontalMealCard
-        meal={meal}
-        isFading={isFading}
-        showMealType={!isPanel}
-        className={className}
-        {...actionProps}
-      />
+      <>
+        <HorizontalMealCard
+          meal={meal}
+          isFading={isFading}
+          showMealType={!isPanel}
+          className={className}
+          {...actionProps}
+        />
+        {confirmDialog}
+      </>
     );
   }
 
   if (useHeroLayout) {
     return (
+      <>
       <article
         className={cn(
           "group relative h-36 overflow-hidden rounded-2xl border border-stone-100 bg-white shadow-md shadow-stone-200/40 transition-all duration-300",
@@ -445,7 +468,7 @@ export function PlanMealCard({
 
         <button
           type="button"
-          onClick={() => void handleRemove()}
+          onClick={requestRemove}
           disabled={removeDisabled}
           aria-label="Quitar receta del día"
           className={cn(
@@ -472,10 +495,13 @@ export function PlanMealCard({
           ) : null}
         </div>
       </article>
+      {confirmDialog}
+      </>
     );
   }
 
   return (
+    <>
     <HorizontalMealCard
       meal={meal}
       isFading={isFading}
@@ -483,5 +509,7 @@ export function PlanMealCard({
       className={className}
       {...actionProps}
     />
+    {confirmDialog}
+    </>
   );
 }

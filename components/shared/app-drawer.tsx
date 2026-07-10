@@ -15,6 +15,7 @@ import {
   type LucideIcon
 } from "lucide-react";
 import { signOutUser } from "@/lib/auth/sign-out";
+import { IngeniaFoodLogo } from "@/components/shared/ingenia-food-logo";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
 import { cn } from "@/lib/utils";
 
@@ -126,7 +127,7 @@ export function AppDrawer({ open, onClose }: AppDrawerProps) {
       <aside
         role="dialog"
         aria-modal="true"
-        aria-label="Menú de navegación"
+        aria-label="Menú"
         className={cn(
           "absolute left-0 top-0 flex h-full w-[min(18rem,85vw)] flex-col border-r border-stone-200/80 bg-white shadow-2xl",
           "transition-transform duration-300 will-change-transform",
@@ -135,12 +136,7 @@ export function AppDrawer({ open, onClose }: AppDrawerProps) {
         style={{ transitionTimingFunction: DRAWER_EASING }}
       >
         <div className="flex items-center justify-between border-b border-stone-100 px-5 py-4">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-amber-700/80">
-              Navegación
-            </p>
-            <p className="mt-0.5 font-serif text-lg font-semibold text-stone-900">IngeniaFood</p>
-          </div>
+          <IngeniaFoodLogo variant="drawer" />
           <button
             type="button"
             onClick={onClose}

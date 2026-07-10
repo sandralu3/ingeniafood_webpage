@@ -5,12 +5,16 @@ import { useSearchParams } from "next/navigation";
 import { IngeniaFoodLogo } from "@/components/shared/ingenia-food-logo";
 import { PasswordInput } from "@/components/ui/password-input";
 import { createSupabaseClient } from "@/lib/supabaseClient";
-import { APP_ROUTES } from "@/lib/navigation/app-routes";
+import {
+  getPersonNameValidationError,
+  sanitizePersonNameInput
+} from "@/lib/validation/person-name";
 import {
   formatAuthRateLimitMessage,
   getAuthRateLimitSeconds,
   translateSupabaseAuthError
 } from "@/lib/auth/translate-supabase-auth-error";
+import { APP_ROUTES } from "@/lib/navigation/app-routes";
 
 export default function AuthPage() {
   return (
@@ -148,9 +152,12 @@ function AuthForm() {
       return;
     }
 
-    if (mode === "signup" && !fullName.trim()) {
-      setErrorMessage("Ingresa tu nombre completo para crear tu perfil.");
-      return;
+    if (mode === "signup") {
+      const nameError = getPersonNameValidationError(fullName);
+      if (nameError) {
+        setErrorMessage(nameError);
+        return;
+      }
     }
 
     if (password.length < 6) {
@@ -298,16 +305,16 @@ function AuthForm() {
         {mode === "signup" ? (
           <div className="space-y-1.5">
             <label htmlFor="fullName" className="text-sm font-medium text-[#374151]">
-              Nombre completo
+              Nombre y apellidos
             </label>
             <input
               id="fullName"
               type="text"
               value={fullName}
-              onChange={(event) => setFullName(event.target.value)}
+              onChange={(event) => setFullName(sanitizePersonNameInput(event.target.value))}
               suppressHydrationWarning
               className="h-12 w-full rounded-xl border border-[#E5E7EB] bg-white px-4 text-sm text-[#1F2937] outline-none transition focus:border-[#556B2F]/55 focus:ring-2 focus:ring-[#556B2F]/15"
-              placeholder="Sandra Vergara"
+              placeholder="Ej. Ana López"
               autoComplete="name"
               required
             />

@@ -110,10 +110,10 @@ export function ChallengesConfigView() {
       <div className="-mx-4 min-h-full bg-gradient-to-b from-stone-50 via-amber-50/20 to-white px-4 pb-8 pt-1">
         <section className="space-y-5">
           <header className="px-0.5 pt-2">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-700/70">
-              Gamificación
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-stone-400">
+              Hábitos
             </p>
-            <h1 className="mt-1 font-serif text-3xl font-semibold tracking-tight text-stone-900">
+            <h1 className="mt-1 text-xl font-bold tracking-tight text-stone-800">
               Tus retos
             </h1>
             <p className="mt-2 text-sm leading-relaxed text-stone-500">
@@ -227,7 +227,7 @@ function ChallengeSection({
   return (
     <section className="rounded-3xl border border-neutral-100 bg-white/90 px-4 py-5 shadow-xl shadow-stone-100/50">
       <div className="mb-4 px-1">
-        <h2 className="font-serif text-lg font-semibold text-stone-900">{title}</h2>
+        <h2 className="text-base font-semibold text-stone-900">{title}</h2>
         <p className="mt-0.5 text-xs text-stone-500">{subtitle}</p>
       </div>
 
