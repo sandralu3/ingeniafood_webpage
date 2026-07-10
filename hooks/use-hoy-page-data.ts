@@ -2,38 +2,29 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  getProfileInitials,
-  resolveProfileFirstName
-} from "@/components/shared/user-avatar";
+  fetchHoyProfile,
+  readCachedHoyProfile
+} from "@/lib/gamification/fetch-hoy-profile";
+import type { HoyProfileCache } from "@/lib/gamification/hoy-profile-cache";
 import { readHoyCache, writeHoyCache } from "@/lib/gamification/hoy-cache";
 import { fetchHoyPageData, type HoyPageData } from "@/lib/gamification/hoy-page-data";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 
-type HoyProfile = {
-  displayName: string;
-  avatarUrl: string | null;
-  initials: string;
-};
-
-const DEFAULT_PROFILE: HoyProfile = {
-  displayName: "Chef",
-  avatarUrl: null,
-  initials: "SV"
-};
-
 type UseHoyPageDataResult = {
   data: HoyPageData | null;
   userId: string | null;
-  profile: HoyProfile;
+  profile: HoyProfileCache | null;
   isLoading: boolean;
+  isProfileLoading: boolean;
   refresh: (options?: { force?: boolean }) => Promise<void>;
 };
 
 export function useHoyPageData(): UseHoyPageDataResult {
   const [data, setData] = useState<HoyPageData | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
-  const [profile, setProfile] = useState<HoyProfile>(DEFAULT_PROFILE);
+  const [profile, setProfile] = useState<HoyProfileCache | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isProfileLoading, setIsProfileLoading] = useState(true);
   const hasHydratedCacheRef = useRef(false);
 
   const refresh = useCallback(async (options?: { force?: boolean }) => {
@@ -45,46 +36,57 @@ export function useHoyPageData(): UseHoyPageDataResult {
     if (!user) {
       setUserId(null);
       setData(null);
-      setProfile(DEFAULT_PROFILE);
+      setProfile(null);
       setIsLoading(false);
+      setIsProfileLoading(false);
       return;
     }
 
     setUserId(user.id);
 
-    const cached = !options?.force ? readHoyCache(user.id) : null;
-    if (cached) {
-      setData(cached);
+    const cachedData = !options?.force ? readHoyCache(user.id) : null;
+    const cachedProfile = !options?.force ? readCachedHoyProfile(user.id) : null;
+
+    if (cachedData) {
+      setData(cachedData);
       setIsLoading(false);
     } else if (!hasHydratedCacheRef.current) {
       setIsLoading(true);
     }
 
+    if (cachedProfile) {
+      setProfile(cachedProfile);
+      setIsProfileLoading(false);
+    } else {
+      setIsProfileLoading(true);
+    }
+
     try {
-      const [freshData, profileResult] = await Promise.all([
+      const profilePromise =
+        cachedProfile && !options?.force
+          ? Promise.resolve(cachedProfile)
+          : fetchHoyProfile(user.id, user.email);
+
+      const [freshData, freshProfile] = await Promise.all([
         fetchHoyPageData(user.id, { force: options?.force }),
-        supabase
-          .from("profiles")
-          .select("full_name, avatar_url")
-          .eq("id", user.id)
-          .maybeSingle()
+        profilePromise
       ]);
 
       writeHoyCache(user.id, freshData);
       setData(freshData);
-      setProfile({
-        displayName: resolveProfileFirstName(profileResult.data?.full_name, user.email),
-        avatarUrl: profileResult.data?.avatar_url ?? null,
-        initials: getProfileInitials(profileResult.data?.full_name, user.email)
-      });
+      setProfile(freshProfile);
     } catch (error) {
       console.error("[use-hoy-page-data] Error cargando datos de Hoy:", error);
-      if (!cached) {
+      if (!cachedData) {
         setData(null);
+      }
+      if (!cachedProfile) {
+        setProfile(null);
       }
     } finally {
       hasHydratedCacheRef.current = true;
       setIsLoading(false);
+      setIsProfileLoading(false);
     }
   }, []);
 
@@ -97,6 +99,7 @@ export function useHoyPageData(): UseHoyPageDataResult {
     userId,
     profile,
     isLoading,
+    isProfileLoading,
     refresh
   };
 }

@@ -10,15 +10,16 @@ import { useHoyPageData } from "@/hooks/use-hoy-page-data";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
 
 export function HoyDashboard() {
-  const { data, userId, profile, isLoading, refresh } = useHoyPageData();
+  const { data, userId, profile, isLoading, isProfileLoading, refresh } = useHoyPageData();
 
   return (
     <div className="-mx-4 min-h-full bg-gradient-to-b from-stone-50 via-amber-50/20 to-white px-4 pb-6 pt-0">
       <section className="space-y-3">
         <HoyGreetingHeader
-          displayName={profile.displayName}
-          avatarUrl={profile.avatarUrl}
-          initials={profile.initials}
+          displayName={profile?.displayName}
+          avatarUrl={profile?.avatarUrl}
+          initials={profile?.initials}
+          isLoading={isProfileLoading}
         />
 
         <Link

@@ -6,9 +6,10 @@ import { APP_ROUTES } from "@/lib/navigation/app-routes";
 import { cn } from "@/lib/utils";
 
 type HoyGreetingHeaderProps = {
-  displayName: string;
+  displayName?: string | null;
   avatarUrl?: string | null;
   initials?: string;
+  isLoading?: boolean;
   className?: string;
 };
 
@@ -16,8 +17,11 @@ export function HoyGreetingHeader({
   displayName,
   avatarUrl,
   initials = "SV",
+  isLoading = false,
   className
 }: HoyGreetingHeaderProps) {
+  const showNameSkeleton = isLoading || !displayName;
+
   return (
     <header
       className={cn(
@@ -27,7 +31,14 @@ export function HoyGreetingHeader({
     >
       <div className="min-w-0 flex-1">
         <p className="text-[11px] font-medium tracking-wide text-stone-400">Tu día en marcha</p>
-        <h1 className="truncate text-lg font-bold leading-tight text-stone-800">{displayName}</h1>
+        {showNameSkeleton ? (
+          <div
+            className="mt-1 h-6 w-28 animate-pulse rounded-md bg-stone-200/80"
+            aria-hidden
+          />
+        ) : (
+          <h1 className="truncate text-lg font-bold leading-tight text-stone-800">{displayName}</h1>
+        )}
       </div>
 
       <Link
@@ -35,7 +46,14 @@ export function HoyGreetingHeader({
         className="shrink-0 transition hover:opacity-90"
         aria-label="Ir a tu perfil"
       >
-        <UserAvatar avatarUrl={avatarUrl} initials={initials} size="md" />
+        {showNameSkeleton ? (
+          <div
+            className="h-10 w-10 animate-pulse rounded-full bg-stone-200/80"
+            aria-hidden
+          />
+        ) : (
+          <UserAvatar avatarUrl={avatarUrl} initials={initials} size="md" />
+        )}
       </Link>
     </header>
   );
