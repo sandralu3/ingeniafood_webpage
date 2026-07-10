@@ -1,8 +1,12 @@
 import type { Metadata } from "next";
 import { AppRecetasAccessGate } from "@/components/shared/app-recetas-access-gate";
+import { APP_ICON_METADATA } from "@/lib/metadata/app-icons";
 
 export const metadata: Metadata = {
-  manifest: "/manifest.json"
+  title: "IngeniaFood",
+  applicationName: "IngeniaFood",
+  manifest: "/manifest.json",
+  ...APP_ICON_METADATA
 };
 
 export default function AppRecetasLayout({

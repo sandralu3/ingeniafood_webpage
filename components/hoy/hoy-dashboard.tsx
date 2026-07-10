@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { ArrowRight, ScanLine } from "lucide-react";
 import { DailyChallenges } from "@/components/hoy/daily-challenges";
 import { HoyGreetingHeader } from "@/components/hoy/hoy-greeting-header";
-import { WeeklyHealthScore } from "@/components/hoy/weekly-health-score";
+import { ProgressBoard } from "@/components/hoy/progress-board/progress-board";
 import { SandraTipCard } from "@/components/home/sandra-tip-card";
 import {
   getProfileInitials,
@@ -70,7 +70,7 @@ export function HoyDashboard() {
           <ArrowRight className="h-4 w-4 shrink-0 text-[#556B2F] transition group-hover:translate-x-0.5" />
         </Link>
 
-        <WeeklyHealthScore refreshKey={healthScoreRefreshKey} />
+        <ProgressBoard refreshKey={healthScoreRefreshKey} />
 
         <DailyChallenges
           onHealthScoreChange={() => setHealthScoreRefreshKey((key) => key + 1)}

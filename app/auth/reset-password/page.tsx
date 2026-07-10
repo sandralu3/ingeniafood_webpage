@@ -7,6 +7,7 @@ import { CheckCircle2, Loader2 } from "lucide-react";
 import { IngeniaFoodLogo } from "@/components/shared/ingenia-food-logo";
 import { PasswordInput } from "@/components/ui/password-input";
 import { createSupabaseClient } from "@/lib/supabaseClient";
+import { translateSupabaseAuthError } from "@/lib/auth/translate-supabase-auth-error";
 
 const MIN_PASSWORD_LENGTH = 6;
 const REDIRECT_DELAY_MS = 2000;
@@ -178,7 +179,8 @@ function ResetPasswordForm() {
 
       if (error) {
         setErrorMessage(
-          error.message || "No pudimos actualizar tu contraseña. Solicita un nuevo enlace."
+          translateSupabaseAuthError(error) ||
+            "No pudimos actualizar tu contraseña. Solicita un nuevo enlace."
         );
         setIsSubmitting(false);
         return;

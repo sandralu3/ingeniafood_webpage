@@ -6,6 +6,11 @@ import { IngeniaFoodLogo } from "@/components/shared/ingenia-food-logo";
 import { PasswordInput } from "@/components/ui/password-input";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
+import {
+  formatAuthRateLimitMessage,
+  getAuthRateLimitSeconds,
+  translateSupabaseAuthError
+} from "@/lib/auth/translate-supabase-auth-error";
 
 export default function AuthPage() {
   return (
@@ -69,6 +74,7 @@ function AuthForm() {
     return null;
   });
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [resendCooldownSeconds, setResendCooldownSeconds] = useState(0);
 
   useEffect(() => {
     if (!passwordResetSuccess) return;
@@ -76,6 +82,16 @@ function AuthForm() {
     const supabase = createSupabaseClient();
     void supabase.auth.signOut({ scope: "global" });
   }, [passwordResetSuccess]);
+
+  useEffect(() => {
+    if (resendCooldownSeconds <= 0) return;
+
+    const timer = window.setInterval(() => {
+      setResendCooldownSeconds((previous) => Math.max(0, previous - 1));
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [resendCooldownSeconds]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -113,7 +129,13 @@ function AuthForm() {
       });
 
       if (error) {
-        setErrorMessage(error.message);
+        const rateLimitSeconds = getAuthRateLimitSeconds(error);
+        if (rateLimitSeconds !== null) {
+          setResendCooldownSeconds(rateLimitSeconds);
+          setErrorMessage(null);
+        } else {
+          setErrorMessage(translateSupabaseAuthError(error));
+        }
         setIsSubmitting(false);
         return;
       }
@@ -121,6 +143,7 @@ function AuthForm() {
       setSuccessMessage(
         "Te enviamos un correo con el enlace para restablecer tu contraseña. Ábrelo en este mismo navegador (Chrome, Edge, Safari, etc.) para que funcione correctamente."
       );
+      setResendCooldownSeconds(60);
       setIsSubmitting(false);
       return;
     }
@@ -173,7 +196,7 @@ function AuthForm() {
 
     const { error } = authResult;
     if (error) {
-      setErrorMessage(error.message);
+      setErrorMessage(translateSupabaseAuthError(error));
       setIsSubmitting(false);
       return;
     }
@@ -344,6 +367,12 @@ function AuthForm() {
           </p>
         ) : null}
 
+        {mode === "forgot" && resendCooldownSeconds > 0 ? (
+          <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            {formatAuthRateLimitMessage(resendCooldownSeconds)}
+          </p>
+        ) : null}
+
         {successMessage || verifiedFromLink || passwordResetSuccess ? (
           <p className="rounded-xl border border-brand-green-light/35 bg-brand-green-light/10 px-3 py-2 text-sm text-brand-green-dark">
             {successMessage ??
@@ -355,7 +384,7 @@ function AuthForm() {
 
         <button
           type="submit"
-          disabled={isSubmitting}
+          disabled={isSubmitting || (mode === "forgot" && resendCooldownSeconds > 0)}
           className="h-12 w-full rounded-full bg-[#556B2F] px-4 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-60"
         >
           {isSubmitting
@@ -364,11 +393,13 @@ function AuthForm() {
               : mode === "forgot"
                 ? "Enviando enlace..."
                 : "Ingresando..."
-            : mode === "signup"
-              ? "Crear cuenta"
-              : mode === "forgot"
-                ? "Enviar enlace de recuperación"
-                : "Iniciar sesion"}
+            : mode === "forgot" && resendCooldownSeconds > 0
+              ? `Espera ${resendCooldownSeconds}s para reenviar`
+              : mode === "signup"
+                ? "Crear cuenta"
+                : mode === "forgot"
+                  ? "Enviar enlace de recuperación"
+                  : "Iniciar sesion"}
         </button>
         </form>
       </section>

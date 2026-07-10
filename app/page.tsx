@@ -19,7 +19,7 @@ export default function LandingPage() {
     () =>
       LANDING_HTML.replace('href="/descargar-app">Descargar App</a>', 'href="#preview">Descargar guía gratis</a>').replace(
         '<svg aria-hidden="true" class="w-7 h-7 sm:w-8 sm:h-8 text-[#556B2F] shrink-0" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">\n<path d="M11 20A7 7 0 0 1 4 13C4 7.5 8 4 14 4c0 6-3 10-9 10" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>\n<path d="M20 4c0 6-4 10-9 10" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>\n</svg>',
-        '<img alt="Logo de IngeniaFood" class="w-7 h-7 sm:w-8 sm:h-8 shrink-0 object-contain" loading="lazy" src="/icons/icon.svg"/>'
+        '<img alt="Logo de IngeniaFood" class="h-7 w-auto sm:h-8 shrink-0 object-contain" loading="lazy" src="/icons/icon-96.png"/>'
       ),
     []
   );

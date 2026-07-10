@@ -1,5 +1,15 @@
 const CACHE_NAME = "ingenia-static-v1";
-const OFFLINE_URLS = ["/", "/app-recetas", "/manifest.json", "/icons/icon-192.png", "/icons/icon-512.png"];
+const OFFLINE_URLS = [
+  "/",
+  "/app-recetas",
+  "/manifest.json",
+  "/favicon.ico",
+  "/apple-touch-icon.png",
+  "/icons/icon-192.png",
+  "/icons/icon-512.png",
+  "/icons/icon-192-maskable.png",
+  "/icons/icon-512-maskable.png"
+];
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();

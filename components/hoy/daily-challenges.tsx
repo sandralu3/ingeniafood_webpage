@@ -2,7 +2,19 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Check, Loader2, Target } from "lucide-react";
+import {
+  ArrowRight,
+  CalendarDays,
+  Check,
+  Droplets,
+  Footprints,
+  Info,
+  Leaf,
+  Loader2,
+  ScanLine,
+  Target,
+  UtensilsCrossed
+} from "lucide-react";
 import {
   completeDailyChallenge,
   fetchActiveDailyChallengesForUser,
@@ -19,6 +31,18 @@ type DailyChallengesProps = {
   className?: string;
 };
 
+function resolveChallengeIcon(label: string) {
+  const normalized = label.toLowerCase();
+
+  if (/agua|hidrat/i.test(normalized)) return Droplets;
+  if (/camin|pausa activa/i.test(normalized)) return Footprints;
+  if (/vegetal|verdura/i.test(normalized)) return Leaf;
+  if (/escane/i.test(normalized)) return ScanLine;
+  if (/cocin|comida casera|desayun|proteín/i.test(normalized)) return UtensilsCrossed;
+
+  return Target;
+}
+
 export function DailyChallenges({ onHealthScoreChange, className }: DailyChallengesProps) {
   const [challenges, setChallenges] = useState<DailyChallenge[]>([]);
   const [completed, setCompleted] = useState<Record<string, boolean>>({});
@@ -26,6 +50,7 @@ export function DailyChallenges({ onHealthScoreChange, className }: DailyChallen
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [focusedChallengeId, setFocusedChallengeId] = useState<string | null>(null);
 
   const loadTodayChallenges = useCallback(async () => {
     setIsLoading(true);
@@ -159,18 +184,20 @@ export function DailyChallenges({ onHealthScoreChange, className }: DailyChallen
           {challenges.map((challenge) => {
             const isDone = Boolean(completed[challenge.id]);
             const isPending = pendingId === challenge.id;
+            const isFocused = focusedChallengeId === challenge.id;
+            const ChallengeIcon = resolveChallengeIcon(challenge.label);
 
             return (
-              <li key={challenge.id}>
+              <li key={challenge.id} className="group relative">
                 <button
                   type="button"
                   onClick={() => void toggleChallenge(challenge)}
                   disabled={isLoading || !userId || Boolean(pendingId)}
                   className={cn(
-                    "flex w-full items-center gap-3 rounded-2xl border px-3.5 py-3.5 text-left transition-all duration-300",
+                    "relative flex w-full items-center gap-3 overflow-hidden rounded-2xl border px-3.5 py-3.5 pr-16 text-left transition-all duration-300",
                     isDone
-                      ? "border-[#556B2F]/25 bg-gradient-to-r from-[#556B2F] via-[#6b8a3e] to-[#7a9a47] shadow-lg shadow-[#556B2F]/20"
-                      : "border-neutral-100 bg-stone-50/80 hover:border-amber-200/60 hover:bg-white hover:shadow-md",
+                      ? "border-[#556B2F]/25 bg-gradient-to-r from-[#556B2F] via-[#6b8a3e] to-[#7a9a47] shadow-lg shadow-[#556B2F]/15"
+                      : "border-neutral-100 bg-stone-50/80 hover:-translate-y-0.5 hover:border-amber-200/70 hover:bg-white hover:shadow-md",
                     (!userId || pendingId) && "opacity-80"
                   )}
                 >
@@ -178,21 +205,17 @@ export function DailyChallenges({ onHealthScoreChange, className }: DailyChallen
                     className={cn(
                       "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-300",
                       isDone
-                        ? "scale-110 border-white/90 bg-white text-[#556B2F] shadow-sm"
-                        : "border-stone-300 bg-white text-transparent"
+                        ? "scale-105 border-white/90 bg-white text-[#556B2F] shadow-sm"
+                        : "border-stone-300 bg-white text-[#556B2F]/70"
                     )}
                     aria-hidden
                   >
                     {isPending ? (
                       <Loader2 className="h-4 w-4 animate-spin text-[#556B2F]" />
+                    ) : isDone ? (
+                      <Check className="h-4 w-4" strokeWidth={3} />
                     ) : (
-                      <Check
-                        className={cn(
-                          "h-4 w-4 transition-all duration-300",
-                          isDone ? "scale-100 opacity-100" : "scale-50 opacity-0"
-                        )}
-                        strokeWidth={3}
-                      />
+                      <ChallengeIcon className="h-3.5 w-3.5" strokeWidth={2} />
                     )}
                   </span>
 
@@ -219,13 +242,54 @@ export function DailyChallenges({ onHealthScoreChange, className }: DailyChallen
 
                   <span
                     className={cn(
-                      "shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold",
+                      "shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold transition-colors",
                       isDone ? "bg-white/20 text-white" : "bg-amber-50 text-amber-800"
                     )}
                   >
                     +{challenge.points}
                   </span>
                 </button>
+
+                <div
+                  className={cn(
+                    "absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1 transition-all duration-200",
+                    isFocused
+                      ? "opacity-100"
+                      : "pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100"
+                  )}
+                >
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setFocusedChallengeId((current) =>
+                        current === challenge.id ? null : challenge.id
+                      );
+                    }}
+                    className="flex h-7 w-7 items-center justify-center rounded-full border border-stone-200/80 bg-white/95 text-stone-500 shadow-sm transition hover:border-[#556B2F]/30 hover:text-[#556B2F]"
+                    aria-label={`Detalles del reto: ${challenge.label}`}
+                    title="Detalles del reto"
+                  >
+                    <Info className="h-3.5 w-3.5" />
+                  </button>
+                  <Link
+                    href={APP_ROUTES.retos}
+                    onClick={(event) => event.stopPropagation()}
+                    className="flex h-7 w-7 items-center justify-center rounded-full border border-stone-200/80 bg-white/95 text-stone-500 shadow-sm transition hover:border-amber-300 hover:text-amber-700"
+                    aria-label="Gestionar retos"
+                    title="Gestionar retos"
+                  >
+                    <CalendarDays className="h-3.5 w-3.5" />
+                  </Link>
+                </div>
+
+                {isFocused ? (
+                  <p className="mt-1.5 rounded-xl bg-stone-100/90 px-3 py-2 text-[11px] leading-relaxed text-stone-600">
+                    Marca este hábito al completarlo hoy. Suma{" "}
+                    <span className="font-semibold text-[#556B2F]">+{challenge.points} pts</span> a
+                    tu progreso semanal.
+                  </p>
+                ) : null}
               </li>
             );
           })}
