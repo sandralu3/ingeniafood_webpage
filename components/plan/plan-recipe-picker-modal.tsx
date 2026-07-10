@@ -2,12 +2,16 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, MoreVertical, ScanLine, Search, Sparkles, X } from "lucide-react";
+import { Loader2, MoreVertical, ScanLine, Search, Instagram, X } from "lucide-react";
 import { PlanRecipePickerRow } from "@/components/plan/plan-recipe-picker-row";
+import type { ScannerMode } from "@/components/scanner/scanner-mode-tabs";
 import type { RecipePickerItem } from "@/lib/plan/plan-service";
 import type { MealType, WeekDay } from "@/lib/plan/constants";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
-import { savePendingPlanAssignment } from "@/lib/plan/plan-pending-assignment";
+import {
+  savePendingPlanAssignment,
+  saveScannerInitialMode
+} from "@/lib/plan/plan-pending-assignment";
 import {
   filterPickerRecipes,
   SAVED_RECIPE_FILTERS,
@@ -76,12 +80,13 @@ export function PlanRecipePickerModal({
     [activeFilter, recipes, searchTerm]
   );
 
-  const goToScannerForPlan = () => {
+  const goToScannerForPlan = (mode: ScannerMode = "pantry") => {
     savePendingPlanAssignment({
       dayLabel: dayLabel as WeekDay,
       mealType,
       weekStartISO
     });
+    saveScannerInitialMode(mode);
     onClose();
     router.push(APP_ROUTES.scanner);
   };
@@ -221,7 +226,7 @@ export function PlanRecipePickerModal({
             <button
               type="button"
               disabled={isAssigning}
-              onClick={goToScannerForPlan}
+              onClick={() => goToScannerForPlan("pantry")}
               className={cn(
                 "inline-flex items-center justify-center gap-1.5 rounded-2xl border border-[#556B2F]/20 bg-white px-3 py-3 text-xs font-semibold text-[#3e5219] shadow-sm transition",
                 "hover:border-[#556B2F]/35 hover:bg-[#F0F4ED] disabled:cursor-not-allowed disabled:opacity-60"
@@ -233,14 +238,14 @@ export function PlanRecipePickerModal({
             <button
               type="button"
               disabled={isAssigning}
-              onClick={goToScannerForPlan}
+              onClick={() => goToScannerForPlan("instagram")}
               className={cn(
                 "inline-flex items-center justify-center gap-1.5 rounded-2xl bg-gradient-to-r from-[#556B2F] to-[#6b8a3e] px-3 py-3 text-xs font-semibold text-white shadow-md transition",
                 "hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
               )}
             >
-              <Sparkles className="h-4 w-4 shrink-0" />
-              Crear receta
+              <Instagram className="h-4 w-4 shrink-0" strokeWidth={1.75} />
+              Desde Instagram
             </button>
           </div>
           <p className="mt-2 text-center text-[10px] leading-relaxed text-stone-400">

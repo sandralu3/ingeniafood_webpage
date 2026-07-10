@@ -37,8 +37,9 @@ export async function publishStructuredRecipe(params: {
   userId: string;
   recipe: StructuredInstagramRecipe;
   imageFile: File;
+  instagramUrl?: string | null;
 }): Promise<{ recipeId: string; imageUrl: string }> {
-  const { userId, recipe, imageFile } = params;
+  const { userId, recipe, imageFile, instagramUrl = null } = params;
 
   if (!ALLOWED_IMAGE_MIME.has(imageFile.type)) {
     throw new Error("Formato de imagen no soportado. Usa JPEG, PNG, WebP o GIF.");
@@ -85,6 +86,7 @@ export async function publishStructuredRecipe(params: {
       steps: recipe.preparacion,
       instructions: buildInstructions(recipe.preparacion),
       image_url: imageUrl,
+      instagram_url: instagramUrl,
       is_airfryer,
       is_flourless,
       is_public: true,

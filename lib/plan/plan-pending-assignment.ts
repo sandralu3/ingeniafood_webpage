@@ -12,6 +12,9 @@ export type PendingPlanAssignment = {
 
 const STORAGE_KEY = "ingeniafood_pending_plan_assignment";
 const LAST_WEEK_START_KEY = "ingeniafood_last_plan_week_start_iso";
+const SCANNER_MODE_KEY = "ingeniafood_scanner_initial_mode";
+
+export type ScannerInitialMode = "pantry" | "instagram";
 
 function isWeekDay(value: string): value is WeekDay {
   return (WEEK_DAYS as readonly string[]).includes(value);
@@ -81,4 +84,22 @@ export function readLastPlanWeekStartISO(): string | null {
 export function saveLastPlanWeekStartISO(weekStartISO: string): void {
   if (typeof window === "undefined") return;
   sessionStorage.setItem(LAST_WEEK_START_KEY, weekStartISO);
+}
+
+export function saveScannerInitialMode(mode: ScannerInitialMode): void {
+  if (typeof window === "undefined") return;
+  sessionStorage.setItem(SCANNER_MODE_KEY, mode);
+}
+
+export function consumeScannerInitialMode(): ScannerInitialMode | null {
+  if (typeof window === "undefined") return null;
+
+  const raw = sessionStorage.getItem(SCANNER_MODE_KEY);
+  sessionStorage.removeItem(SCANNER_MODE_KEY);
+
+  if (raw === "pantry" || raw === "instagram") {
+    return raw;
+  }
+
+  return null;
 }

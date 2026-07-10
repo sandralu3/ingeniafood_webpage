@@ -4,88 +4,28 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  ArrowLeft,
   CheckCircle2,
   ImagePlus,
   Loader2,
   Plus,
   Sparkles,
-  Trash2,
   UploadCloud,
   Wand2
 } from "lucide-react";
 import type { StructuredInstagramRecipe } from "@/lib/admin/instagram-recipe-extractor";
+import { EditableStringList } from "@/components/admin/editable-string-list";
 import { isSandraAdmin } from "@/lib/auth/sandra-admin";
+import { APP_ROUTES } from "@/lib/navigation/app-routes";
+import { normalizeInstagramUrl } from "@/lib/recipes/instagram-url";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import { cn } from "@/lib/utils";
-
-function EditableStringList({
-  label,
-  items,
-  onChange,
-  placeholder
-}: {
-  label: string;
-  items: string[];
-  onChange: (items: string[]) => void;
-  placeholder: string;
-}) {
-  const updateItem = (index: number, value: string) => {
-    const next = [...items];
-    next[index] = value;
-    onChange(next);
-  };
-
-  const removeItem = (index: number) => {
-    onChange(items.filter((_, itemIndex) => itemIndex !== index));
-  };
-
-  const addItem = () => {
-    onChange([...items, ""]);
-  };
-
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between gap-2">
-        <label className="text-sm font-semibold text-stone-700">{label}</label>
-        <button
-          type="button"
-          onClick={addItem}
-          className="inline-flex items-center gap-1 rounded-full border border-stone-200 px-2.5 py-1 text-xs font-medium text-stone-600 transition hover:bg-stone-50"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Añadir
-        </button>
-      </div>
-
-      <div className="space-y-2">
-        {items.map((item, index) => (
-          <div key={`${label}-${index}`} className="flex items-center gap-2">
-            <input
-              type="text"
-              value={item}
-              onChange={(event) => updateItem(index, event.target.value)}
-              placeholder={placeholder}
-              className="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-800 outline-none transition focus:border-[#4C6B3F]/35 focus:ring-2 focus:ring-[#4C6B3F]/10"
-            />
-            <button
-              type="button"
-              onClick={() => removeItem(index)}
-              aria-label={`Eliminar ${label.toLowerCase()}`}
-              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-stone-400 transition hover:bg-red-50 hover:text-red-600"
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 export default function ImportarRecetaAdminPage() {
   const router = useRouter();
   const [authState, setAuthState] = useState<"loading" | "allowed" | "denied">("loading");
   const [rawText, setRawText] = useState("");
+  const [instagramUrl, setInstagramUrl] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const [preview, setPreview] = useState<StructuredInstagramRecipe | null>(null);
@@ -214,9 +154,17 @@ export default function ImportarRecetaAdminPage() {
     };
 
     try {
+      const trimmedInstagramUrl = instagramUrl.trim();
+      if (trimmedInstagramUrl && !normalizeInstagramUrl(trimmedInstagramUrl)) {
+        setErrorMessage("Introduce una URL de Instagram válida o un @usuario.");
+        setIsPublishing(false);
+        return;
+      }
+
       const formData = new FormData();
       formData.append("recipe", JSON.stringify(sanitizedRecipe));
       formData.append("image", imageFile);
+      formData.append("instagram_url", instagramUrl);
 
       const response = await fetch("/api/admin/publish-recipe", {
         method: "POST",
@@ -237,6 +185,7 @@ export default function ImportarRecetaAdminPage() {
       setSuccessMessage(payload.message ?? "Receta publicada correctamente.");
       setPreview(null);
       setRawText("");
+      setInstagramUrl("");
       setImageFile(null);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Error al publicar la receta.");
@@ -278,6 +227,14 @@ export default function ImportarRecetaAdminPage() {
   return (
     <main className="min-h-screen bg-[#FBF9F6] px-4 pb-12 pt-8">
       <div className="mx-auto max-w-2xl">
+        <Link
+          href={APP_ROUTES.perfil}
+          className="mb-4 inline-flex items-center gap-2 text-xs font-medium text-[#4c6633]/80 transition hover:text-[#4c6633]"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.5} />
+          Volver al perfil
+        </Link>
+
         <header className="mb-6">
           <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#4C6B3F]">
             Admin · IngeniaFood
@@ -287,6 +244,12 @@ export default function ImportarRecetaAdminPage() {
             Pega la descripción del post, deja que Gemini estructure la receta y publícala con su
             imagen.
           </p>
+          <Link
+            href="/admin/catalogo-instagram"
+            className="mt-3 inline-flex rounded-full border border-[#4C6B3F]/20 bg-white px-3 py-1.5 text-xs font-semibold text-[#4C6B3F] transition hover:bg-[#F0F4ED]"
+          >
+            Editar recetas del catálogo
+          </Link>
         </header>
 
         <section className="mx-auto mt-8 max-w-2xl rounded-2xl border border-stone-100 bg-white p-6 shadow-sm">
@@ -304,6 +267,24 @@ export default function ImportarRecetaAdminPage() {
                 disabled={isProcessing || isPublishing}
                 className="w-full resize-y rounded-2xl border border-stone-200 bg-stone-50/60 px-4 py-3 text-sm leading-relaxed text-stone-800 outline-none transition focus:border-[#4C6B3F]/35 focus:bg-white focus:ring-2 focus:ring-[#4C6B3F]/10 disabled:opacity-60"
               />
+            </div>
+
+            <div>
+              <label htmlFor="instagram-url" className="mb-2 block text-sm font-semibold text-stone-700">
+                Enlace de Instagram
+              </label>
+              <input
+                id="instagram-url"
+                type="url"
+                value={instagramUrl}
+                onChange={(event) => setInstagramUrl(event.target.value)}
+                placeholder="https://www.instagram.com/reel/... o @usuario"
+                disabled={isProcessing || isPublishing}
+                className="w-full rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-800 outline-none transition focus:border-[#4C6B3F]/35 focus:ring-2 focus:ring-[#4C6B3F]/10 disabled:opacity-60"
+              />
+              <p className="mt-1 text-xs text-stone-500">
+                Opcional. Los usuarios podrán abrir el reel o publicación original desde el catálogo.
+              </p>
             </div>
 
             <div>

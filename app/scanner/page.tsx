@@ -13,6 +13,7 @@ import { hasUnlimitedGenerations } from "@/lib/generations/admin-unlimited";
 import { completePendingPlanAssignment } from "@/lib/plan/complete-pending-assignment";
 import {
   clearPendingPlanAssignment,
+  consumeScannerInitialMode,
   formatPendingPlanAssignmentLabel,
   readPendingPlanAssignment,
   type PendingPlanAssignment
@@ -200,6 +201,11 @@ export default function ScannerPage() {
 
   useEffect(() => {
     setPendingPlanAssignment(readPendingPlanAssignment());
+
+    const initialMode = consumeScannerInitialMode();
+    if (initialMode) {
+      setScannerMode(initialMode);
+    }
   }, []);
 
   useEffect(() => {
@@ -830,7 +836,10 @@ export default function ScannerPage() {
           <ScannerModeTabs mode={scannerMode} onChange={setScannerMode} disabled={isLoading} />
 
           {scannerMode === "instagram" ? (
-            <InstagramCuratedCatalog />
+            <InstagramCuratedCatalog
+              pendingPlanAssignment={pendingPlanAssignment}
+              onPendingAssignmentComplete={() => setPendingPlanAssignment(null)}
+            />
           ) : (
             <>
           {showNotFoodGuidance ? (

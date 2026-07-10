@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { StructuredInstagramRecipe } from "@/lib/admin/instagram-recipe-extractor";
-import { publishStructuredRecipe } from "@/lib/admin/publish-recipe";
+import { updateInstagramCatalogRecipe } from "@/lib/admin/update-instagram-recipe";
 import { requireSandraAdmin } from "@/lib/admin/require-sandra-admin";
 import { normalizeInstagramUrl } from "@/lib/recipes/instagram-url";
 
@@ -31,7 +31,7 @@ function parseRecipeField(value: FormDataEntryValue | null): StructuredInstagram
   }
 }
 
-export async function POST(request: Request) {
+export async function PATCH(request: Request) {
   const auth = await requireSandraAdmin();
   if (!auth.ok) {
     return auth.response;
@@ -44,9 +44,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "No se pudo leer el formulario." }, { status: 400 });
   }
 
+  const recipeId = String(formData.get("recipeId") ?? "").trim();
   const recipe = parseRecipeField(formData.get("recipe"));
   const imageFile = formData.get("image");
   const instagramUrlRaw = formData.get("instagram_url");
+
+  if (!recipeId) {
+    return NextResponse.json({ error: "Falta el identificador de la receta." }, { status: 400 });
+  }
 
   if (!recipe || recipe.titulo.length === 0) {
     return NextResponse.json({ error: "La receta estructurada no es válida." }, { status: 400 });
@@ -59,35 +64,37 @@ export async function POST(request: Request) {
     );
   }
 
-  if (!(imageFile instanceof File) || imageFile.size === 0) {
-    return NextResponse.json({ error: "Selecciona una imagen para la receta." }, { status: 400 });
-  }
-
-  let instagramUrl: string | null = null;
-  if (typeof instagramUrlRaw === "string" && instagramUrlRaw.trim()) {
-    const normalized = normalizeInstagramUrl(instagramUrlRaw);
-    if (!normalized) {
-      return NextResponse.json({ error: "La URL de Instagram no es válida." }, { status: 400 });
+  let instagramUrl: string | null | undefined;
+  if (typeof instagramUrlRaw === "string") {
+    const trimmed = instagramUrlRaw.trim();
+    if (!trimmed) {
+      instagramUrl = null;
+    } else {
+      const normalized = normalizeInstagramUrl(trimmed);
+      if (!normalized) {
+        return NextResponse.json({ error: "La URL de Instagram no es válida." }, { status: 400 });
+      }
+      instagramUrl = normalized;
     }
-    instagramUrl = normalized;
   }
 
   try {
-    const result = await publishStructuredRecipe({
+    const result = await updateInstagramCatalogRecipe({
+      recipeId,
       userId: auth.user.id,
       recipe,
-      imageFile,
-      instagramUrl
+      instagramUrl,
+      imageFile: imageFile instanceof File && imageFile.size > 0 ? imageFile : null
     });
 
     return NextResponse.json({
       recipeId: result.recipeId,
       imageUrl: result.imageUrl,
-      message: "Receta publicada correctamente."
+      message: "Receta actualizada correctamente."
     });
   } catch (error) {
-    console.error("[admin/publish-recipe]", error);
-    const message = error instanceof Error ? error.message : "No pudimos publicar la receta.";
+    console.error("[admin/update-instagram-recipe]", error);
+    const message = error instanceof Error ? error.message : "No pudimos actualizar la receta.";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Camera, ChevronDown, Wand2 } from "lucide-react";
+import { Camera, ChevronDown, Pencil, Wand2 } from "lucide-react";
 import { AvatarCropModal } from "@/components/profile/avatar-crop-modal";
 import { isSandraAdmin } from "@/lib/auth/sandra-admin";
 import { PROFILE_COUNTRIES } from "@/lib/profile/profile-countries";
@@ -432,19 +432,28 @@ export default function ProfilePage() {
                   Admin · IngeniaFood
                 </p>
                 <h2 className="mt-1 text-sm font-semibold text-stone-900">
-                  Importar receta desde Instagram
+                  Catálogo de Instagram
                 </h2>
                 <p className="mt-1 text-xs leading-relaxed text-stone-500">
-                  Pega la descripción del post, estructura la receta con IA y publícala en el
-                  recetario.
+                  Importa nuevas recetas o edita las que ya están publicadas en el catálogo del
+                  escáner.
                 </p>
-                <Link
-                  href="/admin/importar-receta"
-                  className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#4C6B3F] px-4 py-3 text-sm font-semibold text-white shadow-md transition hover:brightness-105"
-                >
-                  <Wand2 className="h-4 w-4" />
-                  Ir a importar receta
-                </Link>
+                <div className="mt-4 space-y-2">
+                  <Link
+                    href="/admin/importar-receta"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#4C6B3F] px-4 py-3 text-sm font-semibold text-white shadow-md transition hover:brightness-105"
+                  >
+                    <Wand2 className="h-4 w-4" />
+                    Importar receta
+                  </Link>
+                  <Link
+                    href="/admin/catalogo-instagram"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-[#4C6B3F]/20 bg-white px-4 py-3 text-sm font-semibold text-[#4C6B3F] transition hover:bg-[#F0F4ED]"
+                  >
+                    <Pencil className="h-4 w-4" />
+                    Editar catálogo
+                  </Link>
+                </div>
               </section>
             ) : null}
           </div>

@@ -5,7 +5,12 @@ import { useRouter } from "next/navigation";
 import { Heart, Instagram, Loader2, Plus } from "lucide-react";
 import { RecipeCatalogThumbnail } from "@/components/recipes/recipe-catalog-thumbnail";
 import { MEAL_TYPES, type MealType } from "@/lib/plan/constants";
+import { completePendingPlanAssignment } from "@/lib/plan/complete-pending-assignment";
 import { assignRecipeToPlan } from "@/lib/plan/plan-service";
+import {
+  formatPendingPlanAssignmentLabel,
+  type PendingPlanAssignment
+} from "@/lib/plan/plan-pending-assignment";
 import { getTodayWeekDay } from "@/lib/plan/week-utils";
 import {
   fetchInstagramCatalogRecipes,
@@ -19,9 +24,15 @@ import { cn } from "@/lib/utils";
 
 type InstagramCuratedCatalogProps = {
   className?: string;
+  pendingPlanAssignment?: PendingPlanAssignment | null;
+  onPendingAssignmentComplete?: () => void;
 };
 
-export function InstagramCuratedCatalog({ className }: InstagramCuratedCatalogProps) {
+export function InstagramCuratedCatalog({
+  className,
+  pendingPlanAssignment = null,
+  onPendingAssignmentComplete
+}: InstagramCuratedCatalogProps) {
   const router = useRouter();
   const [recipes, setRecipes] = useState<InstagramCatalogRecipe[]>([]);
   const [userCopyIds, setUserCopyIds] = useState<Record<string, string>>({});
@@ -31,6 +42,11 @@ export function InstagramCuratedCatalog({ className }: InstagramCuratedCatalogPr
   const [savingRecipeId, setSavingRecipeId] = useState<string | null>(null);
   const [planPickerRecipeId, setPlanPickerRecipeId] = useState<string | null>(null);
   const [assigningMealType, setAssigningMealType] = useState<MealType | null>(null);
+  const [assigningRecipeId, setAssigningRecipeId] = useState<string | null>(null);
+
+  const pendingAssignmentLabel = pendingPlanAssignment
+    ? formatPendingPlanAssignmentLabel(pendingPlanAssignment)
+    : null;
 
   const loadCatalog = useCallback(async () => {
     setIsLoading(true);
@@ -133,6 +149,61 @@ export function InstagramCuratedCatalog({ className }: InstagramCuratedCatalogPr
     }
   };
 
+  const handleAssignToPendingPlan = async (recipe: InstagramCatalogRecipe) => {
+    if (!pendingPlanAssignment || savingRecipeId || assigningRecipeId) return;
+
+    setAssigningRecipeId(recipe.id);
+    setStatusMessage(null);
+    setErrorMessage(null);
+
+    try {
+      const supabase = createSupabaseClient();
+      const {
+        data: { user }
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        setErrorMessage("Inicia sesión para añadir recetas al plan semanal.");
+        return;
+      }
+
+      const saved = await saveCatalogRecipeToLibrary({
+        supabase,
+        userId: user.id,
+        curatedRecipeId: recipe.id
+      });
+
+      if ("error" in saved) {
+        setErrorMessage(saved.error);
+        return;
+      }
+
+      setUserCopyIds((current) => ({ ...current, [recipe.id]: saved.recipeId }));
+
+      const assignment = await completePendingPlanAssignment(user.id, saved.recipeId);
+      onPendingAssignmentComplete?.();
+
+      if (assignment.assigned) {
+        setStatusMessage(
+          assignment.message ?? `"${recipe.title}" asignada al ${pendingAssignmentLabel}.`
+        );
+        window.setTimeout(() => {
+          router.push(APP_ROUTES.plan);
+        }, 700);
+        return;
+      }
+
+      setErrorMessage(
+        assignment.message ?? "Guardamos la receta, pero no pudimos asignarla al plan."
+      );
+    } catch (error) {
+      console.error("[instagram-curated-catalog] Error asignando al plan pendiente:", error);
+      setErrorMessage("No pudimos añadir la receta al plan.");
+    } finally {
+      setAssigningRecipeId(null);
+    }
+  };
+
   const handleAssignToPlan = async (recipe: InstagramCatalogRecipe, mealType: MealType) => {
     if (savingRecipeId || assigningMealType) return;
 
@@ -209,8 +280,9 @@ export function InstagramCuratedCatalog({ className }: InstagramCuratedCatalogPr
             Catálogo IngeniaFood
           </h2>
           <p className="mt-0.5 text-[11px] leading-snug text-stone-500">
-            Explora nuestras ideas saludables favoritas. Guárdalas en tu biblioteca o añádelas
-            directamente a tu plan semanal.
+            {pendingAssignmentLabel
+              ? `Elige una receta y asígnala al ${pendingAssignmentLabel}.`
+              : "Explora nuestras ideas saludables favoritas. Guárdalas en tu biblioteca o añádelas directamente a tu plan semanal."}
           </p>
         </div>
       </div>
@@ -239,7 +311,8 @@ export function InstagramCuratedCatalog({ className }: InstagramCuratedCatalogPr
           {recipes.map((recipe) => {
             const isSaved = Boolean(userCopyIds[recipe.id]);
             const isSaving = savingRecipeId === recipe.id;
-            const showPlanPicker = planPickerRecipeId === recipe.id;
+            const isAssigningPending = assigningRecipeId === recipe.id;
+            const showPlanPicker = !pendingPlanAssignment && planPickerRecipeId === recipe.id;
 
             return (
               <article
@@ -277,7 +350,7 @@ export function InstagramCuratedCatalog({ className }: InstagramCuratedCatalogPr
                     <button
                       type="button"
                       onClick={() => void handleSaveFavorite(recipe)}
-                      disabled={isSaving || Boolean(assigningMealType)}
+                      disabled={isSaving || Boolean(assigningMealType) || Boolean(assigningRecipeId)}
                       aria-label={isSaved ? "Receta guardada en favoritos" : "Guardar en favoritos"}
                       className={cn(
                         "inline-flex h-8 w-8 items-center justify-center rounded-full border transition",
@@ -294,17 +367,36 @@ export function InstagramCuratedCatalog({ className }: InstagramCuratedCatalogPr
                       )}
                     </button>
 
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setPlanPickerRecipeId((current) => (current === recipe.id ? null : recipe.id))
-                      }
-                      disabled={isSaving || Boolean(assigningMealType)}
-                      aria-label="Añadir al plan semanal"
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#4C6B3F]/20 bg-[#F0F4ED] text-[#4C6B3F] transition hover:bg-[#dce7c3] disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      <Plus className="h-3.5 w-3.5" strokeWidth={2} />
-                    </button>
+                    {pendingPlanAssignment ? (
+                      <button
+                        type="button"
+                        onClick={() => void handleAssignToPendingPlan(recipe)}
+                        disabled={isSaving || isAssigningPending || Boolean(assigningMealType)}
+                        aria-label={`Asignar al ${pendingAssignmentLabel}`}
+                        className="inline-flex min-w-0 flex-1 items-center justify-center gap-1 rounded-full border border-[#4C6B3F]/25 bg-[#4C6B3F] px-2.5 py-1.5 text-[10px] font-semibold leading-tight text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {isAssigningPending ? (
+                          <>
+                            <Loader2 className="h-3 w-3 shrink-0 animate-spin" />
+                            Asignando...
+                          </>
+                        ) : (
+                          <>Asignar al plan</>
+                        )}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPlanPickerRecipeId((current) => (current === recipe.id ? null : recipe.id))
+                        }
+                        disabled={isSaving || Boolean(assigningMealType)}
+                        aria-label="Añadir al plan semanal"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#4C6B3F]/20 bg-[#F0F4ED] text-[#4C6B3F] transition hover:bg-[#dce7c3] disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <Plus className="h-3.5 w-3.5" strokeWidth={2} />
+                      </button>
+                    )}
                   </div>
 
                   {showPlanPicker ? (
