@@ -111,7 +111,7 @@ export function PantrySearchView({
     removeFavorite
   } = usePantryData();
 
-  const [activeCategory, setActiveCategory] = useState<CategoryKey>(CATEGORY_KEYS[0]);
+  const [activeCategory, setActiveCategory] = useState<CategoryKey | null>(null);
 
   const masterByName = useMemo(() => {
     const map = new Map<string, MasterIngredient>();
@@ -280,12 +280,12 @@ export function PantrySearchView({
   );
 
   return (
-    <div className="h-[calc(100vh-180px)] flex flex-col justify-between overflow-hidden duration-300 sm:h-[calc(100vh-200px)]">
-      <div className="flex-1 overflow-y-auto px-1 pt-2 pb-4">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pt-2 pb-2">
 
         <div
           className={[
-            "group relative flex w-full aspect-[4/3] overflow-hidden rounded-3xl shadow-md transition-colors",
+            "group relative flex w-full max-h-44 aspect-[3/2] overflow-hidden rounded-3xl shadow-md transition-colors",
             previewUrl
               ? "bg-white border border-stone-200/70"
               : "bg-gradient-to-tr from-[#F4F7F2] to-[#E2ECDFA0] border border-[#D5E2D0]"
@@ -357,9 +357,8 @@ export function PantrySearchView({
             aria-label="Abrir cámara o galería para foto de despensa"
           />
         </div>
-      
 
-      <section className="mb-4">
+      <section className="mb-4 mt-5">
         {isPantryLoading ? (
           <div className="h-12 animate-pulse rounded-full border border-stone-100 bg-stone-50" />
         ) : (
@@ -438,7 +437,9 @@ export function PantrySearchView({
                 <button
                   key={key}
                   type="button"
-                  onClick={() => setActiveCategory(key)}
+                  onClick={() =>
+                    setActiveCategory((current) => (current === key ? null : key))
+                  }
                   aria-pressed={isActive}
                   aria-label={`Ver favoritos de ${meta.label}`}
                   className={[
@@ -467,8 +468,12 @@ export function PantrySearchView({
             })}
           </div>
 
-          {favoritesByCategory[activeCategory].length > 0 ? (
-            <div className="max-h-28 overflow-y-auto pr-0.5">
+          {activeCategory === null ? (
+            <p className="text-xs leading-relaxed text-stone-500">
+              Elige una categoría para ver tus ingredientes favoritos.
+            </p>
+          ) : favoritesByCategory[activeCategory].length > 0 ? (
+            <div className="pr-0.5">
               <div className="grid grid-cols-2 gap-2">
                 {favoritesByCategory[activeCategory].map((fav) => {
                   const isSelected = selectedIngredients.includes(fav.name);
@@ -537,8 +542,7 @@ export function PantrySearchView({
 
       </div>
 
-      {/* Bottom sticky (siempre visible dentro de la altura controlada) */}
-      <div className="bg-[#FBF9F6] px-4 pb-4 pt-2">
+      <div className="z-10 shrink-0 border-t border-stone-200/70 bg-[#FBF9F6] px-4 pb-1 pt-2 shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
         {isUnlimitedGenerationsCount(generationsLeft) ? (
           <span className="text-[10px] text-stone-400 text-center block mb-1">
             Escaneos ilimitados · cuenta admin

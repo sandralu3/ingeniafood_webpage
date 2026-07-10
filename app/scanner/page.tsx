@@ -27,6 +27,7 @@ import {
 import { type RecipeMacros } from "@/lib/recipes/recipe-macros";
 import { saveGeneratedRecipeToLibrary } from "@/lib/recipes/save-generated-recipe";
 import { createSupabaseClient } from "@/lib/supabaseClient";
+import { cn } from "@/lib/utils";
 
 type GeneratedRecipe = {
   titulo: string;
@@ -707,10 +708,23 @@ export default function ScannerPage() {
     setRetryMessage(null);
   };
 
+  const isPantryIdleView =
+    !isLoading && !recipe && !showGenerationError && scannerMode === "pantry";
+  const pantryViewportHeight = pendingPlanAssignment
+    ? "h-[calc(100dvh-17rem)] max-h-[calc(100dvh-17rem)]"
+    : "h-[calc(100dvh-12.5rem)] max-h-[calc(100dvh-12.5rem)]";
+
   return (
-    <div className="min-h-[calc(100dvh-10rem)] bg-[#FBF9F6]">
+    <div
+      className={cn(
+        "bg-[#FBF9F6]",
+        isPantryIdleView
+          ? cn("flex flex-col overflow-hidden", pantryViewportHeight)
+          : "min-h-[calc(100dvh-10rem)]"
+      )}
+    >
       {pendingPlanAssignment ? (
-        <div className="mb-4 rounded-2xl border border-[#556B2F]/20 bg-[#F0F4ED]/80 px-4 py-3">
+        <div className="mb-3 shrink-0 rounded-2xl border border-[#556B2F]/20 bg-[#F0F4ED]/80 px-4 py-3">
           <p className="text-sm font-semibold text-[#3e5219]">Planificando tu semana</p>
           <p className="mt-1 text-xs leading-relaxed text-stone-600">
             Al guardar la receta, se asignará al{" "}
@@ -832,7 +846,12 @@ export default function ScannerPage() {
       ) : null}
 
       {!isLoading && !recipe && !showGenerationError ? (
-        <div className="animate-fade-in space-y-4">
+        <div
+          className={cn(
+            "animate-fade-in flex min-h-0 flex-1 flex-col gap-3 overflow-hidden",
+            scannerMode === "pantry" ? "min-h-0" : ""
+          )}
+        >
           <ScannerModeTabs mode={scannerMode} onChange={setScannerMode} disabled={isLoading} />
 
           {scannerMode === "instagram" ? (
@@ -841,9 +860,9 @@ export default function ScannerPage() {
               onPendingAssignmentComplete={() => setPendingPlanAssignment(null)}
             />
           ) : (
-            <>
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           {showNotFoodGuidance ? (
-            <div className="mb-4 rounded-2xl border border-[#556B2F]/25 bg-[#FDFCFB] p-4 shadow-sm">
+            <div className="mb-3 shrink-0 rounded-2xl border border-[#556B2F]/25 bg-[#FDFCFB] p-4 shadow-sm">
               <p className="text-lg font-semibold text-[#556B2F]">🍎 ¡Vaya! No parece haber comida ahí.</p>
               <p className="mt-2 text-sm text-stone-700">
                 Para ayudarte con una receta increíble, asegúrate de que los ingredientes se vean
@@ -865,6 +884,7 @@ export default function ScannerPage() {
               </button>
             </div>
           ) : null}
+          <div className="min-h-0 flex-1 overflow-hidden">
           <PantrySearchView
             selectedIngredients={selectedIngredients}
             pantryImageFile={pantryImageFile}
@@ -880,18 +900,20 @@ export default function ScannerPage() {
             generationsLeft={generationsLeft}
             onGenerationsExhausted={() => setShowGenerationsModal(true)}
           />
+          </div>
           <GenerationsLimitModal
             open={showGenerationsModal}
             onClose={() => setShowGenerationsModal(false)}
           />
-          {securityWarning ? (
-            <p className="mt-3 rounded-2xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-800">
-              {securityWarning}
-            </p>
-          ) : null}
-            </>
+            </div>
           )}
         </div>
+      ) : null}
+
+      {securityWarning && !isPantryIdleView ? (
+        <p className="mt-3 shrink-0 rounded-2xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-800">
+          {securityWarning}
+        </p>
       ) : null}
     </div>
   );

@@ -326,25 +326,29 @@ export default function ProfilePage() {
             </p>
           </header>
 
-          <div className="flex flex-col items-center gap-3">
+          <div className="flex flex-col items-center gap-3 overflow-visible">
             <button
               type="button"
               onClick={handleAvatarClick}
-              className="relative h-28 w-28 overflow-hidden rounded-full border border-[#4c6633]/35 bg-[#dce7c3]/20 text-[#4c6633]"
+              className="relative h-28 w-28 rounded-full border border-[#4c6633]/35 bg-[#dce7c3]/20 text-[#4c6633]"
               aria-label="Actualizar foto de perfil"
             >
               {avatarUrl ? (
-                <img src={avatarUrl} alt="Avatar del usuario" className="h-full w-full object-cover" />
+                <img
+                  src={avatarUrl}
+                  alt="Avatar del usuario"
+                  className="h-full w-full rounded-full object-cover"
+                />
               ) : (
-                <span className="flex h-full w-full items-center justify-center text-2xl font-semibold">
+                <span className="flex h-full w-full items-center justify-center rounded-full text-2xl font-semibold">
                   {getInitials(fullName, email)}
                 </span>
               )}
-              <span className="absolute bottom-0.5 right-0.5 inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#4c6633] text-white shadow-sm">
+              <span className="absolute -bottom-0.5 -right-0.5 inline-flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-[#4c6633] text-white shadow-md">
                 <Camera className="h-3.5 w-3.5" strokeWidth={1.75} />
               </span>
               {isUploadingAvatar ? (
-                <span className="absolute inset-0 flex flex-col items-center justify-center bg-black/35 text-xs font-medium text-white">
+                <span className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden rounded-full bg-black/35 text-xs font-medium text-white">
                   <span className="mb-2 h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
                   Subiendo...
                 </span>

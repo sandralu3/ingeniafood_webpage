@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -26,6 +27,9 @@ type DrawerItem = {
   icon: LucideIcon;
 };
 
+const DRAWER_TRANSITION_MS = 300;
+const DRAWER_EASING = "cubic-bezier(0.32, 0.72, 0, 1)";
+
 const drawerItems: DrawerItem[] = [
   { href: APP_ROUTES.hoy, label: "Hoy", icon: Sparkles },
   { href: APP_ROUTES.plan, label: "Plan semanal", icon: CalendarDays },
@@ -44,15 +48,61 @@ function isDrawerItemActive(pathname: string, href: string): boolean {
 
 export function AppDrawer({ open, onClose }: AppDrawerProps) {
   const pathname = usePathname();
+  const [isMounted, setIsMounted] = useState(open);
+  const [isVisible, setIsVisible] = useState(false);
 
-  if (!open) return null;
+  useEffect(() => {
+    if (open) {
+      setIsMounted(true);
+      setIsVisible(false);
+
+      let frame2 = 0;
+      const frame1 = window.requestAnimationFrame(() => {
+        frame2 = window.requestAnimationFrame(() => {
+          setIsVisible(true);
+        });
+      });
+
+      return () => {
+        window.cancelAnimationFrame(frame1);
+        if (frame2) window.cancelAnimationFrame(frame2);
+      };
+    }
+
+    setIsVisible(false);
+    const timer = window.setTimeout(() => setIsMounted(false), DRAWER_TRANSITION_MS);
+    return () => window.clearTimeout(timer);
+  }, [open]);
+
+  useEffect(() => {
+    if (!isMounted) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isMounted]);
+
+  if (!isMounted) return null;
 
   return (
-    <div className="fixed inset-0 z-[170]">
+    <div
+      className={cn(
+        "fixed inset-0 z-[170]",
+        isVisible ? "pointer-events-auto" : "pointer-events-none"
+      )}
+    >
       <button
         type="button"
         aria-label="Cerrar menú"
-        className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+        className={cn(
+          "absolute inset-0 bg-black/25 backdrop-blur-[1px]",
+          "transition-opacity duration-300",
+          isVisible ? "opacity-100" : "opacity-0"
+        )}
+        style={{ transitionTimingFunction: DRAWER_EASING }}
         onClick={onClose}
       />
 
@@ -60,7 +110,12 @@ export function AppDrawer({ open, onClose }: AppDrawerProps) {
         role="dialog"
         aria-modal="true"
         aria-label="Menú de navegación"
-        className="absolute left-0 top-0 flex h-full w-[min(18rem,85vw)] flex-col border-r border-stone-200/80 bg-white shadow-2xl"
+        className={cn(
+          "absolute left-0 top-0 flex h-full w-[min(18rem,85vw)] flex-col border-r border-stone-200/80 bg-white shadow-2xl",
+          "transition-transform duration-300 will-change-transform",
+          isVisible ? "translate-x-0" : "-translate-x-full"
+        )}
+        style={{ transitionTimingFunction: DRAWER_EASING }}
       >
         <div className="flex items-center justify-between border-b border-stone-100 px-5 py-4">
           <div>
@@ -89,7 +144,7 @@ export function AppDrawer({ open, onClose }: AppDrawerProps) {
                 href={href}
                 onClick={onClose}
                 className={cn(
-                  "flex items-center gap-3 rounded-2xl px-3.5 py-3 text-sm font-medium transition",
+                  "flex items-center gap-3 rounded-2xl px-3.5 py-3 text-sm font-medium transition-[background-color,color] duration-200",
                   isActive
                     ? "bg-gradient-to-r from-[#dce7c3] to-amber-50 text-[#3e5219] shadow-sm"
                     : "text-stone-600 hover:bg-stone-50 hover:text-stone-900"
