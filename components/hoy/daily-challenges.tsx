@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -17,17 +17,18 @@ import {
 } from "lucide-react";
 import {
   completeDailyChallenge,
-  fetchActiveDailyChallengesForUser,
-  fetchTodayCompletedChallengeIds,
   uncompleteDailyChallenge
 } from "@/lib/gamification/challenge-service";
 import type { DailyChallenge } from "@/lib/gamification/challenges";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
-import { createSupabaseClient } from "@/lib/supabaseClient";
 import { cn } from "@/lib/utils";
 
 type DailyChallengesProps = {
-  onHealthScoreChange?: () => void;
+  userId: string | null;
+  challenges: DailyChallenge[];
+  completedIds: string[];
+  isLoading?: boolean;
+  onDataChange?: () => void;
   className?: string;
 };
 
@@ -43,52 +44,22 @@ function resolveChallengeIcon(label: string) {
   return Target;
 }
 
-export function DailyChallenges({ onHealthScoreChange, className }: DailyChallengesProps) {
-  const [challenges, setChallenges] = useState<DailyChallenge[]>([]);
+export function DailyChallenges({
+  userId,
+  challenges,
+  completedIds,
+  isLoading = false,
+  onDataChange,
+  className
+}: DailyChallengesProps) {
   const [completed, setCompleted] = useState<Record<string, boolean>>({});
-  const [isLoading, setIsLoading] = useState(true);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
   const [focusedChallengeId, setFocusedChallengeId] = useState<string | null>(null);
 
-  const loadTodayChallenges = useCallback(async () => {
-    setIsLoading(true);
-    setErrorMessage(null);
-
-    try {
-      const supabase = createSupabaseClient();
-      const {
-        data: { user }
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        setUserId(null);
-        setChallenges([]);
-        setCompleted({});
-        return;
-      }
-
-      setUserId(user.id);
-
-      const [activeChallenges, completedIds] = await Promise.all([
-        fetchActiveDailyChallengesForUser(user.id),
-        fetchTodayCompletedChallengeIds(user.id)
-      ]);
-
-      setChallenges(activeChallenges);
-      setCompleted(Object.fromEntries(completedIds.map((id) => [id, true])));
-    } catch (error) {
-      console.error("[daily-challenges] Error cargando retos:", error);
-      setErrorMessage("No pudimos cargar tus retos de hoy.");
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    void loadTodayChallenges();
-  }, [loadTodayChallenges]);
+    setCompleted(Object.fromEntries(completedIds.map((id) => [id, true])));
+  }, [completedIds]);
 
   const toggleChallenge = async (challenge: DailyChallenge) => {
     if (!userId || pendingId) return;
@@ -115,7 +86,7 @@ export function DailyChallenges({ onHealthScoreChange, className }: DailyChallen
         });
       }
 
-      onHealthScoreChange?.();
+      onDataChange?.();
     } catch (error) {
       console.error("[daily-challenges] Error guardando reto:", error);
       setCompleted((prev) => ({ ...prev, [challenge.id]: isDone }));
@@ -130,6 +101,7 @@ export function DailyChallenges({ onHealthScoreChange, className }: DailyChallen
     (sum, challenge) => sum + (completed[challenge.id] ? challenge.points : 0),
     0
   );
+  const showSkeleton = isLoading && challenges.length === 0;
 
   return (
     <section
@@ -142,7 +114,7 @@ export function DailyChallenges({ onHealthScoreChange, className }: DailyChallen
         <div>
           <h2 className="font-serif text-base font-semibold text-stone-900">Retos del día</h2>
           <p className="mt-0.5 text-xs text-stone-500">
-            {isLoading
+            {showSkeleton
               ? "Cargando..."
               : challenges.length === 0
                 ? "Sin retos activos"
@@ -160,7 +132,13 @@ export function DailyChallenges({ onHealthScoreChange, className }: DailyChallen
         </p>
       ) : null}
 
-      {!isLoading && challenges.length === 0 ? (
+      {showSkeleton ? (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="h-5 w-5 animate-spin text-[#556B2F]/60" />
+        </div>
+      ) : null}
+
+      {!showSkeleton && challenges.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-amber-200/80 bg-amber-50/40 px-4 py-6 text-center">
           <span className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-[#556B2F] shadow-sm">
             <Target className="h-5 w-5" />
@@ -192,7 +170,7 @@ export function DailyChallenges({ onHealthScoreChange, className }: DailyChallen
                 <button
                   type="button"
                   onClick={() => void toggleChallenge(challenge)}
-                  disabled={isLoading || !userId || Boolean(pendingId)}
+                  disabled={showSkeleton || !userId || Boolean(pendingId)}
                   className={cn(
                     "relative flex w-full items-center gap-2.5 overflow-hidden rounded-xl border px-3 py-2 pr-14 text-left transition-all duration-300",
                     isDone

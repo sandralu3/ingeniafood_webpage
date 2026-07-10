@@ -1,55 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, ScanLine } from "lucide-react";
 import { DailyChallenges } from "@/components/hoy/daily-challenges";
 import { HoyGreetingHeader } from "@/components/hoy/hoy-greeting-header";
 import { ProgressBoard } from "@/components/hoy/progress-board/progress-board";
 import { SandraTipCard } from "@/components/home/sandra-tip-card";
-import {
-  getProfileInitials,
-  resolveProfileFirstName
-} from "@/components/shared/user-avatar";
+import { useHoyPageData } from "@/hooks/use-hoy-page-data";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
-import { createSupabaseClient } from "@/lib/supabaseClient";
 
 export function HoyDashboard() {
-  const [healthScoreRefreshKey, setHealthScoreRefreshKey] = useState(0);
-  const [displayName, setDisplayName] = useState("Chef");
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [initials, setInitials] = useState("SV");
-
-  useEffect(() => {
-    const loadProfile = async () => {
-      const supabase = createSupabaseClient();
-      const {
-        data: { user }
-      } = await supabase.auth.getUser();
-
-      if (!user) return;
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("full_name, avatar_url")
-        .eq("id", user.id)
-        .maybeSingle();
-
-      setDisplayName(resolveProfileFirstName(profile?.full_name, user.email));
-      setAvatarUrl(profile?.avatar_url ?? null);
-      setInitials(getProfileInitials(profile?.full_name, user.email));
-    };
-
-    void loadProfile();
-  }, []);
+  const { data, userId, profile, isLoading, refresh } = useHoyPageData();
 
   return (
     <div className="-mx-4 min-h-full bg-gradient-to-b from-stone-50 via-amber-50/20 to-white px-4 pb-6 pt-0">
       <section className="space-y-3">
         <HoyGreetingHeader
-          displayName={displayName}
-          avatarUrl={avatarUrl}
-          initials={initials}
+          displayName={profile.displayName}
+          avatarUrl={profile.avatarUrl}
+          initials={profile.initials}
         />
 
         <Link
@@ -68,10 +37,14 @@ export function HoyDashboard() {
           <ArrowRight className="h-4 w-4 shrink-0 text-[#556B2F] transition group-hover:translate-x-0.5" />
         </Link>
 
-        <ProgressBoard refreshKey={healthScoreRefreshKey} />
+        <ProgressBoard data={data} isLoading={isLoading} />
 
         <DailyChallenges
-          onHealthScoreChange={() => setHealthScoreRefreshKey((key) => key + 1)}
+          userId={userId}
+          challenges={data?.activeChallenges ?? []}
+          completedIds={data?.todayCompletedIds ?? []}
+          isLoading={isLoading}
+          onDataChange={() => void refresh({ force: true })}
         />
 
         <SandraTipCard />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { Droplets, Leaf, Loader2, Sparkles, Target, TrendingUp } from "lucide-react";
 import { ProgressBoardCard } from "@/components/hoy/progress-board/progress-board-card";
 import {
@@ -18,22 +18,14 @@ import {
   MiniSparkline,
   StreakBadge
 } from "@/components/hoy/progress-board/progress-board-visuals";
-import type { DailyChallenge } from "@/lib/gamification/challenges";
-import {
-  fetchActiveDailyChallengesForUser,
-  fetchAllChallengesForUser,
-  fetchCompletionsInRange,
-  fetchTodayCompletedChallengeIds,
-  fetchWeeklyHealthMetrics
-} from "@/lib/gamification/challenge-service";
+import type { HoyPageData } from "@/lib/gamification/hoy-page-data";
 import { calculateNutritionImpact } from "@/lib/gamification/nutrition-impact";
 import type { WeeklyHealthMetrics } from "@/lib/gamification/weekly-metrics";
 import {
   buildDailyPointsHistory,
   buildWeekConsistencyDays
 } from "@/lib/gamification/week-consistency";
-import { getMondayOfWeek, toISODateString } from "@/lib/plan/week-utils";
-import { createSupabaseClient } from "@/lib/supabaseClient";
+import { toISODateString } from "@/lib/plan/week-utils";
 import { cn } from "@/lib/utils";
 
 const EMPTY_METRICS: WeeklyHealthMetrics = {
@@ -49,90 +41,47 @@ const EMPTY_METRICS: WeeklyHealthMetrics = {
 type ActiveModal = "today" | "weekly" | "streak" | "nutrition" | null;
 
 type ProgressBoardProps = {
-  refreshKey?: number;
+  data: HoyPageData | null;
+  isLoading?: boolean;
   className?: string;
 };
 
-export function ProgressBoard({ refreshKey = 0, className }: ProgressBoardProps) {
-  const [metrics, setMetrics] = useState<WeeklyHealthMetrics>(EMPTY_METRICS);
-  const [challenges, setChallenges] = useState<DailyChallenge[]>([]);
-  const [completed, setCompleted] = useState<Record<string, boolean>>({});
-  const [dailyPoints, setDailyPoints] = useState<
-    Array<{ label: string; points: number; isToday: boolean }>
-  >([]);
-  const [weekConsistency, setWeekConsistency] = useState(
-    buildWeekConsistencyDays([])
-  );
-  const [nutrition, setNutrition] = useState({
-    hydration: 0,
-    vegetables: 0,
-    protein: 0
-  });
-  const [isLoading, setIsLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+export function ProgressBoard({ data, isLoading = false, className }: ProgressBoardProps) {
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
 
-  const loadBoard = useCallback(async () => {
-    setIsLoading(true);
-    setErrorMessage(null);
+  const today = toISODateString(new Date());
 
-    try {
-      const supabase = createSupabaseClient();
-      const {
-        data: { user }
-      } = await supabase.auth.getUser();
+  const metrics = data?.metrics ?? EMPTY_METRICS;
+  const challenges = data?.activeChallenges ?? [];
+  const completed = useMemo(
+    () => Object.fromEntries((data?.todayCompletedIds ?? []).map((id) => [id, true])),
+    [data?.todayCompletedIds]
+  );
+  const dailyPoints = useMemo(
+    () =>
+      data
+        ? buildDailyPointsHistory({
+            completions: data.weekCompletions,
+            challenges: data.allChallenges,
+            today
+          })
+        : [],
+    [data, today]
+  );
+  const weekConsistency = useMemo(
+    () => buildWeekConsistencyDays(data?.weekCompletions ?? [], today),
+    [data?.weekCompletions, today]
+  );
+  const nutrition = useMemo(
+    () =>
+      calculateNutritionImpact(
+        data?.activeChallenges ?? [],
+        data?.todayCompletedIds ?? []
+      ),
+    [data?.activeChallenges, data?.todayCompletedIds]
+  );
 
-      if (!user) {
-        setMetrics(EMPTY_METRICS);
-        setChallenges([]);
-        setCompleted({});
-        setDailyPoints([]);
-        setWeekConsistency(buildWeekConsistencyDays([]));
-        setNutrition({ hydration: 0, vegetables: 0, protein: 0 });
-        return;
-      }
-
-      const today = toISODateString(new Date());
-      const weekStart = toISODateString(getMondayOfWeek());
-
-      const [
-        weeklyMetrics,
-        activeChallenges,
-        allChallenges,
-        completedIds,
-        weekCompletions
-      ] = await Promise.all([
-        fetchWeeklyHealthMetrics(user.id),
-        fetchActiveDailyChallengesForUser(user.id),
-        fetchAllChallengesForUser(user.id),
-        fetchTodayCompletedChallengeIds(user.id),
-        fetchCompletionsInRange(user.id, weekStart, today)
-      ]);
-
-      setMetrics(weeklyMetrics);
-      setChallenges(activeChallenges);
-      setCompleted(Object.fromEntries(completedIds.map((id) => [id, true])));
-      setDailyPoints(
-        buildDailyPointsHistory({
-          completions: weekCompletions,
-          challenges: allChallenges,
-          today
-        })
-      );
-      setWeekConsistency(buildWeekConsistencyDays(weekCompletions, today));
-      setNutrition(calculateNutritionImpact(activeChallenges, completedIds));
-    } catch (error) {
-      console.error("[progress-board] Error cargando tablero:", error);
-      setErrorMessage("No pudimos cargar tu tablero de progreso.");
-      setMetrics(EMPTY_METRICS);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void loadBoard();
-  }, [loadBoard, refreshKey]);
+  const showSkeleton = isLoading && !data;
 
   const {
     earnedPoints,
@@ -150,7 +99,7 @@ export function ProgressBoard({ refreshKey = 0, className }: ProgressBoardProps)
           Tablero de progreso
         </p>
 
-        {isLoading ? (
+        {showSkeleton ? (
           <div className="flex h-28 items-center justify-center rounded-2xl border border-stone-100 bg-white shadow-sm">
             <Loader2 className="h-6 w-6 animate-spin text-[#556B2F]/60" />
           </div>
@@ -230,8 +179,6 @@ export function ProgressBoard({ refreshKey = 0, className }: ProgressBoardProps)
             </ProgressBoardCard>
           </div>
         )}
-
-        {errorMessage ? <p className="px-1 text-xs text-red-600">{errorMessage}</p> : null}
       </section>
 
       <TodayAchievementsModal

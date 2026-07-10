@@ -14,10 +14,14 @@ import {
 import { getTodayWeekDay } from "@/lib/plan/week-utils";
 import {
   fetchInstagramCatalogRecipes,
-  findUserCatalogRecipeCopy,
+  findUserCatalogRecipeCopiesBatch,
   saveCatalogRecipeToLibrary,
   type InstagramCatalogRecipe
 } from "@/lib/recipes/instagram-catalog";
+import {
+  readInstagramCatalogCache,
+  writeInstagramCatalogCache
+} from "@/lib/recipes/instagram-catalog-cache";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import { cn } from "@/lib/utils";
@@ -48,8 +52,17 @@ export function InstagramCuratedCatalog({
     ? formatPendingPlanAssignmentLabel(pendingPlanAssignment)
     : null;
 
-  const loadCatalog = useCallback(async () => {
-    setIsLoading(true);
+  const loadCatalog = useCallback(async (options?: { background?: boolean }) => {
+    if (!options?.background) {
+      const cachedRecipes = readInstagramCatalogCache();
+      if (cachedRecipes) {
+        setRecipes(cachedRecipes);
+        setIsLoading(false);
+      } else {
+        setIsLoading(true);
+      }
+    }
+
     setErrorMessage(null);
 
     try {
@@ -60,26 +73,21 @@ export function InstagramCuratedCatalog({
 
       const catalog = await fetchInstagramCatalogRecipes(supabase);
       setRecipes(catalog);
+      writeInstagramCatalogCache(catalog);
 
       if (!user) {
         setUserCopyIds({});
         return;
       }
 
-      const copies: Record<string, string> = {};
-      await Promise.all(
-        catalog.map(async (recipe) => {
-          const copyId = await findUserCatalogRecipeCopy(supabase, user.id, recipe);
-          if (copyId) {
-            copies[recipe.id] = copyId;
-          }
-        })
-      );
+      const copies = await findUserCatalogRecipeCopiesBatch(supabase, user.id, catalog);
       setUserCopyIds(copies);
     } catch (error) {
       console.error("[instagram-curated-catalog] Error cargando catálogo:", error);
-      setErrorMessage("No pudimos cargar el catálogo de Instagram.");
-      setRecipes([]);
+      if (!readInstagramCatalogCache()) {
+        setErrorMessage("No pudimos cargar el catálogo de Instagram.");
+        setRecipes([]);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -260,7 +268,7 @@ export function InstagramCuratedCatalog({
     }
   };
 
-  if (isLoading) {
+  if (isLoading && recipes.length === 0) {
     return (
       <div className={cn("mt-4 flex items-center justify-center gap-1.5 py-10 text-xs text-stone-500", className)}>
         <Loader2 className="h-3.5 w-3.5 animate-spin text-[#4C6B3F]" />

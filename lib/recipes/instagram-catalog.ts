@@ -65,25 +65,66 @@ export async function findUserCatalogRecipeCopy(
   userId: string,
   curated: InstagramCatalogRecipe
 ): Promise<string | null> {
-  if (curated.instagram_url) {
-    const { data } = await supabase
-      .from("recipes")
-      .select("id")
-      .eq("user_id", userId)
-      .eq("instagram_url", curated.instagram_url)
-      .maybeSingle();
+  const copies = await findUserCatalogRecipeCopiesBatch(supabase, userId, [curated]);
+  return copies[curated.id] ?? null;
+}
 
-    if (data?.id) return data.id;
+export async function findUserCatalogRecipeCopiesBatch(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+  catalog: InstagramCatalogRecipe[]
+): Promise<Record<string, string>> {
+  const copies: Record<string, string> = {};
+  if (catalog.length === 0) return copies;
+
+  const instagramUrls = Array.from(
+    new Set(
+      catalog
+        .map((recipe) => recipe.instagram_url)
+        .filter((url): url is string => Boolean(url))
+    )
+  );
+  const titles = Array.from(new Set(catalog.map((recipe) => recipe.title)));
+
+  const [byUrlResult, byTitleResult] = await Promise.all([
+    instagramUrls.length > 0
+      ? supabase
+          .from("recipes")
+          .select("id, instagram_url")
+          .eq("user_id", userId)
+          .in("instagram_url", instagramUrls)
+      : Promise.resolve({ data: [], error: null }),
+    supabase.from("recipes").select("id, title").eq("user_id", userId).in("title", titles)
+  ]);
+
+  const urlToId = new Map<string, string>();
+  for (const row of byUrlResult.data ?? []) {
+    if (row.instagram_url) {
+      urlToId.set(row.instagram_url, row.id);
+    }
   }
 
-  const { data: byTitle } = await supabase
-    .from("recipes")
-    .select("id")
-    .eq("user_id", userId)
-    .eq("title", curated.title)
-    .maybeSingle();
+  const titleToId = new Map<string, string>();
+  for (const row of byTitleResult.data ?? []) {
+    titleToId.set(row.title, row.id);
+  }
 
-  return byTitle?.id ?? null;
+  for (const recipe of catalog) {
+    if (recipe.instagram_url) {
+      const byUrl = urlToId.get(recipe.instagram_url);
+      if (byUrl) {
+        copies[recipe.id] = byUrl;
+        continue;
+      }
+    }
+
+    const byTitle = titleToId.get(recipe.title);
+    if (byTitle) {
+      copies[recipe.id] = byTitle;
+    }
+  }
+
+  return copies;
 }
 
 export async function saveCatalogRecipeToLibrary(params: {
