@@ -129,10 +129,15 @@ export async function proxy(request: NextRequest) {
     session &&
     (pathname === "/login" || pathname === "/auth" || pathname === "/registro")
   ) {
-    const targetUrl = request.nextUrl.clone();
-    targetUrl.pathname = "/app-recetas";
-    targetUrl.search = "";
-    return NextResponse.redirect(targetUrl);
+    const isPasswordResetSuccess =
+      pathname === "/login" && request.nextUrl.searchParams.get("reset") === "1";
+
+    if (!isPasswordResetSuccess) {
+      const targetUrl = request.nextUrl.clone();
+      targetUrl.pathname = "/app-recetas";
+      targetUrl.search = "";
+      return NextResponse.redirect(targetUrl);
+    }
   }
 
   if (!session && !isPublicRoute) {

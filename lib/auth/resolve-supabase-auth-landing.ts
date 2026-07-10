@@ -33,6 +33,13 @@ function isRecoveryFlow(params: URLSearchParams): boolean {
 export function resolveSupabaseAuthLandingUrl(input: AuthLandingInput): string | null {
   const { pathname, search, hash, origin } = input;
   const params = readAuthParams(search, hash);
+
+  if (pathname.startsWith("/app-recetas") && params.get("reset") === "1") {
+    const login = new URL("/login", origin);
+    login.searchParams.set("reset", "1");
+    return login.toString();
+  }
+
   const code = params.get("code");
   const errorCode = params.get("error_code");
   const error = params.get("error");
@@ -48,7 +55,18 @@ export function resolveSupabaseAuthLandingUrl(input: AuthLandingInput): string |
     return null;
   }
 
-  if (code && pathname !== "/auth/callback") {
+  if (code && pathname !== "/auth/callback" && pathname !== "/auth/reset-password") {
+    const isRecovery = type === "recovery" || isRecoveryFlow(params);
+
+    if (isRecovery) {
+      const reset = new URL("/auth/reset-password", origin);
+      reset.searchParams.set("code", code);
+      if (type) {
+        reset.searchParams.set("type", type);
+      }
+      return reset.toString();
+    }
+
     const callback = new URL("/auth/callback", origin);
     callback.searchParams.set("code", code);
 

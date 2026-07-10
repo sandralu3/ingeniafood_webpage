@@ -2,7 +2,7 @@
 
 import { FormEvent, Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { IngeniaFoodLogo } from "@/components/shared/ingenia-food-logo";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -34,7 +34,6 @@ function ResetPasswordFallback() {
 }
 
 function ResetPasswordForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const linkExpired = searchParams.get("error") === "link_expired";
 
@@ -58,6 +57,42 @@ function ResetPasswordForm() {
     const verifyRecoverySession = async () => {
       try {
         const supabase = createSupabaseClient();
+        const queryParams = new URLSearchParams(window.location.search);
+        const recoveryCode = queryParams.get("code");
+        const tokenHash = queryParams.get("token_hash");
+
+        if (recoveryCode) {
+          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(recoveryCode);
+
+          if (!isMounted) return;
+
+          if (!exchangeError) {
+            setHasValidSession(true);
+            const cleanUrl = new URL(window.location.href);
+            cleanUrl.searchParams.delete("code");
+            cleanUrl.searchParams.delete("type");
+            window.history.replaceState(null, "", `${cleanUrl.pathname}${cleanUrl.search}`);
+            setIsCheckingSession(false);
+            return;
+          }
+        }
+
+        if (tokenHash) {
+          const { error } = await supabase.auth.verifyOtp({
+            token_hash: tokenHash,
+            type: "recovery"
+          });
+
+          if (!isMounted) return;
+
+          if (!error) {
+            setHasValidSession(true);
+            window.history.replaceState(null, "", window.location.pathname);
+            setIsCheckingSession(false);
+            return;
+          }
+        }
+
         const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
         const accessToken = hashParams.get("access_token");
         const refreshToken = hashParams.get("refresh_token");
@@ -150,10 +185,14 @@ function ResetPasswordForm() {
       }
 
       setIsSuccess(true);
-      await supabase.auth.signOut();
+
+      const { error: signOutError } = await supabase.auth.signOut({ scope: "global" });
+      if (signOutError) {
+        console.error("[reset-password] signOut:", signOutError);
+      }
 
       window.setTimeout(() => {
-        router.replace("/login?reset=1");
+        window.location.assign("/login?reset=1");
       }, REDIRECT_DELAY_MS);
     } catch (error) {
       setErrorMessage(
@@ -189,8 +228,8 @@ function ResetPasswordForm() {
           <div className="mt-8 space-y-4">
             <p className="rounded-2xl border border-amber-200/80 bg-amber-50/80 px-4 py-3 text-sm leading-relaxed text-amber-900">
               {linkExpired
-                ? "Este enlace ha expirado o ya fue utilizado. Solicita uno nuevo para restablecer tu contraseña."
-                : "No encontramos una sesión de recuperación activa. Abre el enlace desde el correo más reciente."}
+                ? "Este enlace ha expirado o ya fue utilizado. Solicita uno nuevo para restablecer tu contraseña. Abre el enlace en el mismo navegador donde pediste la recuperación (Chrome, Edge, Safari, etc.)."
+                : "No encontramos una sesión de recuperación activa. Abre el enlace desde el correo más reciente en el mismo navegador donde lo solicitaste."}
             </p>
             <Link
               href="/login?mode=forgot"

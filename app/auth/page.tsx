@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, Suspense, useState } from "react";
+import { FormEvent, Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { IngeniaFoodLogo } from "@/components/shared/ingenia-food-logo";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -57,8 +57,11 @@ function AuthForm() {
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(() => {
+    if (authLinkError === "exchange_failed") {
+      return "No se pudo validar el enlace. Solicita uno nuevo y ábrelo en el mismo navegador donde lo pediste (por ejemplo, solo Edge o solo Chrome).";
+    }
     if (authLinkError === "link_expired" || authLinkError === "otp_expired") {
-      return "El enlace ha expirado o ya fue usado. Solicita uno nuevo.";
+      return "El enlace ha expirado o ya fue usado. Solicita uno nuevo y ábrelo en el mismo navegador donde lo pediste (Chrome, Edge, Safari, etc.).";
     }
     if (authLinkError) {
       return "No se pudo completar la verificación. Intenta de nuevo.";
@@ -66,6 +69,13 @@ function AuthForm() {
     return null;
   });
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!passwordResetSuccess) return;
+
+    const supabase = createSupabaseClient();
+    void supabase.auth.signOut({ scope: "global" });
+  }, [passwordResetSuccess]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -96,9 +106,7 @@ function AuthForm() {
       }
 
       const redirectTo =
-        typeof window !== "undefined"
-          ? `${window.location.origin}/auth/callback?next=${encodeURIComponent("/auth/reset-password")}`
-          : undefined;
+        typeof window !== "undefined" ? `${window.location.origin}/auth/reset-password` : undefined;
 
       const { error } = await supabase.auth.resetPasswordForEmail(emailValue, {
         redirectTo
@@ -111,7 +119,7 @@ function AuthForm() {
       }
 
       setSuccessMessage(
-        "Te enviamos un correo con el enlace para restablecer tu contraseña. Revisa tu bandeja de entrada."
+        "Te enviamos un correo con el enlace para restablecer tu contraseña. Ábrelo en este mismo navegador (Chrome, Edge, Safari, etc.) para que funcione correctamente."
       );
       setIsSubmitting(false);
       return;
@@ -209,7 +217,7 @@ function AuthForm() {
     mode === "signup"
       ? "Regístrate para guardar recetas saludables y escanear tu nevera."
       : mode === "forgot"
-        ? "Te enviaremos un enlace a tu correo para elegir una nueva contraseña."
+        ? "Te enviaremos un enlace a tu correo. Ábrelo en el mismo navegador donde lo solicites."
         : "Ingresa para continuar con tu plan de cocina saludable.";
 
   return (
