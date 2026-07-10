@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { SupabaseAuthRedirect } from "@/components/auth/supabase-auth-redirect";
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -14,7 +15,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
-      <body>{children}</body>
+      <body>
+        <SupabaseAuthRedirect />
+        {children}
+      </body>
     </html>
   );
 }

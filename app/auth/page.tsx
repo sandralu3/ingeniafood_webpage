@@ -2,6 +2,8 @@
 
 import { FormEvent, Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { IngeniaFoodLogo } from "@/components/shared/ingenia-food-logo";
+import { PasswordInput } from "@/components/ui/password-input";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
 
@@ -17,8 +19,11 @@ function AuthFallback() {
   return (
     <div className="flex min-h-[80vh] items-center justify-center bg-[#FDFCFB] px-4 py-10">
       <section className="w-full max-w-md rounded-2xl bg-white p-6 shadow-sm">
-        <h1 className="text-3xl font-bold tracking-tight text-[#1F2937]">Iniciar sesión</h1>
-        <p className="mt-2 text-sm text-[#6B7280]">Cargando formulario de autenticación...</p>
+        <IngeniaFoodLogo variant="auth" />
+        <h1 className="mt-5 text-center text-3xl font-bold tracking-tight text-[#1F2937]">
+          Iniciar sesión
+        </h1>
+        <p className="mt-2 text-center text-sm text-[#6B7280]">Cargando formulario de autenticación...</p>
       </section>
     </div>
   );
@@ -42,6 +47,7 @@ function AuthForm() {
   const reason = searchParams.get("reason");
   const showAppRecetasMessage = reason === "app-recetas-auth";
   const passwordResetSuccess = searchParams.get("reset") === "1";
+  const authLinkError = searchParams.get("error");
   const initialMode = resolveInitialMode(searchParams.get("mode"));
   const [modeOverride, setModeOverride] = useState<AuthMode | null>(null);
   const mode = modeOverride ?? initialMode;
@@ -50,7 +56,15 @@ function AuthForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(() => {
+    if (authLinkError === "link_expired" || authLinkError === "otp_expired") {
+      return "El enlace ha expirado o ya fue usado. Solicita uno nuevo.";
+    }
+    if (authLinkError) {
+      return "No se pudo completar la verificación. Intenta de nuevo.";
+    }
+    return null;
+  });
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -202,13 +216,8 @@ function AuthForm() {
     <div className="flex min-h-[80vh] items-center justify-center bg-[#FDFCFB] px-4 py-10">
       <section className="w-full max-w-md rounded-2xl bg-white p-6 shadow-sm sm:p-7">
         <header className="text-center">
-          <p className="text-sm tracking-[0.08em] text-stone-700">
-            <span className="font-medium">Sandra Vergara</span>
-            <span className="mx-1 text-stone-400">|</span>
-            <span className="font-light text-[#444444]">Ingenia</span>
-            <span className="font-bold text-[#556B2F]">Food</span>
-          </p>
-          <h1 className="mt-4 text-3xl font-bold tracking-tight text-[#1F2937]">{title}</h1>
+          <IngeniaFoodLogo variant="auth" />
+          <h1 className="mt-5 text-3xl font-bold tracking-tight text-[#1F2937]">{title}</h1>
           <p className="mt-2 text-sm text-[#6B7280]">{subtitle}</p>
           {showAppRecetasMessage ? (
             <p className="mt-2 text-xs font-medium text-[#6B7280]">
@@ -296,13 +305,11 @@ function AuthForm() {
             <label htmlFor="password" className="text-sm font-medium text-[#374151]">
               Contraseña
             </label>
-            <input
+            <PasswordInput
               id="password"
-              type="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               suppressHydrationWarning
-              className="h-12 w-full rounded-xl border border-[#E5E7EB] bg-white px-4 text-sm text-[#1F2937] outline-none transition focus:border-[#556B2F]/55 focus:ring-2 focus:ring-[#556B2F]/15"
               placeholder="Minimo 6 caracteres"
               autoComplete={mode === "signup" ? "new-password" : "current-password"}
               minLength={6}

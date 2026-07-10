@@ -1,0 +1,331 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, Loader2, Save, Users } from "lucide-react";
+import type { AdminUserListItem } from "@/lib/admin/users-admin";
+import { MAX_DAILY_SCAN_LIMIT } from "@/lib/admin/users-admin";
+import { isSandraAdmin } from "@/lib/auth/sandra-admin";
+import { APP_ROUTES } from "@/lib/navigation/app-routes";
+import { createSupabaseClient } from "@/lib/supabaseClient";
+import { cn } from "@/lib/utils";
+
+function getInitials(name: string | null, email: string): string {
+  const source = name?.trim() || email;
+  const parts = source.split(/\s+/).filter(Boolean);
+  if (!parts.length) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0] ?? ""}${parts[1][0] ?? ""}`.toUpperCase();
+}
+
+export default function AdminUsuariosPage() {
+  const router = useRouter();
+  const [authState, setAuthState] = useState<"loading" | "allowed" | "denied">("loading");
+  const [users, setUsers] = useState<AdminUserListItem[]>([]);
+  const [draftLimits, setDraftLimits] = useState<Record<string, string>>({});
+  const [isLoading, setIsLoading] = useState(true);
+  const [savingUserId, setSavingUserId] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const loadUsers = useCallback(async () => {
+    setIsLoading(true);
+    setErrorMessage(null);
+
+    try {
+      const response = await fetch("/api/admin/users");
+      const payload = (await response.json()) as {
+        users?: AdminUserListItem[];
+        error?: string;
+      };
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? "No pudimos cargar los usuarios.");
+      }
+
+      const nextUsers = payload.users ?? [];
+      setUsers(nextUsers);
+      setDraftLimits(
+        Object.fromEntries(
+          nextUsers.map((user) => [
+            user.id,
+            user.unlimitedScans ? "∞" : String(user.dailyScanLimit)
+          ])
+        )
+      );
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Error al cargar usuarios.");
+      setUsers([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    const verifyAccess = async () => {
+      const supabase = createSupabaseClient();
+      const {
+        data: { user }
+      } = await supabase.auth.getUser();
+
+      if (!active) return;
+
+      if (!user) {
+        setAuthState("denied");
+        router.replace("/login?next=/admin/usuarios");
+        return;
+      }
+
+      if (!isSandraAdmin(user.email)) {
+        setAuthState("denied");
+        return;
+      }
+
+      setAuthState("allowed");
+      void loadUsers();
+    };
+
+    void verifyAccess();
+
+    return () => {
+      active = false;
+    };
+  }, [loadUsers, router]);
+
+  const handleSaveLimit = async (userId: string) => {
+    const user = users.find((item) => item.id === userId);
+    if (!user || user.unlimitedScans) return;
+
+    const parsed = Number(draftLimits[userId]);
+    if (!Number.isInteger(parsed) || parsed < 0 || parsed > MAX_DAILY_SCAN_LIMIT) {
+      setErrorMessage(`El límite debe ser un número entero entre 0 y ${MAX_DAILY_SCAN_LIMIT}.`);
+      return;
+    }
+
+    setSavingUserId(userId);
+    setErrorMessage(null);
+    setSuccessMessage(null);
+
+    try {
+      const response = await fetch(`/api/admin/users/${userId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dailyScanLimit: parsed })
+      });
+
+      const payload = (await response.json()) as {
+        user?: AdminUserListItem;
+        error?: string;
+      };
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? "No se pudo guardar el límite.");
+      }
+
+      if (payload.user) {
+        setUsers((current) =>
+          current.map((item) => (item.id === userId ? payload.user! : item))
+        );
+        setDraftLimits((current) => ({
+          ...current,
+          [userId]: String(payload.user!.dailyScanLimit)
+        }));
+      }
+
+      setSuccessMessage("Límite diario actualizado.");
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Error al guardar.");
+    } finally {
+      setSavingUserId(null);
+    }
+  };
+
+  if (authState === "loading") {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#FBF9F6] px-4">
+        <div className="flex items-center gap-2 rounded-2xl border border-stone-100 bg-white px-4 py-3 text-sm text-stone-600 shadow-sm">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Verificando acceso de administración...
+        </div>
+      </main>
+    );
+  }
+
+  if (authState === "denied") {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#FBF9F6] px-4">
+        <section className="max-w-md rounded-3xl border border-stone-100 bg-white p-6 text-center shadow-sm">
+          <h1 className="font-serif text-xl font-semibold text-stone-900">Acceso restringido</h1>
+          <p className="mt-2 text-sm text-stone-500">
+            Este panel solo está disponible para la administradora de IngeniaFood.
+          </p>
+          <Link
+            href={APP_ROUTES.hoy}
+            className="mt-5 inline-flex rounded-full bg-[#4c6633] px-4 py-2.5 text-sm font-semibold text-white"
+          >
+            Volver a la app
+          </Link>
+        </section>
+      </main>
+    );
+  }
+
+  return (
+    <main className="min-h-screen bg-[#FBF9F6] px-4 py-6 sm:px-6">
+      <div className="mx-auto max-w-5xl space-y-6">
+        <header className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <Link
+              href={APP_ROUTES.perfil}
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-stone-500 transition hover:text-[#4c6633]"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Volver al perfil
+            </Link>
+            <p className="mt-3 text-[10px] font-bold uppercase tracking-[0.14em] text-amber-800/75">
+              Admin · IngeniaFood
+            </p>
+            <h1 className="mt-1 font-serif text-2xl font-semibold text-stone-900 sm:text-3xl">
+              Usuarios
+            </h1>
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-stone-500">
+              Consulta las cuentas registradas y define cuántos escaneos con IA puede hacer cada
+              usuario por día.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 rounded-2xl border border-[#4c6633]/15 bg-white px-4 py-3 text-sm text-stone-600 shadow-sm">
+            <Users className="h-4 w-4 text-[#4c6633]" />
+            {users.length} usuario{users.length === 1 ? "" : "s"}
+          </div>
+        </header>
+
+        {errorMessage ? (
+          <p className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {errorMessage}
+          </p>
+        ) : null}
+
+        {successMessage ? (
+          <p className="rounded-2xl border border-[#dce7c3] bg-[#f4f7ed] px-4 py-3 text-sm text-[#3e5219]">
+            {successMessage}
+          </p>
+        ) : null}
+
+        <section className="overflow-hidden rounded-3xl border border-stone-100 bg-white shadow-sm">
+          {isLoading ? (
+            <div className="flex items-center justify-center gap-2 px-6 py-16 text-sm text-stone-500">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Cargando usuarios...
+            </div>
+          ) : users.length === 0 ? (
+            <p className="px-6 py-16 text-center text-sm text-stone-500">
+              No hay usuarios registrados todavía.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-stone-100 bg-stone-50/70 text-[11px] font-bold uppercase tracking-[0.12em] text-stone-500">
+                    <th className="px-5 py-3.5">Usuario</th>
+                    <th className="px-5 py-3.5">Correo</th>
+                    <th className="px-5 py-3.5">Hoy</th>
+                    <th className="px-5 py-3.5">Escaneos / día</th>
+                    <th className="px-5 py-3.5 text-right">Acción</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map((user) => {
+                    const isSaving = savingUserId === user.id;
+
+                    return (
+                      <tr key={user.id} className="border-b border-stone-50 last:border-none">
+                        <td className="px-5 py-4">
+                          <div className="flex items-center gap-3">
+                            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#dce7c3]/50 text-xs font-semibold text-[#3e5219]">
+                              {getInitials(user.fullName, user.email)}
+                            </span>
+                            <div className="min-w-0">
+                              <p className="truncate font-medium text-stone-900">
+                                {user.fullName?.trim() || "Sin nombre"}
+                              </p>
+                              <p className="text-xs text-stone-400">
+                                Alta{" "}
+                                {new Date(user.createdAt).toLocaleDateString("es-ES", {
+                                  day: "numeric",
+                                  month: "short",
+                                  year: "numeric"
+                                })}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-5 py-4 text-stone-600">{user.email}</td>
+                        <td className="px-5 py-4">
+                          {user.unlimitedScans ? (
+                            <span className="rounded-full bg-[#f4f7ed] px-2.5 py-1 text-xs font-semibold text-[#3e5219]">
+                              Ilimitado
+                            </span>
+                          ) : (
+                            <span className="text-stone-600">
+                              {user.scansUsedToday} usados · {user.scansRemainingToday} restantes
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-5 py-4">
+                          {user.unlimitedScans ? (
+                            <span className="text-xs font-medium text-stone-400">
+                              Cuenta administradora
+                            </span>
+                          ) : (
+                            <input
+                              type="number"
+                              min={0}
+                              max={MAX_DAILY_SCAN_LIMIT}
+                              value={draftLimits[user.id] ?? String(user.dailyScanLimit)}
+                              onChange={(event) =>
+                                setDraftLimits((current) => ({
+                                  ...current,
+                                  [user.id]: event.target.value
+                                }))
+                              }
+                              className="h-10 w-24 rounded-xl border border-stone-200 bg-[#FDFCFB] px-3 text-sm text-stone-800 outline-none transition focus:border-[#4c6633]/40 focus:ring-2 focus:ring-[#4c6633]/10"
+                              aria-label={`Escaneos diarios para ${user.email}`}
+                            />
+                          )}
+                        </td>
+                        <td className="px-5 py-4 text-right">
+                          <button
+                            type="button"
+                            onClick={() => void handleSaveLimit(user.id)}
+                            disabled={user.unlimitedScans || isSaving}
+                            className={cn(
+                              "inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-semibold transition",
+                              user.unlimitedScans
+                                ? "cursor-not-allowed text-stone-300"
+                                : "bg-[#4c6633] text-white hover:bg-[#556B2F] disabled:opacity-60"
+                            )}
+                          >
+                            {isSaving ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Save className="h-3.5 w-3.5" />
+                            )}
+                            Guardar
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      </div>
+    </main>
+  );
+}

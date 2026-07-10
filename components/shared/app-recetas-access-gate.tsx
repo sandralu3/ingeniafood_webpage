@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Download } from "lucide-react";
 import AuthPage from "@/app/auth/page";
+import { resolveSupabaseAuthLandingUrl } from "@/lib/auth/resolve-supabase-auth-landing";
+import { IngeniaFoodLogo } from "@/components/shared/ingenia-food-logo";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import { Header } from "@/components/shared/header";
 import { BottomNav } from "@/components/shared/bottom-nav";
@@ -42,12 +44,7 @@ function InstallationLanding({
   return (
     <div className="min-h-screen bg-[#FDFCFB] px-6 py-10 text-center text-[#1b1c19]">
       <div className="mx-auto flex min-h-[80vh] w-full max-w-md flex-col items-center justify-center">
-        <p className="text-base tracking-[0.06em] text-stone-700">
-          <span className="font-medium">Sandra Vergara</span>
-          <span className="mx-1 text-stone-400">|</span>
-          <span className="font-light text-[#444444]">Ingenia</span>
-          <span className="font-bold text-[#556B2F]">Food</span>
-        </p>
+        <IngeniaFoodLogo variant="auth" />
         <h1 className="mt-5 text-3xl font-bold leading-tight text-[#556B2F]">
           Paso 1: Instala IngeniaFood en tu inicio para comenzar
         </h1>
@@ -117,6 +114,23 @@ export function AppRecetasAccessGate({ children }: { children: React.ReactNode }
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isIos, setIsIos] = useState(false);
   const [showIosModal, setShowIosModal] = useState(false);
+  const [pendingAuthRedirect, setPendingAuthRedirect] = useState(true);
+
+  useEffect(() => {
+    const target = resolveSupabaseAuthLandingUrl({
+      pathname: window.location.pathname,
+      search: window.location.search,
+      hash: window.location.hash,
+      origin: window.location.origin
+    });
+
+    if (target && target !== window.location.href) {
+      window.location.replace(target);
+      return;
+    }
+
+    setPendingAuthRedirect(false);
+  }, []);
 
   useEffect(() => {
     setAllowWebAccess(canUseWebAccessInCurrentHost());
@@ -198,6 +212,14 @@ export function AppRecetasAccessGate({ children }: { children: React.ReactNode }
   };
 
   const content = useMemo(() => {
+    if (pendingAuthRedirect) {
+      return (
+        <div className="flex min-h-screen items-center justify-center bg-[#FDFCFB]">
+          <p className="text-sm text-stone-600">Redirigiendo...</p>
+        </div>
+      );
+    }
+
     if (!checkedStandalone) {
       return <div className="min-h-screen bg-[#FDFCFB]" />;
     }
@@ -246,6 +268,7 @@ export function AppRecetasAccessGate({ children }: { children: React.ReactNode }
     isIos,
     isStandalone,
     allowWebAccess,
+    pendingAuthRedirect,
     showIosModal
   ]);
 

@@ -551,8 +551,8 @@ export function PantrySearchView({
           <span className="text-[10px] text-stone-400 text-center block mb-1">
             {generationsLeft}{" "}
             {generationsLeft === 1
-              ? "escaneo gratuito restante"
-              : "escaneos gratuitos restantes"}
+              ? "escaneo restante hoy"
+              : "escaneos restantes hoy"}
           </span>
         ) : (
           <span className="block mb-1" />

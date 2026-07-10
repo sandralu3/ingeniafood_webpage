@@ -227,19 +227,19 @@ export default function ScannerPage() {
           return;
         }
 
-        const { data: profile, error } = await supabase
-          .from("profiles")
-          .select("generations_left")
-          .eq("id", user.id)
-          .maybeSingle();
+        const response = await fetch("/api/generations/quota");
+        const payload = (await response.json()) as {
+          generationsLeft?: number;
+          error?: string;
+        };
 
-        if (error) {
-          console.error("[scanner] Error cargando generations_left:", error);
+        if (!response.ok) {
+          console.error("[scanner] Error cargando cuota:", payload.error);
           setGenerationsLeft(null);
           return;
         }
 
-        setGenerationsLeft(profile?.generations_left ?? 0);
+        setGenerationsLeft(payload.generationsLeft ?? 0);
       } catch (error) {
         console.error("[scanner] Error cargando cuota de escaneos:", error);
         setGenerationsLeft(null);

@@ -288,7 +288,7 @@ export async function POST(request: Request) {
       return jsonResponse(
         {
           error:
-            "Has completado tus 5 pruebas gratuitas. ¡Gracias por formar parte de IngeniaFood! Muy pronto abriremos la versión premium.",
+            "Has agotado tus escaneos de hoy. Vuelve mañana o contacta con soporte si necesitas más.",
           code: "GENERATIONS_EXHAUSTED",
           generationsLeft: 0
         },

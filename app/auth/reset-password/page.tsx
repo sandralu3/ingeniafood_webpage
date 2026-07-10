@@ -4,6 +4,8 @@ import { FormEvent, Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CheckCircle2, Loader2 } from "lucide-react";
+import { IngeniaFoodLogo } from "@/components/shared/ingenia-food-logo";
+import { PasswordInput } from "@/components/ui/password-input";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 
 const MIN_PASSWORD_LENGTH = 6;
@@ -21,10 +23,8 @@ function ResetPasswordFallback() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#FAF8F5] px-4 py-12">
       <section className="w-full max-w-[22rem] rounded-3xl border border-stone-100/80 bg-white/90 p-7 shadow-[0_18px_50px_-28px_rgba(62,82,25,0.35)] backdrop-blur-sm">
-        <p className="text-center text-[10px] font-bold uppercase tracking-[0.16em] text-amber-800/70">
-          IngeniaFood
-        </p>
-        <h1 className="mt-3 text-center font-serif text-2xl font-semibold tracking-tight text-stone-900">
+        <IngeniaFoodLogo variant="auth" />
+        <h1 className="mt-5 text-center font-serif text-2xl font-semibold tracking-tight text-stone-900">
           Nueva contraseña
         </h1>
         <p className="mt-3 text-center text-sm text-stone-500">Preparando formulario...</p>
@@ -58,6 +58,26 @@ function ResetPasswordForm() {
     const verifyRecoverySession = async () => {
       try {
         const supabase = createSupabaseClient();
+        const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+        const accessToken = hashParams.get("access_token");
+        const refreshToken = hashParams.get("refresh_token");
+
+        if (accessToken && refreshToken) {
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken
+          });
+
+          if (!isMounted) return;
+
+          if (!error) {
+            setHasValidSession(true);
+            window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+            setIsCheckingSession(false);
+            return;
+          }
+        }
+
         const {
           data: { session }
         } = await supabase.auth.getSession();
@@ -149,10 +169,8 @@ function ResetPasswordForm() {
     <div className="flex min-h-screen items-center justify-center bg-[#FAF8F5] px-4 py-12">
       <section className="w-full max-w-[22rem] rounded-3xl border border-stone-100/80 bg-white/90 p-7 shadow-[0_18px_50px_-28px_rgba(62,82,25,0.35)] backdrop-blur-sm sm:max-w-md sm:p-8">
         <header className="text-center">
-          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-amber-800/70">
-            IngeniaFood
-          </p>
-          <h1 className="mt-3 font-serif text-2xl font-semibold tracking-tight text-stone-900 sm:text-[1.7rem]">
+          <IngeniaFoodLogo variant="auth" />
+          <h1 className="mt-5 font-serif text-2xl font-semibold tracking-tight text-stone-900 sm:text-[1.7rem]">
             Nueva contraseña
           </h1>
           <p className="mt-2 text-sm leading-relaxed text-stone-500">
@@ -189,12 +207,11 @@ function ResetPasswordForm() {
               <label htmlFor="password" className="text-xs font-semibold uppercase tracking-[0.08em] text-stone-500">
                 Escribe tu nueva contraseña
               </label>
-              <input
+              <PasswordInput
                 id="password"
-                type="password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
-                className="h-11 w-full rounded-xl border border-stone-200 bg-[#FDFCFB] px-4 text-sm text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-[#556B2F]/45 focus:ring-2 focus:ring-[#556B2F]/12"
+                className="h-11 border-stone-200 bg-[#FDFCFB] focus:border-[#556B2F]/45 focus:ring-[#556B2F]/12"
                 placeholder="Mínimo 6 caracteres"
                 autoComplete="new-password"
                 disabled={isSubmitting}
@@ -209,12 +226,11 @@ function ResetPasswordForm() {
               >
                 Confirma tu contraseña
               </label>
-              <input
+              <PasswordInput
                 id="confirmPassword"
-                type="password"
                 value={confirmPassword}
                 onChange={(event) => setConfirmPassword(event.target.value)}
-                className="h-11 w-full rounded-xl border border-stone-200 bg-[#FDFCFB] px-4 text-sm text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-[#556B2F]/45 focus:ring-2 focus:ring-[#556B2F]/12"
+                className="h-11 border-stone-200 bg-[#FDFCFB] focus:border-[#556B2F]/45 focus:ring-[#556B2F]/12"
                 placeholder="Repite la misma contraseña"
                 autoComplete="new-password"
                 disabled={isSubmitting}

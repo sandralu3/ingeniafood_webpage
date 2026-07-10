@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Camera, ChevronDown, LogOut, Pencil, Wand2 } from "lucide-react";
+import { Camera, ChevronDown, LogOut, Pencil, Users, Wand2 } from "lucide-react";
 import { AvatarCropModal } from "@/components/profile/avatar-crop-modal";
 import { isSandraAdmin } from "@/lib/auth/sandra-admin";
 import { signOutUser } from "@/lib/auth/sign-out";
@@ -464,13 +464,19 @@ export default function ProfilePage() {
                   Admin · IngeniaFood
                 </p>
                 <h2 className="mt-1 text-sm font-semibold text-stone-900">
-                  Catálogo de Instagram
+                  Panel de administración
                 </h2>
                 <p className="mt-1 text-xs leading-relaxed text-stone-500">
-                  Importa nuevas recetas o edita las que ya están publicadas en el catálogo del
-                  escáner.
+                  Gestiona usuarios, importa recetas o edita el catálogo del escáner.
                 </p>
                 <div className="mt-4 space-y-2">
+                  <Link
+                    href="/admin/usuarios"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-[#4C6B3F]/20 bg-white px-4 py-3 text-sm font-semibold text-[#4C6B3F] transition hover:bg-[#F0F4ED]"
+                  >
+                    <Users className="h-4 w-4" />
+                    Administrar usuarios
+                  </Link>
                   <Link
                     href="/admin/importar-receta"
                     className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#4C6B3F] px-4 py-3 text-sm font-semibold text-white shadow-md transition hover:brightness-105"

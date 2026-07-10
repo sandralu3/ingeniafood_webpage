@@ -17,6 +17,9 @@ export type Database = {
           country: string | null;
           is_premium: boolean;
           generations_left: number;
+          daily_scan_limit: number;
+          scans_used_today: number;
+          scan_quota_date: string;
           health_score: number;
           created_at: string;
           updated_at: string;
@@ -28,6 +31,9 @@ export type Database = {
           country?: string | null;
           is_premium?: boolean;
           generations_left?: number;
+          daily_scan_limit?: number;
+          scans_used_today?: number;
+          scan_quota_date?: string;
           health_score?: number;
           created_at?: string;
           updated_at?: string;
@@ -39,6 +45,9 @@ export type Database = {
           country?: string | null;
           is_premium?: boolean;
           generations_left?: number;
+          daily_scan_limit?: number;
+          scans_used_today?: number;
+          scan_quota_date?: string;
           health_score?: number;
           created_at?: string;
           updated_at?: string;
