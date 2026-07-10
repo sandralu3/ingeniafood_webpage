@@ -154,27 +154,29 @@ export function SandraTipCard({ variant = "default", className }: SandraTipCardP
       <aside
         className={cn(
           isHoyVariant
-            ? "rounded-2xl border border-neutral-100 bg-white/90 px-3.5 py-3.5 shadow-md shadow-stone-100/40 backdrop-blur-sm"
+            ? "rounded-2xl border border-[#556B2F]/15 bg-gradient-to-br from-[#EEF4E6] via-white to-[#dce7c3]/50 p-3 shadow-sm shadow-[#556B2F]/5"
             : "relative rounded-2xl border border-brand-green-light/30 bg-brand-green-light/10 px-5 py-6 shadow-sm",
           className
         )}
       >
         <div className="flex items-start justify-between gap-2.5">
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             {isHoyVariant ? (
-              <>
-                <div className="flex items-center gap-1.5">
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-[#556B2F]/10 text-[#556B2F]">
-                    <Lightbulb className="h-3.5 w-3.5" strokeWidth={1.75} />
-                  </span>
-                  <h3 className="text-sm font-semibold text-stone-900">Consejo del día</h3>
+              <div className="flex items-start gap-2">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white text-[#556B2F] shadow-sm">
+                  <Lightbulb className="h-3.5 w-3.5" strokeWidth={1.75} />
+                </span>
+                <div className="min-w-0">
+                  <h3 className="text-sm font-semibold leading-tight text-stone-900">
+                    Consejo del día
+                  </h3>
+                  {hasTips ? (
+                    <p className="mt-0.5 text-[11px] leading-snug text-stone-500">
+                      Un impulso saludable para hoy
+                    </p>
+                  ) : null}
                 </div>
-                {hasTips ? (
-                  <p className="mt-1 pl-7 text-[10px] font-bold uppercase tracking-[0.18em] text-stone-400">
-                    Un impulso saludable
-                  </p>
-                ) : null}
-              </>
+              </div>
             ) : (
               <>
                 <h3 className="font-serif text-base font-semibold text-brand-green-dark">
@@ -223,7 +225,7 @@ export function SandraTipCard({ variant = "default", className }: SandraTipCardP
               <p
                 className={cn(
                   "text-red-700",
-                  isHoyVariant ? "text-xs leading-relaxed" : "text-sm leading-7"
+                  isHoyVariant ? "pl-9 text-xs leading-relaxed" : "text-sm leading-7"
                 )}
               >
                 {isHoyVariant ? "No pudimos cargar el consejo del día." : loadError}
@@ -231,8 +233,9 @@ export function SandraTipCard({ variant = "default", className }: SandraTipCardP
             ) : (
               <p
                 className={cn(
-                  "text-stone-600",
-                  isHoyVariant ? "text-xs leading-relaxed" : "text-sm leading-7 text-stone-700"
+                  isHoyVariant
+                    ? "pl-9 text-xs leading-relaxed text-stone-700"
+                    : "text-sm leading-7 text-stone-700"
                 )}
               >
                 {displayContent}
