@@ -7,10 +7,27 @@ import { CheckCircle2, Loader2 } from "lucide-react";
 import { IngeniaFoodLogo } from "@/components/shared/ingenia-food-logo";
 import { PasswordInput } from "@/components/ui/password-input";
 import { createSupabaseClient } from "@/lib/supabaseClient";
+import {
+  activateRecoverySession,
+  isRecoveryLinkExpiredError
+} from "@/lib/auth/activate-recovery-session";
+import {
+  cleanRecoveryParamsFromUrl,
+  hasRecoveryCredential,
+  mergeRecoveryTokens,
+  persistPendingRecovery,
+  readPendingRecovery,
+  readRecoveryParamsFromLocation,
+  clearPendingRecovery
+} from "@/lib/auth/pending-recovery-token";
 import { translateSupabaseAuthError } from "@/lib/auth/translate-supabase-auth-error";
 
 const MIN_PASSWORD_LENGTH = 6;
 const REDIRECT_DELAY_MS = 2000;
+const RECOVERY_LINK_EXPIRED_MESSAGE =
+  "Este enlace ha expirado o ya se usó para cambiar la contraseña. Solicita uno nuevo.";
+const RECOVERY_LINK_MISSING_MESSAGE =
+  "No encontramos un enlace de recuperación válido. Solicita uno nuevo desde tu correo.";
 
 export default function ResetPasswordPage() {
   return (
@@ -58,60 +75,16 @@ function ResetPasswordForm() {
     const verifyRecoverySession = async () => {
       try {
         const supabase = createSupabaseClient();
-        const queryParams = new URLSearchParams(window.location.search);
-        const recoveryCode = queryParams.get("code");
-        const tokenHash = queryParams.get("token_hash");
+        const incomingToken = readRecoveryParamsFromLocation(
+          window.location.search,
+          window.location.hash
+        );
+        const storedToken = readPendingRecovery();
+        const pendingToken = mergeRecoveryTokens(storedToken, incomingToken);
 
-        if (recoveryCode) {
-          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(recoveryCode);
-
-          if (!isMounted) return;
-
-          if (!exchangeError) {
-            setHasValidSession(true);
-            const cleanUrl = new URL(window.location.href);
-            cleanUrl.searchParams.delete("code");
-            cleanUrl.searchParams.delete("type");
-            window.history.replaceState(null, "", `${cleanUrl.pathname}${cleanUrl.search}`);
-            setIsCheckingSession(false);
-            return;
-          }
-        }
-
-        if (tokenHash) {
-          const { error } = await supabase.auth.verifyOtp({
-            token_hash: tokenHash,
-            type: "recovery"
-          });
-
-          if (!isMounted) return;
-
-          if (!error) {
-            setHasValidSession(true);
-            window.history.replaceState(null, "", window.location.pathname);
-            setIsCheckingSession(false);
-            return;
-          }
-        }
-
-        const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
-        const accessToken = hashParams.get("access_token");
-        const refreshToken = hashParams.get("refresh_token");
-
-        if (accessToken && refreshToken) {
-          const { error } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken
-          });
-
-          if (!isMounted) return;
-
-          if (!error) {
-            setHasValidSession(true);
-            window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
-            setIsCheckingSession(false);
-            return;
-          }
+        if (hasRecoveryCredential(incomingToken)) {
+          persistPendingRecovery(pendingToken);
+          cleanRecoveryParamsFromUrl();
         }
 
         const {
@@ -119,7 +92,13 @@ function ResetPasswordForm() {
         } = await supabase.auth.getSession();
 
         if (!isMounted) return;
-        setHasValidSession(Boolean(session));
+
+        if (session || hasRecoveryCredential(pendingToken)) {
+          setHasValidSession(true);
+          return;
+        }
+
+        setHasValidSession(false);
       } catch {
         if (isMounted) {
           setHasValidSession(false);
@@ -175,6 +154,31 @@ function ResetPasswordForm() {
 
     try {
       const supabase = createSupabaseClient();
+      const pendingToken = readPendingRecovery();
+      const {
+        data: { session }
+      } = await supabase.auth.getSession();
+
+      if (!session) {
+        if (!hasRecoveryCredential(pendingToken)) {
+          setErrorMessage(RECOVERY_LINK_MISSING_MESSAGE);
+          setIsSubmitting(false);
+          return;
+        }
+
+        const { error: activationError } = await activateRecoverySession(supabase, pendingToken);
+
+        if (activationError) {
+          setErrorMessage(
+            isRecoveryLinkExpiredError(activationError)
+              ? RECOVERY_LINK_EXPIRED_MESSAGE
+              : translateSupabaseAuthError(activationError)
+          );
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
       const { error } = await supabase.auth.updateUser({ password: trimmedPassword });
 
       if (error) {
@@ -186,6 +190,7 @@ function ResetPasswordForm() {
         return;
       }
 
+      clearPendingRecovery();
       setIsSuccess(true);
 
       const { error: signOutError } = await supabase.auth.signOut({ scope: "global" });
@@ -229,9 +234,7 @@ function ResetPasswordForm() {
         {!isCheckingSession && (linkExpired || !hasValidSession) ? (
           <div className="mt-8 space-y-4">
             <p className="rounded-2xl border border-amber-200/80 bg-amber-50/80 px-4 py-3 text-sm leading-relaxed text-amber-900">
-              {linkExpired
-                ? "Este enlace ha expirado o ya fue utilizado. Solicita uno nuevo para restablecer tu contraseña. Abre el enlace en el mismo navegador donde pediste la recuperación (Chrome, Edge, Safari, etc.)."
-                : "No encontramos una sesión de recuperación activa. Abre el enlace desde el correo más reciente en el mismo navegador donde lo solicitaste."}
+              {linkExpired ? RECOVERY_LINK_EXPIRED_MESSAGE : RECOVERY_LINK_MISSING_MESSAGE}
             </p>
             <Link
               href="/login?mode=forgot"

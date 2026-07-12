@@ -61,6 +61,8 @@ const CODE_MESSAGES: Record<string, string> = {
   user_not_found: "Correo o contraseña incorrectos. Revísalos e inténtalo de nuevo."
 };
 
+export const SIGNUP_EMAIL_ALREADY_EXISTS_MESSAGE = CODE_MESSAGES.email_exists;
+
 const MESSAGE_PATTERNS: Array<{ pattern: RegExp; message: string }> = [
   {
     pattern: /invalid login credentials/i,
@@ -91,6 +93,15 @@ const MESSAGE_PATTERNS: Array<{ pattern: RegExp; message: string }> = [
     message: "Por seguridad, debes esperar antes de solicitar otro enlace."
   }
 ];
+
+type SignUpUser = {
+  identities?: Array<unknown>;
+};
+
+/** Supabase devuelve identities vacío cuando el correo ya existe y la confirmación por email está activa. */
+export function isSignupEmailAlreadyRegistered(user: SignUpUser | null | undefined): boolean {
+  return Array.isArray(user?.identities) && user.identities.length === 0;
+}
 
 export function translateSupabaseAuthError(error: AuthErrorInput): string {
   const message = error.message?.trim() ?? "";

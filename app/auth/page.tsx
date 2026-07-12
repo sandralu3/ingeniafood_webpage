@@ -12,6 +12,8 @@ import {
 import {
   formatAuthRateLimitMessage,
   getAuthRateLimitSeconds,
+  isSignupEmailAlreadyRegistered,
+  SIGNUP_EMAIL_ALREADY_EXISTS_MESSAGE,
   translateSupabaseAuthError
 } from "@/lib/auth/translate-supabase-auth-error";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
@@ -67,10 +69,10 @@ function AuthForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(() => {
     if (authLinkError === "exchange_failed") {
-      return "No se pudo validar el enlace. Solicita uno nuevo y ábrelo en el mismo navegador donde lo pediste (por ejemplo, solo Edge o solo Chrome).";
+      return "No se pudo validar el enlace. Solicita uno nuevo e inténtalo de nuevo.";
     }
     if (authLinkError === "link_expired" || authLinkError === "otp_expired") {
-      return "El enlace ha expirado o ya fue usado. Solicita uno nuevo y ábrelo en el mismo navegador donde lo pediste (Chrome, Edge, Safari, etc.).";
+      return "El enlace ha expirado o ya se usó para cambiar la contraseña. Solicita uno nuevo.";
     }
     if (authLinkError) {
       return "No se pudo completar la verificación. Intenta de nuevo.";
@@ -145,7 +147,7 @@ function AuthForm() {
       }
 
       setSuccessMessage(
-        "Te enviamos un correo con el enlace para restablecer tu contraseña. Ábrelo en este mismo navegador (Chrome, Edge, Safari, etc.) para que funcione correctamente."
+        "Te enviamos un correo con el enlace para restablecer tu contraseña. Puedes abrirlo en el móvil o en el ordenador; permanecerá activo hasta que cambies la contraseña."
       );
       setResendCooldownSeconds(60);
       setIsSubmitting(false);
@@ -192,7 +194,7 @@ function AuthForm() {
               },
               emailRedirectTo:
                 typeof window !== "undefined"
-                  ? `${window.location.origin}/auth/callback?next=${encodeURIComponent(APP_ROUTES.hoy)}`
+                  ? `${window.location.origin}/auth/confirm-email?next=${encodeURIComponent(APP_ROUTES.hoy)}`
                   : undefined
             }
           })
@@ -209,8 +211,14 @@ function AuthForm() {
     }
 
     if (mode === "signup") {
+      if (isSignupEmailAlreadyRegistered(authResult.data?.user)) {
+        setErrorMessage(SIGNUP_EMAIL_ALREADY_EXISTS_MESSAGE);
+        setIsSubmitting(false);
+        return;
+      }
+
       setSuccessMessage(
-        "Cuenta creada. Revisa tu correo para confirmar el registro y luego inicia sesion."
+        "Cuenta creada. Revisa tu correo para confirmar el registro. Puedes abrir el enlace en el móvil o en el ordenador."
       );
       setModeOverride("login");
     } else {
@@ -247,7 +255,7 @@ function AuthForm() {
     mode === "signup"
       ? "Regístrate para guardar recetas saludables y escanear tu nevera."
       : mode === "forgot"
-        ? "Te enviaremos un enlace a tu correo. Ábrelo en el mismo navegador donde lo solicites."
+        ? "Te enviaremos un enlace a tu correo. Podrás abrirlo en cualquier dispositivo y seguirá activo hasta que cambies la contraseña."
         : "Ingresa para continuar con tu plan de cocina saludable.";
 
   return (

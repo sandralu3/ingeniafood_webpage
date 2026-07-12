@@ -78,6 +78,48 @@ export async function listAdminUsers(): Promise<AdminUserListItem[]> {
     .sort((a, b) => a.email.localeCompare(b.email, "es"));
 }
 
+export type DeletedAdminUser = {
+  id: string;
+  email: string;
+};
+
+export async function deleteAdminUser(
+  userId: string,
+  options?: { requesterUserId?: string | null }
+): Promise<DeletedAdminUser> {
+  const trimmedUserId = userId.trim();
+  if (!trimmedUserId) {
+    throw new Error("Debes indicar el usuario a eliminar.");
+  }
+
+  if (options?.requesterUserId && options.requesterUserId === trimmedUserId) {
+    throw new Error("No puedes eliminar tu propia cuenta desde este panel.");
+  }
+
+  const admin = getSupabaseAdminClient();
+
+  const { data: authData, error: authError } = await admin.auth.admin.getUserById(trimmedUserId);
+  if (authError || !authData.user) {
+    throw authError ?? new Error("No se encontró el usuario en autenticación.");
+  }
+
+  if (hasUnlimitedGenerations(authData.user.email)) {
+    throw new Error("No se puede eliminar la cuenta administradora.");
+  }
+
+  const { error: deleteError } = await admin.auth.admin.deleteUser(trimmedUserId, false);
+  if (deleteError) {
+    throw deleteError;
+  }
+
+  await admin.from("profiles").delete().eq("id", trimmedUserId);
+
+  return {
+    id: trimmedUserId,
+    email: authData.user.email ?? "—"
+  };
+}
+
 export async function updateUserDailyScanLimit(
   userId: string,
   dailyScanLimit: number

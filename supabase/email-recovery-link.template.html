@@ -1,0 +1,18 @@
+<!--
+  Plantilla de correo "Reset password" en Supabase Dashboard:
+  Authentication → Email Templates → Reset password
+
+  Usa token_hash para que el enlace funcione en cualquier dispositivo/navegador
+  y solo se consuma al confirmar la nueva contraseña (no al abrir el enlace).
+
+  OTP expiry recomendado en Authentication → Providers → Email:
+  al menos 180 segundos (3 minutos) o el valor que prefieras (p. ej. 3600).
+-->
+<h2>Restablecer contraseña</h2>
+<p>Sigue este enlace para crear una nueva contraseña:</p>
+<p>
+  <a href="{{ .SiteURL }}/auth/reset-password?token_hash={{ .TokenHash }}&type=recovery">
+    Restablecer contraseña
+  </a>
+</p>
+<p>Si no solicitaste este cambio, puedes ignorar este correo.</p>

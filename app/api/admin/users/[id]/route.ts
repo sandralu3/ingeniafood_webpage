@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { updateUserDailyScanLimit } from "@/lib/admin/users-admin";
+import { deleteAdminUser, updateUserDailyScanLimit } from "@/lib/admin/users-admin";
 import { requireSandraAdmin } from "@/lib/admin/require-sandra-admin";
 
 type RouteContext = {
@@ -37,5 +37,27 @@ export async function PATCH(request: Request, context: RouteContext) {
       },
       { status: 500 }
     );
+  }
+}
+
+export async function DELETE(_request: Request, context: RouteContext) {
+  const auth = await requireSandraAdmin();
+  if (!auth.ok) {
+    return auth.response;
+  }
+
+  const { id } = await context.params;
+
+  try {
+    const deletedUser = await deleteAdminUser(id, { requesterUserId: auth.user.id });
+    return NextResponse.json({ deletedUser });
+  } catch (error) {
+    console.error("[admin/users/:id] DELETE", error);
+    const message = error instanceof Error ? error.message : "No pudimos eliminar el usuario.";
+    const isClientError =
+      error instanceof Error &&
+      (/No se puede|No puedes|No se encontró|Debes indicar/.test(message));
+
+    return NextResponse.json({ error: message }, { status: isClientError ? 400 : 500 });
   }
 }

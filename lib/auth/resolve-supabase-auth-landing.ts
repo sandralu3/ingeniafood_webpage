@@ -1,5 +1,3 @@
-import { APP_ROUTES } from "@/lib/navigation/app-routes";
-
 type AuthLandingInput = {
   pathname: string;
   search: string;
@@ -30,6 +28,11 @@ function isRecoveryFlow(params: URLSearchParams): boolean {
   return description.includes("password") || description.includes("recovery");
 }
 
+function isEmailConfirmationFlow(params: URLSearchParams): boolean {
+  const type = params.get("type");
+  return type === "signup" || type === "email" || type === "invite";
+}
+
 export function resolveSupabaseAuthLandingUrl(input: AuthLandingInput): string | null {
   const { pathname, search, hash, origin } = input;
   const params = readAuthParams(search, hash);
@@ -41,11 +44,29 @@ export function resolveSupabaseAuthLandingUrl(input: AuthLandingInput): string |
   }
 
   const code = params.get("code");
+  const tokenHash = params.get("token_hash");
   const errorCode = params.get("error_code");
   const error = params.get("error");
   const accessToken = params.get("access_token");
   const refreshToken = params.get("refresh_token");
   const type = params.get("type");
+
+  if (pathname === "/auth/confirm-email" && params.get("error") === "link_expired") {
+    return null;
+  }
+
+  if (tokenHash && isEmailConfirmationFlow(params) && pathname !== "/auth/confirm-email") {
+    const confirm = new URL("/auth/confirm-email", origin);
+    confirm.searchParams.set("token_hash", tokenHash);
+    if (type) {
+      confirm.searchParams.set("type", type);
+    }
+    const next = params.get("next");
+    if (next) {
+      confirm.searchParams.set("next", next);
+    }
+    return confirm.toString();
+  }
 
   if (pathname === "/auth/callback" && code) {
     return null;
@@ -55,7 +76,7 @@ export function resolveSupabaseAuthLandingUrl(input: AuthLandingInput): string |
     return null;
   }
 
-  if (code && pathname !== "/auth/callback" && pathname !== "/auth/reset-password") {
+  if (code && pathname !== "/auth/callback" && pathname !== "/auth/reset-password" && pathname !== "/auth/confirm-email") {
     const isRecovery = type === "recovery" || isRecoveryFlow(params);
 
     if (isRecovery) {
@@ -67,18 +88,16 @@ export function resolveSupabaseAuthLandingUrl(input: AuthLandingInput): string |
       return reset.toString();
     }
 
-    const callback = new URL("/auth/callback", origin);
-    callback.searchParams.set("code", code);
-
+    const confirm = new URL("/auth/confirm-email", origin);
+    confirm.searchParams.set("code", code);
     if (type) {
-      callback.searchParams.set("type", type);
+      confirm.searchParams.set("type", type);
     }
-
-    const nextPath =
-      type === "recovery" || isRecoveryFlow(params) ? "/auth/reset-password" : APP_ROUTES.hoy;
-
-    callback.searchParams.set("next", nextPath);
-    return callback.toString();
+    const next = params.get("next");
+    if (next) {
+      confirm.searchParams.set("next", next);
+    }
+    return confirm.toString();
   }
 
   if (accessToken && refreshToken && pathname !== "/auth/reset-password") {
@@ -87,15 +106,21 @@ export function resolveSupabaseAuthLandingUrl(input: AuthLandingInput): string |
     return reset.toString();
   }
 
-  if (errorCode === "otp_expired" || (error === "access_denied" && isRecoveryFlow(params))) {
-    const reset = new URL("/auth/reset-password", origin);
-    reset.searchParams.set("error", "link_expired");
-    return reset.toString();
+  if (errorCode === "otp_expired" || error === "access_denied") {
+    if (isRecoveryFlow(params)) {
+      const reset = new URL("/auth/reset-password", origin);
+      reset.searchParams.set("error", "link_expired");
+      return reset.toString();
+    }
+
+    const confirm = new URL("/auth/confirm-email", origin);
+    confirm.searchParams.set("error", "link_expired");
+    return confirm.toString();
   }
 
   if (error === "access_denied" && errorCode) {
     const login = new URL("/login", origin);
-    login.searchParams.set("mode", "forgot");
+    login.searchParams.set("mode", isRecoveryFlow(params) ? "forgot" : "signup");
     login.searchParams.set("error", errorCode);
     return login.toString();
   }
@@ -107,6 +132,7 @@ export function hasSupabaseAuthLandingParams(search: string, hash: string): bool
   const params = readAuthParams(search, hash);
   return Boolean(
     params.get("code") ||
+      params.get("token_hash") ||
       params.get("access_token") ||
       params.get("error_code") ||
       params.get("error")

@@ -1,0 +1,15 @@
+<!--
+  Plantilla de correo "Confirm signup" en Supabase Dashboard:
+  Authentication → Email Templates → Confirm signup
+
+  Usa token_hash para que el enlace funcione en cualquier dispositivo/navegador
+  y solo se consuma al pulsar "Activar mi cuenta" (no al abrir el enlace).
+-->
+<h2>Confirma tu correo</h2>
+<p>Gracias por registrarte en IngeniaFood. Pulsa el enlace para activar tu cuenta:</p>
+<p>
+  <a href="{{ .SiteURL }}/auth/confirm-email?token_hash={{ .TokenHash }}&type=signup">
+    Activar mi cuenta
+  </a>
+</p>
+<p>Si no creaste esta cuenta, puedes ignorar este correo.</p>

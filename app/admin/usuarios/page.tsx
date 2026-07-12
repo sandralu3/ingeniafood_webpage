@@ -3,12 +3,13 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Loader2, Save, Users } from "lucide-react";
+import { ArrowLeft, Loader2, Save, Trash2, Users } from "lucide-react";
 import type { AdminUserListItem } from "@/lib/admin/users-admin";
 import { MAX_DAILY_SCAN_LIMIT } from "@/lib/admin/users-admin";
 import { isSandraAdmin } from "@/lib/auth/sandra-admin";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
 import { createSupabaseClient } from "@/lib/supabaseClient";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { cn } from "@/lib/utils";
 
 function getInitials(name: string | null, email: string): string {
@@ -26,6 +27,8 @@ export default function AdminUsuariosPage() {
   const [draftLimits, setDraftLimits] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
+  const [userPendingDelete, setUserPendingDelete] = useState<AdminUserListItem | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -140,6 +143,45 @@ export default function AdminUsuariosPage() {
       setErrorMessage(error instanceof Error ? error.message : "Error al guardar.");
     } finally {
       setSavingUserId(null);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!userPendingDelete) return;
+
+    const userId = userPendingDelete.id;
+    setDeletingUserId(userId);
+    setErrorMessage(null);
+    setSuccessMessage(null);
+
+    try {
+      const response = await fetch(`/api/admin/users/${userId}`, {
+        method: "DELETE"
+      });
+
+      const payload = (await response.json()) as {
+        deletedUser?: { id: string; email: string };
+        error?: string;
+      };
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? "No se pudo eliminar el usuario.");
+      }
+
+      setUsers((current) => current.filter((item) => item.id !== userId));
+      setDraftLimits((current) => {
+        const next = { ...current };
+        delete next[userId];
+        return next;
+      });
+      setSuccessMessage(
+        `Cuenta eliminada: ${payload.deletedUser?.email ?? userPendingDelete.email}.`
+      );
+      setUserPendingDelete(null);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Error al eliminar.");
+    } finally {
+      setDeletingUserId(null);
     }
   };
 
@@ -298,24 +340,45 @@ export default function AdminUsuariosPage() {
                           )}
                         </td>
                         <td className="px-5 py-4 text-right">
-                          <button
-                            type="button"
-                            onClick={() => void handleSaveLimit(user.id)}
-                            disabled={user.unlimitedScans || isSaving}
-                            className={cn(
-                              "inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-semibold transition",
-                              user.unlimitedScans
-                                ? "cursor-not-allowed text-stone-300"
-                                : "bg-[#4c6633] text-white hover:bg-[#556B2F] disabled:opacity-60"
-                            )}
-                          >
-                            {isSaving ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                              <Save className="h-3.5 w-3.5" />
-                            )}
-                            Guardar
-                          </button>
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() => void handleSaveLimit(user.id)}
+                              disabled={user.unlimitedScans || isSaving}
+                              className={cn(
+                                "inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-semibold transition",
+                                user.unlimitedScans
+                                  ? "cursor-not-allowed text-stone-300"
+                                  : "bg-[#4c6633] text-white hover:bg-[#556B2F] disabled:opacity-60"
+                              )}
+                            >
+                              {isSaving ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Save className="h-3.5 w-3.5" />
+                              )}
+                              Guardar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setUserPendingDelete(user)}
+                              disabled={user.unlimitedScans || deletingUserId === user.id}
+                              className={cn(
+                                "inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-xs font-semibold transition",
+                                user.unlimitedScans
+                                  ? "cursor-not-allowed border-stone-100 text-stone-300"
+                                  : "border-red-200 text-red-700 hover:bg-red-50 disabled:opacity-60"
+                              )}
+                              aria-label={`Eliminar cuenta de ${user.email}`}
+                            >
+                              {deletingUserId === user.id ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-3.5 w-3.5" />
+                              )}
+                              Eliminar
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -325,6 +388,26 @@ export default function AdminUsuariosPage() {
             </div>
           )}
         </section>
+
+        <ConfirmDialog
+          open={userPendingDelete !== null}
+          onOpenChange={(open) => {
+            if (!open && !deletingUserId) {
+              setUserPendingDelete(null);
+            }
+          }}
+          title="Eliminar cuenta"
+          description={
+            userPendingDelete
+              ? `Se eliminará permanentemente la cuenta ${userPendingDelete.email} de Supabase Auth y todos sus datos asociados (perfil, recetas, favoritos, etc.). Esta acción no se puede deshacer.`
+              : undefined
+          }
+          confirmLabel="Eliminar cuenta"
+          cancelLabel="Cancelar"
+          destructive
+          isLoading={deletingUserId !== null}
+          onConfirm={() => void handleConfirmDelete()}
+        />
       </div>
     </main>
   );
