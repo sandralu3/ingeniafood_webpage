@@ -143,7 +143,7 @@ function ConfirmEmailForm() {
         data: { session }
       } = await supabase.auth.getSession();
 
-      const nextPath = resolveEmailConfirmationDestination(pendingToken?.nextPath ?? null);
+      const nextPath = resolveEmailConfirmationDestination(pendingToken.nextPath);
       setDestinationPath(session ? nextPath : "/login?verified=1");
       setIsSuccess(true);
 

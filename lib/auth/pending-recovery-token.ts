@@ -38,7 +38,7 @@ export function readRecoveryParamsFromLocation(
   };
 }
 
-export function hasRecoveryCredential(token: PendingRecoveryToken | null | undefined): boolean {
+export function hasRecoveryCredential(token: PendingRecoveryToken | null | undefined): token is PendingRecoveryToken {
   if (!token) return false;
 
   return Boolean(

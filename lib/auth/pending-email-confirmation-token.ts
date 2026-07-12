@@ -51,7 +51,7 @@ export function readEmailConfirmationParamsFromLocation(
 
 export function hasEmailConfirmationCredential(
   token: PendingEmailConfirmationToken | null | undefined
-): boolean {
+): token is PendingEmailConfirmationToken {
   if (!token) return false;
 
   return Boolean(
