@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { MouseEvent } from "react";
 import {
   Bookmark,
   CalendarDays,
@@ -13,6 +14,7 @@ import {
 import { prefetchHoyPageData } from "@/lib/gamification/prefetch-hoy-page-data";
 import { prefetchInstagramCatalog } from "@/lib/recipes/prefetch-instagram-catalog";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
+import { useScannerReset } from "@/lib/scanner/scanner-reset-context";
 import { cn } from "@/lib/utils";
 
 type NavItem = {
@@ -50,6 +52,17 @@ function prefetchNavTarget(href: string) {
 
 export function BottomNav() {
   const pathname = usePathname();
+  const scannerReset = useScannerReset();
+
+  const handleNavClick = (event: MouseEvent<HTMLAnchorElement>, href: string, isActive: boolean) => {
+    if (href !== APP_ROUTES.scanner || !isActive) {
+      return;
+    }
+
+    event.preventDefault();
+    scannerReset?.requestScannerReset();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 flex items-end justify-around rounded-t-[1.25rem] border-t border-sv-outline-variant/15 bg-sv-surface/95 px-1 pb-2 pt-1.5 shadow-[0_-8px_24px_rgba(0,0,0,0.04)] backdrop-blur-2xl supports-[backdrop-filter]:bg-sv-surface/90">
@@ -61,6 +74,7 @@ export function BottomNav() {
           <Link
             key={href}
             href={href}
+            onClick={(event) => handleNavClick(event, href, isActive)}
             onMouseEnter={() => prefetchNavTarget(href)}
             onTouchStart={() => prefetchNavTarget(href)}
             className={cn(

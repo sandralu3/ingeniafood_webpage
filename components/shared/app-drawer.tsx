@@ -17,6 +17,7 @@ import {
 import { signOutUser } from "@/lib/auth/sign-out";
 import { IngeniaFoodLogo } from "@/components/shared/ingenia-food-logo";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
+import { useScannerReset } from "@/lib/scanner/scanner-reset-context";
 import { cn } from "@/lib/utils";
 
 type AppDrawerProps = {
@@ -51,6 +52,7 @@ function isDrawerItemActive(pathname: string, href: string): boolean {
 
 export function AppDrawer({ open, onClose }: AppDrawerProps) {
   const pathname = usePathname();
+  const scannerReset = useScannerReset();
   const [isMounted, setIsMounted] = useState(open);
   const [isVisible, setIsVisible] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
@@ -155,7 +157,14 @@ export function AppDrawer({ open, onClose }: AppDrawerProps) {
               <Link
                 key={href}
                 href={href}
-                onClick={onClose}
+                onClick={(event) => {
+                  onClose();
+                  if (href === APP_ROUTES.scanner && isActive) {
+                    event.preventDefault();
+                    scannerReset?.requestScannerReset();
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }
+                }}
                 className={cn(
                   "flex items-center gap-3 rounded-2xl px-3.5 py-3 text-sm font-medium transition-[background-color,color] duration-200",
                   isActive

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { AppRecetasAccessGate } from "@/components/shared/app-recetas-access-gate";
+import { ScannerResetProvider } from "@/lib/scanner/scanner-reset-context";
 import { APP_ICON_METADATA } from "@/lib/metadata/app-icons";
 
 export const metadata: Metadata = {
@@ -14,5 +15,9 @@ export default function AppRecetasLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return <AppRecetasAccessGate>{children}</AppRecetasAccessGate>;
+  return (
+    <ScannerResetProvider>
+      <AppRecetasAccessGate>{children}</AppRecetasAccessGate>
+    </ScannerResetProvider>
+  );
 }

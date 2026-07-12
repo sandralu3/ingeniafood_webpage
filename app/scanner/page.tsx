@@ -26,6 +26,7 @@ import {
 } from "@/lib/recipes/structured-ingredients";
 import { type RecipeMacros } from "@/lib/recipes/recipe-macros";
 import { saveGeneratedRecipeToLibrary } from "@/lib/recipes/save-generated-recipe";
+import { useScannerReset } from "@/lib/scanner/scanner-reset-context";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import { cn } from "@/lib/utils";
 
@@ -176,6 +177,7 @@ function resolveErrorMessage(
 }
 
 export default function ScannerPage() {
+  const scannerReset = useScannerReset();
   const [selectedIngredients, setSelectedIngredients] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -257,7 +259,7 @@ export default function ScannerPage() {
     return () => window.clearInterval(timer);
   }, [rateLimitSecondsLeft]);
 
-  const resetScannerState = () => {
+  const resetScannerState = useCallback(() => {
     setSelectedIngredients([]);
     setRecipe(null);
     setPantryImageFile(null);
@@ -272,9 +274,14 @@ export default function ScannerPage() {
     setSaveErrorMessage(null);
     setIsRecipeSaved(false);
     setSavedRecipeId(null);
-    setSavedRecipeId(null);
     setRateLimitSecondsLeft(0);
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!scannerReset) return;
+    scannerReset.registerScannerReset(resetScannerState);
+    return () => scannerReset.registerScannerReset(null);
+  }, [scannerReset, resetScannerState]);
 
   const showDebugError = (context: string, error: unknown) => {
     console.error(`[generate-recipe] ${context}:`, error);

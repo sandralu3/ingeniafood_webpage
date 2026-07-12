@@ -1,4 +1,4 @@
-const CACHE_NAME = "ingenia-static-v2";
+const CACHE_NAME = "ingenia-static-v3";
 const OFFLINE_URLS = [
   "/",
   "/app-recetas",
@@ -73,7 +73,13 @@ self.addEventListener("fetch", (event) => {
           return networkResponse;
         })
         .catch(() =>
-          caches.match(event.request).then((cached) => cached ?? caches.match("/app-recetas"))
+          caches.match(event.request).then((cached) => {
+            if (cached) return cached;
+            if (isHtmlNavigation(event.request)) {
+              return caches.match("/app-recetas");
+            }
+            return Response.error();
+          })
         )
     );
     return;

@@ -79,6 +79,15 @@ export function useAppUpdate(): UseAppUpdateResult {
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
 
+    if (process.env.NODE_ENV === "development") {
+      void navigator.serviceWorker.getRegistrations().then((registrations) => {
+        registrations.forEach((registration) => {
+          void registration.unregister();
+        });
+      });
+      return;
+    }
+
     let isMounted = true;
 
     const attachWaitingWorker = (registration: ServiceWorkerRegistration) => {
