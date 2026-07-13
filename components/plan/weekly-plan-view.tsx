@@ -6,6 +6,7 @@ import { PlanDayCarousel } from "@/components/plan/plan-day-carousel";
 import { PlanDayMealsPanel } from "@/components/plan/plan-day-meals-panel";
 import { PlanRecipePickerModal } from "@/components/plan/plan-recipe-picker-modal";
 import { ShoppingListModal } from "@/components/plan/shopping-list-modal";
+import { WeeklyPlanSkeleton } from "@/components/skeletons/weekly-plan-skeleton";
 import type { PlanMeal } from "@/components/plan/plan-meal-card";
 import type { PlanDay } from "@/lib/plan/types";
 import type { MealType, WeekDay } from "@/lib/plan/constants";
@@ -485,12 +486,7 @@ export function WeeklyPlanView() {
           </div>
         </header>
 
-        {isLoading ? (
-          <div className="flex items-center gap-2 rounded-xl bg-white/90 px-3 py-2 text-xs text-stone-500 shadow-sm">
-            <Loader2 className="h-3.5 w-3.5 animate-spin text-olive-600" />
-            Cargando tu plan...
-          </div>
-        ) : null}
+        {isLoading ? <WeeklyPlanSkeleton /> : null}
 
         {!isLoading && errorMessage ? (
           <p className="rounded-xl bg-red-50 px-2.5 py-1.5 text-[11px] text-red-700">{errorMessage}</p>

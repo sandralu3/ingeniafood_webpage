@@ -21,6 +21,7 @@ import {
 import { getChallengeImportanceMessage } from "@/lib/gamification/challenge-importance";
 import type { DailyChallenge } from "@/lib/gamification/challenges";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
+import { ChallengeRowSkeleton } from "@/components/skeletons/hoy-dashboard-skeleton";
 import { cn } from "@/lib/utils";
 
 type DailyChallengesProps = {
@@ -144,9 +145,11 @@ export function DailyChallenges({
       ) : null}
 
       {showSkeleton ? (
-        <div className="flex items-center justify-center py-5">
-          <Loader2 className="h-4 w-4 animate-spin text-[#556B2F]/60" />
-        </div>
+        <ul className="space-y-1" aria-hidden>
+          {Array.from({ length: 5 }).map((_, index) => (
+            <ChallengeRowSkeleton key={index} />
+          ))}
+        </ul>
       ) : null}
 
       {!showSkeleton && challenges.length === 0 ? (

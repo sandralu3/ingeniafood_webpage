@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { UserAvatar } from "@/components/shared/user-avatar";
+import { Skeleton } from "@/components/ui/skeleton";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
 import { cn } from "@/lib/utils";
 
@@ -32,10 +33,7 @@ export function HoyGreetingHeader({
       <div className="min-w-0 flex-1">
         <p className="text-[11px] font-medium tracking-wide text-stone-400">Tu día en marcha</p>
         {showNameSkeleton ? (
-          <div
-            className="mt-1 h-6 w-28 animate-pulse rounded-md bg-stone-200/80"
-            aria-hidden
-          />
+          <Skeleton silent className="mt-1 h-6 w-28 rounded-md" />
         ) : (
           <h1 className="truncate text-lg font-bold leading-tight text-stone-800">{displayName}</h1>
         )}
@@ -47,10 +45,7 @@ export function HoyGreetingHeader({
         aria-label="Ir a tu perfil"
       >
         {showNameSkeleton ? (
-          <div
-            className="h-10 w-10 animate-pulse rounded-full bg-stone-200/80"
-            aria-hidden
-          />
+          <Skeleton silent className="h-10 w-10 rounded-full" />
         ) : (
           <UserAvatar avatarUrl={avatarUrl} initials={initials} size="md" />
         )}

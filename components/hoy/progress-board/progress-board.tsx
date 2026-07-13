@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Droplets, Leaf, Loader2, Sparkles, Target, TrendingUp } from "lucide-react";
+import { Droplets, Leaf, Sparkles, Target, TrendingUp } from "lucide-react";
 import { ProgressBoardCard } from "@/components/hoy/progress-board/progress-board-card";
+import { HoyProgressBoardSkeleton } from "@/components/skeletons/hoy-dashboard-skeleton";
 import {
   NutritionImpactModal,
   StreakCalendarModal,
@@ -100,9 +101,7 @@ export function ProgressBoard({ data, isLoading = false, className }: ProgressBo
         </p>
 
         {showSkeleton ? (
-          <div className="flex h-28 items-center justify-center rounded-2xl border border-stone-100 bg-white shadow-sm">
-            <Loader2 className="h-6 w-6 animate-spin text-[#556B2F]/60" />
-          </div>
+          <HoyProgressBoardSkeleton showSectionLabel={false} />
         ) : (
           <div className="grid grid-cols-2 gap-2.5">
             <ProgressBoardCard
