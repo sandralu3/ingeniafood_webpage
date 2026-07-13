@@ -1,21 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Bookmark,
-  Calendar,
-  Loader2,
-  Share2
-} from "lucide-react";
+import { ArrowLeft, Bookmark, Calendar, Loader2, Share2 } from "lucide-react";
 import { AddToPlanSheet } from "@/components/scanner/add-to-plan-sheet";
 import { RecipeShareCapture } from "@/components/share/recipe-share-capture";
 import { useShareRecipeImage } from "@/hooks/use-share-recipe-image";
 import type { ShareableRecipe } from "@/lib/share/recipe-share-image";
+import type { AppliedRecipeFilters } from "@/lib/recipes/premium-recipe-filters";
 
 type Props = {
   recipe: ShareableRecipe;
   /** Banner cuando la receta se generó con foto de despensa */
   showPhotoBanner?: boolean;
+  appliedFilters?: AppliedRecipeFilters | null;
+  showAppliedFilters?: boolean;
   onSaveFavorites?: () => void;
   onNewSearch?: () => void;
   onPersistRecipeId: () => Promise<string | null>;
@@ -31,7 +29,9 @@ export function RecipeResultView({
   onPersistRecipeId,
   onPlanAssigned,
   isSavingFavorites = false,
-  isSavedFavorites = false
+  isSavedFavorites = false,
+  appliedFilters = null,
+  showAppliedFilters = false
 }: Props) {
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
   const { captureRef, shareRecipeImage, isGenerating, errorMessage, clearError } =
@@ -45,29 +45,36 @@ export function RecipeResultView({
   const actionsDisabled = isGenerating || isSavingFavorites;
 
   return (
-    <article className="bg-[#FAFAFA] pb-28 pt-1 duration-500 has-[.recipe-share-capturing]:pb-4">
+    <article className="space-y-3 pb-24 duration-500 has-[.recipe-share-capturing]:pb-4">
       {onNewSearch ? (
-        <div className="mb-2 px-1" data-share-exclude>
+        <div data-share-exclude>
           <button
             type="button"
             onClick={onNewSearch}
-            className="text-sm font-semibold text-sv-primary underline decoration-sv-primary/40 underline-offset-4 transition hover:opacity-80"
+            className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#556B2F] transition hover:text-[#3e5219]"
           >
-            ← Nueva búsqueda
+            <ArrowLeft className="h-3.5 w-3.5" strokeWidth={2} />
+            Nueva búsqueda
           </button>
         </div>
       ) : null}
 
-      <RecipeShareCapture ref={captureRef} recipe={recipe} showScanBanner />
+      <RecipeShareCapture
+        ref={captureRef}
+        recipe={recipe}
+        showScanBanner
+        appliedFilters={appliedFilters}
+        showAppliedFilters={showAppliedFilters}
+      />
 
-      <div className="mt-4 space-y-3 px-0" data-share-exclude>
+      <div className="space-y-2" data-share-exclude>
         <button
           type="button"
           onClick={() => setIsPlanModalOpen(true)}
           disabled={actionsDisabled}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#E9F0E6] px-4 py-3 font-semibold text-[#4C6B3F] transition-all hover:bg-[#DEE8DA] disabled:cursor-not-allowed disabled:opacity-60"
+          className="flex w-full items-center justify-center gap-1.5 rounded-full border border-stone-200/60 bg-[#F0F4ED] px-4 py-2.5 text-sm font-semibold text-[#3e5219] transition hover:bg-[#E9F0E6] disabled:cursor-not-allowed disabled:opacity-60"
         >
-          <Calendar size={16} />
+          <Calendar className="h-4 w-4" strokeWidth={2} />
           Añadir al plan semanal
         </button>
 
@@ -75,27 +82,29 @@ export function RecipeResultView({
           type="button"
           onClick={handleShareImage}
           disabled={isGenerating}
-          className="group flex w-full items-center justify-center gap-2 rounded-full border border-[#4c6633]/20 bg-white px-5 py-3.5 text-sm font-semibold text-[#4c6633] shadow-sm transition hover:bg-[#4c6633]/5 disabled:cursor-not-allowed disabled:opacity-60"
+          className="flex w-full items-center justify-center gap-1.5 rounded-full border border-stone-200/60 bg-white px-4 py-2.5 text-sm font-semibold text-[#556B2F] shadow-sm transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isGenerating ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
-            <Share2 className="h-4 w-4" />
+            <Share2 className="h-4 w-4" strokeWidth={2} />
           )}
-          {isGenerating ? "Generando imagen..." : "Compartir Receta (Imagen)"}
+          {isGenerating ? "Generando imagen..." : "Compartir receta"}
         </button>
+
         {errorMessage ? (
-          <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+          <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-[11px] text-red-700">
             {errorMessage}
           </p>
         ) : null}
+
         <button
           type="button"
           onClick={onSaveFavorites}
           disabled={actionsDisabled || isSavedFavorites}
-          className="group flex w-full items-center justify-center gap-2 rounded-full bg-[#4c6633] px-5 py-3.5 text-sm font-semibold text-white shadow-lg shadow-[#4c6633]/20 transition hover:bg-[#556B2F] disabled:cursor-not-allowed disabled:opacity-60"
+          className="flex w-full items-center justify-center gap-1.5 rounded-full bg-[#556B2F] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#4a5f28] disabled:cursor-not-allowed disabled:opacity-60"
         >
-          <Bookmark className="h-4 w-4 fill-current" />
+          <Bookmark className="h-4 w-4" strokeWidth={2} />
           {isSavedFavorites
             ? "Guardado"
             : isSavingFavorites

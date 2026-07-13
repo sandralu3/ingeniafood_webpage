@@ -21,6 +21,8 @@ export type Database = {
           scans_used_today: number;
           scan_quota_date: string;
           health_score: number;
+          premium_trial_remaining: number;
+          premium_trial_claimed_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -35,6 +37,8 @@ export type Database = {
           scans_used_today?: number;
           scan_quota_date?: string;
           health_score?: number;
+          premium_trial_remaining?: number;
+          premium_trial_claimed_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -49,6 +53,8 @@ export type Database = {
           scans_used_today?: number;
           scan_quota_date?: string;
           health_score?: number;
+          premium_trial_remaining?: number;
+          premium_trial_claimed_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };

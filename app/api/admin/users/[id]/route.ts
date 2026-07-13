@@ -1,9 +1,18 @@
 import { NextResponse } from "next/server";
-import { deleteAdminUser, updateUserDailyScanLimit } from "@/lib/admin/users-admin";
+import {
+  deleteAdminUser,
+  updateUserDailyScanLimit,
+  updateUserPremiumStatus
+} from "@/lib/admin/users-admin";
 import { requireSandraAdmin } from "@/lib/admin/require-sandra-admin";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
+};
+
+type PatchBody = {
+  dailyScanLimit?: number;
+  isPremium?: boolean;
 };
 
 export async function PATCH(request: Request, context: RouteContext) {
@@ -14,26 +23,42 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   const { id } = await context.params;
 
-  let body: { dailyScanLimit?: number };
+  let body: PatchBody;
   try {
-    body = (await request.json()) as { dailyScanLimit?: number };
+    body = (await request.json()) as PatchBody;
   } catch {
     return NextResponse.json({ error: "Cuerpo de solicitud inválido." }, { status: 400 });
   }
 
-  if (typeof body.dailyScanLimit !== "number") {
-    return NextResponse.json({ error: "Debes indicar dailyScanLimit." }, { status: 400 });
+  const hasScanLimit = typeof body.dailyScanLimit === "number";
+  const hasPremium = typeof body.isPremium === "boolean";
+
+  if (!hasScanLimit && !hasPremium) {
+    return NextResponse.json(
+      { error: "Debes indicar dailyScanLimit o isPremium." },
+      { status: 400 }
+    );
   }
 
   try {
-    const user = await updateUserDailyScanLimit(id, body.dailyScanLimit);
+    let user;
+    if (hasScanLimit) {
+      user = await updateUserDailyScanLimit(id, body.dailyScanLimit!);
+    }
+    if (hasPremium) {
+      user = await updateUserPremiumStatus(id, body.isPremium!);
+    }
+
+    if (!user) {
+      return NextResponse.json({ error: "No se pudo actualizar el usuario." }, { status: 400 });
+    }
+
     return NextResponse.json({ user });
   } catch (error) {
     console.error("[admin/users/:id] PATCH", error);
     return NextResponse.json(
       {
-        error:
-          error instanceof Error ? error.message : "No pudimos actualizar el límite diario."
+        error: error instanceof Error ? error.message : "No pudimos actualizar el usuario."
       },
       { status: 500 }
     );

@@ -27,6 +27,7 @@ export default function AdminUsuariosPage() {
   const [draftLimits, setDraftLimits] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
+  const [savingPremiumUserId, setSavingPremiumUserId] = useState<string | null>(null);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
   const [userPendingDelete, setUserPendingDelete] = useState<AdminUserListItem | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -97,6 +98,46 @@ export default function AdminUsuariosPage() {
       active = false;
     };
   }, [loadUsers, router]);
+
+  const handleTogglePremium = async (userId: string, nextValue: boolean) => {
+    const user = users.find((item) => item.id === userId);
+    if (!user || user.unlimitedScans) return;
+
+    setSavingPremiumUserId(userId);
+    setErrorMessage(null);
+    setSuccessMessage(null);
+
+    try {
+      const response = await fetch(`/api/admin/users/${userId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isPremium: nextValue })
+      });
+
+      const payload = (await response.json()) as {
+        user?: AdminUserListItem;
+        error?: string;
+      };
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? "No se pudo actualizar Premium.");
+      }
+
+      if (payload.user) {
+        setUsers((current) =>
+          current.map((item) => (item.id === userId ? payload.user! : item))
+        );
+      }
+
+      setSuccessMessage(
+        nextValue ? "Usuario marcado como Premium." : "Premium desactivado para el usuario."
+      );
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Error al guardar Premium.");
+    } finally {
+      setSavingPremiumUserId(null);
+    }
+  };
 
   const handleSaveLimit = async (userId: string) => {
     const user = users.find((item) => item.id === userId);
@@ -234,8 +275,8 @@ export default function AdminUsuariosPage() {
               Usuarios
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-stone-500">
-              Consulta las cuentas registradas y define cuántos escaneos con IA puede hacer cada
-              usuario por día.
+              Consulta las cuentas registradas, define escaneos diarios y activa o desactiva Premium
+              por usuario.
             </p>
           </div>
 
@@ -275,6 +316,7 @@ export default function AdminUsuariosPage() {
                     <th className="px-5 py-3.5">Usuario</th>
                     <th className="px-5 py-3.5">Correo</th>
                     <th className="px-5 py-3.5">Hoy</th>
+                    <th className="px-5 py-3.5">Premium</th>
                     <th className="px-5 py-3.5">Escaneos / día</th>
                     <th className="px-5 py-3.5 text-right">Acción</th>
                   </tr>
@@ -282,6 +324,14 @@ export default function AdminUsuariosPage() {
                 <tbody>
                   {users.map((user) => {
                     const isSaving = savingUserId === user.id;
+                    const isSavingPremium = savingPremiumUserId === user.id;
+                    const premiumStatusLabel = user.isPremium
+                      ? "Suscriptor"
+                      : user.premiumTrialRemaining > 0
+                        ? "Prueba activa"
+                        : user.premiumTrialClaimed
+                          ? "Prueba usada"
+                          : "Free";
 
                     return (
                       <tr key={user.id} className="border-b border-stone-50 last:border-none">
@@ -315,6 +365,45 @@ export default function AdminUsuariosPage() {
                             <span className="text-stone-600">
                               {user.scansUsedToday} usados · {user.scansRemainingToday} restantes
                             </span>
+                          )}
+                        </td>
+                        <td className="px-5 py-4">
+                          {user.unlimitedScans ? (
+                            <div className="flex flex-col gap-1.5">
+                              <span className="text-xs font-medium text-[#3e5219]">Premium</span>
+                              <span className="w-fit rounded-full bg-[#eef4e6] px-2 py-0.5 text-[10px] font-semibold text-[#3e5219]">
+                                Admin · ilimitado
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col gap-1.5">
+                              <label className="inline-flex cursor-pointer items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  checked={user.isPremium}
+                                  disabled={isSavingPremium}
+                                  onChange={(event) =>
+                                    void handleTogglePremium(user.id, event.target.checked)
+                                  }
+                                  className="h-4 w-4 rounded border-stone-300 text-[#556B2F] focus:ring-[#556B2F]/30"
+                                />
+                                <span className="text-xs font-medium text-stone-700">
+                                  {isSavingPremium ? "Guardando…" : user.isPremium ? "Premium" : "Free"}
+                                </span>
+                              </label>
+                              <span
+                                className={cn(
+                                  "w-fit rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                                  user.isPremium
+                                    ? "bg-[#eef4e6] text-[#3e5219]"
+                                    : user.premiumTrialRemaining > 0
+                                      ? "bg-amber-50 text-amber-900"
+                                      : "bg-stone-100 text-stone-500"
+                                )}
+                              >
+                                {premiumStatusLabel}
+                              </span>
+                            </div>
                           )}
                         </td>
                         <td className="px-5 py-4">

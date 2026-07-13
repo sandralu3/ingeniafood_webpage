@@ -10,12 +10,15 @@ export function SandraTipCard({ tip, hideOnShareCapture = false }: Props) {
   return (
     <aside
       {...(hideOnShareCapture ? { "data-share-exclude": true } : {})}
-      className="rounded-2xl border border-brand-green-light/30 bg-brand-green-light/10 px-5 py-6 shadow-sm"
+      className="rounded-2xl bg-gradient-to-br from-[#EEF4E6] via-white to-[#dce7c3]/50 p-3 shadow-sm shadow-[#556B2F]/5"
     >
-      <h3 className="font-serif text-base font-semibold text-brand-green-dark">
-        💡 El Tip de Sandra
+      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-stone-400">
+        Tip de Sandra
+      </p>
+      <h3 className="mt-0.5 font-serif text-sm font-semibold text-stone-900">
+        Consejo experto
       </h3>
-      <p className="mt-4 text-sm leading-7 text-stone-700">{tip}</p>
+      <p className="mt-2 text-[11px] leading-relaxed text-stone-600">{tip}</p>
     </aside>
   );
 }

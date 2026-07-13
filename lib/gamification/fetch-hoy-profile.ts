@@ -4,6 +4,7 @@ import {
   getProfileInitials,
   resolveProfileFirstName
 } from "@/components/shared/user-avatar";
+import { isSandraAdmin } from "@/lib/auth/sandra-admin";
 import {
   readHoyProfileCache,
   writeHoyProfileCache,
@@ -18,14 +19,15 @@ export async function fetchHoyProfile(
   const supabase = createSupabaseClient();
   const { data: profileRow } = await supabase
     .from("profiles")
-    .select("full_name, avatar_url")
+    .select("full_name, avatar_url, is_premium")
     .eq("id", userId)
     .maybeSingle();
 
   const profile: HoyProfileCache = {
     displayName: resolveProfileFirstName(profileRow?.full_name, email),
     avatarUrl: profileRow?.avatar_url ?? null,
-    initials: getProfileInitials(profileRow?.full_name, email)
+    initials: getProfileInitials(profileRow?.full_name, email),
+    isPremium: isSandraAdmin(email) || Boolean(profileRow?.is_premium)
   };
 
   writeHoyProfileCache(userId, profile);

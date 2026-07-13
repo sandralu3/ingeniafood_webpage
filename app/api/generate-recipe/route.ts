@@ -5,6 +5,13 @@ import { normalizeRecipeTags } from "@/lib/recipes/recipe-tags";
 import { normalizeRecipeMacros, type RecipeMacros } from "@/lib/recipes/recipe-macros";
 import { normalizeLooseGeminiIngredients } from "@/lib/recipes/structured-ingredients";
 import { consumeGeneration, getGenerationsLeft } from "@/lib/generations/quota";
+import { getUserIsPremium } from "@/lib/auth/user-premium";
+import { consumePremiumTrialUse } from "@/lib/auth/premium-trial";
+import { usedPremiumRecipeFilters } from "@/lib/auth/premium-access";
+import {
+  buildRecipeFiltersPromptClause,
+  resolveRecipeFilters
+} from "@/lib/recipes/premium-recipe-filters";
 import { createSupabaseRouteClient } from "@/lib/supabaseRoute";
 
 /** Vision + JSON puede tardar más que solo texto (p. ej. en Vercel). */
@@ -16,6 +23,13 @@ const PANTRY_PRIORITY_RULE =
   "Solo puedes añadir condimentos básicos universales: sal, pimienta, aceite de oliva, agua, ajo en polvo. " +
   "Al menos el 80% de los ingredientes_detallados deben provenir de la lista del usuario o de la imagen. " +
   "Si no hay suficientes ingredientes para una receta coherente, simplifica el plato en lugar de inventar productos nuevos.\n\n";
+
+const HEALTHY_NUTRITION_RULE =
+  "PRIORIDAD NUTRICIONAL INGENIAFOOD: Todas las recetas deben ser saludables, equilibradas y con ingredientes reales de alto valor nutricional. " +
+  "PROHIBIDO inventar o añadir como ingrediente principal harina de trigo, harina blanca, harinas refinadas, azúcar refinada en gran cantidad, frituras en aceite abundante o ingredientes ultraprocesados, SALVO que el usuario los haya seleccionado explícitamente o aparezcan claramente en la imagen. " +
+  "Prioriza verduras, proteínas magras, huevos, legumbres, grasas saludables (aceite de oliva, aguacate), cereales integrales (avena, arroz integral, quinoa) y preparaciones al horno, salteado ligero, plancha o airfryer. " +
+  "Si los ingredientes del usuario no permiten un plato tradicional con harina, propón una versión saludable alternativa con lo que SÍ tienen (ej. queso al horno con verduras, tortilla, bowl proteico), sin inventar masas fritas ni rebozados. " +
+  "Evita recetas tipo empanada, tequeños, buñuelos o frituras con harina si el usuario no aportó harina.\n\n";
 
 const INGREDIENT_QUANTITY_RULE =
   "FORMATO OBLIGATORIO DE INGREDIENTES (1-2 porciones): cada ingrediente DEBE incluir cantidad y unidad. " +
@@ -50,6 +64,8 @@ type GenerateRecipePayload = {
   /** Base64 sin prefijo data URL */
   imageBase64?: string;
   mimeType?: string;
+  mealType?: string;
+  cuisineStyle?: string;
 };
 
 type GeminiRecipe = {
@@ -320,6 +336,30 @@ export async function POST(request: Request) {
           .filter((ingredient) => ingredient.length > 0)
       : [];
 
+    const { isPremium, access: premiumAccess, error: premiumError } = await getUserIsPremium(
+      supabase,
+      user.id,
+      user.email
+    );
+    if (premiumError) {
+      return jsonResponse(
+        {
+          error: premiumError,
+          code: "PREMIUM_CHECK_FAILED"
+        },
+        503
+      );
+    }
+
+    const hadTrialUseBeforeGeneration = premiumAccess.premiumTrialRemaining > 0;
+
+    const resolvedFilters = resolveRecipeFilters({
+      isPremium,
+      requestedMealType: body.mealType,
+      requestedCuisineStyle: body.cuisineStyle
+    });
+    const filtersPromptClause = buildRecipeFiltersPromptClause(resolvedFilters);
+
     let imageBase64Raw =
       typeof body.imageBase64 === "string" && body.imageBase64.length > 0
         ? body.imageBase64
@@ -406,11 +446,14 @@ export async function POST(request: Request) {
 
     const jsonRules =
       PANTRY_PRIORITY_RULE +
+      HEALTHY_NUTRITION_RULE +
       INGREDIENT_QUANTITY_RULE +
       MACRO_ESTIMATION_RULE +
+      `${filtersPromptClause}\n\n` +
       "Solo JSON valido. Entrega receta saludable y rapida. Formato esperado: { \"titulo\": \"\", \"tiempo\": \"X min\", \"ingredientes\": [], \"pasos\": [], \"tip_sandra\": \"\", \"etiquetas\": [], \"macronutrientes\": {\"proteinas_g\": 0, \"carbohidratos_g\": 0, \"grasas_g\": 0, \"calorias\": 0} }. " +
-      "ETIQUETAS (campo etiquetas): array de 1 a 3 strings que describan SOLO lo que aplica a ESTA receta concreta. Valores permitidos: \"Desayuno\", \"Cena\", \"Snack\", \"Sin Harinas\", \"Apto para Airfryer\", \"Alto en Proteína\". " +
-      "Reglas estrictas: incluye \"Sin Harinas\" solo si la receta no usa harinas ni cereales refinados; incluye \"Apto para Airfryer\" solo si la cocción principal es en airfryer; incluye \"Desayuno\", \"Cena\" o \"Snack\" según el momento ideal del plato (ej. mug cake o bowl matutino = \"Desayuno\", no Airfryer). Si ninguna aplica, devuelve etiquetas: []. " +
+      "ETIQUETAS (campo etiquetas): array de 0 a 3 strings. Valores permitidos SOLO: \"Sin Harinas\", \"Apto para Airfryer\", \"Alto en Proteína\". " +
+      "NO incluyas Desayuno, Cena, Snack, Almuerzo ni Postre en etiquetas (el momento del plato ya se define por filtros del usuario). " +
+      "Reglas estrictas: incluye \"Sin Harinas\" solo si la receta no usa harinas ni cereales refinados; incluye \"Apto para Airfryer\" solo si la cocción principal es en airfryer; incluye \"Alto en Proteína\" solo si aplica de verdad. Si ninguna aplica, devuelve etiquetas: []. " +
       "REGLA DE ORO DE INVENTARIO (obligatoria): PROHIBIDO añadir ingredientes al titulo o a las instrucciones que no hayan sido detectados en la imagen ni seleccionados por el usuario, salvo basicos de despensa permitidos (sal, pimienta, aceite, agua). " +
       "Si el titulo incluye una especia o sabor (como curry o pimenton), ese ingrediente DEBE figurar en ingredientes_detallados y estar respaldado por evidencia visual o seleccion manual. " +
       "PRIORIDAD DE ATRIBUTOS: el titulo debe ser una descripcion tecnica y real de los ingredientes capturados; no inventes sabores externos para hacerlo atractivo. " +
@@ -664,10 +707,31 @@ export async function POST(request: Request) {
       );
     }
 
+    let premiumTrialRemaining = premiumAccess.premiumTrialRemaining;
+    const consumedPremiumTrial =
+      !premiumAccess.isPaidPremium &&
+      hadTrialUseBeforeGeneration &&
+      usedPremiumRecipeFilters(resolvedFilters);
+
+    if (consumedPremiumTrial) {
+      premiumTrialRemaining = await consumePremiumTrialUse(user.id);
+      if (process.env.NODE_ENV !== "production") {
+        console.log("[premium-trial] Consumido tras receta con filtros Premium.", {
+          userId: user.id,
+          premiumTrialRemaining
+        });
+      }
+    }
+
     return jsonResponse({
       recipe: safeRecipe,
       savedRecipe: null,
-      generationsLeft: remainingGenerations
+      generationsLeft: remainingGenerations,
+      appliedFilters: {
+        mealType: resolvedFilters.mealType,
+        cuisineStyle: resolvedFilters.cuisineStyle
+      },
+      premiumTrialRemaining
     });
   } catch (error) {
     const message =

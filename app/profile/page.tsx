@@ -109,7 +109,7 @@ export default function ProfilePage() {
           setFullName(fallbackProfile?.full_name ?? "");
           setCountry("");
           setAvatarUrl(fallbackProfile?.avatar_url ?? null);
-          setIsPremium(Boolean(fallbackProfile?.is_premium));
+          setIsPremium(isSandraAdmin(user.email) || Boolean(fallbackProfile?.is_premium));
           return;
         }
 
@@ -121,7 +121,7 @@ export default function ProfilePage() {
         setFullName(profile?.full_name ?? "");
         setCountry(profile?.country ?? "");
         setAvatarUrl(profile?.avatar_url ?? null);
-        setIsPremium(Boolean(profile?.is_premium));
+        setIsPremium(isSandraAdmin(user.email) || Boolean(profile?.is_premium));
       } catch (error) {
         console.error("[profile] Error cargando perfil:", error);
         setErrorMessage("No pudimos cargar tu perfil. Intenta nuevamente.");

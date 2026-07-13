@@ -2,9 +2,10 @@ type HoyProfileCache = {
   displayName: string;
   avatarUrl: string | null;
   initials: string;
+  isPremium: boolean;
 };
 
-const HOY_PROFILE_CACHE_PREFIX = "ingeniafood_hoy_profile_v1";
+const HOY_PROFILE_CACHE_PREFIX = "ingeniafood_hoy_profile_v2";
 
 function buildCacheKey(userId: string): string {
   return `${HOY_PROFILE_CACHE_PREFIX}_${userId}`;
@@ -19,6 +20,7 @@ export function readHoyProfileCache(userId: string): HoyProfileCache | null {
 
     const parsed = JSON.parse(raw) as HoyProfileCache;
     if (!parsed?.displayName) return null;
+    if (typeof parsed.isPremium !== "boolean") return null;
 
     return parsed;
   } catch {

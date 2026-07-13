@@ -18,6 +18,13 @@ import {
   readPendingPlanAssignment,
   type PendingPlanAssignment
 } from "@/lib/plan/plan-pending-assignment";
+import {
+  FREE_DEFAULT_CUISINE_STYLE,
+  FREE_DEFAULT_MEAL_TYPE,
+  type AppliedRecipeFilters,
+  type RecipeCuisineStyle,
+  type RecipeMealType
+} from "@/lib/recipes/premium-recipe-filters";
 import { tagsToLegacyFlags } from "@/lib/recipes/recipe-tags";
 import {
   formatIngredientLinesForDisplay,
@@ -26,6 +33,7 @@ import {
 } from "@/lib/recipes/structured-ingredients";
 import { type RecipeMacros } from "@/lib/recipes/recipe-macros";
 import { saveGeneratedRecipeToLibrary } from "@/lib/recipes/save-generated-recipe";
+import { usePremium } from "@/hooks/use-premium";
 import { useScannerReset } from "@/lib/scanner/scanner-reset-context";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import { cn } from "@/lib/utils";
@@ -47,6 +55,8 @@ type ApiPayload = {
   code?: string;
   mensaje?: string;
   generationsLeft?: number;
+  appliedFilters?: AppliedRecipeFilters;
+  premiumTrialRemaining?: number;
 };
 
 function sleep(ms: number): Promise<void> {
@@ -178,6 +188,7 @@ function resolveErrorMessage(
 
 export default function ScannerPage() {
   const scannerReset = useScannerReset();
+  const { refresh: refreshPremium } = usePremium();
   const [selectedIngredients, setSelectedIngredients] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -197,6 +208,13 @@ export default function ScannerPage() {
   const [rateLimitSecondsLeft, setRateLimitSecondsLeft] = useState(0);
   const [generationsLeft, setGenerationsLeft] = useState<number | null>(null);
   const [showGenerationsModal, setShowGenerationsModal] = useState(false);
+  const [mealTypeFilter, setMealTypeFilter] = useState<RecipeMealType>(FREE_DEFAULT_MEAL_TYPE);
+  const [cuisineStyleFilter, setCuisineStyleFilter] = useState<RecipeCuisineStyle>(
+    FREE_DEFAULT_CUISINE_STYLE
+  );
+  const [appliedRecipeFilters, setAppliedRecipeFilters] = useState<AppliedRecipeFilters | null>(
+    null
+  );
   const [pendingPlanAssignment, setPendingPlanAssignment] = useState<PendingPlanAssignment | null>(
     null
   );
@@ -275,6 +293,7 @@ export default function ScannerPage() {
     setIsRecipeSaved(false);
     setSavedRecipeId(null);
     setRateLimitSecondsLeft(0);
+    setAppliedRecipeFilters(null);
   }, []);
 
   useEffect(() => {
@@ -420,6 +439,8 @@ export default function ScannerPage() {
             credentials: "include",
             body: JSON.stringify({
               selectedIngredients,
+              mealType: mealTypeFilter,
+              cuisineStyle: cuisineStyleFilter,
               ...(imagePayload ?? {})
             }),
             signal: createFetchSignal()
@@ -476,6 +497,7 @@ export default function ScannerPage() {
     setErrorMessage(null);
     setRetryMessage(null);
     setRecipe(null);
+    setAppliedRecipeFilters(null);
     setShowNotFoodGuidance(false);
     setShowInvalidIngredientAlert(false);
     setInvalidIngredientMessage(null);
@@ -576,6 +598,12 @@ export default function ScannerPage() {
       }
 
       setRecipe(payload.recipe);
+      setAppliedRecipeFilters(
+        payload.appliedFilters ?? {
+          mealType: mealTypeFilter,
+          cuisineStyle: cuisineStyleFilter
+        }
+      );
       setRecipeFromPhoto(Boolean(pantryImageFile));
       setErrorMessage(null);
       setIsRecipeSaved(false);
@@ -584,6 +612,7 @@ export default function ScannerPage() {
       if (typeof payload.generationsLeft === "number") {
         setGenerationsLeft(payload.generationsLeft);
       }
+      void refreshPremium();
     } catch (err) {
       showDebugError("manejo de respuesta", err);
       setRecipe(null);
@@ -717,6 +746,7 @@ export default function ScannerPage() {
 
   const isPantryIdleView =
     !isLoading && !recipe && !showGenerationError && scannerMode === "pantry";
+  const isRecipeFlowView = isLoading || Boolean(displayRecipe) || showGenerationError;
   const pantryViewportHeight = pendingPlanAssignment
     ? "h-[calc(100dvh-17rem)] max-h-[calc(100dvh-17rem)]"
     : "h-[calc(100dvh-12.5rem)] max-h-[calc(100dvh-12.5rem)]";
@@ -724,10 +754,14 @@ export default function ScannerPage() {
   return (
     <div
       className={cn(
-        "bg-[#FBF9F6]",
+        isRecipeFlowView
+          ? "-mx-4 -mb-6 min-h-full bg-gradient-to-b from-stone-50 via-amber-50/20 to-sv-surface px-4 pb-6 pt-1"
+          : "bg-[#FBF9F6]",
         isPantryIdleView
           ? cn("flex flex-col overflow-hidden", pantryViewportHeight)
-          : "min-h-[calc(100dvh-10rem)]"
+          : isRecipeFlowView
+            ? "min-h-[calc(100dvh-10rem)]"
+            : "min-h-[calc(100dvh-10rem)]"
       )}
     >
       {pendingPlanAssignment ? (
@@ -754,29 +788,33 @@ export default function ScannerPage() {
       ) : null}
 
       {isLoading ? (
-        <RecipeGenerationState variant="loading" retryMessage={retryMessage} />
+        <section className="space-y-3">
+          <RecipeGenerationState variant="loading" retryMessage={retryMessage} />
+        </section>
       ) : null}
 
       {showGenerationError && errorMessage ? (
-        <RecipeGenerationState
-          variant="error"
-          errorMessage={errorMessage}
-          onRetry={handleScanAgain}
-          rateLimitSecondsLeft={rateLimitSecondsLeft}
-        />
+        <section className="space-y-3">
+          <RecipeGenerationState
+            variant="error"
+            errorMessage={errorMessage}
+            onRetry={handleScanAgain}
+            rateLimitSecondsLeft={rateLimitSecondsLeft}
+          />
+        </section>
       ) : null}
 
       {!isLoading && displayRecipe ? (
-        <div className="animate-fade-in">
+        <section className="animate-fade-in space-y-3">
           {saveSuccessMessage ? (
-            <div className="mb-3 rounded-xl border border-[#556B2F]/30 bg-[#FDFCFB] px-4 py-2 text-sm font-medium text-[#556B2F]">
+            <div className="rounded-2xl border border-[#556B2F]/20 bg-white/90 px-2.5 py-2 text-xs font-medium text-[#556B2F] shadow-sm shadow-stone-100/30">
               {saveSuccessMessage}
             </div>
           ) : null}
           {saveErrorMessage ? (
             <div
               role="alert"
-              className="mb-3 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800"
+              className="rounded-2xl border border-red-200/80 bg-white/90 px-2.5 py-2 text-xs text-red-800 shadow-sm shadow-stone-100/30"
             >
               {saveErrorMessage}
             </div>
@@ -784,6 +822,8 @@ export default function ScannerPage() {
           <RecipeResultView
             recipe={displayRecipe}
             showPhotoBanner={recipeFromPhoto}
+            appliedFilters={appliedRecipeFilters}
+            showAppliedFilters={Boolean(appliedRecipeFilters)}
             onNewSearch={resetScannerState}
             onSaveFavorites={() => void handleSaveRecipe()}
             onPersistRecipeId={persistGeneratedRecipe}
@@ -791,7 +831,7 @@ export default function ScannerPage() {
             isSavingFavorites={isSavingRecipe}
             isSavedFavorites={isRecipeSaved}
           />
-        </div>
+        </section>
       ) : null}
 
       {showInvalidIngredientAlert ? (
@@ -906,6 +946,10 @@ export default function ScannerPage() {
             rateLimitSecondsLeft={rateLimitSecondsLeft}
             generationsLeft={generationsLeft}
             onGenerationsExhausted={() => setShowGenerationsModal(true)}
+            mealType={mealTypeFilter}
+            cuisineStyle={cuisineStyleFilter}
+            onMealTypeChange={setMealTypeFilter}
+            onCuisineStyleChange={setCuisineStyleFilter}
           />
           </div>
           <GenerationsLimitModal

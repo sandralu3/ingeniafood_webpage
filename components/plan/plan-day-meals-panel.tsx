@@ -2,6 +2,7 @@
 
 import { EmptyMealSlot } from "@/components/plan/empty-meal-slot";
 import { PlanMealCard, type PlanMeal } from "@/components/plan/plan-meal-card";
+import { PlanSectionDivider } from "@/components/plan/plan-section-divider";
 import { MEAL_TYPES, type MealType, type WeekDay } from "@/lib/plan/constants";
 import { getMealTypeSubtleAccent } from "@/lib/plan/meal-type-accent";
 import type { PlanDay } from "@/lib/plan/types";
@@ -56,17 +57,7 @@ export function PlanDayMealsPanel({
 
           return (
             <li key={mealType}>
-              <div className="mb-1 flex items-center gap-2 px-0.5">
-                <p
-                  className={cn(
-                    "text-[9px] font-bold uppercase tracking-[0.14em]",
-                    accent.dividerText
-                  )}
-                >
-                  {mealType}
-                </p>
-                <span className={cn("h-px flex-1", accent.dividerLine)} aria-hidden />
-              </div>
+              <PlanSectionDivider label={mealType} accent={accent} />
 
               {meal ? (
                 <div className="rounded-lg border border-stone-100/90 bg-white px-2 py-1.5 shadow-sm shadow-stone-100/20">

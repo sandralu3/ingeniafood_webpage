@@ -1,5 +1,6 @@
 const FLOURLESS_PATTERN = /sin\s+harinas?/i;
 const AIRFRYER_PATTERN = /air\s*fryer|airfryer/i;
+const MEAL_MOMENT_TAG_PATTERN = /^(desayuno|cena|snack|almuerzo|postre)$/i;
 
 export function normalizeRecipeTags(raw: unknown): string[] {
   if (!Array.isArray(raw)) return [];
@@ -53,4 +54,12 @@ export function tagsToLegacyFlags(tags: string[]): {
 
 export function isShareExcludedTag(tag: string): boolean {
   return FLOURLESS_PATTERN.test(tag) || AIRFRYER_PATTERN.test(tag);
+}
+
+export function filterRecipeTagsForDisplay(
+  tags: string[],
+  options?: { hideMealMomentTags?: boolean }
+): string[] {
+  if (!options?.hideMealMomentTags) return tags;
+  return tags.filter((tag) => !MEAL_MOMENT_TAG_PATTERN.test(tag.trim()));
 }

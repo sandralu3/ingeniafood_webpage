@@ -11,9 +11,53 @@ export type AdminUserListItem = {
   scansRemainingToday: number;
   createdAt: string;
   unlimitedScans: boolean;
+  isPremium: boolean;
+  premiumTrialRemaining: number;
+  premiumTrialClaimed: boolean;
 };
 
 const MAX_DAILY_SCAN_LIMIT = 500;
+
+const ADMIN_PROFILE_SELECT =
+  "id, full_name, daily_scan_limit, scans_used_today, scan_quota_date, created_at, is_premium, premium_trial_remaining, premium_trial_claimed_at" as const;
+
+type AdminProfileRow = {
+  id: string;
+  full_name: string | null;
+  daily_scan_limit: number;
+  scans_used_today: number;
+  scan_quota_date: string;
+  created_at: string;
+  is_premium: boolean;
+  premium_trial_remaining: number;
+  premium_trial_claimed_at: string | null;
+};
+
+function buildAdminUserListItem(
+  profile: AdminProfileRow,
+  email: string,
+  createdAtFallback: string
+): AdminUserListItem {
+  const unlimitedScans = hasUnlimitedGenerations(email);
+  const dailyScanLimit = profile.daily_scan_limit ?? 5;
+  const scansUsedToday = computeScansUsedToday(profile.scans_used_today, profile.scan_quota_date);
+
+  return {
+    id: profile.id,
+    fullName: profile.full_name,
+    email: email || "—",
+    dailyScanLimit: unlimitedScans ? UNLIMITED_GENERATIONS_SENTINEL : dailyScanLimit,
+    scansUsedToday,
+    scansRemainingToday: unlimitedScans
+      ? UNLIMITED_GENERATIONS_SENTINEL
+      : Math.max(0, dailyScanLimit - scansUsedToday),
+    createdAt: profile.created_at ?? createdAtFallback,
+    unlimitedScans,
+    isPremium: unlimitedScans || Boolean(profile.is_premium),
+    premiumTrialRemaining: Math.max(0, profile.premium_trial_remaining ?? 0),
+    premiumTrialClaimed: Boolean(profile.premium_trial_claimed_at)
+  };
+}
 
 function computeScansUsedToday(scansUsedToday: number, scanQuotaDate: string): number {
   return scanQuotaDate === getTodayDateKey() ? scansUsedToday : 0;
@@ -24,7 +68,7 @@ export async function listAdminUsers(): Promise<AdminUserListItem[]> {
 
   const { data: profiles, error: profilesError } = await admin
     .from("profiles")
-    .select("id, full_name, daily_scan_limit, scans_used_today, scan_quota_date, created_at")
+    .select(ADMIN_PROFILE_SELECT)
     .order("created_at", { ascending: false });
 
   if (profilesError) {
@@ -56,25 +100,17 @@ export async function listAdminUsers(): Promise<AdminUserListItem[]> {
   return authUsers
     .map((user) => {
       const profile = profileById.get(user.id);
-      const unlimitedScans = hasUnlimitedGenerations(user.email);
-      const dailyScanLimit = profile?.daily_scan_limit ?? 5;
-      const scansUsedToday = profile
-        ? computeScansUsedToday(profile.scans_used_today, profile.scan_quota_date)
-        : 0;
+      if (!profile) {
+        return null;
+      }
 
-      return {
-        id: user.id,
-        fullName: profile?.full_name ?? null,
-        email: user.email ?? "—",
-        dailyScanLimit: unlimitedScans ? UNLIMITED_GENERATIONS_SENTINEL : dailyScanLimit,
-        scansUsedToday,
-        scansRemainingToday: unlimitedScans
-          ? UNLIMITED_GENERATIONS_SENTINEL
-          : Math.max(0, dailyScanLimit - scansUsedToday),
-        createdAt: profile?.created_at ?? user.created_at,
-        unlimitedScans
-      };
+      return buildAdminUserListItem(
+        profile as AdminProfileRow,
+        user.email ?? "—",
+        user.created_at
+      );
     })
+    .filter((user): user is AdminUserListItem => user !== null)
     .sort((a, b) => a.email.localeCompare(b.email, "es"));
 }
 
@@ -138,7 +174,7 @@ export async function updateUserDailyScanLimit(
       generations_left: dailyScanLimit
     })
     .eq("id", userId)
-    .select("id, full_name, daily_scan_limit, scans_used_today, scan_quota_date, created_at")
+    .select(ADMIN_PROFILE_SELECT)
     .maybeSingle();
 
   if (updateError || !updatedProfile) {
@@ -150,24 +186,54 @@ export async function updateUserDailyScanLimit(
     throw authError ?? new Error("No se encontró el usuario.");
   }
 
-  const unlimitedScans = hasUnlimitedGenerations(authData.user.email);
-  const scansUsedToday = computeScansUsedToday(
-    updatedProfile.scans_used_today,
-    updatedProfile.scan_quota_date
+  return buildAdminUserListItem(
+    updatedProfile as AdminProfileRow,
+    authData.user.email ?? "—",
+    authData.user.created_at
   );
+}
 
-  return {
-    id: updatedProfile.id,
-    fullName: updatedProfile.full_name,
-    email: authData.user.email ?? "—",
-    dailyScanLimit: unlimitedScans ? UNLIMITED_GENERATIONS_SENTINEL : updatedProfile.daily_scan_limit,
-    scansUsedToday,
-    scansRemainingToday: unlimitedScans
-      ? UNLIMITED_GENERATIONS_SENTINEL
-      : Math.max(0, updatedProfile.daily_scan_limit - scansUsedToday),
-    createdAt: updatedProfile.created_at,
-    unlimitedScans
-  };
+export async function updateUserPremiumStatus(
+  userId: string,
+  isPremium: boolean
+): Promise<AdminUserListItem> {
+  const admin = getSupabaseAdminClient();
+
+  const { data: authData, error: authError } = await admin.auth.admin.getUserById(userId);
+  if (authError || !authData.user) {
+    throw authError ?? new Error("No se encontró el usuario.");
+  }
+
+  if (hasUnlimitedGenerations(authData.user.email) && !isPremium) {
+    throw new Error("No se puede quitar Premium a la cuenta administradora.");
+  }
+
+  const updatePayload = isPremium
+    ? {
+        is_premium: true,
+        premium_trial_remaining: 0,
+        premium_trial_claimed_at: null
+      }
+    : {
+        is_premium: false
+      };
+
+  const { data: updatedProfile, error: updateError } = await admin
+    .from("profiles")
+    .update(updatePayload)
+    .eq("id", userId)
+    .select(ADMIN_PROFILE_SELECT)
+    .maybeSingle();
+
+  if (updateError || !updatedProfile) {
+    throw updateError ?? new Error("No se encontró el perfil del usuario.");
+  }
+
+  return buildAdminUserListItem(
+    updatedProfile as AdminProfileRow,
+    authData.user.email ?? "—",
+    authData.user.created_at
+  );
 }
 
 export { MAX_DAILY_SCAN_LIMIT };

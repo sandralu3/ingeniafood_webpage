@@ -17,8 +17,13 @@ import {
   Bookmark,
   BookmarkCheck
 } from "lucide-react";
+import { AdvancedRecipeFilters, SCANNER_SECTION_CLASS } from "@/components/scanner/advanced-recipe-filters";
+import { PlanSectionDivider } from "@/components/plan/plan-section-divider";
 import { IngredientCombobox } from "@/components/scanner/ingredient-combobox";
+import type { RecipeCuisineStyle, RecipeMealType } from "@/lib/recipes/premium-recipe-filters";
 import { usePantryData } from "@/hooks/use-pantry-data";
+import { cn } from "@/lib/utils";
+import { SCANNER_SECTION_ACCENTS } from "@/lib/scanner/scanner-section-accent";
 import {
   CATEGORY_DB_TO_UI,
   type CategoryKey,
@@ -80,6 +85,10 @@ type Props = {
   rateLimitSecondsLeft?: number;
   generationsLeft?: number | null;
   onGenerationsExhausted?: () => void;
+  mealType: RecipeMealType;
+  cuisineStyle: RecipeCuisineStyle;
+  onMealTypeChange: (value: RecipeMealType) => void;
+  onCuisineStyleChange: (value: RecipeCuisineStyle) => void;
 };
 
 export function PantrySearchView({
@@ -95,7 +104,11 @@ export function PantrySearchView({
   isBusy,
   rateLimitSecondsLeft = 0,
   generationsLeft = null,
-  onGenerationsExhausted
+  onGenerationsExhausted,
+  mealType,
+  cuisineStyle,
+  onMealTypeChange,
+  onCuisineStyleChange
 }: Props) {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
@@ -131,6 +144,8 @@ export function PantrySearchView({
     });
     return grouped;
   }, [favorites]);
+
+  const totalFavorites = favorites.length;
 
   const previewUrl = useMemo(() => {
     if (!pantryImageFile) {
@@ -423,105 +438,117 @@ export function PantrySearchView({
         </section>
       ) : null}
 
-      <section className="mb-2">
-        <div className="rounded-2xl border border-stone-100 bg-white p-4 shadow-sm">
-          <span className="mb-3 block text-[11px] font-bold tracking-wider text-stone-400">
-            FAVORITOS
-          </span>
+      <section className={SCANNER_SECTION_CLASS}>
+        <PlanSectionDivider label="Favoritos" accent={SCANNER_SECTION_ACCENTS.favoritos} />
 
-          <div className="mb-3 grid grid-cols-3 gap-1.5 border-b border-stone-100/60 pb-2">
-            {CATEGORY_KEYS.map((key) => {
-              const isActive = activeCategory === key;
-              const meta = CATEGORY_TAB_META[key];
+        <div className="mb-1.5 px-0.5">
+          {totalFavorites > 0 ? (
+            <p className="text-[11px] text-stone-500">{totalFavorites} guardados</p>
+          ) : null}
+          {activeCategory === null ? (
+            <p className="text-[11px] text-stone-500">Elige una categoría para ver tus ingredientes</p>
+          ) : (
+            <p className="text-[11px] text-stone-500">
+              {CATEGORY_TAB_META[activeCategory].label} ·{" "}
+              {favoritesByCategory[activeCategory].length} ingredientes
+            </p>
+          )}
+        </div>
+
+        <div className="mb-1.5 grid grid-cols-3 gap-1.5">
+          {CATEGORY_KEYS.map((key) => {
+            const isActive = activeCategory === key;
+            const meta = CATEGORY_TAB_META[key];
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setActiveCategory((current) => (current === key ? null : key))}
+                aria-pressed={isActive}
+                aria-label={`Ver favoritos de ${meta.label}`}
+                className={cn(
+                  "flex min-w-0 items-center justify-center gap-1 rounded-full border px-2 py-1 text-[10px] font-semibold transition-colors",
+                  isActive
+                    ? "border-[#4C6B3F]/35 bg-[#F4F6F2] text-[#3e5219]"
+                    : "border-stone-200/80 bg-white text-stone-600 hover:border-stone-300"
+                )}
+              >
+                <span aria-hidden className="shrink-0 text-sm leading-none">
+                  {meta.emoji}
+                </span>
+                <span className="truncate">{meta.label}</span>
+                {favoritesByCategory[key].length > 0 ? (
+                  <span
+                    className={cn(
+                      "shrink-0 rounded-full px-1 text-[9px] font-bold leading-4",
+                      isActive ? "bg-[#4C6B3F]/15 text-[#4C6B3F]" : "bg-stone-100 text-stone-500"
+                    )}
+                  >
+                    {favoritesByCategory[key].length}
+                  </span>
+                ) : null}
+              </button>
+            );
+          })}
+        </div>
+
+        {activeCategory === null ? null : favoritesByCategory[activeCategory].length > 0 ? (
+          <div className="grid grid-cols-2 gap-1.5">
+            {favoritesByCategory[activeCategory].map((fav) => {
+              const isSelected = selectedIngredients.includes(fav.name);
               return (
                 <button
-                  key={key}
+                  key={fav.favoriteId}
                   type="button"
-                  onClick={() =>
-                    setActiveCategory((current) => (current === key ? null : key))
+                  onClick={() => onToggleFromCategory(fav.name)}
+                  aria-pressed={isSelected}
+                  aria-label={
+                    isSelected
+                      ? `Quitar ${fav.name} de la selección`
+                      : `Añadir ${fav.name} al escaneo`
                   }
-                  aria-pressed={isActive}
-                  aria-label={`Ver favoritos de ${meta.label}`}
-                  className={[
-                    "flex min-w-0 items-center justify-center gap-1 rounded-full border px-2 py-1.5 text-[11px] transition-colors sm:gap-1.5 sm:px-3 sm:text-xs",
-                    isActive
-                      ? "border-[#D5E2D0] bg-[#E9F0E6] font-semibold text-[#4C6B3F]"
-                      : "border-stone-100 bg-stone-50 text-stone-600 hover:bg-stone-100"
-                  ].join(" ")}
+                  className={cn(
+                    "flex items-center justify-between rounded-lg px-2 py-1.5 text-left text-[11px] font-medium transition-colors",
+                    isSelected
+                      ? "bg-[#eef4e6]/80 text-[#3e5219]"
+                      : "bg-stone-50/70 text-stone-700 hover:bg-stone-100/80"
+                  )}
                 >
-                  <span aria-hidden className="shrink-0 text-sm leading-none">
-                    {meta.emoji}
+                  <span className="min-w-0 truncate pr-2">{fav.name}</span>
+                  <span
+                    className={cn(
+                      "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border",
+                      isSelected
+                        ? "border-[#4C6B3F] bg-[#4C6B3F] text-white"
+                        : "border-stone-200 bg-white text-[#556B2F]"
+                    )}
+                    aria-hidden
+                  >
+                    {isSelected ? (
+                      <Check className="h-3 w-3" strokeWidth={2.5} />
+                    ) : (
+                      <Plus className="h-3 w-3" strokeWidth={2.5} />
+                    )}
                   </span>
-                  <span className="truncate">{meta.label}</span>
-                  {favoritesByCategory[key].length > 0 ? (
-                    <span
-                      className={[
-                        "shrink-0 rounded-full px-1 text-[10px] font-bold leading-4",
-                        isActive ? "bg-[#4C6B3F]/15 text-[#4C6B3F]" : "bg-stone-200/70 text-stone-500"
-                      ].join(" ")}
-                    >
-                      {favoritesByCategory[key].length}
-                    </span>
-                  ) : null}
                 </button>
               );
             })}
           </div>
-
-          {activeCategory === null ? (
-            <p className="text-xs leading-relaxed text-stone-500">
-              Elige una categoría para ver tus ingredientes favoritos.
-            </p>
-          ) : favoritesByCategory[activeCategory].length > 0 ? (
-            <div className="pr-0.5">
-              <div className="grid grid-cols-2 gap-2">
-                {favoritesByCategory[activeCategory].map((fav) => {
-                  const isSelected = selectedIngredients.includes(fav.name);
-                  return (
-                    <button
-                      key={fav.favoriteId}
-                      type="button"
-                      onClick={() => onToggleFromCategory(fav.name)}
-                      aria-pressed={isSelected}
-                      aria-label={
-                        isSelected
-                          ? `Quitar ${fav.name} de la selección`
-                          : `Añadir ${fav.name} al escaneo`
-                      }
-                      className={[
-                        "flex cursor-pointer items-center justify-between rounded-xl border p-2.5 text-left text-xs font-medium shadow-sm transition-all",
-                        isSelected
-                          ? "border-[#4C6B3F]/35 bg-[#E9F0E6]/50 text-[#4C6B3F]"
-                          : "border-stone-200/60 bg-white text-stone-700 hover:border-[#4C6B3F]/30"
-                      ].join(" ")}
-                    >
-                      <span className="min-w-0 truncate pr-2">{fav.name}</span>
-                      <span
-                        className={[
-                          "flex h-5 w-5 shrink-0 items-center justify-center rounded-full",
-                          isSelected ? "bg-[#4C6B3F] text-white" : "bg-[#E9F0E6] text-[#4C6B3F]"
-                        ].join(" ")}
-                        aria-hidden
-                      >
-                        {isSelected ? (
-                          <Check className="h-3 w-3" strokeWidth={2.5} />
-                        ) : (
-                          <Plus className="h-3 w-3" strokeWidth={2.5} />
-                        )}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ) : (
-            <p className="text-xs leading-relaxed text-stone-500">
-              Sin favoritos en {CATEGORY_TAB_META[activeCategory].label.toLowerCase()}. Busca un
-              ingrediente arriba y pulsa el marcador para guardarlo aquí.
-            </p>
-          )}
-        </div>
+        ) : (
+          <p className="text-[11px] leading-relaxed text-stone-500">
+            Sin favoritos en {CATEGORY_TAB_META[activeCategory].label.toLowerCase()}. Busca un
+            ingrediente arriba y pulsa el marcador para guardarlo aquí.
+          </p>
+        )}
       </section>
+
+      <AdvancedRecipeFilters
+        mealType={mealType}
+        cuisineStyle={cuisineStyle}
+        onMealTypeChange={onMealTypeChange}
+        onCuisineStyleChange={onCuisineStyleChange}
+        disabled={isBusy}
+      />
 
       {errorMessage ? (
         <div
@@ -569,7 +596,7 @@ export function PantrySearchView({
                 ? "Generar receta saludable"
                 : "Escanear Nevera"
           }
-          className="w-full bg-[#4C6B3F] text-white font-bold py-3.5 rounded-2xl shadow-lg shadow-[#4C6B3F]/20 text-center tracking-wide hover:bg-[#3D5632] transition-all disabled:cursor-not-allowed disabled:opacity-60"
+          className="w-full rounded-full bg-[#556B2F] py-2.5 text-center text-sm font-semibold text-white shadow-sm transition hover:bg-[#4a5f28] disabled:cursor-not-allowed disabled:opacity-60"
         >
           {scansExhausted
             ? "Pruebas gratuitas agotadas"
