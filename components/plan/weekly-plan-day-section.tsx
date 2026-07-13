@@ -37,20 +37,20 @@ export function WeeklyPlanDaySection({
   return (
     <section
       className={cn(
-        "overflow-hidden rounded-3xl border border-neutral-100 bg-white/80 shadow-xl shadow-stone-100/40 backdrop-blur-sm",
+        "overflow-hidden rounded-2xl bg-white/90 shadow-sm shadow-stone-100/30",
         className
       )}
     >
       <button
         type="button"
         onClick={() => setIsExpanded((prev) => !prev)}
-        className="flex w-full items-center justify-between gap-3 px-4 py-4 text-left transition hover:bg-stone-50/60"
+        className="flex w-full items-center justify-between gap-2 px-2.5 py-2 text-left transition hover:bg-stone-50/60"
         aria-expanded={isExpanded}
       >
         <div className="flex items-center gap-2.5">
           <h2
             className={cn(
-              "font-serif text-lg font-semibold",
+              "text-sm font-semibold",
               day.isToday ? "text-[#3e5219]" : "text-stone-900"
             )}
           >
@@ -84,8 +84,8 @@ export function WeeklyPlanDaySection({
         )}
       >
         <div className="overflow-hidden">
-          <div className="border-t border-stone-100 px-4 pb-4 pt-3">
-            <div className="flex gap-2.5 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="border-t border-stone-100/80 px-2.5 pb-2.5 pt-2">
+            <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {MEAL_TYPES.map((mealType) => {
                 const meal = day.slots[mealType];
 

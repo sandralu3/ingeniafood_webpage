@@ -239,7 +239,7 @@ export function StreakCalendarModal({
       title="Calendario de consistencia"
       description={
         streakDays > 0
-          ? `Vas ${streakDays} día${streakDays === 1 ? "" : "s"} seguidos cumpliendo al menos un reto.`
+          ? `Vas ${streakDays} día${streakDays === 1 ? "" : "s"} seguidos cumpliendo al menos un reto. Completa uno hoy para mantenerla.`
           : "Completa un reto hoy para empezar tu racha."
       }
     >

@@ -194,7 +194,7 @@ export default function RecipesPage() {
   const pageContent = useMemo(() => {
     if (isLoading) {
       return (
-        <p className="rounded-2xl border border-stone-100 bg-white p-5 text-sm text-stone-500 shadow-sm">
+        <p className="rounded-xl bg-white/90 px-3 py-2 text-xs text-stone-500 shadow-sm">
           Cargando recetas saludables...
         </p>
       );
@@ -202,7 +202,7 @@ export default function RecipesPage() {
 
     if (errorMessage) {
       return (
-        <p className="rounded-2xl border border-stone-100 bg-white p-5 text-sm font-medium text-[#556B2F] shadow-sm">
+        <p className="rounded-xl bg-white/90 px-3 py-2 text-xs font-medium text-[#556B2F] shadow-sm">
           {errorMessage}
         </p>
       );
@@ -210,7 +210,7 @@ export default function RecipesPage() {
 
     if (recipes.length === 0) {
       return (
-        <p className="rounded-2xl border border-stone-100 bg-white p-5 text-sm text-stone-500 shadow-sm">
+        <p className="rounded-xl bg-white/90 px-3 py-2 text-xs text-stone-500 shadow-sm">
           Aún no hay recetas guardadas. Escanea tus ingredientes para empezar.
         </p>
       );
@@ -218,7 +218,7 @@ export default function RecipesPage() {
 
     if (filteredRecipes.length === 0) {
       return (
-        <p className="rounded-2xl border border-stone-100 bg-white p-5 text-sm text-stone-500 shadow-sm">
+        <p className="rounded-xl bg-white/90 px-3 py-2 text-xs text-stone-500 shadow-sm">
           No encontré ninguna receta con ese nombre o ingrediente en tu biblioteca. ¡Prueba con otra palabra!
         </p>
       );
@@ -289,19 +289,19 @@ export default function RecipesPage() {
   ]);
 
   return (
-    <div className="min-h-full bg-[#FAF8F5] pb-8 pt-1">
+    <div className="-mx-4 -mb-6 min-h-full bg-gradient-to-b from-stone-50 via-amber-50/20 to-sv-surface px-4 pb-6 pt-1">
       <section className="space-y-3">
         <RecipeShareCaptureHost captureRef={captureRef} recipe={captureRecipe} mode="offscreen" />
 
-        <header className="pt-2">
-          <h1 className="text-xl font-bold tracking-tight text-stone-800">Recetas guardadas</h1>
-          <p className="mb-4 mt-1 text-sm leading-relaxed text-stone-500">
+        <header>
+          <h1 className="font-serif text-lg font-semibold text-stone-900">Recetas guardadas</h1>
+          <p className="mt-0.5 text-[11px] leading-relaxed text-stone-500">
             {recipes.length} {recipes.length === 1 ? "receta" : "recetas"} en tu libro de cocina
             personal. Filtra por categoría o busca por ingrediente.
           </p>
         </header>
 
-        <div className="relative z-20 bg-[#FAF8F5]/95 pb-2 backdrop-blur-md">
+        <div className="relative z-20 pb-1">
           <div className="flex w-full items-center gap-2">
             <label className="relative flex-1">
               <Search

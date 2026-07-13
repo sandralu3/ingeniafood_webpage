@@ -8,6 +8,7 @@ import { RecipeMedia } from "@/components/recipes/recipe-media";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { removePlanMeal, swapPlanMeal } from "@/lib/plan/plan-service";
 import type { MealType } from "@/lib/plan/constants";
+import { getMealTypeIcon, getMealTypeSubtleAccent } from "@/lib/plan/meal-type-accent";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import { cn } from "@/lib/utils";
 
@@ -79,20 +80,45 @@ function getMealPlaceholderStyle(mealType: MealType): {
 function MealThumbnail({
   imageUrl,
   title,
-  mealType
+  mealType,
+  compact = false
 }: {
   imageUrl?: string | null;
   title: string;
   mealType: MealType;
+  compact?: boolean;
 }) {
+  const sizeClass = compact ? "h-14 w-14 rounded-lg" : "h-20 w-20 rounded-xl";
+  const iconSize = compact ? "h-5 w-5" : "h-7 w-7";
+
   if (imageUrl) {
     return (
       <img
         src={imageUrl}
         alt={title ? `Imagen de ${title}` : "Imagen de la receta"}
-        className="h-20 w-20 shrink-0 rounded-xl object-cover ring-1 ring-stone-100"
+        className={cn("shrink-0 object-cover ring-1 ring-stone-100", sizeClass)}
         loading="lazy"
       />
+    );
+  }
+
+  if (compact) {
+    const accent = getMealTypeSubtleAccent(mealType);
+    const Icon = getMealTypeIcon(mealType);
+
+    return (
+      <div
+        className={cn(
+          "flex shrink-0 items-center justify-center ring-1",
+          sizeClass,
+          accent.iconCircleBg,
+          accent.iconRing,
+          accent.iconText
+        )}
+        aria-hidden
+      >
+        <Icon className={cn("stroke-[1.75]", iconSize)} />
+      </div>
     );
   }
 
@@ -100,13 +126,10 @@ function MealThumbnail({
 
   return (
     <div
-      className={cn(
-        "flex h-20 w-20 shrink-0 items-center justify-center rounded-xl ring-1",
-        className
-      )}
+      className={cn("flex shrink-0 items-center justify-center ring-1", sizeClass, className)}
       aria-hidden
     >
-      <Icon className="h-7 w-7 stroke-[1.75]" />
+      <Icon className={cn("stroke-[1.75]", iconSize)} />
     </div>
   );
 }
@@ -117,7 +140,8 @@ function CompactActionButtons({
   swapDisabled,
   removeDisabled,
   onSwap,
-  onRemove
+  onRemove,
+  compact = false
 }: {
   isSwapping: boolean;
   isRemoving: boolean;
@@ -125,20 +149,27 @@ function CompactActionButtons({
   removeDisabled: boolean;
   onSwap: () => void;
   onRemove: () => void;
+  compact?: boolean;
 }) {
+  const buttonSize = compact ? "h-7 w-7" : "h-8 w-8";
+  const iconSize = compact ? "h-3 w-3" : "h-3.5 w-3.5";
+
   return (
-    <div className="flex shrink-0 flex-col items-center gap-1.5 sm:flex-row">
+    <div className={cn("flex shrink-0 items-center gap-1", compact ? "flex-row" : "flex-col gap-1.5 sm:flex-row")}>
       <button
         type="button"
         onClick={onRemove}
         disabled={removeDisabled}
         aria-label="Quitar receta del día"
-        className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-stone-100 text-stone-600 transition hover:bg-stone-200 disabled:cursor-not-allowed disabled:opacity-50"
+        className={cn(
+          "inline-flex items-center justify-center rounded-full bg-stone-100 text-stone-600 transition hover:bg-stone-200 disabled:cursor-not-allowed disabled:opacity-50",
+          buttonSize
+        )}
       >
         {isRemoving ? (
-          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          <Loader2 className={cn("animate-spin", iconSize)} />
         ) : (
-          <Trash2 className="h-3.5 w-3.5" strokeWidth={2.25} />
+          <Trash2 className={iconSize} strokeWidth={2.25} />
         )}
       </button>
 
@@ -147,7 +178,10 @@ function CompactActionButtons({
         onClick={onSwap}
         disabled={swapDisabled}
         aria-label="Intercambiar receta"
-        className="inline-flex items-center gap-1 rounded-full bg-stone-100 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide text-stone-600 transition hover:bg-stone-200 disabled:cursor-not-allowed disabled:opacity-50"
+        className={cn(
+          "inline-flex items-center gap-1 rounded-full bg-stone-100 font-bold uppercase tracking-wide text-stone-600 transition hover:bg-stone-200 disabled:cursor-not-allowed disabled:opacity-50",
+          compact ? "h-7 px-2 text-[9px]" : "px-2.5 py-1.5 text-[10px]"
+        )}
       >
         {isSwapping ? (
           <Loader2 className="h-3 w-3 animate-spin" />
@@ -198,6 +232,7 @@ function HorizontalMealCard({
   meal,
   isFading,
   showMealType = true,
+  compact = false,
   isSwapping,
   isRemoving,
   swapDisabled,
@@ -209,6 +244,7 @@ function HorizontalMealCard({
   meal: PlanMeal;
   isFading: boolean;
   showMealType?: boolean;
+  compact?: boolean;
   isSwapping: boolean;
   isRemoving: boolean;
   swapDisabled: boolean;
@@ -222,17 +258,28 @@ function HorizontalMealCard({
   return (
     <article
       className={cn(
-        "flex items-center gap-3 rounded-2xl border border-stone-100/80 bg-white p-3 shadow-md shadow-stone-200/40 transition-all duration-300",
+        "flex items-center transition-all duration-300",
+        compact
+          ? "gap-2 rounded-lg bg-transparent px-0 py-0"
+          : "gap-3 rounded-2xl border border-stone-100/80 bg-white p-3 shadow-md shadow-stone-200/40",
         isFading && "scale-[0.98] opacity-70",
         className
       )}
     >
       <Link
         href={recipeDetailHref(meal.recipeId)}
-        className="flex min-w-0 flex-1 items-center gap-4 rounded-xl transition hover:bg-stone-50/60 active:bg-stone-50"
+        className={cn(
+          "flex min-w-0 flex-1 items-center rounded-xl transition hover:bg-stone-50/60 active:bg-stone-50",
+          compact ? "gap-2" : "gap-4"
+        )}
         aria-label={`Ver receta: ${meal.title}`}
       >
-        <MealThumbnail imageUrl={meal.imageUrl} title={meal.title} mealType={meal.mealType} />
+        <MealThumbnail
+          imageUrl={meal.imageUrl}
+          title={meal.title}
+          mealType={meal.mealType}
+          compact={compact}
+        />
 
         <div className="min-w-0 flex-1">
           {showMealType ? (
@@ -243,35 +290,43 @@ function HorizontalMealCard({
 
           <h3
             className={cn(
-              "line-clamp-2 text-base font-bold leading-snug text-stone-800",
+              "line-clamp-2 font-bold leading-snug",
+              compact ? "text-sm text-stone-800" : "text-base text-stone-800",
               showMealType ? "mt-0.5" : ""
             )}
           >
             {meal.title}
           </h3>
 
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            {meal.calories ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700">
-                <Clock3 className="h-3 w-3" />
-                {meal.calories} min
-              </span>
-            ) : null}
+          {!compact && nutritionPills.length > 0 ? (
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              {meal.calories ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700">
+                  <Clock3 className="h-3 w-3" />
+                  {meal.calories} min
+                </span>
+              ) : null}
 
-            {nutritionPills.map((pill) => (
-              <span
-                key={pill}
-                className="rounded-full bg-stone-50 px-2.5 py-0.5 text-xs font-medium text-stone-600 ring-1 ring-stone-200/70"
-              >
-                {pill}
-              </span>
-            ))}
-          </div>
+              {nutritionPills.map((pill) => (
+                <span
+                  key={pill}
+                  className="rounded-full bg-stone-50 px-2.5 py-0.5 text-xs font-medium text-stone-600 ring-1 ring-stone-200/70"
+                >
+                  {pill}
+                </span>
+              ))}
+            </div>
+          ) : compact && meal.calories ? (
+            <p className="mt-0.5 inline-flex items-center gap-1 text-[10px] font-medium text-stone-500">
+              <Clock3 className="h-2.5 w-2.5" />
+              {meal.calories} min
+            </p>
+          ) : null}
         </div>
       </Link>
 
       <div className="flex shrink-0 flex-col items-center gap-2">
-        {meal.instagramUrl ? (
+        {meal.instagramUrl && !compact ? (
           <RecipeInstagramLink
             url={meal.instagramUrl}
             className="!border-stone-200 !bg-stone-50 !px-2 !py-0.5 !text-[10px] !text-stone-600"
@@ -279,6 +334,7 @@ function HorizontalMealCard({
         ) : null}
 
         <CompactActionButtons
+          compact={compact}
           isSwapping={isSwapping}
           isRemoving={isRemoving}
           swapDisabled={swapDisabled}
@@ -426,6 +482,7 @@ export function PlanMealCard({
           meal={meal}
           isFading={isFading}
           showMealType={!isPanel}
+          compact={isPanel}
           className={className}
           {...actionProps}
         />

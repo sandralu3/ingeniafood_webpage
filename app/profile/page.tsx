@@ -345,22 +345,22 @@ export default function ProfilePage() {
         onClose={closeCropModal}
         onConfirm={(croppedBlob) => void handleCropConfirm(croppedBlob)}
       />
-      <section className="min-h-[calc(100dvh-10rem)] px-1 pb-8 pt-2">
-        <div className="mx-auto max-w-md space-y-8">
+      <section className="-mx-4 -mb-6 min-h-[calc(100dvh-10rem)] bg-gradient-to-b from-stone-50 via-amber-50/20 to-sv-surface px-4 pb-6 pt-1">
+        <div className="mx-auto max-w-md space-y-6">
           <header className="text-center">
-            <h1 className="font-serif text-2xl font-semibold tracking-tight text-stone-900">
+            <h1 className="font-serif text-lg font-semibold tracking-tight text-stone-900">
               Mi Perfil
             </h1>
-            <p className="mt-2 text-sm leading-relaxed text-stone-500">
+            <p className="mt-1 text-[11px] leading-relaxed text-stone-500">
               Gestiona tus datos personales y tu foto.
             </p>
           </header>
 
-          <div className="flex flex-col items-center gap-3 overflow-visible">
+          <div className="flex flex-col items-center gap-2.5 overflow-visible">
             <button
               type="button"
               onClick={handleAvatarClick}
-              className="relative h-28 w-28 rounded-full border border-[#4c6633]/35 bg-[#dce7c3]/20 text-[#4c6633]"
+              className="relative h-24 w-24 rounded-full border border-[#4c6633]/35 bg-[#dce7c3]/20 text-[#4c6633]"
               aria-label="Actualizar foto de perfil"
             >
               {avatarUrl ? (
@@ -398,7 +398,7 @@ export default function ProfilePage() {
             ) : null}
           </div>
 
-          <div className="space-y-5">
+          <div className="space-y-4 rounded-2xl bg-white/90 p-3 shadow-sm">
             <div className="space-y-2">
               <label htmlFor="fullName" className="text-sm font-medium text-stone-600">
                 Nombre completo

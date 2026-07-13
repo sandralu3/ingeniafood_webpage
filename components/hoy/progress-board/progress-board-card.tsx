@@ -26,7 +26,7 @@ export function ProgressBoardCard({
       type="button"
       onClick={onClick}
       className={cn(
-        "group relative flex min-h-[6.75rem] w-full flex-col overflow-hidden rounded-2xl border border-stone-100 bg-white p-2.5 text-left shadow-sm transition-transform duration-200 hover:scale-[1.01] hover:shadow-md active:scale-[0.99]",
+        "group relative flex w-full flex-col overflow-hidden rounded-2xl border border-stone-100 bg-white/90 p-2 text-left shadow-sm transition hover:bg-white active:scale-[0.99]",
         className
       )}
     >

@@ -12,6 +12,9 @@ type PlanDayCarouselProps = {
   className?: string;
 };
 
+const MUTED_DAY_TEXT = "text-[#8E8A80]";
+const ACTIVE_DAY_TEXT = "text-[#5A7843]";
+
 export function PlanDayCarousel({
   days,
   selectedDay,
@@ -20,6 +23,12 @@ export function PlanDayCarousel({
 }: PlanDayCarouselProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const selectedRef = useRef<HTMLButtonElement>(null);
+
+  const weekAssigned = days.reduce(
+    (sum, day) => sum + MEAL_TYPES.filter((type) => day.slots[type] !== null).length,
+    0
+  );
+  const weekTotal = days.length * MEAL_TYPES.length;
 
   useEffect(() => {
     selectedRef.current?.scrollIntoView({
@@ -30,68 +39,89 @@ export function PlanDayCarousel({
   }, [selectedDay]);
 
   return (
-    <div
-      ref={scrollRef}
+    <section
       className={cn(
-        "flex gap-3 overflow-x-auto pb-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+        "rounded-2xl bg-[#FCFBFA] px-2.5 py-2 shadow-sm shadow-stone-200/25",
         className
       )}
     >
-      {days.map((day) => {
-        const isSelected = day.label === selectedDay;
-        const assignedCount = MEAL_TYPES.filter((type) => day.slots[type] !== null).length;
+      <div className="mb-1.5 flex items-center justify-between gap-2 px-0.5">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+            <h2 className="font-serif text-sm font-semibold text-stone-900">Tu semana</h2>
+            <span className="text-[11px] text-stone-500">
+              {weekAssigned}/{weekTotal} comidas
+            </span>
+          </div>
+        </div>
 
-        return (
-          <button
-            key={day.id}
-            ref={isSelected ? selectedRef : undefined}
-            type="button"
-            onClick={() => onSelectDay(day.label)}
-            className={cn(
-              "flex min-w-[64px] flex-col items-center justify-center rounded-2xl border p-3 transition-all duration-300",
-              isSelected
-                ? "scale-105 border-[#4C6B3F] bg-[#4C6B3F] text-white shadow-md shadow-[#4C6B3F]/30 transition-transform"
-                : "border-stone-100 bg-white text-stone-500 hover:border-stone-200 hover:bg-stone-50 active:scale-95"
-            )}
-          >
-            <span
+        <span className="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-900">
+          {weekTotal > 0 ? Math.round((weekAssigned / weekTotal) * 100) : 0}%
+        </span>
+      </div>
+
+      <div
+        ref={scrollRef}
+        className="flex gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
+        {days.map((day) => {
+          const isSelected = day.label === selectedDay;
+          const assignedCount = MEAL_TYPES.filter((type) => day.slots[type] !== null).length;
+
+          return (
+            <button
+              key={day.id}
+              ref={isSelected ? selectedRef : undefined}
+              type="button"
+              onClick={() => onSelectDay(day.label)}
               className={cn(
-                "text-xs font-bold tracking-tight",
-                isSelected ? "text-white" : "text-stone-500"
+                "flex min-w-[3.5rem] flex-col items-center rounded-xl px-2 py-1.5 transition-colors",
+                isSelected
+                  ? "border border-[#88ab75]/35 bg-[#F4F6F2]"
+                  : "bg-white hover:bg-[#FCFBFA]"
               )}
             >
-              {WEEK_DAY_SHORT[day.label]}
-            </span>
-            <span
-              className={cn(
-                "mt-0.5 text-[10px] font-medium tabular-nums",
-                isSelected ? "text-white" : "text-stone-500"
+              <span
+                className={cn(
+                  "text-[11px]",
+                  isSelected ? cn("font-bold", ACTIVE_DAY_TEXT) : cn("font-medium", MUTED_DAY_TEXT)
+                )}
+              >
+                {WEEK_DAY_SHORT[day.label]}
+              </span>
+              <span
+                className={cn(
+                  "text-[9px] font-medium tabular-nums",
+                  isSelected ? ACTIVE_DAY_TEXT : MUTED_DAY_TEXT
+                )}
+              >
+                {assignedCount}/3
+              </span>
+              {day.isToday ? (
+                <span
+                  className={cn(
+                    "mt-0.5 rounded-full px-1.5 py-px text-[7px] font-semibold uppercase tracking-wide",
+                    isSelected
+                      ? "bg-white/70 text-[#5A7843]"
+                      : "bg-stone-50 text-[#8E8A80]"
+                  )}
+                >
+                  Hoy
+                </span>
+              ) : (
+                <span
+                  className={cn(
+                    "mt-0.5 text-[8px] font-medium",
+                    isSelected ? ACTIVE_DAY_TEXT : MUTED_DAY_TEXT
+                  )}
+                >
+                  {day.dateLabel}
+                </span>
               )}
-            >
-              {assignedCount}/3
-            </span>
-            {day.isToday ? (
-              <span
-                className={cn(
-                  "mt-1 rounded-full px-1.5 py-px text-[8px] font-bold uppercase tracking-wide",
-                  isSelected ? "bg-white/20 text-white" : "bg-olive-100 text-olive-700"
-                )}
-              >
-                Hoy
-              </span>
-            ) : (
-              <span
-                className={cn(
-                  "mt-1 text-[9px] font-medium",
-                  isSelected ? "text-white/90" : "text-stone-400"
-                )}
-              >
-                {day.dateLabel}
-              </span>
-            )}
-          </button>
-        );
-      })}
-    </div>
+            </button>
+          );
+        })}
+      </div>
+    </section>
   );
 }

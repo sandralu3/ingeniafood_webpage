@@ -52,17 +52,24 @@ function calculateStreakDays(
   lookbackDays = 30
 ): number {
   const daysWithActivity = new Set(completions.map((row) => row.completado_at));
-  let streak = 0;
   const cursor = new Date(`${today}T12:00:00`);
+
+  // Si hoy aún no hay retos completados, la racha sigue viva hasta fin de día:
+  // contamos desde el último día con actividad (normalmente ayer).
+  if (!daysWithActivity.has(today)) {
+    cursor.setDate(cursor.getDate() - 1);
+  }
+
+  let streak = 0;
 
   for (let index = 0; index < lookbackDays; index += 1) {
     const iso = toISODateString(cursor);
-    if (daysWithActivity.has(iso)) {
-      streak += 1;
-      cursor.setDate(cursor.getDate() - 1);
-      continue;
+    if (!daysWithActivity.has(iso)) {
+      break;
     }
-    break;
+
+    streak += 1;
+    cursor.setDate(cursor.getDate() - 1);
   }
 
   return streak;

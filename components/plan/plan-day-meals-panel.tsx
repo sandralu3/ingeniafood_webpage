@@ -3,6 +3,7 @@
 import { EmptyMealSlot } from "@/components/plan/empty-meal-slot";
 import { PlanMealCard, type PlanMeal } from "@/components/plan/plan-meal-card";
 import { MEAL_TYPES, type MealType, type WeekDay } from "@/lib/plan/constants";
+import { getMealTypeSubtleAccent } from "@/lib/plan/meal-type-accent";
 import type { PlanDay } from "@/lib/plan/types";
 import { cn } from "@/lib/utils";
 
@@ -16,6 +17,9 @@ type PlanDayMealsPanelProps = {
   className?: string;
 };
 
+const PLAN_CARD_CLASS =
+  "rounded-2xl bg-[#FCFBFA] px-2.5 py-2 shadow-sm shadow-stone-200/25";
+
 export function PlanDayMealsPanel({
   day,
   onAddMeal,
@@ -25,40 +29,68 @@ export function PlanDayMealsPanel({
   onRemoveError,
   className
 }: PlanDayMealsPanelProps) {
+  const assignedCount = MEAL_TYPES.filter((type) => day.slots[type] !== null).length;
+
   return (
-    <section
-      key={day.label}
-      className={cn("mt-2 flex animate-fade-in flex-col gap-4", className)}
-    >
-      <div className="flex items-baseline justify-between px-0.5">
-        <h2 className="text-base font-semibold text-stone-800">{day.label}</h2>
-        <p className="text-xs text-stone-400">{day.dateLabel}</p>
+    <section key={day.label} className={cn("animate-fade-in", PLAN_CARD_CLASS, className)}>
+      <div className="mb-1.5 flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+            <h2 className="font-serif text-sm font-semibold text-stone-900">{day.label}</h2>
+            {day.isToday ? (
+              <span className="text-[10px] font-semibold text-[#556B2F]">· Hoy</span>
+            ) : null}
+            <span className="text-[11px] text-stone-500">{day.dateLabel}</span>
+          </div>
+        </div>
+
+        <span className="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-900">
+          {assignedCount}/{MEAL_TYPES.length}
+        </span>
       </div>
 
-      {MEAL_TYPES.map((mealType) => {
-        const meal = day.slots[mealType];
+      <ul className="space-y-2">
+        {MEAL_TYPES.map((mealType) => {
+          const meal = day.slots[mealType];
+          const accent = getMealTypeSubtleAccent(mealType);
 
-        return (
-          <div key={mealType} className="space-y-2">
-            <p className="px-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-stone-400">
-              {mealType}
-            </p>
+          return (
+            <li key={mealType}>
+              <div className="mb-1 flex items-center gap-2 px-0.5">
+                <p
+                  className={cn(
+                    "text-[9px] font-bold uppercase tracking-[0.14em]",
+                    accent.dividerText
+                  )}
+                >
+                  {mealType}
+                </p>
+                <span className={cn("h-px flex-1", accent.dividerLine)} aria-hidden />
+              </div>
 
-            {meal ? (
-              <PlanMealCard
-                meal={meal}
-                variant="panel"
-                onMealSwapped={(updated) => onMealSwapped?.(day.label, updated)}
-                onSwapError={onSwapError}
-                onMealRemoved={(removedMealType) => onMealRemoved?.(day.label, removedMealType)}
-                onRemoveError={onRemoveError}
-              />
-            ) : (
-              <EmptyMealSlot mealType={mealType} onAdd={() => onAddMeal?.(day.label, mealType)} />
-            )}
-          </div>
-        );
-      })}
+              {meal ? (
+                <div className="rounded-lg border border-stone-100/90 bg-white px-2 py-1.5 shadow-sm shadow-stone-100/20">
+                  <PlanMealCard
+                    meal={meal}
+                    variant="panel"
+                    onMealSwapped={(updated) => onMealSwapped?.(day.label, updated)}
+                    onSwapError={onSwapError}
+                    onMealRemoved={(removedMealType) =>
+                      onMealRemoved?.(day.label, removedMealType)
+                    }
+                    onRemoveError={onRemoveError}
+                  />
+                </div>
+              ) : (
+                <EmptyMealSlot
+                  mealType={mealType}
+                  onAdd={() => onAddMeal?.(day.label, mealType)}
+                />
+              )}
+            </li>
+          );
+        })}
+      </ul>
     </section>
   );
 }

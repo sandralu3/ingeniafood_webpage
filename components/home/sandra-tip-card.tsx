@@ -154,7 +154,7 @@ export function SandraTipCard({ variant = "default", className }: SandraTipCardP
       <aside
         className={cn(
           isHoyVariant
-            ? "rounded-2xl border border-[#556B2F]/15 bg-gradient-to-br from-[#EEF4E6] via-white to-[#dce7c3]/50 p-3 shadow-sm shadow-[#556B2F]/5"
+            ? "rounded-2xl bg-gradient-to-br from-[#EEF4E6] via-white to-[#dce7c3]/50 p-3 shadow-sm shadow-[#556B2F]/5"
             : "relative rounded-2xl border border-brand-green-light/30 bg-brand-green-light/10 px-5 py-6 shadow-sm",
           className
         )}

@@ -131,7 +131,7 @@ export function AppDrawer({ open, onClose }: AppDrawerProps) {
         aria-modal="true"
         aria-label="Menú"
         className={cn(
-          "absolute left-0 top-0 flex h-full w-[min(18rem,85vw)] flex-col border-r border-stone-200/80 bg-white shadow-2xl",
+          "absolute bottom-0 left-0 top-0 flex w-[min(18rem,85vw)] flex-col overflow-hidden rounded-r-[1.25rem] border border-stone-200/80 bg-white shadow-2xl",
           "transition-transform duration-300 will-change-transform",
           isVisible ? "translate-x-0" : "-translate-x-full"
         )}

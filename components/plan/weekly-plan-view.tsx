@@ -382,30 +382,31 @@ export function WeeklyPlanView() {
   const shoppingListTitle = `${formatWeekDateLabel(weekStart)} - ${formatWeekDateLabel(weekEnd)}`;
 
   return (
-    <div className="min-h-full bg-[#FBF9F6] pb-8 pt-1">
-      <section className="space-y-5">
-        <header className="pt-2">
-          <div className="w-full mb-4">
-            <h1 className="text-xl font-bold tracking-tight text-stone-800">Tu plan semanal</h1>
-          </div>
+    <div className="-mx-4 -mb-6 min-h-full bg-gradient-to-b from-stone-50 via-amber-50/20 to-sv-surface px-4 pb-6 pt-1">
+      <section className="space-y-3">
+        <header>
+          <h1 className="font-serif text-lg font-semibold text-stone-900">Tu plan semanal</h1>
+          <p className="mt-1 text-[11px] leading-relaxed text-stone-500">
+            Organiza tus comidas de la semana y asegúrate un menú variado y equilibrado. Haz un
+            seguimiento de tu progreso.
+          </p>
 
-          <div className="flex items-center justify-between w-full gap-2">
-            {/* Izquierda: selector de semanas con ancho fijo */}
-            <div className="flex items-center bg-stone-100/80 p-1 rounded-full border border-stone-200/50">
+          <div className="mt-2.5 flex items-center justify-between gap-2">
+            <div className="flex items-center rounded-full border border-stone-100 bg-white p-0.5 shadow-sm">
               <button
                 type="button"
                 onClick={goPrevWeek}
                 disabled={isLoading || isCloningWeek}
                 className={cn(
-                  "p-1.5 hover:bg-white rounded-full transition-colors",
-                  isLoading || isCloningWeek ? "opacity-50 cursor-not-allowed" : "text-stone-600"
+                  "rounded-full p-1.5 text-stone-500 transition-colors hover:bg-stone-50",
+                  isLoading || isCloningWeek ? "cursor-not-allowed opacity-50" : ""
                 )}
                 aria-label="Semana anterior"
               >
                 <ChevronLeft className="h-4 w-4" strokeWidth={2.25} />
               </button>
 
-              <span className="w-28 text-center text-xs font-semibold text-stone-700 select-none truncate">
+              <span className="w-28 select-none truncate text-center text-xs font-semibold text-stone-700">
                 {weekRangeLabel}
               </span>
 
@@ -414,8 +415,8 @@ export function WeeklyPlanView() {
                 onClick={goNextWeek}
                 disabled={isLoading || isCloningWeek}
                 className={cn(
-                  "p-1.5 hover:bg-white rounded-full transition-colors",
-                  isLoading || isCloningWeek ? "opacity-50 cursor-not-allowed" : "text-stone-600"
+                  "rounded-full p-1.5 text-stone-500 transition-colors hover:bg-stone-50",
+                  isLoading || isCloningWeek ? "cursor-not-allowed opacity-50" : ""
                 )}
                 aria-label="Semana siguiente"
               >
@@ -423,15 +424,14 @@ export function WeeklyPlanView() {
               </button>
             </div>
 
-            {/* Derecha: botones */}
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => void openShoppingList()}
                 disabled={isLoading || isShoppingListLoading}
                 className={cn(
-                  "flex shrink-0 items-center gap-1.5 rounded-full bg-stone-100 px-3 py-1.5 text-xs font-medium text-stone-700 transition",
-                  "hover:bg-stone-200 disabled:cursor-not-allowed disabled:opacity-60"
+                  "flex shrink-0 items-center gap-1.5 rounded-full border border-stone-200/60 bg-white px-3 py-1.5 text-xs font-medium text-[#556B2F] shadow-sm transition",
+                  "hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
                 )}
               >
                 <ShoppingBag className="h-3.5 w-3.5" strokeWidth={2} />
@@ -444,8 +444,8 @@ export function WeeklyPlanView() {
                   onClick={() => setActionsOpen((current) => !current)}
                   disabled={isLoading || isCloningWeek}
                   className={cn(
-                    "w-8 h-8 flex items-center justify-center bg-stone-100 rounded-full border border-stone-200/50 text-stone-600 hover:bg-stone-200/50 transition",
-                    isLoading || isCloningWeek ? "opacity-60 cursor-not-allowed" : ""
+                    "flex h-8 w-8 items-center justify-center rounded-full border border-stone-200/60 bg-stone-100 text-stone-600 transition hover:bg-stone-200/50",
+                    isLoading || isCloningWeek ? "cursor-not-allowed opacity-60" : ""
                   )}
                   aria-label="Acciones"
                 >
@@ -486,22 +486,20 @@ export function WeeklyPlanView() {
         </header>
 
         {isLoading ? (
-          <div className="flex items-center gap-2 rounded-2xl border border-stone-100 bg-white px-4 py-4 text-sm text-stone-500 shadow-sm">
-            <Loader2 className="h-4 w-4 animate-spin text-olive-600" />
+          <div className="flex items-center gap-2 rounded-xl bg-white/90 px-3 py-2 text-xs text-stone-500 shadow-sm">
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-olive-600" />
             Cargando tu plan...
           </div>
         ) : null}
 
         {!isLoading && errorMessage ? (
-          <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {errorMessage}
-          </p>
+          <p className="rounded-xl bg-red-50 px-2.5 py-1.5 text-[11px] text-red-700">{errorMessage}</p>
         ) : null}
 
         {swapNotice ? (
           <p
             role="status"
-            className="rounded-2xl border border-olive-200 bg-olive-50 px-4 py-3 text-sm font-medium text-olive-800 transition-opacity duration-300"
+            className="rounded-xl border border-olive-200/80 bg-olive-50/80 px-2.5 py-1.5 text-[11px] font-medium text-olive-800"
           >
             {swapNotice}
           </p>
