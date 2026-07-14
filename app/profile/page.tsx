@@ -6,6 +6,7 @@ import { Camera, ChevronDown, LogOut, Pencil, Users, Wand2 } from "lucide-react"
 import { AvatarCropModal } from "@/components/profile/avatar-crop-modal";
 import { PremiumSelfToggle } from "@/components/profile/premium-self-toggle";
 import { PremiumLabel } from "@/components/premium/premium-label";
+import { usePremium } from "@/hooks/use-premium";
 import { isSandraAdmin } from "@/lib/auth/sandra-admin";
 import { signOutUser } from "@/lib/auth/sign-out";
 import { PROFILE_COUNTRIES } from "@/lib/profile/profile-countries";
@@ -46,6 +47,7 @@ function getInitials(name?: string | null, email?: string | null): string {
 }
 
 export default function ProfilePage() {
+  const { isPremium, refresh: refreshPremium } = usePremium();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
@@ -54,7 +56,6 @@ export default function ProfilePage() {
   const [country, setCountry] = useState("");
   const [email, setEmail] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [isPremium, setIsPremium] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [toast, setToast] = useState<ToastState>({
@@ -110,7 +111,6 @@ export default function ProfilePage() {
           setFullName(fallbackProfile?.full_name ?? "");
           setCountry("");
           setAvatarUrl(fallbackProfile?.avatar_url ?? null);
-          setIsPremium(isSandraAdmin(user.email) || Boolean(fallbackProfile?.is_premium));
           return;
         }
 
@@ -122,7 +122,6 @@ export default function ProfilePage() {
         setFullName(profile?.full_name ?? "");
         setCountry(profile?.country ?? "");
         setAvatarUrl(profile?.avatar_url ?? null);
-        setIsPremium(isSandraAdmin(user.email) || Boolean(profile?.is_premium));
       } catch (error) {
         console.error("[profile] Error cargando perfil:", error);
         setErrorMessage("No pudimos cargar tu perfil. Intenta nuevamente.");
@@ -286,6 +285,7 @@ export default function ProfilePage() {
         }
 
         showToast("¡Perfil actualizado! (País pendiente de migración en Supabase)");
+        await refreshPremium();
         return;
       }
 
@@ -296,6 +296,7 @@ export default function ProfilePage() {
       }
 
       showToast("¡Perfil actualizado con éxito!");
+      await refreshPremium();
     } catch (error) {
       console.error("[profile] Error guardando perfil:", error);
       setErrorMessage("No pudimos guardar los cambios del perfil.");

@@ -7,7 +7,7 @@ import { usePremium } from "@/hooks/use-premium";
 import { cn } from "@/lib/utils";
 
 export function PremiumSelfToggle() {
-  const { refresh } = usePremium();
+  const { refresh, applyPremiumProfile } = usePremium();
   const [canSelfTogglePremium, setCanSelfTogglePremium] = useState(false);
   const [isPremiumEnabled, setIsPremiumEnabled] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -73,7 +73,18 @@ export function PremiumSelfToggle() {
         throw new Error(payload.error ?? "No se pudo actualizar Premium.");
       }
 
-      setIsPremiumEnabled(Boolean(payload.isPremium));
+      const nextPremium = Boolean(payload.isPremium);
+      setIsPremiumEnabled(nextPremium);
+      applyPremiumProfile(
+        nextPremium
+          ? {
+              is_premium: true,
+              premium_trial_remaining: 0,
+              premium_trial_claimed_at: null
+            }
+          : { is_premium: false },
+        null
+      );
       await refresh();
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Error al guardar.");
