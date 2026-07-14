@@ -12,10 +12,25 @@ export const DISH_TOKEN_SYNONYMS: readonly (readonly string[])[] = [
   ["ensalada", "salad", "bowl"],
   ["pizza"],
   ["sushi", "temaki", "maki", "nigiri", "japones", "japanese", "sashimi"],
-  ["huevo", "huevos", "egg", "eggs", "tortilla", "revuelto"],
-  ["chocolate", "brownie", "postre", "dessert", "tarta", "cake", "cheesecake", "helado"],
+  ["huevo", "huevos", "egg", "eggs", "tortilla", "revuelto", "scrambled"],
+  ["chocolate", "brownie", "postre", "dessert", "tarta", "cake", "cheesecake", "helado", "ice", "cream"],
   ["carne", "beef", "steak", "ternera", "cerdo", "pork"],
-  ["queso", "cheese", "mozzarella", "parmesan"]
+  ["queso", "cheese", "mozzarella", "parmesan"],
+  ["breakfast", "desayuno", "brunch", "matinal"],
+  ["english", "ingles", "british", "britanico"],
+  ["pancake", "pancakes", "crepe", "crepes", "tortita", "tortitas", "hotcake", "flija"],
+  ["layered", "capas", "capa"],
+  ["sausage", "salchicha", "salchichas", "bacon", "tocino"],
+  ["mushroom", "mushrooms", "champiñon", "champinon", "setas", "seta"],
+  ["toast", "tostada", "tostadas", "bread", "pan"],
+  ["pastry", "pastries", "bolleria", "bollería", "pastelito"],
+  ["fruit", "fruta", "frutas", "berries", "fresas"],
+  ["yogurt", "yogur", "yoghurt"],
+  ["oat", "oats", "avena"],
+  ["grilled", "plancha", "asado", "asada"],
+  ["fried", "frito", "frita", "fritura"],
+  ["stew", "guiso", "estofado", "ragout"],
+  ["shrimp", "gamba", "gambas", "prawn", "prawns", "langostino"]
 ];
 
 const TOKEN_TO_GROUP = new Map<string, number>();

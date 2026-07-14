@@ -3,11 +3,25 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ImagePlus, Loader2, Trash2, UploadCloud } from "lucide-react";
+import {
+  ArrowLeft,
+  ChevronDown,
+  ImagePlus,
+  Loader2,
+  UploadCloud
+} from "lucide-react";
+import {
+  DishBankFilters,
+  type DishBankActiveFilter
+} from "@/components/admin/dish-bank-filters";
+import { DishBankItemCard } from "@/components/admin/dish-bank-item-card";
+import { filterDishBankItems } from "@/lib/admin/filter-dish-bank-items";
 import type { DishImageBankItem } from "@/lib/recipes/dish-image-bank-types";
 import {
   RECIPE_CUISINE_STYLES,
-  RECIPE_MEAL_TYPES
+  RECIPE_MEAL_TYPES,
+  type RecipeCuisineStyle,
+  type RecipeMealType
 } from "@/lib/recipes/premium-recipe-filters";
 import { isSandraAdmin } from "@/lib/auth/sandra-admin";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
@@ -24,6 +38,8 @@ function parseListInput(value: string): string[] {
     .map((item) => item.trim())
     .filter(Boolean);
 }
+
+const PAGE_SIZE = 24;
 
 export default function BancoImagenesAdminPage() {
   const router = useRouter();
@@ -43,6 +59,12 @@ export default function BancoImagenesAdminPage() {
   const [cuisineStyles, setCuisineStyles] = useState<string[]>(["estandar"]);
   const [keywords, setKeywords] = useState("");
   const [tags, setTags] = useState("");
+  const [showAddForm, setShowAddForm] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterMealTypes, setFilterMealTypes] = useState<RecipeMealType[]>([]);
+  const [filterCuisineStyles, setFilterCuisineStyles] = useState<RecipeCuisineStyle[]>([]);
+  const [activeFilter, setActiveFilter] = useState<DishBankActiveFilter>("all");
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   const imagePreviewUrl = useMemo(() => {
     if (!imageFile) return null;
@@ -53,6 +75,32 @@ export default function BancoImagenesAdminPage() {
     if (!imagePreviewUrl) return;
     return () => URL.revokeObjectURL(imagePreviewUrl);
   }, [imagePreviewUrl]);
+
+  const filteredItems = useMemo(
+    () =>
+      filterDishBankItems(items, {
+        searchQuery,
+        mealTypes: filterMealTypes,
+        cuisineStyles: filterCuisineStyles,
+        activeFilter
+      }),
+    [items, searchQuery, filterMealTypes, filterCuisineStyles, activeFilter]
+  );
+
+  const visibleItems = useMemo(
+    () => filteredItems.slice(0, visibleCount),
+    [filteredItems, visibleCount]
+  );
+
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [searchQuery, filterMealTypes, filterCuisineStyles, activeFilter]);
+
+  useEffect(() => {
+    if (items.length > 12) {
+      setShowAddForm(false);
+    }
+  }, [items.length]);
 
   const loadItems = useCallback(async () => {
     setIsLoading(true);
@@ -122,6 +170,13 @@ export default function BancoImagenesAdminPage() {
 
   const toggleValue = (current: string[], value: string) =>
     current.includes(value) ? current.filter((item) => item !== value) : [...current, value];
+
+  const clearFilters = () => {
+    setSearchQuery("");
+    setFilterMealTypes([]);
+    setFilterCuisineStyles([]);
+    setActiveFilter("all");
+  };
 
   const handleCreate = async () => {
     if (!title.trim() || !imageFile) {
@@ -328,36 +383,58 @@ export default function BancoImagenesAdminPage() {
           </p>
         ) : null}
 
-        <section className="rounded-3xl border border-stone-100 bg-white p-5 shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="font-serif text-lg font-semibold text-stone-900">Añadir imagen</h2>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => void handleSeedBundled()}
-                disabled={isSeedingBundled || isImporting}
-                className="inline-flex items-center gap-1.5 rounded-full border border-amber-300/50 bg-amber-50 px-3.5 py-2 text-xs font-semibold text-amber-900 transition hover:bg-amber-100 disabled:opacity-60"
-              >
-                {isSeedingBundled ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <UploadCloud className="h-3.5 w-3.5" />
-                )}
-                Poblar ~777 fotos automáticas
-              </button>
-              <button
-                type="button"
-                onClick={() => void handleImportCatalog()}
-                disabled={isImporting || isSeedingBundled}
-                className="inline-flex items-center gap-1.5 rounded-full border border-[#4c6633]/20 bg-[#F0F4ED] px-3.5 py-2 text-xs font-semibold text-[#4c6633] transition hover:bg-[#e6eee0] disabled:opacity-60"
-              >
-                {isImporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <UploadCloud className="h-3.5 w-3.5" />}
-                Importar catálogo Instagram
-              </button>
+        <section className="rounded-3xl border border-stone-100 bg-white shadow-sm">
+          <button
+            type="button"
+            onClick={() => setShowAddForm((current) => !current)}
+            className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left"
+          >
+            <div>
+              <h2 className="font-serif text-lg font-semibold text-stone-900">Añadir imagen</h2>
+              <p className="mt-0.5 text-xs text-stone-500">
+                Sube una foto manualmente o importa el catálogo automático.
+              </p>
             </div>
-          </div>
+            <ChevronDown
+              className={cn(
+                "h-5 w-5 shrink-0 text-stone-400 transition",
+                showAddForm ? "rotate-180" : ""
+              )}
+            />
+          </button>
 
-          <div className="mt-4 grid gap-4 md:grid-cols-[180px_1fr]">
+          {showAddForm ? (
+            <div className="space-y-4 border-t border-stone-100 px-5 pb-5 pt-4">
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => void handleSeedBundled()}
+                  disabled={isSeedingBundled || isImporting}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-amber-300/50 bg-amber-50 px-3.5 py-2 text-xs font-semibold text-amber-900 transition hover:bg-amber-100 disabled:opacity-60"
+                >
+                  {isSeedingBundled ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <UploadCloud className="h-3.5 w-3.5" />
+                  )}
+                  Poblar ~777 fotos automáticas
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleImportCatalog()}
+                  disabled={isImporting || isSeedingBundled}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-[#4c6633]/20 bg-[#F0F4ED] px-3.5 py-2 text-xs font-semibold text-[#4c6633] transition hover:bg-[#e6eee0] disabled:opacity-60"
+                >
+                  {isImporting ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <UploadCloud className="h-3.5 w-3.5" />
+                  )}
+                  Importar catálogo Instagram
+                </button>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-[180px_1fr]">
             <label className="flex aspect-square cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-stone-200 bg-stone-50/80 text-center text-xs text-stone-500 transition hover:border-[#4c6633]/30 hover:bg-[#F0F4ED]/40">
               {imagePreviewUrl ? (
                 <img src={imagePreviewUrl} alt="Vista previa" className="h-full w-full rounded-2xl object-cover" />
@@ -425,12 +502,17 @@ export default function BancoImagenesAdminPage() {
                 </div>
               </div>
 
-              <input
-                value={keywords}
-                onChange={(event) => setKeywords(event.target.value)}
-                placeholder="Palabras clave: pasta, tomate, albahaca, italiana"
-                className="h-11 w-full rounded-xl border border-stone-200 bg-white px-3 text-sm text-stone-800 outline-none focus:border-[#4c6633]/35 focus:ring-2 focus:ring-[#4c6633]/10"
-              />
+              <label className="block space-y-1">
+                <span className="text-xs font-semibold text-stone-500">
+                  Palabras clave para matching (español e inglés)
+                </span>
+                <input
+                  value={keywords}
+                  onChange={(event) => setKeywords(event.target.value)}
+                  placeholder="pasta, tomate, desayuno, breakfast, pancake, tortita…"
+                  className="h-11 w-full rounded-xl border border-stone-200 bg-white px-3 text-sm text-stone-800 outline-none focus:border-[#4c6633]/35 focus:ring-2 focus:ring-[#4c6633]/10"
+                />
+              </label>
 
               <input
                 value={tags}
@@ -449,15 +531,29 @@ export default function BancoImagenesAdminPage() {
                 Guardar en el banco
               </button>
             </div>
-          </div>
+              </div>
+            </div>
+          ) : null}
         </section>
 
         <section className="overflow-hidden rounded-3xl border border-stone-100 bg-white shadow-sm">
           <div className="border-b border-stone-100 px-5 py-4">
-            <h2 className="font-serif text-lg font-semibold text-stone-900">
-              Imágenes registradas ({items.length})
-            </h2>
+            <h2 className="font-serif text-lg font-semibold text-stone-900">Imágenes registradas</h2>
           </div>
+
+          <DishBankFilters
+            searchQuery={searchQuery}
+            onSearchQueryChange={setSearchQuery}
+            mealTypes={filterMealTypes}
+            onMealTypesChange={setFilterMealTypes}
+            cuisineStyles={filterCuisineStyles}
+            onCuisineStylesChange={setFilterCuisineStyles}
+            activeFilter={activeFilter}
+            onActiveFilterChange={setActiveFilter}
+            totalCount={items.length}
+            filteredCount={filteredItems.length}
+            onClearFilters={clearFilters}
+          />
 
           {isLoading ? (
             <div className="flex items-center justify-center gap-2 px-6 py-16 text-sm text-stone-500">
@@ -468,53 +564,40 @@ export default function BancoImagenesAdminPage() {
             <p className="px-6 py-16 text-center text-sm text-stone-500">
               Aún no hay imágenes. Importa el catálogo Instagram o sube la primera foto.
             </p>
+          ) : filteredItems.length === 0 ? (
+            <p className="px-6 py-16 text-center text-sm text-stone-500">
+              Ninguna imagen coincide con los filtros. Prueba otra búsqueda o limpia los filtros.
+            </p>
           ) : (
-            <div className="grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-3">
-              {items.map((item) => (
-                <article
-                  key={item.id}
-                  className={cn(
-                    "overflow-hidden rounded-2xl border shadow-sm",
-                    item.isActive ? "border-stone-100 bg-white" : "border-stone-200 bg-stone-50 opacity-70"
-                  )}
-                >
-                  <div className="aspect-[4/3] bg-stone-100">
-                    <img src={item.imageUrl} alt={item.title} className="h-full w-full object-cover" />
-                  </div>
-                  <div className="space-y-2 p-3">
-                    <p className="line-clamp-2 text-sm font-semibold text-stone-900">{item.title}</p>
-                    <p className="text-[11px] text-stone-500">
-                      {item.mealTypes.join(", ") || "sin tipo"} · {item.cuisineStyles.join(", ") || "sin estilo"}
-                    </p>
-                    {item.keywords.length ? (
-                      <p className="line-clamp-2 text-[10px] text-stone-400">{item.keywords.join(", ")}</p>
-                    ) : null}
-                    <div className="flex items-center gap-2 pt-1">
-                      <button
-                        type="button"
-                        onClick={() => void handleToggleActive(item)}
-                        className="rounded-full border border-stone-200 px-2.5 py-1 text-[10px] font-semibold text-stone-600"
-                      >
-                        {item.isActive ? "Activa" : "Inactiva"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void handleDelete(item.id)}
-                        disabled={deletingId === item.id}
-                        className="ml-auto inline-flex items-center gap-1 rounded-full border border-red-200 px-2.5 py-1 text-[10px] font-semibold text-red-700 disabled:opacity-60"
-                      >
-                        {deletingId === item.id ? (
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                        ) : (
-                          <Trash2 className="h-3 w-3" />
-                        )}
-                        Eliminar
-                      </button>
-                    </div>
-                  </div>
-                </article>
-              ))}
-            </div>
+            <>
+              <div className="grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-3">
+                {visibleItems.map((item) => (
+                  <DishBankItemCard
+                    key={item.id}
+                    item={item}
+                    deletingId={deletingId}
+                    onToggleActive={handleToggleActive}
+                    onDelete={handleDelete}
+                    onSaved={() => {
+                      setSuccessMessage("Etiquetas actualizadas.");
+                      void loadItems();
+                    }}
+                    onError={setErrorMessage}
+                  />
+                ))}
+              </div>
+              {visibleCount < filteredItems.length ? (
+                <div className="border-t border-stone-100 px-5 py-4 text-center">
+                  <button
+                    type="button"
+                    onClick={() => setVisibleCount((current) => current + PAGE_SIZE)}
+                    className="rounded-full border border-stone-200 px-4 py-2 text-sm font-semibold text-stone-700 transition hover:bg-stone-50"
+                  >
+                    Cargar más ({filteredItems.length - visibleCount} restantes)
+                  </button>
+                </div>
+              ) : null}
+            </>
           )}
         </section>
       </div>

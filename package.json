@@ -9,8 +9,10 @@
     "lint": "eslint .",
     "generate:icons": "node scripts/generate-pwa-icons.mjs",
     "fetch:dish-catalog": "node scripts/fetch-dish-catalog.mjs",
+    "enrich:dish-catalog": "node scripts/enrich-dish-catalog-keywords.mjs",
     "seed:dish-bank": "node scripts/seed-dish-image-bank.mjs",
     "sync:dish-bank": "node scripts/sync-dish-bank-urls.mjs",
+    "sync:dish-bank-keywords": "node scripts/sync-dish-bank-keywords.mjs",
     "audit:dish-catalog": "node scripts/audit-dish-catalog-urls.mjs"
   },
   "dependencies": {

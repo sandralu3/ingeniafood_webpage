@@ -6,6 +6,7 @@
 import { writeFileSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { enrichDishKeywords } from "./dish-keyword-synonyms.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const MEALDB = "https://www.themealdb.com/api/json/v1/1";
@@ -59,6 +60,11 @@ function tokenizeTitle(title) {
     .slice(0, 10);
 }
 
+function buildEntry(base) {
+  const keywords = enrichDishKeywords(base);
+  return { ...base, keywords };
+}
+
 /** Catálogo curado en español (Unsplash, sin API) */
 const SPANISH_CURATED = [
   ["Pollo crujiente airfryer sin harinas", "photo-1604908554265-38d64d5f3f45", ["almuerzo", "cena"], ["estandar"], ["pollo", "airfryer", "crujiente"], ["Apto para Airfryer", "Sin Harinas"]],
@@ -101,16 +107,18 @@ const SPANISH_CURATED = [
   ["Overnight oats con fruta", "photo-1488477181946-6428a0291777", ["desayuno"], ["estandar"], ["oats", "avena", "desayuno"], []],
   ["Croquetas de jamón", "photo-1632778149955-e80f8ebfa724", ["almuerzo", "cena"], ["estandar"], ["croquetas", "jamon", "tapas"], []],
   ["Guiso de lentejas", "photo-1547592166-23ac45744acd", ["cena"], ["estandar"], ["lentejas", "guiso", "legumbres"], ["Sin Harinas"]]
-].map(([title, imageRef, mealTypes, cuisineStyles, keywords, tags]) => ({
-  title,
-  imageUrl: imageRef.startsWith("http")
-    ? imageRef
-    : `https://images.unsplash.com/${imageRef}?w=1200`,
-  mealTypes,
-  cuisineStyles,
-  keywords,
-  tags
-}));
+].map(([title, imageRef, mealTypes, cuisineStyles, keywords, tags]) =>
+  buildEntry({
+    title,
+    imageUrl: imageRef.startsWith("http")
+      ? imageRef
+      : `https://images.unsplash.com/${imageRef}?w=1200`,
+    mealTypes,
+    cuisineStyles,
+    keywords,
+    tags
+  })
+);
 
 async function fetchMealDbByCategories() {
   const categoriesData = await fetchJson(`${MEALDB}/categories.php`);
@@ -127,14 +135,16 @@ async function fetchMealDbByCategories() {
       if (seenUrls.has(imageUrl)) continue;
       seenUrls.add(imageUrl);
 
-      entries.push({
-        title: meal.strMeal,
-        imageUrl,
-        mealTypes: mapMealType(category),
-        cuisineStyles: ["estandar"],
-        keywords: tokenizeTitle(meal.strMeal),
-        tags: []
-      });
+      entries.push(
+        buildEntry({
+          title: meal.strMeal,
+          imageUrl,
+          mealTypes: mapMealType(category),
+          cuisineStyles: ["estandar"],
+          keywords: tokenizeTitle(meal.strMeal),
+          tags: []
+        })
+      );
     }
   }
 
@@ -156,14 +166,16 @@ async function fetchMealDbByAreas() {
       if (seenUrls.has(imageUrl)) continue;
       seenUrls.add(imageUrl);
 
-      entries.push({
-        title: meal.strMeal,
-        imageUrl,
-        mealTypes: ["almuerzo", "cena"],
-        cuisineStyles: mapCuisineStyle(area),
-        keywords: tokenizeTitle(meal.strMeal),
-        tags: []
-      });
+      entries.push(
+        buildEntry({
+          title: meal.strMeal,
+          imageUrl,
+          mealTypes: ["almuerzo", "cena"],
+          cuisineStyles: mapCuisineStyle(area),
+          keywords: tokenizeTitle(meal.strMeal),
+          tags: []
+        })
+      );
     }
   }
 
