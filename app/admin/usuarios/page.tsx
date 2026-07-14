@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Loader2, Save, Trash2, Users } from "lucide-react";
 import type { AdminUserListItem } from "@/lib/admin/users-admin";
 import { MAX_DAILY_SCAN_LIMIT } from "@/lib/admin/users-admin";
+import { PremiumLabel, PremiumRichText } from "@/components/premium/premium-label";
 import { isSandraAdmin } from "@/lib/auth/sandra-admin";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
 import { createSupabaseClient } from "@/lib/supabaseClient";
@@ -275,8 +276,8 @@ export default function AdminUsuariosPage() {
               Usuarios
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-stone-500">
-              Consulta las cuentas registradas, define escaneos diarios y activa o desactiva Premium
-              por usuario.
+              Consulta las cuentas registradas, define escaneos diarios y activa o desactiva{" "}
+              <PremiumLabel size="xs" /> por usuario.
             </p>
           </div>
 
@@ -288,13 +289,13 @@ export default function AdminUsuariosPage() {
 
         {errorMessage ? (
           <p className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {errorMessage}
+            <PremiumRichText text={errorMessage} size="xs" />
           </p>
         ) : null}
 
         {successMessage ? (
           <p className="rounded-2xl border border-[#dce7c3] bg-[#f4f7ed] px-4 py-3 text-sm text-[#3e5219]">
-            {successMessage}
+            <PremiumRichText text={successMessage} size="xs" />
           </p>
         ) : null}
 
@@ -316,7 +317,9 @@ export default function AdminUsuariosPage() {
                     <th className="px-5 py-3.5">Usuario</th>
                     <th className="px-5 py-3.5">Correo</th>
                     <th className="px-5 py-3.5">Hoy</th>
-                    <th className="px-5 py-3.5">Premium</th>
+                    <th className="px-5 py-3.5">
+                      <PremiumLabel size="xs" />
+                    </th>
                     <th className="px-5 py-3.5">Escaneos / día</th>
                     <th className="px-5 py-3.5 text-right">Acción</th>
                   </tr>
@@ -370,7 +373,7 @@ export default function AdminUsuariosPage() {
                         <td className="px-5 py-4">
                           {user.unlimitedScans ? (
                             <div className="flex flex-col gap-1.5">
-                              <span className="text-xs font-medium text-[#3e5219]">Premium</span>
+                              <PremiumLabel size="xs" />
                               <span className="w-fit rounded-full bg-[#eef4e6] px-2 py-0.5 text-[10px] font-semibold text-[#3e5219]">
                                 Admin · ilimitado
                               </span>
@@ -388,7 +391,13 @@ export default function AdminUsuariosPage() {
                                   className="h-4 w-4 rounded border-stone-300 text-[#556B2F] focus:ring-[#556B2F]/30"
                                 />
                                 <span className="text-xs font-medium text-stone-700">
-                                  {isSavingPremium ? "Guardando…" : user.isPremium ? "Premium" : "Free"}
+                                  {isSavingPremium ? (
+                                    "Guardando…"
+                                  ) : user.isPremium ? (
+                                    <PremiumLabel size="xs" />
+                                  ) : (
+                                    "Free"
+                                  )}
                                 </span>
                               </label>
                               <span

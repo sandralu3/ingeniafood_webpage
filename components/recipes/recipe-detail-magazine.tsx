@@ -1,6 +1,7 @@
 "use client";
 
 import { Clock, UtensilsCrossed } from "lucide-react";
+import { RecipeDishImage } from "@/components/recipes/recipe-dish-image";
 import { SandraTipCard } from "@/components/recipes/sandra-tip-card";
 import { RecipeAppliedFiltersBadges } from "@/components/recipes/recipe-applied-filters-badges";
 import {
@@ -46,6 +47,12 @@ export function RecipeDetailMagazine({
 
   return (
     <div className="space-y-3">
+      <RecipeDishImage
+        imageUrl={recipe.imageUrl}
+        referenceImageUrl={recipe.referenceImageUrl}
+        recipeTitle={recipe.titulo}
+      />
+
       <header className={`${SECTION_CARD} space-y-2`}>
         {showScanBanner ? (
           <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-stone-400">

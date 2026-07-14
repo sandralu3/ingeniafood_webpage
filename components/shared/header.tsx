@@ -7,6 +7,8 @@ import { Menu } from "lucide-react";
 import { AppDrawer } from "@/components/shared/app-drawer";
 import { IngeniaFoodLogo } from "@/components/shared/ingenia-food-logo";
 import { UserAvatar, getProfileInitials } from "@/components/shared/user-avatar";
+import { PremiumLabel } from "@/components/premium/premium-label";
+import { usePremium } from "@/hooks/use-premium";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 
@@ -16,6 +18,7 @@ function shouldHideHeaderAvatar(pathname: string): boolean {
 
 export function Header() {
   const pathname = usePathname();
+  const { isPremium, isLoading: isPremiumLoading } = usePremium();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [initials, setInitials] = useState("SV");
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -79,10 +82,19 @@ export function Header() {
           <IngeniaFoodLogo />
         </div>
 
-        {!hideAvatar ? (
-          <Link href={APP_ROUTES.perfil} className="ml-3 shrink-0 transition hover:opacity-90">
-            <UserAvatar avatarUrl={avatarUrl} initials={initials} />
-          </Link>
+        {!hideAvatar || (isPremium && !isPremiumLoading) ? (
+          <div className="ml-3 flex shrink-0 items-center gap-2">
+            {isPremium && !isPremiumLoading ? (
+              <span title="Plan Premium activo">
+                <PremiumLabel size="2xs" />
+              </span>
+            ) : null}
+            {!hideAvatar ? (
+              <Link href={APP_ROUTES.perfil} className="transition hover:opacity-90">
+                <UserAvatar avatarUrl={avatarUrl} initials={initials} />
+              </Link>
+            ) : null}
+          </div>
         ) : null}
       </header>
 

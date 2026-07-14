@@ -139,6 +139,45 @@ export type Database = {
           }
         ];
       };
+      dish_image_bank: {
+        Row: {
+          id: string;
+          image_url: string;
+          title: string;
+          meal_types: string[];
+          cuisine_styles: string[];
+          keywords: string[];
+          tags: string[];
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          image_url: string;
+          title: string;
+          meal_types?: string[];
+          cuisine_styles?: string[];
+          keywords?: string[];
+          tags?: string[];
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          image_url?: string;
+          title?: string;
+          meal_types?: string[];
+          cuisine_styles?: string[];
+          keywords?: string[];
+          tags?: string[];
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       master_ingredients: {
         Row: {
           id: string;

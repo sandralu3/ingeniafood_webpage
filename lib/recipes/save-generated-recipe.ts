@@ -14,6 +14,7 @@ export type SaveGeneratedRecipeInput = {
   isAirfryer: boolean;
   isFlourless: boolean;
   macronutrientes?: RecipeMacros | null;
+  imageUrl?: string | null;
 };
 
 function isMissingColumnError(
@@ -38,7 +39,7 @@ function buildInsertPayload(input: SaveGeneratedRecipeInput, options?: { include
     title: input.title,
     ingredients: input.ingredients,
     instructions: input.instructions,
-    image_url: null,
+    image_url: input.imageUrl ?? null,
     is_airfryer: input.isAirfryer,
     is_flourless: input.isFlourless,
     is_public: false

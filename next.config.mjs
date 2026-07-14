@@ -18,7 +18,11 @@ const nextConfig = {
   images: {
     // En desarrollo evita procesamiento pesado de imágenes.
     unoptimized: isDev,
-    minimumCacheTTL: isDev ? 60 : 14_400
+    minimumCacheTTL: isDev ? 60 : 14_400,
+    remotePatterns: [
+      { protocol: "https", hostname: "images.unsplash.com" },
+      { protocol: "https", hostname: "**.supabase.co" }
+    ]
   }
 };
 

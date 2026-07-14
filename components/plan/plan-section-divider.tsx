@@ -7,7 +7,7 @@ export type SectionDividerAccent = {
 };
 
 type Props = {
-  label: string;
+  label: ReactNode;
   accent: SectionDividerAccent;
   className?: string;
   trailing?: ReactNode;

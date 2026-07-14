@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from "react";
 import { ChevronDown, Lock } from "lucide-react";
 import { PlanSectionDivider } from "@/components/plan/plan-section-divider";
+import { PremiumLabel } from "@/components/premium/premium-label";
 import { PremiumUpgradeDialog } from "@/components/premium/premium-upgrade-dialog";
 import { usePremium } from "@/hooks/use-premium";
 import { SCANNER_SECTION_ACCENTS } from "@/lib/scanner/scanner-section-accent";
@@ -122,9 +123,7 @@ export function AdvancedRecipeFilters({
             trailing={
               <div className="flex items-center gap-1.5">
                 {isPaidPremium ? (
-                  <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-900">
-                    Premium
-                  </span>
+                  <PremiumLabel size="2xs" />
                 ) : premiumTrialRemaining > 0 ? (
                   <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-900">
                     1 prueba

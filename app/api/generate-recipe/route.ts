@@ -12,10 +12,12 @@ import {
   buildRecipeFiltersPromptClause,
   resolveRecipeFilters
 } from "@/lib/recipes/premium-recipe-filters";
+import { generateRecipeDishImage } from "@/lib/recipes/generate-recipe-image";
+import { resolveDishImageMatch } from "@/lib/recipes/resolve-dish-image-match";
 import { createSupabaseRouteClient } from "@/lib/supabaseRoute";
 
-/** Vision + JSON puede tardar más que solo texto (p. ej. en Vercel). */
-export const maxDuration = 30;
+/** Vision + JSON + imagen Premium puede tardar más (p. ej. en Vercel). */
+export const maxDuration = 60;
 
 const PANTRY_PRIORITY_RULE =
   "REGLA ABSOLUTA DE INGREDIENTES PRINCIPALES: La receta DEBE construirse PRINCIPALMENTE con los ingredientes que el usuario proporcionó (selección manual y/o detección en imagen). " +
@@ -723,10 +725,45 @@ export async function POST(request: Request) {
       }
     }
 
+    let referenceImageUrl: string | null = null;
+    try {
+      const referenceMatch = await resolveDishImageMatch({
+        recipeTitle: safeRecipe.titulo,
+        ingredients: safeRecipe.ingredientes_detallados,
+        tags: safeRecipe.tags,
+        mealType: resolvedFilters.mealType,
+        cuisineStyle: resolvedFilters.cuisineStyle
+      });
+      referenceImageUrl = referenceMatch?.imageUrl ?? null;
+    } catch (referenceError) {
+      console.warn("[recipe-image] No se pudo resolver imagen de referencia:", referenceError);
+    }
+
+    let imageUrl: string | null = null;
+    let imageGenerationError: string | undefined;
+    if (premiumAccess.isPaidPremium) {
+      const imageResult = await generateRecipeDishImage({
+        userId: user.id,
+        title: safeRecipe.titulo,
+        ingredients: safeRecipe.ingredientes_detallados,
+        tags: safeRecipe.tags,
+        mealType: resolvedFilters.mealType,
+        cuisineStyle: resolvedFilters.cuisineStyle,
+        tipSandra: safeRecipe.tip_sandra
+      });
+      imageUrl = imageResult.imageUrl;
+      imageGenerationError = imageResult.error;
+    }
+
     return jsonResponse({
       recipe: safeRecipe,
       savedRecipe: null,
       generationsLeft: remainingGenerations,
+      referenceImageUrl,
+      imageUrl,
+      ...(process.env.NODE_ENV !== "production" && imageGenerationError
+        ? { imageGenerationError }
+        : {}),
       appliedFilters: {
         mealType: resolvedFilters.mealType,
         cuisineStyle: resolvedFilters.cuisineStyle

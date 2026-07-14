@@ -46,6 +46,8 @@ type GeneratedRecipe = {
   tip_sandra: string;
   tags?: string[];
   macronutrientes?: RecipeMacros | null;
+  imageUrl?: string | null;
+  referenceImageUrl?: string | null;
 };
 
 type ApiPayload = {
@@ -57,6 +59,9 @@ type ApiPayload = {
   generationsLeft?: number;
   appliedFilters?: AppliedRecipeFilters;
   premiumTrialRemaining?: number;
+  referenceImageUrl?: string | null;
+  imageUrl?: string | null;
+  imageGenerationError?: string;
 };
 
 function sleep(ms: number): Promise<void> {
@@ -215,6 +220,7 @@ export default function ScannerPage() {
   const [appliedRecipeFilters, setAppliedRecipeFilters] = useState<AppliedRecipeFilters | null>(
     null
   );
+  const [imageGenerationError, setImageGenerationError] = useState<string | null>(null);
   const [pendingPlanAssignment, setPendingPlanAssignment] = useState<PendingPlanAssignment | null>(
     null
   );
@@ -294,6 +300,7 @@ export default function ScannerPage() {
     setSavedRecipeId(null);
     setRateLimitSecondsLeft(0);
     setAppliedRecipeFilters(null);
+    setImageGenerationError(null);
   }, []);
 
   useEffect(() => {
@@ -597,7 +604,12 @@ export default function ScannerPage() {
         return;
       }
 
-      setRecipe(payload.recipe);
+      setRecipe({
+        ...payload.recipe,
+        referenceImageUrl: payload.referenceImageUrl ?? null,
+        imageUrl: payload.imageUrl ?? null
+      });
+      setImageGenerationError(payload.imageGenerationError ?? null);
       setAppliedRecipeFilters(
         payload.appliedFilters ?? {
           mealType: mealTypeFilter,
@@ -660,7 +672,8 @@ export default function ScannerPage() {
       tipSandra: recipe.tip_sandra,
       isAirfryer: is_airfryer,
       isFlourless: is_flourless,
-      macronutrientes: recipe.macronutrientes
+      macronutrientes: recipe.macronutrientes,
+      imageUrl: recipe.imageUrl ?? recipe.referenceImageUrl ?? null
     });
 
     if ("error" in saveResult) {
@@ -817,6 +830,14 @@ export default function ScannerPage() {
               className="rounded-2xl border border-red-200/80 bg-white/90 px-2.5 py-2 text-xs text-red-800 shadow-sm shadow-stone-100/30"
             >
               {saveErrorMessage}
+            </div>
+          ) : null}
+          {imageGenerationError ? (
+            <div
+              role="status"
+              className="rounded-2xl border border-amber-200/80 bg-amber-50/90 px-2.5 py-2 text-xs text-amber-900 shadow-sm"
+            >
+              No se generó la foto del plato: {imageGenerationError}
             </div>
           ) : null}
           <RecipeResultView

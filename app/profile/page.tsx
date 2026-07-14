@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Camera, ChevronDown, LogOut, Pencil, Users, Wand2 } from "lucide-react";
 import { AvatarCropModal } from "@/components/profile/avatar-crop-modal";
+import { PremiumLabel } from "@/components/premium/premium-label";
 import { isSandraAdmin } from "@/lib/auth/sandra-admin";
 import { signOutUser } from "@/lib/auth/sign-out";
 import { PROFILE_COUNTRIES } from "@/lib/profile/profile-countries";
@@ -13,7 +14,6 @@ import {
   sanitizePersonNameInput
 } from "@/lib/validation/person-name";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/types/database.types";
@@ -392,9 +392,7 @@ export default function ProfilePage() {
               onChange={handleAvatarSelected}
             />
             {isPremium ? (
-              <Badge variant="secondary" className="border-[#4c6633]/15 bg-[#dce7c3]/30 text-[#4c6633]">
-                Premium
-              </Badge>
+              <PremiumLabel size="md" />
             ) : null}
           </div>
 
@@ -495,6 +493,13 @@ export default function ProfilePage() {
                   >
                     <Wand2 className="h-4 w-4" />
                     Importar receta
+                  </Link>
+                  <Link
+                    href="/admin/banco-imagenes"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-[#4C6B3F]/20 bg-white px-4 py-3 text-sm font-semibold text-[#4C6B3F] transition hover:bg-[#F0F4ED]"
+                  >
+                    <Pencil className="h-4 w-4" />
+                    Banco de imágenes
                   </Link>
                   <Link
                     href="/admin/catalogo-instagram"

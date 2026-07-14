@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Loader2, Lock, Sparkles, X } from "lucide-react";
 import { PlanSectionDivider } from "@/components/plan/plan-section-divider";
+import { PremiumLabel, PremiumRichText } from "@/components/premium/premium-label";
 import { usePremium } from "@/hooks/use-premium";
 import { SCANNER_SECTION_ACCENTS } from "@/lib/scanner/scanner-section-accent";
 import { cn } from "@/lib/utils";
@@ -65,19 +66,33 @@ export function PremiumUpgradeDialog({
 
   const trialActive = !isPaidPremium && premiumTrialRemaining > 0;
 
-  const title = isPaidPremium
-    ? "Premium activo"
-    : trialActive
-      ? "Prueba activa"
-      : "Función Premium";
+  const title = isPaidPremium ? (
+    <>
+      <PremiumLabel size="xs" /> activo
+    </>
+  ) : trialActive ? (
+    "Prueba activa"
+  ) : (
+    <>
+      Función <PremiumLabel size="xs" />
+    </>
+  );
 
-  const description = !userId
-    ? "Inicia sesión para desbloquear Premium."
-    : isPaidPremium
-      ? `${featureLabel} incluido en tu plan.`
-      : trialActive
-        ? `Te queda ${premiumTrialRemaining} uso. Se consume al generar con filtros Premium.`
-        : `${featureLabel} requiere Premium. Prueba una vez gratis.`;
+  const description = !userId ? (
+    <PremiumRichText text="Inicia sesión para desbloquear Premium." size="xs" />
+  ) : isPaidPremium ? (
+    `${featureLabel} incluido en tu plan.`
+  ) : trialActive ? (
+    <PremiumRichText
+      text={`Te queda ${premiumTrialRemaining} uso. Se consume al generar con filtros Premium.`}
+      size="xs"
+    />
+  ) : (
+    <PremiumRichText
+      text={`${featureLabel} requiere Premium. Prueba una vez gratis.`}
+      size="xs"
+    />
+  );
 
   return (
     <div className="fixed inset-0 z-[150] flex items-end justify-center bg-black/40 px-0 backdrop-blur-[2px] sm:items-center sm:px-4">
@@ -91,7 +106,7 @@ export function PremiumUpgradeDialog({
           <div className="mb-1.5 flex items-start justify-between gap-2">
             <div className="min-w-0 flex-1">
               <PlanSectionDivider
-                label="Premium"
+                label={<PremiumLabel size="2xs" />}
                 accent={SCANNER_SECTION_ACCENTS.filtros}
               />
               <div className="mt-1 flex items-start gap-2 px-0.5">
@@ -105,7 +120,7 @@ export function PremiumUpgradeDialog({
                 <div className="min-w-0">
                   <h2
                     id="premium-upgrade-title"
-                    className="font-serif text-sm font-semibold text-stone-900"
+                    className="flex flex-wrap items-center gap-1 font-serif text-sm font-semibold text-stone-900"
                   >
                     {title}
                   </h2>
@@ -127,12 +142,14 @@ export function PremiumUpgradeDialog({
         <div className="space-y-2 px-3 py-2.5">
           {upgradeOk ? (
             <p className="rounded-lg bg-emerald-50 px-2.5 py-1.5 text-[11px] text-emerald-800">
-              {upgradeOk}
+              <PremiumRichText text={upgradeOk} size="xs" />
             </p>
           ) : null}
 
           {upgradeError ? (
-            <p className="rounded-lg bg-red-50 px-2.5 py-1.5 text-[11px] text-red-700">{upgradeError}</p>
+            <p className="rounded-lg bg-red-50 px-2.5 py-1.5 text-[11px] text-red-700">
+              <PremiumRichText text={upgradeError} size="xs" />
+            </p>
           ) : null}
 
           {!userId ? (
@@ -162,7 +179,7 @@ export function PremiumUpgradeDialog({
                 )}
               >
                 {isUpgrading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                Probar Premium (1 uso)
+                Probar <PremiumLabel size="xs" /> (1 uso)
               </button>
 
               {!canSimulatePremiumTrial ? (
@@ -171,7 +188,7 @@ export function PremiumUpgradeDialog({
                 </p>
               ) : (
                 <p className="text-center text-[10px] text-stone-400">
-                  Contratar Premium · próximamente
+                  Contratar <PremiumLabel size="xs" /> · próximamente
                 </p>
               )}
             </>

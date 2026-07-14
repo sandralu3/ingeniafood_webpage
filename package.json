@@ -7,7 +7,11 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint .",
-    "generate:icons": "node scripts/generate-pwa-icons.mjs"
+    "generate:icons": "node scripts/generate-pwa-icons.mjs",
+    "fetch:dish-catalog": "node scripts/fetch-dish-catalog.mjs",
+    "seed:dish-bank": "node scripts/seed-dish-image-bank.mjs",
+    "sync:dish-bank": "node scripts/sync-dish-bank-urls.mjs",
+    "audit:dish-catalog": "node scripts/audit-dish-catalog-urls.mjs"
   },
   "dependencies": {
     "@ducanh2912/next-pwa": "^10.2.9",
@@ -32,6 +36,7 @@
     "autoprefixer": "^10.4.20",
     "eslint": "^9.39.4",
     "eslint-config-next": "^16.2.3",
+    "pg": "^8.22.0",
     "postcss": "^8.4.47",
     "sharp": "^0.35.3",
     "tailwindcss": "^3.4.13",

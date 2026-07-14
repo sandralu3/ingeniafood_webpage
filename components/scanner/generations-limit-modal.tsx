@@ -1,6 +1,7 @@
 "use client";
 
 import { Sparkles, X } from "lucide-react";
+import { PremiumRichText } from "@/components/premium/premium-label";
 
 type Props = {
   open: boolean;
@@ -39,7 +40,10 @@ export function GenerationsLimitModal({ open, onClose }: Props) {
         </h2>
 
         <p className="mt-3 text-center text-sm leading-relaxed text-stone-600">
-          ¡Gracias por formar parte de IngeniaFood! Muy pronto abriremos la versión premium.
+          <PremiumRichText
+            text="¡Gracias por formar parte de IngeniaFood! Muy pronto abriremos la versión premium."
+            size="xs"
+          />
         </p>
 
         <button

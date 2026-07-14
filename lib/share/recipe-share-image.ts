@@ -8,6 +8,8 @@ export type ShareableRecipe = {
   tip_sandra?: string;
   tags?: string[];
   macronutrientes?: RecipeMacros | null;
+  imageUrl?: string | null;
+  referenceImageUrl?: string | null;
 };
 
 function slugifyRecipeTitle(title: string): string {
