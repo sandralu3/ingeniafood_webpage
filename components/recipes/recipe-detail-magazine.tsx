@@ -1,6 +1,7 @@
 "use client";
 
 import { Clock, UtensilsCrossed } from "lucide-react";
+import { RecipeMealTypeAdvisory } from "@/components/recipes/recipe-meal-type-advisory";
 import { RecipeDishImage } from "@/components/recipes/recipe-dish-image";
 import { SandraTipCard } from "@/components/recipes/sandra-tip-card";
 import { RecipeAppliedFiltersBadges } from "@/components/recipes/recipe-applied-filters-badges";
@@ -24,6 +25,8 @@ type Props = {
   hideInlineTipOnShare?: boolean;
   appliedFilters?: AppliedRecipeFilters | null;
   showAppliedFilters?: boolean;
+  mealTypeAdvisory?: string | null;
+  imageDisplayMode?: "live" | "library";
 };
 
 const SECTION_CARD =
@@ -37,7 +40,9 @@ export function RecipeDetailMagazine({
   showScanBanner = false,
   hideInlineTipOnShare = false,
   appliedFilters = null,
-  showAppliedFilters = false
+  showAppliedFilters = false,
+  mealTypeAdvisory = null,
+  imageDisplayMode = "live"
 }: Props) {
   const macroData = buildMacroData(recipe);
   const steps = normalizeRecipeSteps(recipe.pasos_ordenados ?? []);
@@ -51,7 +56,10 @@ export function RecipeDetailMagazine({
         imageUrl={recipe.imageUrl}
         referenceImageUrl={recipe.referenceImageUrl}
         recipeTitle={recipe.titulo}
+        displayMode={imageDisplayMode}
       />
+
+      {mealTypeAdvisory ? <RecipeMealTypeAdvisory message={mealTypeAdvisory} /> : null}
 
       <header className={`${SECTION_CARD} space-y-2`}>
         {showScanBanner ? (

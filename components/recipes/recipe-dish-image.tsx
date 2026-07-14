@@ -12,13 +12,16 @@ type Props = {
   referenceImageUrl?: string | null;
   recipeTitle?: string;
   className?: string;
+  /** Recetas guardadas: muestra la foto almacenada sin bloqueo Premium. */
+  displayMode?: "live" | "library";
 };
 
 export function RecipeDishImage({
   imageUrl,
   referenceImageUrl,
   recipeTitle,
-  className
+  className,
+  displayMode = "live"
 }: Props) {
   const { isPaidPremium, isLoading } = usePremium();
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
@@ -26,6 +29,45 @@ export function RecipeDishImage({
   const [referenceImageFailed, setReferenceImageFailed] = useState(false);
 
   if (isLoading) {
+    return null;
+  }
+
+  if (displayMode === "library") {
+    const libraryUrl = imageUrl ?? referenceImageUrl;
+    if (libraryUrl && !realImageFailed) {
+      return (
+        <div className={cn("mx-auto w-full max-w-xs space-y-1.5", className)}>
+          <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-stone-100 shadow-sm shadow-stone-200/40">
+            <img
+              src={libraryUrl}
+              alt={recipeTitle ? `Foto del plato: ${recipeTitle}` : "Foto del plato"}
+              className="h-full w-full object-cover"
+              loading="eager"
+              decoding="async"
+              onError={() => setRealImageFailed(true)}
+            />
+          </div>
+          <p className="text-center text-[10px] font-medium text-stone-500">
+            Foto guardada de esta receta
+          </p>
+        </div>
+      );
+    }
+    if (libraryUrl && realImageFailed) {
+      return (
+        <div
+          className={cn(
+            "mx-auto flex aspect-[4/3] w-full max-w-xs flex-col items-center justify-center gap-2 rounded-xl border border-stone-200/70 bg-stone-50 px-4 text-center",
+            className
+          )}
+        >
+          <ImageOff className="h-7 w-7 text-stone-400" aria-hidden />
+          <p className="text-[10px] font-medium text-stone-500">
+            No pudimos cargar la imagen guardada.
+          </p>
+        </div>
+      );
+    }
     return null;
   }
 

@@ -9,6 +9,9 @@ import { RecipeInstagramAdminForm } from "@/components/recipes/recipe-instagram-
 import { RecipeInstagramLink } from "@/components/recipes/recipe-instagram-link";
 import { isSandraAdmin } from "@/lib/auth/sandra-admin";
 import { handleRemoveFromFavorites } from "@/lib/recipes/remove-from-favorites";
+import {
+  parseStoredAppliedFilters
+} from "@/lib/recipes/save-generated-recipe";
 import { savedRecipeToShareable } from "@/lib/share/recipe-share-utils";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import { cn } from "@/lib/utils";
@@ -23,9 +26,17 @@ function isMissingOptionalColumnError(
   if (!error) return false;
   return (
     error.code === "42703" ||
-    error.message?.includes(`column recipes.${column} does not exist`) === true
+    error.code === "PGRST204" ||
+    error.message?.includes(`column recipes.${column} does not exist`) === true ||
+    error.message?.includes(column) === true
   );
 }
+
+const RECIPE_DETAIL_COLUMNS =
+  "id,title,description,cooking_time,is_airfryer,is_flourless,is_public,es_instagram,created_at,user_id,ingredients,steps,instructions,image_url,reference_image_url,tip_sandra,instagram_url,macros,meal_type,cuisine_style,meal_type_advisory,tags" as const;
+
+const RECIPE_DETAIL_COLUMNS_LEGACY =
+  "id,title,description,cooking_time,is_airfryer,is_flourless,is_public,es_instagram,created_at,user_id,ingredients,steps,instructions,image_url,tip_sandra,instagram_url,macros" as const;
 
 type RecipeDetailPageProps = {
   params: Promise<{ id: string }>;
@@ -92,15 +103,38 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
 
       const primaryQuery = await supabase
         .from("recipes")
-        .select(
-          "id,title,description,cooking_time,is_airfryer,is_flourless,is_public,created_at,user_id,ingredients,steps,instructions,image_url,tip_sandra,instagram_url,macros"
-        )
+        .select(RECIPE_DETAIL_COLUMNS)
         .eq("id", recipeId)
         .eq("user_id", user.id)
         .maybeSingle();
 
       let recipeData = primaryQuery.data as RecipeRow | null;
       let recipeError = primaryQuery.error;
+
+      if (
+        isMissingOptionalColumnError(recipeError, "reference_image_url") ||
+        isMissingOptionalColumnError(recipeError, "meal_type") ||
+        isMissingOptionalColumnError(recipeError, "tags")
+      ) {
+        const legacyQuery = await supabase
+          .from("recipes")
+          .select(RECIPE_DETAIL_COLUMNS_LEGACY)
+          .eq("id", recipeId)
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        recipeError = legacyQuery.error;
+        recipeData = legacyQuery.data
+          ? ({
+              ...legacyQuery.data,
+              reference_image_url: null,
+              meal_type: null,
+              cuisine_style: null,
+              meal_type_advisory: null,
+              tags: null
+            } as RecipeRow)
+          : null;
+      }
 
       if (isMissingOptionalColumnError(recipeError, "tip_sandra")) {
         const fallbackQuery = await supabase
@@ -177,6 +211,15 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
   const shareableRecipe = useMemo(
     () => (recipe ? savedRecipeToShareable(recipe) : null),
     [recipe]
+  );
+
+  const appliedFilters = useMemo(
+    () => (recipe ? parseStoredAppliedFilters(recipe) : null),
+    [recipe]
+  );
+
+  const showScanOrigin = Boolean(
+    recipe && !recipe.es_instagram && (recipe.image_url || appliedFilters)
   );
 
   const handleRemoveFavorite = useCallback(async () => {
@@ -259,7 +302,14 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
           {recipe.instagram_url ? (
             <RecipeInstagramLink url={recipe.instagram_url} />
           ) : null}
-          <RecipeDetailMagazine recipe={shareableRecipe} />
+          <RecipeDetailMagazine
+            recipe={shareableRecipe}
+            showScanBanner={showScanOrigin}
+            appliedFilters={appliedFilters}
+            showAppliedFilters={Boolean(appliedFilters)}
+            mealTypeAdvisory={recipe.meal_type_advisory}
+            imageDisplayMode="library"
+          />
           {isAdmin ? (
             <RecipeInstagramAdminForm
               recipeId={recipe.id}

@@ -21,6 +21,7 @@ import {
 import {
   FREE_DEFAULT_CUISINE_STYLE,
   FREE_DEFAULT_MEAL_TYPE,
+  getRecipeMealTypeLabel,
   type AppliedRecipeFilters,
   type RecipeCuisineStyle,
   type RecipeMealType
@@ -32,7 +33,7 @@ import {
   structuredIngredientsToJson
 } from "@/lib/recipes/structured-ingredients";
 import { type RecipeMacros } from "@/lib/recipes/recipe-macros";
-import { saveGeneratedRecipeToLibrary } from "@/lib/recipes/save-generated-recipe";
+import { saveGeneratedRecipeToLibrary, parseCookingMinutesFromLabel } from "@/lib/recipes/save-generated-recipe";
 import { usePremium } from "@/hooks/use-premium";
 import { useScannerReset } from "@/lib/scanner/scanner-reset-context";
 import { createSupabaseClient } from "@/lib/supabaseClient";
@@ -62,6 +63,7 @@ type ApiPayload = {
   referenceImageUrl?: string | null;
   imageUrl?: string | null;
   imageGenerationError?: string;
+  mealTypeAdvisory?: string;
 };
 
 function sleep(ms: number): Promise<void> {
@@ -171,6 +173,12 @@ function resolveErrorMessage(
       "Parece que hay algo en tu despensa que no es un alimento válido. ¡Revisa tus ingredientes seleccionados e inténtalo de nuevo!"
     );
   }
+  if (payload.code === "MEAL_TYPE_MISMATCH" || payload.error === "tipo_plato_incompatible") {
+    return (
+      payload.mensaje ??
+      "Los ingredientes no encajan con el tipo de plato seleccionado. Cambia el filtro o prueba con otros alimentos."
+    );
+  }
   if (status === 503) {
     return "El servidor de Google está saturado (Demanda alta). Por favor, intenta de nuevo en unos segundos.";
   }
@@ -205,6 +213,8 @@ export default function ScannerPage() {
   const [showNotFoodGuidance, setShowNotFoodGuidance] = useState(false);
   const [showInvalidIngredientAlert, setShowInvalidIngredientAlert] = useState(false);
   const [invalidIngredientMessage, setInvalidIngredientMessage] = useState<string | null>(null);
+  const [showMealTypeMismatchAlert, setShowMealTypeMismatchAlert] = useState(false);
+  const [mealTypeMismatchMessage, setMealTypeMismatchMessage] = useState<string | null>(null);
   const [isSavingRecipe, setIsSavingRecipe] = useState(false);
   const [isRecipeSaved, setIsRecipeSaved] = useState(false);
   const [savedRecipeId, setSavedRecipeId] = useState<string | null>(null);
@@ -220,6 +230,7 @@ export default function ScannerPage() {
   const [appliedRecipeFilters, setAppliedRecipeFilters] = useState<AppliedRecipeFilters | null>(
     null
   );
+  const [mealTypeAdvisory, setMealTypeAdvisory] = useState<string | null>(null);
   const [imageGenerationError, setImageGenerationError] = useState<string | null>(null);
   const [pendingPlanAssignment, setPendingPlanAssignment] = useState<PendingPlanAssignment | null>(
     null
@@ -294,12 +305,15 @@ export default function ScannerPage() {
     setShowNotFoodGuidance(false);
     setShowInvalidIngredientAlert(false);
     setInvalidIngredientMessage(null);
+    setShowMealTypeMismatchAlert(false);
+    setMealTypeMismatchMessage(null);
     setSaveSuccessMessage(null);
     setSaveErrorMessage(null);
     setIsRecipeSaved(false);
     setSavedRecipeId(null);
     setRateLimitSecondsLeft(0);
     setAppliedRecipeFilters(null);
+    setMealTypeAdvisory(null);
     setImageGenerationError(null);
   }, []);
 
@@ -505,9 +519,12 @@ export default function ScannerPage() {
     setRetryMessage(null);
     setRecipe(null);
     setAppliedRecipeFilters(null);
+    setMealTypeAdvisory(null);
     setShowNotFoodGuidance(false);
     setShowInvalidIngredientAlert(false);
     setInvalidIngredientMessage(null);
+    setShowMealTypeMismatchAlert(false);
+    setMealTypeMismatchMessage(null);
     setIsRecipeSaved(false);
     setSavedRecipeId(null);
     setSaveErrorMessage(null);
@@ -577,6 +594,24 @@ export default function ScannerPage() {
               resolveErrorMessage(response.status, payload, networkError)
           );
           setShowNotFoodGuidance(false);
+          setShowMealTypeMismatchAlert(false);
+          setMealTypeMismatchMessage(null);
+          setErrorMessage(null);
+          return;
+        }
+
+        const isMealTypeMismatch =
+          response.status === 422 &&
+          (payload.code === "MEAL_TYPE_MISMATCH" || payload.error === "tipo_plato_incompatible");
+        if (isMealTypeMismatch) {
+          setShowMealTypeMismatchAlert(true);
+          setMealTypeMismatchMessage(
+            payload.mensaje ??
+              resolveErrorMessage(response.status, payload, networkError)
+          );
+          setShowNotFoodGuidance(false);
+          setShowInvalidIngredientAlert(false);
+          setInvalidIngredientMessage(null);
           setErrorMessage(null);
           return;
         }
@@ -615,6 +650,11 @@ export default function ScannerPage() {
           mealType: mealTypeFilter,
           cuisineStyle: cuisineStyleFilter
         }
+      );
+      setMealTypeAdvisory(
+        typeof payload.mealTypeAdvisory === "string" && payload.mealTypeAdvisory.trim().length > 0
+          ? payload.mealTypeAdvisory.trim()
+          : null
       );
       setRecipeFromPhoto(Boolean(pantryImageFile));
       setErrorMessage(null);
@@ -672,8 +712,13 @@ export default function ScannerPage() {
       tipSandra: recipe.tip_sandra,
       isAirfryer: is_airfryer,
       isFlourless: is_flourless,
+      tags: recipeTags,
       macronutrientes: recipe.macronutrientes,
-      imageUrl: recipe.imageUrl ?? recipe.referenceImageUrl ?? null
+      cookingTimeMinutes: parseCookingMinutesFromLabel(recipe.tiempo_preparacion),
+      imageUrl: recipe.imageUrl ?? null,
+      referenceImageUrl: recipe.referenceImageUrl ?? null,
+      appliedFilters: appliedRecipeFilters,
+      mealTypeAdvisory: mealTypeAdvisory
     });
 
     if ("error" in saveResult) {
@@ -684,7 +729,7 @@ export default function ScannerPage() {
     setSavedRecipeId(saveResult.recipeId);
     setIsRecipeSaved(true);
     return saveResult.recipeId;
-  }, [recipe, savedRecipeId]);
+  }, [appliedRecipeFilters, mealTypeAdvisory, recipe, savedRecipeId]);
 
   const handleSaveRecipe = async () => {
     if (!recipe || isSavingRecipe || isRecipeSaved) return;
@@ -750,6 +795,7 @@ export default function ScannerPage() {
     !recipe &&
     Boolean(errorMessage) &&
     !showInvalidIngredientAlert &&
+    !showMealTypeMismatchAlert &&
     !showNotFoodGuidance;
 
   const handleScanAgain = () => {
@@ -845,6 +891,7 @@ export default function ScannerPage() {
             showPhotoBanner={recipeFromPhoto}
             appliedFilters={appliedRecipeFilters}
             showAppliedFilters={Boolean(appliedRecipeFilters)}
+            mealTypeAdvisory={mealTypeAdvisory}
             onNewSearch={resetScannerState}
             onSaveFavorites={() => void handleSaveRecipe()}
             onPersistRecipeId={persistGeneratedRecipe}
@@ -853,6 +900,40 @@ export default function ScannerPage() {
             isSavedFavorites={isRecipeSaved}
           />
         </section>
+      ) : null}
+
+      {showMealTypeMismatchAlert ? (
+        <div className="fixed inset-0 z-[140] flex items-center justify-center bg-black/40 px-4">
+          <div
+            role="alertdialog"
+            aria-labelledby="meal-type-mismatch-title"
+            className="w-full max-w-md rounded-2xl border border-amber-300/60 bg-[#FDFCFB] p-5 shadow-xl"
+          >
+            <p id="meal-type-mismatch-title" className="text-lg font-semibold text-[#556B2F]">
+              Ingrediente no apto para este plato
+            </p>
+            <p className="mt-2 text-sm leading-relaxed text-stone-700">
+              {mealTypeMismatchMessage ??
+                "Los ingredientes no encajan con el tipo de plato seleccionado. Cambia el filtro o prueba con otros alimentos."}
+            </p>
+            <p className="mt-3 rounded-xl border border-[#556B2F]/15 bg-white px-3 py-2 text-xs text-stone-600">
+              Filtro actual:{" "}
+              <span className="font-semibold text-stone-800">
+                {getRecipeMealTypeLabel(mealTypeFilter)}
+              </span>
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setShowMealTypeMismatchAlert(false);
+                setMealTypeMismatchMessage(null);
+              }}
+              className="mt-4 w-full rounded-full bg-[#556B2F] px-4 py-2.5 text-sm font-semibold text-white transition hover:brightness-110"
+            >
+              Entendido, cambiaré el filtro
+            </button>
+          </div>
+        </div>
       ) : null}
 
       {showInvalidIngredientAlert ? (

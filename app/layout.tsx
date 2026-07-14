@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { AppProviders } from "@/components/providers/app-providers";
 import { SupabaseAuthRedirect } from "@/components/auth/supabase-auth-redirect";
 import { AppUpdateBanner } from "@/components/shared/app-update-banner";
 import { ChunkLoadRecovery } from "@/components/shared/chunk-load-recovery";
@@ -42,10 +43,12 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body>
-        <SupabaseAuthRedirect />
-        <ChunkLoadRecovery />
-        <AppUpdateBanner />
-        {children}
+        <AppProviders>
+          <SupabaseAuthRedirect />
+          <ChunkLoadRecovery />
+          <AppUpdateBanner />
+          {children}
+        </AppProviders>
       </body>
     </html>
   );

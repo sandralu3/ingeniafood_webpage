@@ -12,6 +12,10 @@ import {
   buildRecipeFiltersPromptClause,
   resolveRecipeFilters
 } from "@/lib/recipes/premium-recipe-filters";
+import {
+  buildMealTypeCompatibilityPromptClause,
+  buildMealTypePantryExpansionClause
+} from "@/lib/recipes/meal-type-ingredient-compatibility";
 import { generateRecipeDishImage } from "@/lib/recipes/generate-recipe-image";
 import { resolveDishImageMatch } from "@/lib/recipes/resolve-dish-image-match";
 import { createSupabaseRouteClient } from "@/lib/supabaseRoute";
@@ -105,9 +109,10 @@ function maskApiKeyForDevLog(apiKey: string): string {
 const GEMINI_REQUEST_TIMEOUT_MS = 180_000;
 
 type ParseOutcome =
-  | { status: "ok"; recipe: GeminiRecipe }
+  | { status: "ok"; recipe: GeminiRecipe; mealTypeAdvisory?: string }
   | { status: "not_food" }
   | { status: "invalid_ingredient"; message: string }
+  | { status: "meal_type_mismatch"; message: string }
   | { status: "incomplete" }
   | { status: "invalid" };
 
@@ -167,6 +172,7 @@ function parseJsonResponse(rawText: string): ParseOutcome {
     const parsed = JSON.parse(cleanedResponse) as LooseGeminiRecipe & {
       error?: string;
       mensaje?: string;
+      advertencia_ingredientes?: string;
     };
     if (parsed.error === "NOT_FOOD") {
       return { status: "not_food" };
@@ -178,7 +184,21 @@ function parseJsonResponse(rawText: string): ParseOutcome {
           : "Parece que hay algo en tu despensa que no es un alimento válido. ¡Revisa tus ingredientes seleccionados e inténtalo de nuevo!";
       return { status: "invalid_ingredient", message };
     }
-    return { status: "ok", recipe: normalizeRecipePayload(parsed) };
+    if (parsed.error === "tipo_plato_incompatible") {
+      const message =
+        typeof parsed.mensaje === "string" && parsed.mensaje.trim().length > 0
+          ? parsed.mensaje.trim()
+          : "Los ingredientes no encajan con el tipo de plato seleccionado. Cambia el filtro o prueba con otros alimentos.";
+      return { status: "meal_type_mismatch", message };
+    }
+
+    const mealTypeAdvisory =
+      typeof parsed.advertencia_ingredientes === "string" &&
+      parsed.advertencia_ingredientes.trim().length > 0
+        ? parsed.advertencia_ingredientes.trim()
+        : undefined;
+
+    return { status: "ok", recipe: normalizeRecipePayload(parsed), mealTypeAdvisory };
   } catch {
     console.log("DEBUG RAW RESPONSE: " + rawText);
     return { status: "invalid" };
@@ -361,6 +381,10 @@ export async function POST(request: Request) {
       requestedCuisineStyle: body.cuisineStyle
     });
     const filtersPromptClause = buildRecipeFiltersPromptClause(resolvedFilters);
+    const mealTypeCompatibilityClause = buildMealTypeCompatibilityPromptClause(
+      resolvedFilters.mealType
+    );
+    const mealTypePantryClause = buildMealTypePantryExpansionClause(resolvedFilters.mealType);
 
     let imageBase64Raw =
       typeof body.imageBase64 === "string" && body.imageBase64.length > 0
@@ -451,12 +475,14 @@ export async function POST(request: Request) {
       HEALTHY_NUTRITION_RULE +
       INGREDIENT_QUANTITY_RULE +
       MACRO_ESTIMATION_RULE +
-      `${filtersPromptClause}\n\n` +
-      "Solo JSON valido. Entrega receta saludable y rapida. Formato esperado: { \"titulo\": \"\", \"tiempo\": \"X min\", \"ingredientes\": [], \"pasos\": [], \"tip_sandra\": \"\", \"etiquetas\": [], \"macronutrientes\": {\"proteinas_g\": 0, \"carbohidratos_g\": 0, \"grasas_g\": 0, \"calorias\": 0} }. " +
+      `${filtersPromptClause}\n\n${mealTypeCompatibilityClause}\n\n${mealTypePantryClause}\n\n` +
+      "Solo JSON valido. Entrega receta saludable y rapida. Formato esperado: { \"titulo\": \"\", \"tiempo_preparacion\": \"X min\", \"ingredientes_detallados\": [], \"ingredientes_estructurados\": [], \"pasos_ordenados\": [], \"tip_sandra\": \"\", \"etiquetas\": [], \"advertencia_ingredientes\": \"\", \"macronutrientes\": {\"proteinas_g\": 0, \"carbohidratos_g\": 0, \"grasas_g\": 0, \"calorias\": 0} }. " +
+      "advertencia_ingredientes: opcional; texto breve si hace falta avisar de complementos no escaneados. Si no aplica, usa \"\". " +
       "ETIQUETAS (campo etiquetas): array de 0 a 3 strings. Valores permitidos SOLO: \"Sin Harinas\", \"Apto para Airfryer\", \"Alto en Proteína\". " +
       "NO incluyas Desayuno, Cena, Snack, Almuerzo ni Postre en etiquetas (el momento del plato ya se define por filtros del usuario). " +
       "Reglas estrictas: incluye \"Sin Harinas\" solo si la receta no usa harinas ni cereales refinados; incluye \"Apto para Airfryer\" solo si la cocción principal es en airfryer; incluye \"Alto en Proteína\" solo si aplica de verdad. Si ninguna aplica, devuelve etiquetas: []. " +
-      "REGLA DE ORO DE INVENTARIO (obligatoria): PROHIBIDO añadir ingredientes al titulo o a las instrucciones que no hayan sido detectados en la imagen ni seleccionados por el usuario, salvo basicos de despensa permitidos (sal, pimienta, aceite, agua). " +
+      "REGLA DE ORO DE INVENTARIO (obligatoria): el ingrediente PRINCIPAL debe ser lo detectado en la imagen o seleccionado por el usuario. " +
+      "Puedes añadir condimentos y complementos de despensa según el tipo de plato (ver DESPENSA AMPLIADA arriba). " +
       "Si el titulo incluye una especia o sabor (como curry o pimenton), ese ingrediente DEBE figurar en ingredientes_detallados y estar respaldado por evidencia visual o seleccion manual. " +
       "PRIORIDAD DE ATRIBUTOS: el titulo debe ser una descripcion tecnica y real de los ingredientes capturados; no inventes sabores externos para hacerlo atractivo. " +
       "VALIDACION CRUZADA obligatoria antes de responder: verifica internamente si todos los elementos del titulo estan presentes en ingredientes_detallados; si no, renombra la receta para que coincida. " +
@@ -477,7 +503,7 @@ export async function POST(request: Request) {
     const prompt =
       "Primero valida si hay comida visible. Si NO hay comida, responde solo {\"error\":\"NOT_FOOD\"} y termina sin texto adicional. " +
       "Si sí hay comida, responde exclusivamente con JSON valido (sin markdown, sin bloques de codigo) usando esta estructura exacta: " +
-      '{"titulo": string, "tiempo_preparacion": string, "ingredientes_detallados": string[], "ingredientes_estructurados": [{"name": string, "amount": number, "unit": string, "optional": boolean}], "pasos_ordenados": string[], "tip_sandra": string, "etiquetas": string[], "macronutrientes": {"proteinas_g": number, "carbohidratos_g": number, "grasas_g": number, "calorias": number}}. ' +
+      '{"titulo": string, "tiempo_preparacion": string, "ingredientes_detallados": string[], "ingredientes_estructurados": [{"name": string, "amount": number, "unit": string, "optional": boolean}], "pasos_ordenados": string[], "tip_sandra": string, "etiquetas": string[], "advertencia_ingredientes": string, "macronutrientes": {"proteinas_g": number, "carbohidratos_g": number, "grasas_g": number, "calorias": number}}. ' +
       `${promptTail} No inventes ingredientes principales imposibles; prioriza exclusivamente lo visible y lo indicado arriba. El titulo debe reflejar los ingredientes reales del usuario, no sabores inventados.`;
 
     let rawResponse = "";
@@ -604,6 +630,17 @@ export async function POST(request: Request) {
       );
     }
 
+    if (parseOutcome?.status === "meal_type_mismatch") {
+      return jsonResponse(
+        {
+          error: "tipo_plato_incompatible",
+          code: "MEAL_TYPE_MISMATCH",
+          mensaje: parseOutcome.message
+        },
+        422
+      );
+    }
+
     if (!rawResponse?.trim() && !lastRawForParse?.trim()) {
       const quotaHit = isRateLimited(lastFailure);
       const unavailableHit = isServiceUnavailable(lastFailure);
@@ -675,6 +712,8 @@ export async function POST(request: Request) {
       );
     }
     const recipe = parseOutcome.recipe;
+    const mealTypeAdvisory = parseOutcome.mealTypeAdvisory;
+
     const safeRecipe: GeminiRecipe = {
       titulo: recipe.titulo || "Receta Saludable de Sandra",
       tiempo_preparacion: recipe.tiempo_preparacion || "20 min",
@@ -768,6 +807,7 @@ export async function POST(request: Request) {
         mealType: resolvedFilters.mealType,
         cuisineStyle: resolvedFilters.cuisineStyle
       },
+      ...(mealTypeAdvisory ? { mealTypeAdvisory } : {}),
       premiumTrialRemaining
     });
   } catch (error) {

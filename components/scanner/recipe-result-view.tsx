@@ -14,6 +14,7 @@ type Props = {
   showPhotoBanner?: boolean;
   appliedFilters?: AppliedRecipeFilters | null;
   showAppliedFilters?: boolean;
+  mealTypeAdvisory?: string | null;
   onSaveFavorites?: () => void;
   onNewSearch?: () => void;
   onPersistRecipeId: () => Promise<string | null>;
@@ -31,7 +32,8 @@ export function RecipeResultView({
   isSavingFavorites = false,
   isSavedFavorites = false,
   appliedFilters = null,
-  showAppliedFilters = false
+  showAppliedFilters = false,
+  mealTypeAdvisory = null
 }: Props) {
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
   const { captureRef, shareRecipeImage, isGenerating, errorMessage, clearError } =
@@ -65,6 +67,7 @@ export function RecipeResultView({
         showScanBanner
         appliedFilters={appliedFilters}
         showAppliedFilters={showAppliedFilters}
+        mealTypeAdvisory={mealTypeAdvisory}
       />
 
       <div className="space-y-2" data-share-exclude>

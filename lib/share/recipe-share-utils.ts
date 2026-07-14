@@ -58,6 +58,8 @@ type SavedRecipeSource = {
   is_flourless?: boolean;
   tags?: Json;
   macros?: Json | null;
+  image_url?: string | null;
+  reference_image_url?: string | null;
 };
 export function savedRecipeToShareable(recipe: SavedRecipeSource): ShareableRecipe {
   const ingredientes = jsonToStringList(recipe.ingredients);
@@ -71,6 +73,9 @@ export function savedRecipeToShareable(recipe: SavedRecipeSource): ShareableReci
       ? `${recipe.cooking_time} min`
       : "25 min";
 
+  const storedImage = recipe.image_url?.trim() || null;
+  const storedReference = recipe.reference_image_url?.trim() || null;
+
   return {
     titulo: recipe.title,
     tiempo_preparacion: tiempo,
@@ -82,6 +87,9 @@ export function savedRecipeToShareable(recipe: SavedRecipeSource): ShareableReci
       is_airfryer: recipe.is_airfryer,
       is_flourless: recipe.is_flourless
     }),
-    macronutrientes: parseMacrosFromJson(recipe.macros)
+    macronutrientes: parseMacrosFromJson(recipe.macros),
+    imageUrl: storedImage,
+    referenceImageUrl:
+      storedReference && storedReference !== storedImage ? storedReference : null
   };
 }

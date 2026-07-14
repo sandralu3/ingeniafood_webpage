@@ -110,14 +110,14 @@ export function buildMealTypePromptClause(mealType: RecipeMealType): string {
 
   switch (mealType) {
     case "desayuno":
-      return `TIPO DE PLATO: genera una receta ideal para ${label}. Debe ser apropiada para la mañana: ligera o energética, fácil de preparar y con perfil de desayuno/brunch.`;
+      return `TIPO DE PLATO: genera una receta ideal para ${label}. Busca la mejor opción de mañana/brunch con los ingredientes disponibles (creativo pero realista).`;
     case "cena":
-      return `TIPO DE PLATO: genera una receta ideal para ${label}. Debe ser apropiada para la noche: equilibrada, reconfortante y con porciones razonables para cenar.`;
+      return `TIPO DE PLATO: genera una receta ideal para ${label}. Equilibrada, reconfortante y apropiada para la noche.`;
     case "postre":
-      return `TIPO DE PLATO: genera una receta de ${label}. Debe ser dulce o de repostería saludable, coherente con los ingredientes disponibles del usuario.`;
+      return `TIPO DE PLATO: genera una receta de ${label}. Debe ser dulce o de repostería saludable, adaptando creativamente el ingrediente principal escaneado.`;
     case "almuerzo":
     default:
-      return `TIPO DE PLATO: genera una receta ideal para ${label}. Debe ser un plato principal de mediodía, nutritivo, saciante y práctico.`;
+      return `TIPO DE PLATO: genera una receta ideal para ${label}. Plato principal de mediodía, nutritivo y práctico.`;
   }
 }
 
