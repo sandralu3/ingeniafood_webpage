@@ -16,6 +16,7 @@ export type Database = {
           avatar_url: string | null;
           country: string | null;
           is_premium: boolean;
+          can_self_toggle_premium: boolean;
           generations_left: number;
           daily_scan_limit: number;
           scans_used_today: number;
@@ -32,6 +33,7 @@ export type Database = {
           avatar_url?: string | null;
           country?: string | null;
           is_premium?: boolean;
+          can_self_toggle_premium?: boolean;
           generations_left?: number;
           daily_scan_limit?: number;
           scans_used_today?: number;
@@ -48,6 +50,7 @@ export type Database = {
           avatar_url?: string | null;
           country?: string | null;
           is_premium?: boolean;
+          can_self_toggle_premium?: boolean;
           generations_left?: number;
           daily_scan_limit?: number;
           scans_used_today?: number;

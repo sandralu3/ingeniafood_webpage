@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import {
   deleteAdminUser,
   updateUserDailyScanLimit,
+  updateUserPremiumSelfTogglePermission,
   updateUserPremiumStatus
 } from "@/lib/admin/users-admin";
 import { requireSandraAdmin } from "@/lib/admin/require-sandra-admin";
@@ -13,6 +14,7 @@ type RouteContext = {
 type PatchBody = {
   dailyScanLimit?: number;
   isPremium?: boolean;
+  canSelfTogglePremium?: boolean;
 };
 
 export async function PATCH(request: Request, context: RouteContext) {
@@ -32,10 +34,11 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   const hasScanLimit = typeof body.dailyScanLimit === "number";
   const hasPremium = typeof body.isPremium === "boolean";
+  const hasSelfToggle = typeof body.canSelfTogglePremium === "boolean";
 
-  if (!hasScanLimit && !hasPremium) {
+  if (!hasScanLimit && !hasPremium && !hasSelfToggle) {
     return NextResponse.json(
-      { error: "Debes indicar dailyScanLimit o isPremium." },
+      { error: "Debes indicar dailyScanLimit, isPremium o canSelfTogglePremium." },
       { status: 400 }
     );
   }
@@ -47,6 +50,9 @@ export async function PATCH(request: Request, context: RouteContext) {
     }
     if (hasPremium) {
       user = await updateUserPremiumStatus(id, body.isPremium!);
+    }
+    if (hasSelfToggle) {
+      user = await updateUserPremiumSelfTogglePermission(id, body.canSelfTogglePremium!);
     }
 
     if (!user) {

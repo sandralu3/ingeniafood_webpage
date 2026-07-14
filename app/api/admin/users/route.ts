@@ -13,9 +13,8 @@ export async function GET() {
     return NextResponse.json({ users });
   } catch (error) {
     console.error("[admin/users] GET", error);
-    return NextResponse.json(
-      { error: "No pudimos cargar la lista de usuarios." },
-      { status: 500 }
-    );
+    const message =
+      error instanceof Error ? error.message : "No pudimos cargar la lista de usuarios.";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

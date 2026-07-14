@@ -29,6 +29,7 @@ export default function AdminUsuariosPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
   const [savingPremiumUserId, setSavingPremiumUserId] = useState<string | null>(null);
+  const [savingSelfToggleUserId, setSavingSelfToggleUserId] = useState<string | null>(null);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
   const [userPendingDelete, setUserPendingDelete] = useState<AdminUserListItem | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -137,6 +138,50 @@ export default function AdminUsuariosPage() {
       setErrorMessage(error instanceof Error ? error.message : "Error al guardar Premium.");
     } finally {
       setSavingPremiumUserId(null);
+    }
+  };
+
+  const handleToggleSelfPremiumPermission = async (userId: string, nextValue: boolean) => {
+    const user = users.find((item) => item.id === userId);
+    if (!user || user.unlimitedScans) return;
+
+    setSavingSelfToggleUserId(userId);
+    setErrorMessage(null);
+    setSuccessMessage(null);
+
+    try {
+      const response = await fetch(`/api/admin/users/${userId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ canSelfTogglePremium: nextValue })
+      });
+
+      const payload = (await response.json()) as {
+        user?: AdminUserListItem;
+        error?: string;
+      };
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? "No se pudo actualizar el permiso de autogestión.");
+      }
+
+      if (payload.user) {
+        setUsers((current) =>
+          current.map((item) => (item.id === userId ? payload.user! : item))
+        );
+      }
+
+      setSuccessMessage(
+        nextValue
+          ? "El usuario ya puede activar/desactivar Premium desde su perfil."
+          : "Autogestión Premium desactivada para el usuario."
+      );
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Error al guardar autogestión Premium."
+      );
+    } finally {
+      setSavingSelfToggleUserId(null);
     }
   };
 
@@ -320,6 +365,7 @@ export default function AdminUsuariosPage() {
                     <th className="px-5 py-3.5">
                       <PremiumLabel size="xs" />
                     </th>
+                    <th className="px-5 py-3.5">Autogestión</th>
                     <th className="px-5 py-3.5">Escaneos / día</th>
                     <th className="px-5 py-3.5 text-right">Acción</th>
                   </tr>
@@ -328,6 +374,7 @@ export default function AdminUsuariosPage() {
                   {users.map((user) => {
                     const isSaving = savingUserId === user.id;
                     const isSavingPremium = savingPremiumUserId === user.id;
+                    const isSavingSelfToggle = savingSelfToggleUserId === user.id;
                     const premiumStatusLabel = user.isPremium
                       ? "Suscriptor"
                       : user.premiumTrialRemaining > 0
@@ -413,6 +460,33 @@ export default function AdminUsuariosPage() {
                                 {premiumStatusLabel}
                               </span>
                             </div>
+                          )}
+                        </td>
+                        <td className="px-5 py-4">
+                          {user.unlimitedScans ? (
+                            <span className="text-xs text-stone-400">—</span>
+                          ) : (
+                            <label className="inline-flex cursor-pointer items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={user.canSelfTogglePremium}
+                                disabled={isSavingSelfToggle}
+                                onChange={(event) =>
+                                  void handleToggleSelfPremiumPermission(
+                                    user.id,
+                                    event.target.checked
+                                  )
+                                }
+                                className="h-4 w-4 rounded border-stone-300 text-[#556B2F] focus:ring-[#556B2F]/30"
+                              />
+                              <span className="text-xs text-stone-600">
+                                {isSavingSelfToggle
+                                  ? "Guardando…"
+                                  : user.canSelfTogglePremium
+                                    ? "Desde perfil"
+                                    : "No"}
+                              </span>
+                            </label>
                           )}
                         </td>
                         <td className="px-5 py-4">

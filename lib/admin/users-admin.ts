@@ -12,6 +12,7 @@ export type AdminUserListItem = {
   createdAt: string;
   unlimitedScans: boolean;
   isPremium: boolean;
+  canSelfTogglePremium: boolean;
   premiumTrialRemaining: number;
   premiumTrialClaimed: boolean;
 };
@@ -19,6 +20,9 @@ export type AdminUserListItem = {
 const MAX_DAILY_SCAN_LIMIT = 500;
 
 const ADMIN_PROFILE_SELECT =
+  "id, full_name, daily_scan_limit, scans_used_today, scan_quota_date, created_at, is_premium, can_self_toggle_premium, premium_trial_remaining, premium_trial_claimed_at" as const;
+
+const ADMIN_PROFILE_SELECT_LEGACY =
   "id, full_name, daily_scan_limit, scans_used_today, scan_quota_date, created_at, is_premium, premium_trial_remaining, premium_trial_claimed_at" as const;
 
 type AdminProfileRow = {
@@ -29,9 +33,61 @@ type AdminProfileRow = {
   scan_quota_date: string;
   created_at: string;
   is_premium: boolean;
+  can_self_toggle_premium?: boolean;
   premium_trial_remaining: number;
   premium_trial_claimed_at: string | null;
 };
+
+function isMissingSelfToggleColumnError(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  return (
+    error.code === "42703" ||
+    error.code === "PGRST204" ||
+    error.message?.includes("can_self_toggle_premium") === true ||
+    error.message?.includes("Could not find the 'can_self_toggle_premium' column") === true ||
+    error.message?.includes("schema cache") === true
+  );
+}
+
+function normalizeAdminProfileRow(profile: AdminProfileRow): AdminProfileRow {
+  return {
+    ...profile,
+    can_self_toggle_premium: Boolean(profile.can_self_toggle_premium)
+  };
+}
+
+async function fetchAdminProfiles(
+  admin: ReturnType<typeof getSupabaseAdminClient>
+): Promise<AdminProfileRow[]> {
+  const { data, error } = await admin
+    .from("profiles")
+    .select(ADMIN_PROFILE_SELECT)
+    .order("created_at", { ascending: false });
+
+  if (!error) {
+    return (data ?? []).map((profile) => normalizeAdminProfileRow(profile as AdminProfileRow));
+  }
+
+  if (!isMissingSelfToggleColumnError(error)) {
+    throw error;
+  }
+
+  const { data: legacyData, error: legacyError } = await admin
+    .from("profiles")
+    .select(ADMIN_PROFILE_SELECT_LEGACY)
+    .order("created_at", { ascending: false });
+
+  if (legacyError) {
+    throw legacyError;
+  }
+
+  return (legacyData ?? []).map((profile) =>
+    normalizeAdminProfileRow({
+      ...(profile as AdminProfileRow),
+      can_self_toggle_premium: false
+    })
+  );
+}
 
 function buildAdminUserListItem(
   profile: AdminProfileRow,
@@ -54,6 +110,7 @@ function buildAdminUserListItem(
     createdAt: profile.created_at ?? createdAtFallback,
     unlimitedScans,
     isPremium: unlimitedScans || Boolean(profile.is_premium),
+    canSelfTogglePremium: Boolean(profile.can_self_toggle_premium),
     premiumTrialRemaining: Math.max(0, profile.premium_trial_remaining ?? 0),
     premiumTrialClaimed: Boolean(profile.premium_trial_claimed_at)
   };
@@ -65,17 +122,8 @@ function computeScansUsedToday(scansUsedToday: number, scanQuotaDate: string): n
 
 export async function listAdminUsers(): Promise<AdminUserListItem[]> {
   const admin = getSupabaseAdminClient();
-
-  const { data: profiles, error: profilesError } = await admin
-    .from("profiles")
-    .select(ADMIN_PROFILE_SELECT)
-    .order("created_at", { ascending: false });
-
-  if (profilesError) {
-    throw profilesError;
-  }
-
-  const profileById = new Map((profiles ?? []).map((profile) => [profile.id, profile]));
+  const profiles = await fetchAdminProfiles(admin);
+  const profileById = new Map(profiles.map((profile) => [profile.id, profile]));
   const authUsers: Array<{ id: string; email?: string; created_at: string }> = [];
 
   let page = 1;
@@ -165,7 +213,6 @@ export async function updateUserDailyScanLimit(
   }
 
   const admin = getSupabaseAdminClient();
-  const today = getTodayDateKey();
 
   const { data: updatedProfile, error: updateError } = await admin
     .from("profiles")
@@ -177,7 +224,22 @@ export async function updateUserDailyScanLimit(
     .select(ADMIN_PROFILE_SELECT)
     .maybeSingle();
 
-  if (updateError || !updatedProfile) {
+  let profile = updatedProfile as AdminProfileRow | null;
+  if (updateError && isMissingSelfToggleColumnError(updateError)) {
+    const { data: legacyProfile, error: legacyError } = await admin
+      .from("profiles")
+      .update({
+        daily_scan_limit: dailyScanLimit,
+        generations_left: dailyScanLimit
+      })
+      .eq("id", userId)
+      .select(ADMIN_PROFILE_SELECT_LEGACY)
+      .maybeSingle();
+    if (legacyError || !legacyProfile) {
+      throw legacyError ?? new Error("No se encontró el perfil del usuario.");
+    }
+    profile = { ...(legacyProfile as AdminProfileRow), can_self_toggle_premium: false };
+  } else if (updateError || !profile) {
     throw updateError ?? new Error("No se encontró el perfil del usuario.");
   }
 
@@ -187,7 +249,7 @@ export async function updateUserDailyScanLimit(
   }
 
   return buildAdminUserListItem(
-    updatedProfile as AdminProfileRow,
+    normalizeAdminProfileRow(profile),
     authData.user.email ?? "—",
     authData.user.created_at
   );
@@ -225,12 +287,66 @@ export async function updateUserPremiumStatus(
     .select(ADMIN_PROFILE_SELECT)
     .maybeSingle();
 
+  let profile = updatedProfile as AdminProfileRow | null;
+  if (updateError && isMissingSelfToggleColumnError(updateError)) {
+    const { data: legacyProfile, error: legacyError } = await admin
+      .from("profiles")
+      .update(updatePayload)
+      .eq("id", userId)
+      .select(ADMIN_PROFILE_SELECT_LEGACY)
+      .maybeSingle();
+    if (legacyError || !legacyProfile) {
+      throw legacyError ?? new Error("No se encontró el perfil del usuario.");
+    }
+    profile = { ...(legacyProfile as AdminProfileRow), can_self_toggle_premium: false };
+  } else if (updateError || !profile) {
+    throw updateError ?? new Error("No se encontró el perfil del usuario.");
+  }
+
+  return buildAdminUserListItem(
+    normalizeAdminProfileRow(profile),
+    authData.user.email ?? "—",
+    authData.user.created_at
+  );
+}
+
+export async function updateUserPremiumSelfTogglePermission(
+  userId: string,
+  canSelfTogglePremium: boolean
+): Promise<AdminUserListItem> {
+  const admin = getSupabaseAdminClient();
+
+  const { data: authData, error: authError } = await admin.auth.admin.getUserById(userId);
+  if (authError || !authData.user) {
+    throw authError ?? new Error("No se encontró el usuario.");
+  }
+
+  if (hasUnlimitedGenerations(authData.user.email)) {
+    throw new Error("La cuenta administradora no necesita autogestión de Premium.");
+  }
+
+  const { data: updatedProfile, error: updateError } = await admin
+    .from("profiles")
+    .update({
+      can_self_toggle_premium: canSelfTogglePremium,
+      updated_at: new Date().toISOString()
+    })
+    .eq("id", userId)
+    .select(ADMIN_PROFILE_SELECT)
+    .maybeSingle();
+
+  if (updateError && isMissingSelfToggleColumnError(updateError)) {
+    throw new Error(
+      "Falta la migración can_self_toggle_premium. Ejecuta supabase/migrations/20260714150000_profiles_can_self_toggle_premium.sql en Supabase."
+    );
+  }
+
   if (updateError || !updatedProfile) {
     throw updateError ?? new Error("No se encontró el perfil del usuario.");
   }
 
   return buildAdminUserListItem(
-    updatedProfile as AdminProfileRow,
+    normalizeAdminProfileRow(updatedProfile as AdminProfileRow),
     authData.user.email ?? "—",
     authData.user.created_at
   );

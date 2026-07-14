@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Camera, ChevronDown, LogOut, Pencil, Users, Wand2 } from "lucide-react";
 import { AvatarCropModal } from "@/components/profile/avatar-crop-modal";
+import { PremiumSelfToggle } from "@/components/profile/premium-self-toggle";
 import { PremiumLabel } from "@/components/premium/premium-label";
 import { isSandraAdmin } from "@/lib/auth/sandra-admin";
 import { signOutUser } from "@/lib/auth/sign-out";
@@ -442,6 +443,8 @@ export default function ProfilePage() {
                 />
               </div>
             </div>
+
+            <PremiumSelfToggle />
 
             {errorMessage ? (
               <p className="rounded-xl border border-red-100 bg-red-50/80 px-3 py-2.5 text-sm text-red-700">
