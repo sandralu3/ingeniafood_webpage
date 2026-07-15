@@ -5,7 +5,13 @@ import {
   fetchCompletionsInRange,
   fetchTodayCompletedChallengeIds
 } from "@/lib/gamification/challenge-service";
+import { syncPlanLinkedChallenges } from "@/lib/gamification/plan-challenge-sync";
 import { calculateWeeklyHealthMetrics, type WeeklyHealthMetrics } from "@/lib/gamification/weekly-metrics";
+import {
+  EMPTY_DAY_PLAN_NUTRITION,
+  type DayPlanNutritionSummary
+} from "@/lib/plan/plan-nutrition";
+import { fetchWeeklyPlan } from "@/lib/plan/plan-service";
 import { getMondayOfWeek, toISODateString } from "@/lib/plan/week-utils";
 
 export type HoyPageData = {
@@ -16,6 +22,9 @@ export type HoyPageData = {
   allChallenges: DailyChallenge[];
   todayCompletedIds: string[];
   weekCompletions: Array<{ reto_id: string; completado_at: string }>;
+  streakCompletions: Array<{ reto_id: string; completado_at: string }>;
+  todayPlanNutrition: DayPlanNutritionSummary;
+  planSyncedChallengeIds: string[];
 };
 
 type InflightRequest = {
@@ -57,21 +66,47 @@ async function loadHoyPageData(userId: string): Promise<HoyPageData> {
     allChallenges,
     todayCompletedIds,
     weekCompletions,
-    streakCompletions
+    streakCompletions,
+    weeklyPlan
   ] = await Promise.all([
     fetchActiveDailyChallengesForUser(userId),
     fetchAllChallengesForUser(userId),
     fetchTodayCompletedChallengeIds(userId),
     fetchCompletionsInRange(userId, weekStart, today),
-    fetchCompletionsInRange(userId, streakLookbackDate, today)
+    fetchCompletionsInRange(userId, streakLookbackDate, today),
+    fetchWeeklyPlan(userId).catch((error) => {
+      console.error("[hoy-page-data] Error cargando plan semanal:", error);
+      return { weekStart, days: [] };
+    })
   ]);
+
+  const todayPlanDay = weeklyPlan.days.find((day) => day.isToday);
+  const todayPlanNutrition: DayPlanNutritionSummary =
+    todayPlanDay?.nutrition ?? EMPTY_DAY_PLAN_NUTRITION;
+
+  let mergedCompletedIds = [...todayCompletedIds];
+  let planSyncedChallengeIds: string[] = [];
+
+  try {
+    planSyncedChallengeIds = await syncPlanLinkedChallenges({
+      userId,
+      activeChallenges,
+      todayCompletedIds: mergedCompletedIds,
+      planNutrition: todayPlanNutrition
+    });
+    mergedCompletedIds = Array.from(
+      new Set([...mergedCompletedIds, ...planSyncedChallengeIds])
+    );
+  } catch (error) {
+    console.error("[hoy-page-data] Error sincronizando retos con el plan:", error);
+  }
 
   const metrics = calculateWeeklyHealthMetrics({
     activeChallenges,
     allChallenges,
     weekCompletions,
     streakCompletions,
-    todayCompletedIds,
+    todayCompletedIds: mergedCompletedIds,
     today
   });
 
@@ -81,7 +116,10 @@ async function loadHoyPageData(userId: string): Promise<HoyPageData> {
     metrics,
     activeChallenges,
     allChallenges,
-    todayCompletedIds,
-    weekCompletions
+    todayCompletedIds: mergedCompletedIds,
+    weekCompletions,
+    streakCompletions,
+    todayPlanNutrition,
+    planSyncedChallengeIds
   };
 }

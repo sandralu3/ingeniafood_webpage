@@ -1,10 +1,14 @@
-import type { DailyChallenge } from "@/lib/gamification/challenges";
 import { addDays, getMondayOfWeek, toISODateString } from "@/lib/plan/week-utils";
+import type { DailyChallenge } from "@/lib/gamification/challenges";
+import { getCurrentStreakDateSet } from "@/lib/gamification/weekly-metrics";
 
 export type WeekConsistencyDay = {
   label: string;
   isoDate: string;
-  completed: boolean;
+  /** Hubo al menos un reto completado ese día */
+  active: boolean;
+  /** Forma parte de la racha consecutiva actual */
+  inCurrentStreak: boolean;
   isToday: boolean;
 };
 
@@ -23,20 +27,24 @@ type CompletionRow = {
 const WEEKDAY_SHORT = ["L", "M", "X", "J", "V", "S", "D"];
 
 export function buildWeekConsistencyDays(
-  completions: Array<{ completado_at: string }>,
-  today = toISODateString(new Date())
+  weekCompletions: Array<{ completado_at: string }>,
+  today = toISODateString(new Date()),
+  streakCompletions: Array<{ completado_at: string }> = weekCompletions
 ): WeekConsistencyDay[] {
   const monday = getMondayOfWeek(new Date(`${today}T12:00:00`));
-  const activeDays = new Set(completions.map((row) => row.completado_at));
+  const activeDays = new Set(weekCompletions.map((row) => row.completado_at));
+  const streakDates = getCurrentStreakDateSet(streakCompletions, today);
 
   return Array.from({ length: 7 }, (_, index) => {
     const date = addDays(monday, index);
     const isoDate = toISODateString(date);
+    const active = activeDays.has(isoDate);
 
     return {
       label: WEEKDAY_SHORT[index],
       isoDate,
-      completed: activeDays.has(isoDate),
+      active,
+      inCurrentStreak: streakDates.has(isoDate),
       isToday: isoDate === today
     };
   });

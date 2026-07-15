@@ -20,7 +20,14 @@ export type PlanMeal = {
   imageUrl?: string | null;
   instagramUrl?: string | null;
   isSocialVideo?: boolean;
+  /** Tiempo de preparación en minutos */
+  prepMinutes?: number;
+  /** @deprecated Usa prepMinutes */
   calories?: number;
+  /** Calorías estimadas de la receta */
+  kcal?: number;
+  hasVegetables?: boolean;
+  hasProtein?: boolean;
   isAirfryer?: boolean;
   isFlourless?: boolean;
 };
@@ -34,6 +41,10 @@ type PlanMealCardProps = {
   variant?: "default" | "slot" | "panel";
   className?: string;
 };
+
+function getPrepMinutes(meal: PlanMeal): number | undefined {
+  return meal.prepMinutes ?? meal.calories;
+}
 
 function buildNutritionPills(meal: PlanMeal): string[] {
   const pills: string[] = [];
@@ -298,12 +309,18 @@ function HorizontalMealCard({
             {meal.title}
           </h3>
 
-          {!compact && nutritionPills.length > 0 ? (
+          {!compact && (getPrepMinutes(meal) || meal.kcal || nutritionPills.length > 0) ? (
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              {meal.calories ? (
+              {getPrepMinutes(meal) ? (
                 <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700">
                   <Clock3 className="h-3 w-3" />
-                  {meal.calories} min
+                  {getPrepMinutes(meal)} min
+                </span>
+              ) : null}
+
+              {meal.kcal ? (
+                <span className="rounded-full bg-orange-50 px-2.5 py-0.5 text-xs font-medium text-orange-800 ring-1 ring-orange-100">
+                  {meal.kcal} kcal
                 </span>
               ) : null}
 
@@ -316,11 +333,20 @@ function HorizontalMealCard({
                 </span>
               ))}
             </div>
-          ) : compact && meal.calories ? (
-            <p className="mt-0.5 inline-flex items-center gap-1 text-[10px] font-medium text-stone-500">
-              <Clock3 className="h-2.5 w-2.5" />
-              {meal.calories} min
-            </p>
+          ) : compact && (meal.kcal || getPrepMinutes(meal)) ? (
+            <div className="mt-0.5 flex flex-wrap items-center gap-2">
+              {meal.kcal ? (
+                <span className="text-[11px] font-semibold tabular-nums text-orange-800">
+                  {meal.kcal} kcal
+                </span>
+              ) : null}
+              {getPrepMinutes(meal) ? (
+                <span className="inline-flex items-center gap-1 text-[10px] font-medium text-stone-500">
+                  <Clock3 className="h-2.5 w-2.5" />
+                  {getPrepMinutes(meal)} min
+                </span>
+              ) : null}
+            </div>
           ) : null}
         </div>
       </Link>
@@ -544,10 +570,15 @@ export function PlanMealCard({
           <h3 className="line-clamp-2 text-sm font-bold leading-snug text-white drop-shadow-md">
             {meal.title}
           </h3>
-          {meal.calories ? (
-            <p className="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-white/80">
-              <Clock3 className="h-3 w-3" />
-              {meal.calories} min
+          {getPrepMinutes(meal) || meal.kcal ? (
+            <p className="mt-1 inline-flex flex-wrap items-center gap-2 text-[11px] font-medium text-white/80">
+              {getPrepMinutes(meal) ? (
+                <span className="inline-flex items-center gap-1">
+                  <Clock3 className="h-3 w-3" />
+                  {getPrepMinutes(meal)} min
+                </span>
+              ) : null}
+              {meal.kcal ? <span>{meal.kcal} kcal</span> : null}
             </p>
           ) : null}
         </div>

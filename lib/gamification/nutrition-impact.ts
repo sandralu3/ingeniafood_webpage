@@ -1,9 +1,14 @@
 import type { DailyChallenge } from "@/lib/gamification/challenges";
+import type { DayPlanNutritionSummary } from "@/lib/plan/plan-nutrition";
 
 export type NutritionImpactMetrics = {
   hydration: number;
   vegetables: number;
   protein: number;
+  totalKcal: number;
+  plannedMealCount: number;
+  planHasVegetables: boolean;
+  planHasProtein: boolean;
 };
 
 const HYDRATION_PATTERN = /agua|hidrat|líquid/i;
@@ -28,15 +33,40 @@ function categoryProgress(
 
 export function calculateNutritionImpact(
   challenges: DailyChallenge[],
-  completedIds: string[]
+  completedIds: string[],
+  planNutrition: DayPlanNutritionSummary
 ): NutritionImpactMetrics {
   const completedSet = new Set(completedIds);
   const fallbackRatio =
     challenges.length === 0 ? 0 : completedSet.size / challenges.length;
 
+  const hydration = categoryProgress(
+    challenges,
+    completedSet,
+    HYDRATION_PATTERN,
+    fallbackRatio
+  );
+
+  const challengeVegetables = categoryProgress(
+    challenges,
+    completedSet,
+    VEGETABLES_PATTERN,
+    fallbackRatio
+  );
+  const challengeProtein = categoryProgress(
+    challenges,
+    completedSet,
+    PROTEIN_PATTERN,
+    fallbackRatio
+  );
+
   return {
-    hydration: categoryProgress(challenges, completedSet, HYDRATION_PATTERN, fallbackRatio),
-    vegetables: categoryProgress(challenges, completedSet, VEGETABLES_PATTERN, fallbackRatio),
-    protein: categoryProgress(challenges, completedSet, PROTEIN_PATTERN, fallbackRatio)
+    hydration,
+    vegetables: planNutrition.hasVegetables ? 100 : challengeVegetables,
+    protein: planNutrition.hasProtein ? 100 : challengeProtein,
+    totalKcal: planNutrition.totalKcal,
+    plannedMealCount: planNutrition.plannedMealCount,
+    planHasVegetables: planNutrition.hasVegetables,
+    planHasProtein: planNutrition.hasProtein
   };
 }

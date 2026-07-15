@@ -8,7 +8,6 @@ import { PlanRecipePickerModal } from "@/components/plan/plan-recipe-picker-moda
 import { ShoppingListModal } from "@/components/plan/shopping-list-modal";
 import { WeeklyPlanSkeleton } from "@/components/skeletons/weekly-plan-skeleton";
 import type { PlanMeal } from "@/components/plan/plan-meal-card";
-import type { PlanDay } from "@/lib/plan/types";
 import type { MealType, WeekDay } from "@/lib/plan/constants";
 import {
   assignRecipeToPlan,
@@ -19,6 +18,9 @@ import {
 } from "@/lib/plan/plan-service";
 import { buildShoppingListItems, type ShoppingListItem } from "@/lib/plan/shopping-list";
 import { fetchWeeklyPlanRecipesForShoppingList } from "@/lib/plan/shopping-list-service";
+import { summarizeDayPlanNutrition } from "@/lib/plan/plan-nutrition";
+import { clearHoyCache } from "@/lib/gamification/hoy-cache";
+import type { PlanDay, PlanDaySlots } from "@/lib/plan/types";
 import {
   addDays,
   formatWeekDateLabel,
@@ -41,6 +43,14 @@ type PickerTarget = {
 
 function resolveInitialDay(days: PlanDay[]): WeekDay {
   return days.find((day) => day.isToday)?.label ?? days[0]?.label ?? "Lunes";
+}
+
+function patchDaySlots(day: PlanDay, slots: PlanDaySlots): PlanDay {
+  return {
+    ...day,
+    slots,
+    nutrition: summarizeDayPlanNutrition(slots)
+  };
 }
 
 export function WeeklyPlanView() {
@@ -107,7 +117,13 @@ export function WeeklyPlanView() {
           : resolveInitialDay(fetchedDays)
       );
     } catch (error) {
-      console.error("[weekly-plan] Error cargando plan:", error);
+      const message =
+        error instanceof Error
+          ? error.message
+          : typeof error === "object" && error !== null && "message" in error
+            ? String((error as { message?: unknown }).message ?? "Error desconocido")
+            : "Error desconocido";
+      console.error("[weekly-plan] Error cargando plan:", message, error);
       setErrorMessage("No pudimos cargar tu plan semanal.");
       const emptyDays = buildEmptyWeekDays(anchorWeekStart);
       setDays(emptyDays);
@@ -220,16 +236,15 @@ export function WeeklyPlanView() {
       setDays((prev) =>
         prev.map((day) =>
           day.label === pickerTarget.dayLabel
-            ? {
-                ...day,
-                slots: {
-                  ...day.slots,
-                  [pickerTarget.mealType]: assigned
-                }
-              }
+            ? patchDaySlots(day, {
+                ...day.slots,
+                [pickerTarget.mealType]: assigned
+              })
             : day
         )
       );
+
+      clearHoyCache(userId);
 
       setSelectedDay(pickerTarget.dayLabel);
       setSwapNotice(`«${assigned.title}» añadida al ${pickerTarget.mealType.toLowerCase()} del ${pickerTarget.dayLabel}.`);
@@ -247,16 +262,14 @@ export function WeeklyPlanView() {
     setDays((prev) =>
       prev.map((day) =>
         day.label === dayLabel
-          ? {
-              ...day,
-              slots: {
-                ...day.slots,
-                [updatedMeal.mealType]: updatedMeal
-              }
-            }
+          ? patchDaySlots(day, {
+              ...day.slots,
+              [updatedMeal.mealType]: updatedMeal
+            })
           : day
       )
     );
+    if (userId) clearHoyCache(userId);
     setSwapNotice(`Receta intercambiada: «${updatedMeal.title}»`);
     window.setTimeout(() => setSwapNotice(null), 2800);
   };
@@ -270,16 +283,14 @@ export function WeeklyPlanView() {
     setDays((prev) =>
       prev.map((day) =>
         day.label === dayLabel
-          ? {
-              ...day,
-              slots: {
-                ...day.slots,
-                [mealType]: null
-              }
-            }
+          ? patchDaySlots(day, {
+              ...day.slots,
+              [mealType]: null
+            })
           : day
       )
     );
+    if (userId) clearHoyCache(userId);
 
     setSwapNotice(`Receta quitada del ${mealType.toLowerCase()} de ${dayLabel}.`);
     window.setTimeout(() => setSwapNotice(null), 3200);

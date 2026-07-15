@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Droplets, Leaf, Sparkles, Target, TrendingUp } from "lucide-react";
+import { Sparkles, Target, TrendingUp, Leaf } from "lucide-react";
 import { ProgressBoardCard } from "@/components/hoy/progress-board/progress-board-card";
 import { HoyProgressBoardSkeleton } from "@/components/skeletons/hoy-dashboard-skeleton";
 import {
@@ -19,6 +19,7 @@ import {
   MiniSparkline,
   StreakBadge
 } from "@/components/hoy/progress-board/progress-board-visuals";
+import { HoySectionHeader } from "@/components/hoy/hoy-section-header";
 import type { HoyPageData } from "@/lib/gamification/hoy-page-data";
 import { calculateNutritionImpact } from "@/lib/gamification/nutrition-impact";
 import type { WeeklyHealthMetrics } from "@/lib/gamification/weekly-metrics";
@@ -70,16 +71,28 @@ export function ProgressBoard({ data, isLoading = false, className }: ProgressBo
     [data, today]
   );
   const weekConsistency = useMemo(
-    () => buildWeekConsistencyDays(data?.weekCompletions ?? [], today),
-    [data?.weekCompletions, today]
+    () =>
+      buildWeekConsistencyDays(
+        data?.weekCompletions ?? [],
+        today,
+        data?.streakCompletions ?? data?.weekCompletions ?? []
+      ),
+    [data?.weekCompletions, data?.streakCompletions, today]
   );
   const nutrition = useMemo(
     () =>
       calculateNutritionImpact(
         data?.activeChallenges ?? [],
-        data?.todayCompletedIds ?? []
+        data?.todayCompletedIds ?? [],
+        data?.todayPlanNutrition ?? {
+          totalKcal: 0,
+          plannedMealCount: 0,
+          hasVegetables: false,
+          hasProtein: false,
+          hasProteinBreakfast: false
+        }
       ),
-    [data?.activeChallenges, data?.todayCompletedIds]
+    [data?.activeChallenges, data?.todayCompletedIds, data?.todayPlanNutrition]
   );
 
   const showSkeleton = isLoading && !data;
@@ -90,15 +103,14 @@ export function ProgressBoard({ data, isLoading = false, className }: ProgressBo
     percentage,
     completedToday,
     totalActiveChallenges,
-    streakDays
+    streakDays,
+    activeDaysThisWeek
   } = metrics;
 
   return (
     <>
       <section className={cn("space-y-2", className)}>
-        <p className="px-0.5 text-[10px] font-bold uppercase tracking-[0.18em] text-stone-400">
-          Tablero de progreso
-        </p>
+        <HoySectionHeader title="Tablero de progreso" />
 
         {showSkeleton ? (
           <HoyProgressBoardSkeleton showSectionLabel={false} />
@@ -155,7 +167,7 @@ export function ProgressBoard({ data, isLoading = false, className }: ProgressBo
               icon={TrendingUp}
               onClick={() => setActiveModal("streak")}
             >
-              <StreakBadge days={streakDays} />
+              <StreakBadge days={streakDays} activeDaysThisWeek={activeDaysThisWeek} />
               <ConsistencyDots days={weekConsistency} className="mt-1.5" />
             </ProgressBoardCard>
 
@@ -171,9 +183,10 @@ export function ProgressBoard({ data, isLoading = false, className }: ProgressBo
                 <MiniSemiArc value={nutrition.vegetables} color="#34d399" label="Veg." />
                 <MiniSemiArc value={nutrition.protein} color="#fbbf24" label="Prot." />
               </div>
-              <p className="mt-0.5 flex items-center gap-1 text-[9px] text-stone-400">
-                <Droplets className="h-2.5 w-2.5" />
-                Basado en tus retos de hoy
+              <p className="mt-0.5 text-[9px] text-stone-400">
+                {nutrition.totalKcal > 0
+                  ? `${nutrition.totalKcal} kcal planificadas · veg/prot. según tu plan`
+                  : "Basado en tu plan y retos de hoy"}
               </p>
             </ProgressBoardCard>
           </div>
@@ -200,6 +213,7 @@ export function ProgressBoard({ data, isLoading = false, className }: ProgressBo
         open={activeModal === "streak"}
         onClose={() => setActiveModal(null)}
         streakDays={streakDays}
+        activeDaysThisWeek={activeDaysThisWeek}
         weekDays={weekConsistency}
       />
 
@@ -209,6 +223,9 @@ export function ProgressBoard({ data, isLoading = false, className }: ProgressBo
         hydration={nutrition.hydration}
         vegetables={nutrition.vegetables}
         protein={nutrition.protein}
+        totalKcal={nutrition.totalKcal}
+        planHasVegetables={nutrition.planHasVegetables}
+        planHasProtein={nutrition.planHasProtein}
       />
     </>
   );

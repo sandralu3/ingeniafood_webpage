@@ -1,17 +1,25 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Info, Loader2, Plus, Target } from "lucide-react";
+import { Info, Loader2, Pencil, Plus, Target, Trash2 } from "lucide-react";
 import { CustomChallengeModal } from "@/components/hoy/custom-challenge-modal";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   createCustomChallenge,
+  deleteCustomChallenge,
   fetchConfigurableChallenges,
-  setRetoActiveForHoy
+  setRetoActiveForHoy,
+  updateCustomChallenge
 } from "@/lib/gamification/challenge-service";
 import { getChallengeImportanceMessage } from "@/lib/gamification/challenge-importance";
 import type { ConfigurableChallenge } from "@/lib/gamification/challenges";
+import { clearHoyCache } from "@/lib/gamification/hoy-cache";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import { cn } from "@/lib/utils";
+
+type ChallengeModalState =
+  | { mode: "create" }
+  | { mode: "edit"; challenge: ConfigurableChallenge };
 
 export function ChallengesConfigView() {
   const [challenges, setChallenges] = useState<ConfigurableChallenge[]>([]);
@@ -20,9 +28,12 @@ export function ChallengesConfigView() {
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [isCreatingChallenge, setIsCreatingChallenge] = useState(false);
-  const [createErrorMessage, setCreateErrorMessage] = useState<string | null>(null);
+  const [modalState, setModalState] = useState<ChallengeModalState | null>(null);
+  const [isSavingChallenge, setIsSavingChallenge] = useState(false);
+  const [modalErrorMessage, setModalErrorMessage] = useState<string | null>(null);
+
+  const [deleteTarget, setDeleteTarget] = useState<ConfigurableChallenge | null>(null);
+  const [isDeletingChallenge, setIsDeletingChallenge] = useState(false);
 
   const loadChallenges = useCallback(async () => {
     setIsLoading(true);
@@ -71,6 +82,7 @@ export function ChallengesConfigView() {
         retoId: challenge.id,
         active: nextActive
       });
+      clearHoyCache(userId);
     } catch (error) {
       console.error("[challenges-config] Error actualizando reto:", error);
       setChallenges((prev) =>
@@ -85,20 +97,75 @@ export function ChallengesConfigView() {
   const handleCreateChallenge = async (titulo: string) => {
     if (!userId) return;
 
-    setIsCreatingChallenge(true);
-    setCreateErrorMessage(null);
+    setIsSavingChallenge(true);
+    setModalErrorMessage(null);
 
     try {
       const created = await createCustomChallenge({ userId, titulo });
       setChallenges((prev) => [...prev, { ...created, isActive: true }]);
-      setIsCreateModalOpen(false);
+      setModalState(null);
+      clearHoyCache(userId);
     } catch (error) {
       console.error("[challenges-config] Error creando meta:", error);
-      setCreateErrorMessage(
+      setModalErrorMessage(
         error instanceof Error ? error.message : "No pudimos crear la meta. Inténtalo de nuevo."
       );
     } finally {
-      setIsCreatingChallenge(false);
+      setIsSavingChallenge(false);
+    }
+  };
+
+  const handleEditChallenge = async (titulo: string) => {
+    if (!userId || modalState?.mode !== "edit") return;
+
+    const { challenge } = modalState;
+    setIsSavingChallenge(true);
+    setModalErrorMessage(null);
+
+    try {
+      const updated = await updateCustomChallenge({
+        userId,
+        id: challenge.id,
+        titulo
+      });
+
+      setChallenges((prev) =>
+        prev.map((item) =>
+          item.id === challenge.id
+            ? { ...item, label: updated.label, points: updated.points }
+            : item
+        )
+      );
+      setModalState(null);
+      clearHoyCache(userId);
+    } catch (error) {
+      console.error("[challenges-config] Error editando meta:", error);
+      setModalErrorMessage(
+        error instanceof Error ? error.message : "No pudimos guardar los cambios. Inténtalo de nuevo."
+      );
+    } finally {
+      setIsSavingChallenge(false);
+    }
+  };
+
+  const handleDeleteChallenge = async () => {
+    if (!userId || !deleteTarget) return;
+
+    setIsDeletingChallenge(true);
+    setErrorMessage(null);
+
+    try {
+      await deleteCustomChallenge({ userId, id: deleteTarget.id });
+      setChallenges((prev) => prev.filter((item) => item.id !== deleteTarget.id));
+      setDeleteTarget(null);
+      clearHoyCache(userId);
+    } catch (error) {
+      console.error("[challenges-config] Error eliminando meta:", error);
+      setErrorMessage(
+        error instanceof Error ? error.message : "No pudimos eliminar la meta. Inténtalo de nuevo."
+      );
+    } finally {
+      setIsDeletingChallenge(false);
     }
   };
 
@@ -164,11 +231,16 @@ export function ChallengesConfigView() {
               {customChallenges.length > 0 ? (
                 <ChallengeSection
                   title="Tus metas personalizadas"
-                  subtitle="Creadas por ti"
+                  subtitle="Creadas por ti · puedes editarlas o eliminarlas"
                   challenges={customChallenges}
                   pendingId={pendingId}
                   disabled={!userId}
                   onToggle={(challenge) => void toggleActive(challenge)}
+                  onEdit={(challenge) => {
+                    setModalErrorMessage(null);
+                    setModalState({ mode: "edit", challenge });
+                  }}
+                  onDelete={(challenge) => setDeleteTarget(challenge)}
                 />
               ) : null}
 
@@ -179,8 +251,8 @@ export function ChallengesConfigView() {
                     setErrorMessage("Inicia sesión para crear metas personalizadas.");
                     return;
                   }
-                  setCreateErrorMessage(null);
-                  setIsCreateModalOpen(true);
+                  setModalErrorMessage(null);
+                  setModalState({ mode: "create" });
                 }}
                 disabled={isLoading}
                 className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-stone-300/80 bg-stone-50/60 px-3 py-2 text-xs font-medium text-stone-500 transition hover:border-[#556B2F]/30 hover:text-[#3e5219] disabled:opacity-60"
@@ -194,15 +266,43 @@ export function ChallengesConfigView() {
       </div>
 
       <CustomChallengeModal
-        open={isCreateModalOpen}
-        isSaving={isCreatingChallenge}
-        errorMessage={createErrorMessage}
+        open={modalState !== null}
+        mode={modalState?.mode ?? "create"}
+        initialTitulo={modalState?.mode === "edit" ? modalState.challenge.label : ""}
+        isSaving={isSavingChallenge}
+        errorMessage={modalErrorMessage}
         onClose={() => {
-          if (isCreatingChallenge) return;
-          setIsCreateModalOpen(false);
-          setCreateErrorMessage(null);
+          if (isSavingChallenge) return;
+          setModalState(null);
+          setModalErrorMessage(null);
         }}
-        onSubmit={(titulo) => void handleCreateChallenge(titulo)}
+        onSubmit={(titulo) => {
+          if (modalState?.mode === "edit") {
+            void handleEditChallenge(titulo);
+            return;
+          }
+          void handleCreateChallenge(titulo);
+        }}
+      />
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open && !isDeletingChallenge) {
+            setDeleteTarget(null);
+          }
+        }}
+        title="Eliminar meta personalizada"
+        description={
+          deleteTarget
+            ? `¿Seguro que quieres eliminar "${deleteTarget.label}"? Se quitará de Hoy y se borrará su historial de cumplimiento.`
+            : undefined
+        }
+        confirmLabel="Eliminar meta"
+        cancelLabel="Cancelar"
+        destructive
+        isLoading={isDeletingChallenge}
+        onConfirm={() => void handleDeleteChallenge()}
       />
     </>
   );
@@ -214,7 +314,9 @@ function ChallengeSection({
   challenges,
   pendingId,
   disabled,
-  onToggle
+  onToggle,
+  onEdit,
+  onDelete
 }: {
   title: string;
   subtitle: string;
@@ -222,6 +324,8 @@ function ChallengeSection({
   pendingId: string | null;
   disabled: boolean;
   onToggle: (challenge: ConfigurableChallenge) => void;
+  onEdit?: (challenge: ConfigurableChallenge) => void;
+  onDelete?: (challenge: ConfigurableChallenge) => void;
 }) {
   const [focusedChallengeId, setFocusedChallengeId] = useState<string | null>(null);
 
@@ -241,6 +345,7 @@ function ChallengeSection({
         {challenges.map((challenge) => {
           const isPending = pendingId === challenge.id;
           const isFocused = focusedChallengeId === challenge.id;
+          const canManage = Boolean(onEdit && onDelete);
 
           return (
             <li
@@ -297,6 +402,29 @@ function ChallengeSection({
                     </span>
                   )}
                 </button>
+
+                {canManage ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => onEdit?.(challenge)}
+                      disabled={disabled || Boolean(pendingId)}
+                      className="shrink-0 rounded-full p-1 text-stone-400 transition-colors hover:bg-white hover:text-[#556B2F] disabled:opacity-50"
+                      aria-label={`Editar meta: ${challenge.label}`}
+                    >
+                      <Pencil className="h-3 w-3" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onDelete?.(challenge)}
+                      disabled={disabled || Boolean(pendingId)}
+                      className="shrink-0 rounded-full p-1 text-stone-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                      aria-label={`Eliminar meta: ${challenge.label}`}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </>
+                ) : null}
 
                 <button
                   type="button"

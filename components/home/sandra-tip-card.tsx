@@ -12,6 +12,7 @@ import {
   type HealthyTip
 } from "@/lib/content/tips-cache";
 import { createSupabaseClient } from "@/lib/supabaseClient";
+import { HoySectionHeader } from "@/components/hoy/hoy-section-header";
 import { cn } from "@/lib/utils";
 
 type SandraTipCardProps = {
@@ -149,111 +150,113 @@ export function SandraTipCard({ variant = "default", className }: SandraTipCardP
 
   const isHoyVariant = variant === "hoy";
 
+  const adminAddButton = isAdmin ? (
+    <button
+      type="button"
+      onClick={handleOpenAddModal}
+      className={cn(
+        "inline-flex shrink-0 items-center gap-1 rounded-full border border-[#556B2F]/20 bg-white/80 text-[#556B2F] shadow-sm transition hover:border-[#556B2F]/35 hover:bg-white",
+        isHoyVariant
+          ? "px-2 py-0.5 text-[10px] font-semibold"
+          : "px-2.5 py-1 text-[11px] font-medium"
+      )}
+      aria-label="Añadir tip saludable"
+    >
+      <Plus className={cn(isHoyVariant ? "h-3 w-3" : "h-3.5 w-3.5")} strokeWidth={2} />
+      Añadir Tip
+    </button>
+  ) : null;
+
+  const tipBody = (
+    <>
+      {isLoading ? (
+        <div
+          className={cn(
+            "flex items-center gap-1.5 text-stone-500",
+            isHoyVariant ? "text-xs" : "mt-4 text-sm"
+          )}
+        >
+          <Loader2 className="h-3.5 w-3.5 animate-spin text-[#556B2F]" />
+          {isHoyVariant ? "Cargando consejo del día..." : "Cargando tip del día..."}
+        </div>
+      ) : (
+        <div className={isHoyVariant ? undefined : "mt-4"}>
+          {loadError ? (
+            <p
+              className={cn(
+                "text-red-700",
+                isHoyVariant ? "text-xs leading-relaxed" : "text-sm leading-7"
+              )}
+            >
+              {isHoyVariant ? "No pudimos cargar el consejo del día." : loadError}
+            </p>
+          ) : (
+            <p
+              className={cn(
+                isHoyVariant
+                  ? "text-xs leading-relaxed text-stone-700"
+                  : "text-sm leading-7 text-stone-700"
+              )}
+            >
+              {displayContent}
+            </p>
+          )}
+        </div>
+      )}
+
+      {isAdmin && loadError ? (
+        <button
+          type="button"
+          onClick={handleRefreshTips}
+          className="mt-2 text-[10px] font-medium text-[#556B2F] underline-offset-2 hover:underline"
+        >
+          Reintentar carga
+        </button>
+      ) : null}
+    </>
+  );
+
   return (
     <>
-      <aside
-        className={cn(
-          isHoyVariant
-            ? "rounded-2xl bg-gradient-to-br from-[#EEF4E6] via-white to-[#dce7c3]/50 p-3 shadow-sm shadow-[#556B2F]/5"
-            : "relative rounded-2xl border border-brand-green-light/30 bg-brand-green-light/10 px-5 py-6 shadow-sm",
-          className
-        )}
-      >
-        <div className="flex items-start justify-between gap-2.5">
-          <div className="min-w-0 flex-1">
-            {isHoyVariant ? (
-              <div className="flex items-start gap-2">
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white text-[#556B2F] shadow-sm">
-                  <Lightbulb className="h-3.5 w-3.5" strokeWidth={1.75} />
-                </span>
-                <div className="min-w-0">
-                  <h3 className="text-sm font-semibold leading-tight text-stone-900">
-                    Consejo del día
-                  </h3>
-                  {hasTips ? (
-                    <p className="mt-0.5 text-[11px] leading-snug text-stone-500">
-                      Un impulso saludable para hoy
-                    </p>
-                  ) : null}
-                </div>
-              </div>
-            ) : (
-              <>
-                <h3 className="font-serif text-base font-semibold text-brand-green-dark">
-                  💡 El Tip de Sandra
-                </h3>
-                {hasTips ? (
-                  <p className="mt-0.5 text-[11px] font-medium uppercase tracking-wide text-stone-400">
-                    Tu tip del día
-                  </p>
-                ) : null}
-              </>
-            )}
+      {isHoyVariant ? (
+        <section className={cn("space-y-2", className)}>
+          <HoySectionHeader
+            title="Consejo del día"
+            subtitle={hasTips ? "Un impulso saludable para hoy" : undefined}
+            action={adminAddButton}
+          />
+          <aside className="rounded-2xl bg-gradient-to-br from-[#EEF4E6] via-white to-[#dce7c3]/50 p-3 shadow-sm shadow-[#556B2F]/5">
+            <div className="flex items-start gap-2">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white text-[#556B2F] shadow-sm">
+                <Lightbulb className="h-3.5 w-3.5" strokeWidth={1.75} />
+              </span>
+              <div className="min-w-0 flex-1">{tipBody}</div>
+            </div>
+          </aside>
+        </section>
+      ) : (
+        <aside
+          className={cn(
+            "relative rounded-2xl border border-brand-green-light/30 bg-brand-green-light/10 px-5 py-6 shadow-sm",
+            className
+          )}
+        >
+          <div className="flex items-start justify-between gap-2.5">
+            <div className="min-w-0 flex-1">
+              <h3 className="font-serif text-base font-semibold text-brand-green-dark">
+                💡 El Tip de Sandra
+              </h3>
+              {hasTips ? (
+                <p className="mt-0.5 text-[11px] font-medium uppercase tracking-wide text-stone-400">
+                  Tu tip del día
+                </p>
+              ) : null}
+            </div>
+            {adminAddButton}
           </div>
-
-          {isAdmin ? (
-            <button
-              type="button"
-              onClick={handleOpenAddModal}
-              className={cn(
-                "inline-flex shrink-0 items-center gap-1 rounded-full border border-[#556B2F]/20 bg-white/80 text-[#556B2F] shadow-sm transition hover:border-[#556B2F]/35 hover:bg-white",
-                isHoyVariant
-                  ? "px-2 py-0.5 text-[10px] font-semibold"
-                  : "px-2.5 py-1 text-[11px] font-medium"
-              )}
-              aria-label="Añadir tip saludable"
-            >
-              <Plus className={cn(isHoyVariant ? "h-3 w-3" : "h-3.5 w-3.5")} strokeWidth={2} />
-              Añadir Tip
-            </button>
-          ) : null}
-        </div>
-
-        {isLoading ? (
-          <div
-            className={cn(
-              "flex items-center gap-1.5 text-stone-500",
-              isHoyVariant ? "mt-2.5 text-xs" : "mt-4 text-sm"
-            )}
-          >
-            <Loader2 className="h-3.5 w-3.5 animate-spin text-[#556B2F]" />
-            {isHoyVariant ? "Cargando consejo del día..." : "Cargando tip del día..."}
-          </div>
-        ) : (
-          <div className={isHoyVariant ? "mt-2.5" : "mt-4"}>
-            {loadError ? (
-              <p
-                className={cn(
-                  "text-red-700",
-                  isHoyVariant ? "pl-9 text-xs leading-relaxed" : "text-sm leading-7"
-                )}
-              >
-                {isHoyVariant ? "No pudimos cargar el consejo del día." : loadError}
-              </p>
-            ) : (
-              <p
-                className={cn(
-                  isHoyVariant
-                    ? "pl-9 text-xs leading-relaxed text-stone-700"
-                    : "text-sm leading-7 text-stone-700"
-                )}
-              >
-                {displayContent}
-              </p>
-            )}
-          </div>
-        )}
-
-        {isAdmin && loadError ? (
-          <button
-            type="button"
-            onClick={handleRefreshTips}
-            className="mt-2 text-[10px] font-medium text-[#556B2F] underline-offset-2 hover:underline"
-          >
-            Reintentar carga
-          </button>
-        ) : null}
-      </aside>
+          {tipBody}
+        </aside>
+      )}
 
       {isAdmin && showAddModal ? (
         <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/40 px-4 backdrop-blur-[2px]">

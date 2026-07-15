@@ -8,9 +8,14 @@ import {
 } from "@/lib/plan/week-utils";
 import type { PlanDay, PlanDaySlots } from "@/lib/plan/types";
 import type { PlanMeal } from "@/components/plan/plan-meal-card";
-import type { Database } from "@/types/database.types";
+import type { Database, Json } from "@/types/database.types";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import { pickRandomRecipe } from "@/lib/plan/match-meal-type";
+import {
+  enrichPlanMealWithNutrition,
+  EMPTY_DAY_PLAN_NUTRITION,
+  summarizeDayPlanNutrition
+} from "@/lib/plan/plan-nutrition";
 
 type PlanRow = Database["public"]["Tables"]["plan_semanal"]["Row"];
 type RecipeRow = Database["public"]["Tables"]["recipes"]["Row"];
@@ -27,12 +32,37 @@ export type RecipePickerItem = Pick<
   | "created_at"
 >;
 
-type PlanRowWithRecipe = PlanRow & {
-  recipes: Pick<
-    RecipeRow,
-    "id" | "title" | "image_url" | "instagram_url" | "cooking_time" | "is_airfryer" | "is_flourless"
-  > | null;
+type PlanRecipeBase = Pick<
+  RecipeRow,
+  | "id"
+  | "title"
+  | "image_url"
+  | "instagram_url"
+  | "cooking_time"
+  | "is_airfryer"
+  | "is_flourless"
+>;
+
+type PlanRecipeNutrition = Pick<
+  RecipeRow,
+  "id" | "title" | "macros" | "ingredients" | "is_airfryer" | "is_flourless"
+> & {
+  tags?: Json | null;
 };
+
+type PlanRowWithRecipe = PlanRow & {
+  recipes: (PlanRecipeBase & Partial<PlanRecipeNutrition>) | null;
+};
+
+const PLAN_BASE_RECIPE_FIELDS = `
+    id,
+    title,
+    image_url,
+    instagram_url,
+    cooking_time,
+    is_airfryer,
+    is_flourless
+  `;
 
 const PLAN_SELECT = `
   id,
@@ -42,15 +72,7 @@ const PLAN_SELECT = `
   tipo_comida,
   recipe_id,
   created_at,
-  recipes (
-    id,
-    title,
-    image_url,
-    instagram_url,
-    cooking_time,
-    is_airfryer,
-    is_flourless
-  )
+  recipes (${PLAN_BASE_RECIPE_FIELDS})
 `;
 
 function emptySlots(): PlanDaySlots {
@@ -63,9 +85,83 @@ function mapMealType(value: string): MealType {
   return "Almuerzo";
 }
 
+function isMissingColumnError(error: { code?: string; message?: string } | null): boolean {
+  return error?.code === "42703" || error?.code === "PGRST204";
+}
+
+async function fetchRecipeNutritionByIds(
+  recipeIds: string[]
+): Promise<Map<string, PlanRecipeNutrition>> {
+  if (!recipeIds.length) return new Map();
+
+  const supabase = createSupabaseClient();
+
+  const full = await supabase
+    .from("recipes")
+    .select("id, title, macros, ingredients, tags, is_airfryer, is_flourless")
+    .in("id", recipeIds);
+
+  if (!full.error) {
+    return new Map((full.data ?? []).map((row) => [row.id, row as PlanRecipeNutrition]));
+  }
+
+  if (isMissingColumnError(full.error)) {
+    const withoutTags = await supabase
+      .from("recipes")
+      .select("id, title, macros, ingredients, is_airfryer, is_flourless")
+      .in("id", recipeIds);
+
+    if (!withoutTags.error) {
+      return new Map((withoutTags.data ?? []).map((row) => [row.id, row as PlanRecipeNutrition]));
+    }
+
+    if (isMissingColumnError(withoutTags.error)) {
+      const ingredientsOnly = await supabase
+        .from("recipes")
+        .select("id, title, ingredients, is_airfryer, is_flourless")
+        .in("id", recipeIds);
+
+      if (!ingredientsOnly.error) {
+        return new Map(
+          (ingredientsOnly.data ?? []).map((row) => [row.id, row as PlanRecipeNutrition])
+        );
+      }
+    }
+
+    console.warn(
+      "[plan] No se pudieron cargar campos nutricionales de recetas:",
+      withoutTags.error?.message ?? full.error.message
+    );
+    return new Map();
+  }
+
+  console.warn("[plan] No se pudieron cargar campos nutricionales de recetas:", full.error.message);
+  return new Map();
+}
+
+async function enrichPlanRowsWithNutrition(rows: PlanRowWithRecipe[]): Promise<PlanRowWithRecipe[]> {
+  const recipeIds = Array.from(new Set(rows.map((row) => row.recipe_id).filter(Boolean)));
+  const nutritionById = await fetchRecipeNutritionByIds(recipeIds);
+
+  if (!nutritionById.size) return rows;
+
+  return rows.map((row) => {
+    const nutrition = nutritionById.get(row.recipe_id);
+    if (!row.recipes || !nutrition) return row;
+
+    return {
+      ...row,
+      recipes: {
+        ...row.recipes,
+        ...nutrition
+      }
+    };
+  });
+}
+
 function toPlanMeal(row: PlanRowWithRecipe): PlanMeal {
   const recipe = row.recipes;
-  return {
+  const baseMeal: PlanMeal = {
     id: row.id,
     recipeId: row.recipe_id,
     title: recipe?.title ?? "Receta sin título",
@@ -73,10 +169,27 @@ function toPlanMeal(row: PlanRowWithRecipe): PlanMeal {
     imageUrl: recipe?.image_url ?? null,
     instagramUrl: recipe?.instagram_url ?? null,
     isSocialVideo: Boolean(recipe?.instagram_url && !recipe?.image_url),
+    prepMinutes: recipe?.cooking_time ?? undefined,
     calories: recipe?.cooking_time ?? undefined,
     isAirfryer: recipe?.is_airfryer ?? false,
     isFlourless: recipe?.is_flourless ?? false
   };
+
+  if (!recipe) return baseMeal;
+
+  try {
+    return enrichPlanMealWithNutrition(baseMeal, {
+      ingredients: recipe.ingredients,
+      macros: recipe.macros,
+      tags: recipe.tags,
+      is_airfryer: recipe.is_airfryer,
+      is_flourless: recipe.is_flourless,
+      title: recipe.title
+    });
+  } catch (error) {
+    console.warn("[plan] Error analizando nutrición de receta:", recipe.id, error);
+    return baseMeal;
+  }
 }
 
 export function buildEmptyWeekDays(weekStart: Date): PlanDay[] {
@@ -88,7 +201,8 @@ export function buildEmptyWeekDays(weekStart: Date): PlanDay[] {
       label,
       dateLabel: formatWeekDateLabel(date),
       isToday: isSameCalendarDay(date, today),
-      slots: emptySlots()
+      slots: emptySlots(),
+      nutrition: EMPTY_DAY_PLAN_NUTRITION
     };
   });
 }
@@ -112,7 +226,8 @@ export function groupPlanRowsIntoDays(rows: PlanRowWithRecipe[], weekStart: Date
       label,
       dateLabel: formatWeekDateLabel(date),
       isToday: isSameCalendarDay(date, today),
-      slots
+      slots,
+      nutrition: summarizeDayPlanNutrition(slots)
     };
   });
 }
@@ -138,7 +253,7 @@ export async function fetchWeeklyPlan(
     throw error;
   }
 
-  const rows = (data ?? []) as PlanRowWithRecipe[];
+  const rows = await enrichPlanRowsWithNutrition((data ?? []) as PlanRowWithRecipe[]);
   return {
     weekStart: semanaInicio,
     days: groupPlanRowsIntoDays(rows, weekStart)
@@ -211,7 +326,8 @@ export async function assignRecipeToPlan(params: {
     return null;
   }
 
-  return toPlanMeal(data as PlanRowWithRecipe);
+  const [enrichedRow] = await enrichPlanRowsWithNutrition([data as PlanRowWithRecipe]);
+  return toPlanMeal(enrichedRow);
 }
 
 export async function swapPlanMeal(params: {
@@ -249,7 +365,8 @@ export async function swapPlanMeal(params: {
     return null;
   }
 
-  return toPlanMeal(updated as PlanRowWithRecipe);
+  const [enrichedRow] = await enrichPlanRowsWithNutrition([updated as PlanRowWithRecipe]);
+  return toPlanMeal(enrichedRow);
 }
 
 export async function removePlanMeal(params: {

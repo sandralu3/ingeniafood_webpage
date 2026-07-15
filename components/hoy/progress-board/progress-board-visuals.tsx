@@ -112,14 +112,22 @@ export function ConsistencyDots({ days, className }: ConsistencyDotsProps) {
           <span
             className={cn(
               "flex h-4 w-4 items-center justify-center rounded-full border text-[8px] font-bold transition-colors",
-              day.completed
+              day.inCurrentStreak
                 ? "border-orange-300 bg-orange-100 text-orange-700"
-                : "border-stone-200 bg-stone-50 text-stone-300",
-              day.isToday && "ring-2 ring-orange-200/80 ring-offset-1"
+                : day.active
+                  ? "border-stone-300 bg-stone-100 text-stone-500"
+                  : "border-stone-200 bg-stone-50 text-stone-300",
+              day.isToday && day.inCurrentStreak && "ring-2 ring-orange-200/80 ring-offset-1"
             )}
-            aria-label={`${day.label}${day.completed ? " completado" : " pendiente"}`}
+            aria-label={`${day.label}${
+              day.inCurrentStreak
+                ? " en racha"
+                : day.active
+                  ? " activo sin racha"
+                  : " pendiente"
+            }`}
           >
-            {day.completed ? <Check className="h-2 w-2" strokeWidth={3} /> : null}
+            {day.active ? <Check className="h-2 w-2" strokeWidth={3} /> : null}
           </span>
           <span className="text-[8px] font-medium text-stone-400">{day.label}</span>
         </div>
@@ -163,14 +171,27 @@ export function MiniSparkline({ values, className }: MiniSparklineProps) {
   );
 }
 
-export function StreakBadge({ days }: { days: number }) {
+export function StreakBadge({
+  days,
+  activeDaysThisWeek
+}: {
+  days: number;
+  activeDaysThisWeek?: number;
+}) {
   return (
-    <div className="flex items-baseline gap-1">
-      <Flame className="h-3.5 w-3.5 shrink-0 text-orange-500" />
-      <span className={METRIC_NUMBER_CLASS}>{days}</span>
-      <span className="text-[10px] font-medium text-stone-500">
-        día{days === 1 ? "" : "s"}
-      </span>
+    <div className="space-y-1">
+      <div className="flex items-baseline gap-1">
+        <Flame className="h-3.5 w-3.5 shrink-0 text-orange-500" />
+        <span className={METRIC_NUMBER_CLASS}>{days}</span>
+        <span className="text-[10px] font-medium text-stone-500">
+          día{days === 1 ? "" : "s"} seguidos
+        </span>
+      </div>
+      {typeof activeDaysThisWeek === "number" && activeDaysThisWeek > days ? (
+        <p className="text-[9px] text-stone-400">
+          {activeDaysThisWeek} activos esta semana
+        </p>
+      ) : null}
     </div>
   );
 }

@@ -22,12 +22,14 @@ import { getChallengeImportanceMessage } from "@/lib/gamification/challenge-impo
 import type { DailyChallenge } from "@/lib/gamification/challenges";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
 import { ChallengeRowSkeleton } from "@/components/skeletons/hoy-dashboard-skeleton";
+import { HoySection } from "@/components/hoy/hoy-section-header";
 import { cn } from "@/lib/utils";
 
 type DailyChallengesProps = {
   userId: string | null;
   challenges: DailyChallenge[];
   completedIds: string[];
+  planSyncedChallengeIds?: string[];
   isLoading?: boolean;
   onDataChange?: () => void;
   className?: string;
@@ -49,6 +51,7 @@ export function DailyChallenges({
   userId,
   challenges,
   completedIds,
+  planSyncedChallengeIds = [],
   isLoading = false,
   onDataChange,
   className
@@ -105,25 +108,18 @@ export function DailyChallenges({
   const showSkeleton = isLoading && challenges.length === 0;
 
   return (
-    <section
-      className={cn(
-        "rounded-2xl bg-white/90 px-2.5 py-2 shadow-sm shadow-stone-100/30",
-        className
-      )}
-    >
-      <div className="mb-1.5 flex items-center justify-between gap-2">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-            <h2 className="font-serif text-sm font-semibold text-stone-900">Retos del día</h2>
-            {!showSkeleton && challenges.length > 0 ? (
-              <span className="text-[11px] text-stone-500">
-                {completedCount}/{challenges.length}
-              </span>
-            ) : null}
-          </div>
-        </div>
-
-        <div className="flex shrink-0 items-center gap-2">
+    <HoySection
+      className={className}
+      title="Retos del día"
+      meta={
+        !showSkeleton && challenges.length > 0 ? (
+          <span className="text-[11px] font-medium normal-case tracking-normal text-stone-500">
+            {completedCount}/{challenges.length}
+          </span>
+        ) : null
+      }
+      action={
+        <>
           {challenges.length > 0 ? (
             <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-900">
               +{pointsToday} pts
@@ -135,9 +131,9 @@ export function DailyChallenges({
           >
             Editar
           </Link>
-        </div>
-      </div>
-
+        </>
+      }
+    >
       {errorMessage ? (
         <p role="alert" className="mb-2 rounded-xl bg-red-50 px-2.5 py-1.5 text-[11px] text-red-700">
           {errorMessage}
@@ -174,6 +170,7 @@ export function DailyChallenges({
             const isDone = Boolean(completed[challenge.id]);
             const isPending = pendingId === challenge.id;
             const isFocused = focusedChallengeId === challenge.id;
+            const isPlanSynced = planSyncedChallengeIds.includes(challenge.id);
             const ChallengeIcon = resolveChallengeIcon(challenge.label);
 
             return (
@@ -224,6 +221,11 @@ export function DailyChallenges({
                           · Propio
                         </span>
                       ) : null}
+                      {isPlanSynced ? (
+                        <span className="ml-1 text-[9px] font-semibold uppercase text-[#556B2F]">
+                          · Plan
+                        </span>
+                      ) : null}
                     </span>
 
                     <span
@@ -267,6 +269,6 @@ export function DailyChallenges({
           })}
         </ul>
       ) : null}
-    </section>
+    </HoySection>
   );
 }

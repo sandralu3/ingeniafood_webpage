@@ -88,26 +88,21 @@ export function ChallengeRowSkeleton() {
 
 export function HoyDailyChallengesSkeleton({ className }: { className?: string }) {
   return (
-    <section
-      className={cn(
-        "rounded-2xl bg-white/90 px-2.5 py-2 shadow-sm shadow-stone-100/30",
-        className
-      )}
-      aria-hidden
-    >
-      <div className="mb-1.5 flex items-center justify-between gap-2">
-        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-          <Skeleton silent className="h-4 w-24 rounded-md" />
-          <Skeleton silent className="h-3 w-8 rounded-md" />
+    <section className={cn("space-y-2", className)} aria-hidden>
+      <div className="flex items-start justify-between gap-2 px-0.5">
+        <Skeleton silent className="h-2.5 w-24 rounded" />
+        <div className="flex items-center gap-2">
+          <Skeleton silent className="h-4 w-10 rounded-full" />
+          <Skeleton silent className="h-3 w-10 rounded-md" />
         </div>
-        <Skeleton silent className="h-3 w-10 rounded-md" />
       </div>
-
-      <ul className="space-y-1">
-        {Array.from({ length: 5 }).map((_, index) => (
-          <ChallengeRowSkeleton key={index} />
-        ))}
-      </ul>
+      <div className="rounded-2xl bg-white/90 px-2.5 py-2 shadow-sm shadow-stone-100/30">
+        <ul className="space-y-1">
+          {Array.from({ length: 5 }).map((_, index) => (
+            <ChallengeRowSkeleton key={index} />
+          ))}
+        </ul>
+      </div>
     </section>
   );
 }

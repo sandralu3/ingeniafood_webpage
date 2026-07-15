@@ -47,6 +47,9 @@ export function PlanDayMealsPanel({
 
         <span className="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-900">
           {assignedCount}/{MEAL_TYPES.length}
+          {day.nutrition.totalKcal > 0 ? (
+            <span className="ml-1 text-orange-800">· {day.nutrition.totalKcal} kcal</span>
+          ) : null}
         </span>
       </div>
 

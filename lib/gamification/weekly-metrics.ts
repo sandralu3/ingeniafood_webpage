@@ -46,11 +46,11 @@ function countActiveDaysInWeek(
   return days.size;
 }
 
-function calculateStreakDays(
-  completions: WeekCompletionRow[],
+function getConsecutiveStreakDates(
+  completions: Array<{ completado_at: string }>,
   today: string,
   lookbackDays = 30
-): number {
+): string[] {
   const daysWithActivity = new Set(completions.map((row) => row.completado_at));
   const cursor = new Date(`${today}T12:00:00`);
 
@@ -60,7 +60,7 @@ function calculateStreakDays(
     cursor.setDate(cursor.getDate() - 1);
   }
 
-  let streak = 0;
+  const streakDates: string[] = [];
 
   for (let index = 0; index < lookbackDays; index += 1) {
     const iso = toISODateString(cursor);
@@ -68,11 +68,29 @@ function calculateStreakDays(
       break;
     }
 
-    streak += 1;
+    streakDates.push(iso);
     cursor.setDate(cursor.getDate() - 1);
   }
 
-  return streak;
+  return streakDates;
+}
+
+function calculateStreakDays(
+  completions: Array<{ completado_at: string }>,
+  today: string,
+  lookbackDays = 30
+): number {
+  return getConsecutiveStreakDates(completions, today, lookbackDays).length;
+}
+
+export function getCurrentStreakDateSet(
+  completions: Array<{ completado_at: string }>,
+  today: string,
+  lookbackDays = 30
+): Set<string> {
+  return new Set(
+    getConsecutiveStreakDates(completions, today, lookbackDays)
+  );
 }
 
 export function calculateWeeklyHealthMetrics(params: {

@@ -3,10 +3,19 @@ import type { MealType, WeekDay } from "@/lib/plan/constants";
 
 export type PlanDaySlots = Record<MealType, PlanMeal | null>;
 
+export type PlanDayNutritionSummary = {
+  totalKcal: number;
+  plannedMealCount: number;
+  hasVegetables: boolean;
+  hasProtein: boolean;
+  hasProteinBreakfast: boolean;
+};
+
 export type PlanDay = {
   id: string;
   label: WeekDay;
   dateLabel: string;
   isToday?: boolean;
   slots: PlanDaySlots;
+  nutrition: PlanDayNutritionSummary;
 };

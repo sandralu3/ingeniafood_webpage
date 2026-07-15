@@ -97,6 +97,16 @@ export function PlanDayCarousel({
               >
                 {assignedCount}/3
               </span>
+              {day.nutrition.totalKcal > 0 ? (
+                <span
+                  className={cn(
+                    "text-[8px] font-semibold tabular-nums",
+                    isSelected ? "text-orange-700" : "text-stone-400"
+                  )}
+                >
+                  {day.nutrition.totalKcal} kcal
+                </span>
+              ) : null}
               {day.isToday ? (
                 <span
                   className={cn(

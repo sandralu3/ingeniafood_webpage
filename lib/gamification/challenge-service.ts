@@ -259,6 +259,109 @@ export async function createCustomChallenge(params: {
   return created;
 }
 
+export async function updateCustomChallenge(params: {
+  userId: string;
+  id: string;
+  titulo: string;
+  puntos?: number;
+}): Promise<DailyChallenge> {
+  const supabase = createSupabaseClient();
+  const titulo = params.titulo.trim();
+
+  if (!titulo) {
+    throw new Error("El título de la meta no puede estar vacío.");
+  }
+
+  if (!(await isCustomChallengesAvailable(supabase))) {
+    throw new Error(CUSTOM_CHALLENGES_MIGRATION_MESSAGE);
+  }
+
+  const payload: { titulo: string; puntos?: number } = { titulo };
+  if (typeof params.puntos === "number") {
+    payload.puntos = params.puntos;
+  }
+
+  const { data, error } = await supabase
+    .from("retos_personalizados")
+    .update(payload)
+    .eq("user_id", params.userId)
+    .eq("id", params.id)
+    .select("id, titulo, puntos")
+    .maybeSingle();
+
+  if (error) {
+    console.error("[gamification] Error actualizando reto personalizado:", error);
+    throw error;
+  }
+
+  if (!data) {
+    throw new Error("Meta personalizada no encontrada.");
+  }
+
+  return mapCustomChallenge(data);
+}
+
+export async function deleteCustomChallenge(params: {
+  userId: string;
+  id: string;
+}): Promise<void> {
+  const supabase = createSupabaseClient();
+
+  if (!(await isCustomChallengesAvailable(supabase))) {
+    throw new Error(CUSTOM_CHALLENGES_MIGRATION_MESSAGE);
+  }
+
+  const { data: existing, error: fetchError } = await supabase
+    .from("retos_personalizados")
+    .select("id")
+    .eq("user_id", params.userId)
+    .eq("id", params.id)
+    .maybeSingle();
+
+  if (fetchError) {
+    console.error("[gamification] Error verificando reto personalizado:", fetchError);
+    throw fetchError;
+  }
+
+  if (!existing) {
+    throw new Error("Meta personalizada no encontrada.");
+  }
+
+  const { error: activeError } = await supabase
+    .from("retos_hoy_activos")
+    .delete()
+    .eq("user_id", params.userId)
+    .eq("reto_id", params.id);
+
+  if (activeError) {
+    console.error("[gamification] Error limpiando reto activo:", activeError);
+    throw activeError;
+  }
+
+  const table = await resolveCompletionsTable(supabase);
+  const { error: completionsError } = await supabase
+    .from(table)
+    .delete()
+    .eq("user_id", params.userId)
+    .eq("reto_id", params.id);
+
+  if (completionsError) {
+    console.error("[gamification] Error limpiando completados del reto:", completionsError);
+    throw completionsError;
+  }
+
+  const { error } = await supabase
+    .from("retos_personalizados")
+    .delete()
+    .eq("user_id", params.userId)
+    .eq("id", params.id);
+
+  if (error) {
+    console.error("[gamification] Error eliminando reto personalizado:", error);
+    throw error;
+  }
+}
+
 export async function fetchTodayCompletedChallengeIds(userId: string): Promise<string[]> {
   const supabase = createSupabaseClient();
   const today = getTodayDateString();

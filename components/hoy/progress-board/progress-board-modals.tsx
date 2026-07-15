@@ -222,13 +222,21 @@ type StreakCalendarModalProps = {
   open: boolean;
   onClose: () => void;
   streakDays: number;
-  weekDays: Array<{ label: string; isoDate: string; completed: boolean; isToday: boolean }>;
+  activeDaysThisWeek: number;
+  weekDays: Array<{
+    label: string;
+    isoDate: string;
+    active: boolean;
+    inCurrentStreak: boolean;
+    isToday: boolean;
+  }>;
 };
 
 export function StreakCalendarModal({
   open,
   onClose,
   streakDays,
+  activeDaysThisWeek,
   weekDays
 }: StreakCalendarModalProps) {
   return (
@@ -239,15 +247,22 @@ export function StreakCalendarModal({
       title="Calendario de consistencia"
       description={
         streakDays > 0
-          ? `Vas ${streakDays} día${streakDays === 1 ? "" : "s"} seguidos cumpliendo al menos un reto. Completa uno hoy para mantenerla.`
+          ? `Llevas ${streakDays} día${streakDays === 1 ? "" : "s"} seguidos cumpliendo al menos un reto. Si saltas un día, la racha se reinicia.`
           : "Completa un reto hoy para empezar tu racha."
       }
     >
       <div className="mb-4 flex items-center gap-3 rounded-2xl bg-orange-50 px-4 py-3">
         <p className="font-serif text-3xl font-bold text-orange-900">{streakDays}</p>
-        <p className="text-sm text-orange-800/90">
-          día{streakDays === 1 ? "" : "s"} de racha activa
-        </p>
+        <div>
+          <p className="text-sm text-orange-800/90">
+            día{streakDays === 1 ? "" : "s"} seguidos
+          </p>
+          {activeDaysThisWeek > streakDays ? (
+            <p className="text-xs text-orange-700/80">
+              {activeDaysThisWeek} días activos esta semana
+            </p>
+          ) : null}
+        </div>
       </div>
 
       <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.12em] text-stone-400">
@@ -259,26 +274,36 @@ export function StreakCalendarModal({
             key={day.isoDate}
             className={cn(
               "flex flex-col items-center gap-1 rounded-2xl border px-1 py-2",
-              day.completed
+              day.inCurrentStreak
                 ? "border-orange-200 bg-orange-50"
-                : "border-stone-100 bg-stone-50/80",
-              day.isToday && "ring-2 ring-[#556B2F]/20"
+                : day.active
+                  ? "border-stone-200 bg-stone-50/80"
+                  : "border-stone-100 bg-stone-50/80",
+              day.isToday && day.inCurrentStreak && "ring-2 ring-[#556B2F]/20"
             )}
           >
             <span className="text-[10px] font-semibold uppercase text-stone-400">{day.label}</span>
             <span
               className={cn(
                 "flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-bold",
-                day.completed
+                day.inCurrentStreak
                   ? "bg-orange-500 text-white"
-                  : "bg-white text-stone-300"
+                  : day.active
+                    ? "bg-stone-300 text-white"
+                    : "bg-white text-stone-300"
               )}
             >
-              {day.completed ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : "·"}
+              {day.active ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : "·"}
             </span>
           </div>
         ))}
       </div>
+      <p className="mt-3 text-[11px] leading-relaxed text-stone-500">
+        <span className="font-semibold text-orange-700">Naranja</span>: días en racha consecutiva.
+        {" "}
+        <span className="font-semibold text-stone-600">Gris</span>: cumpliste retos, pero se cortó
+        la racha al faltar un día intermedio.
+      </p>
     </HoyDetailModal>
   );
 }
@@ -289,6 +314,9 @@ type NutritionImpactModalProps = {
   hydration: number;
   vegetables: number;
   protein: number;
+  totalKcal?: number;
+  planHasVegetables?: boolean;
+  planHasProtein?: boolean;
 };
 
 export function NutritionImpactModal({
@@ -296,7 +324,10 @@ export function NutritionImpactModal({
   onClose,
   hydration,
   vegetables,
-  protein
+  protein,
+  totalKcal = 0,
+  planHasVegetables = false,
+  planHasProtein = false
 }: NutritionImpactModalProps) {
   const metrics = [
     {
@@ -328,8 +359,19 @@ export function NutritionImpactModal({
       onClose={onClose}
       eyebrow="Nutrición"
       title="Impacto nutricional de hoy"
-      description="Estimación basada en los retos activos que has completado hoy."
+      description={
+        totalKcal > 0
+          ? `Tu plan suma ${totalKcal} kcal. Vegetales y proteínas se calculan según las recetas planificadas; el agua sigue vinculada a tus retos.`
+          : "Estimación basada en tu plan semanal y los retos activos completados hoy."
+      }
     >
+      {totalKcal > 0 ? (
+        <p className="mb-3 rounded-2xl bg-orange-50 px-3 py-2 text-xs text-orange-900">
+          Plan de hoy: <span className="font-bold">{totalKcal} kcal</span>
+          {planHasVegetables ? " · incluye vegetales" : ""}
+          {planHasProtein ? " · incluye proteínas" : ""}
+        </p>
+      ) : null}
       <ul className="space-y-3">
         {metrics.map((metric) => (
           <li key={metric.key} className="rounded-2xl border border-stone-100 bg-stone-50/60 px-4 py-3">

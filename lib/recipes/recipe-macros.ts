@@ -124,6 +124,13 @@ function buildHeuristicMacros(ingredientCount: number, stepCount: number): Recip
   return { proteinas_g, carbohidratos_g, grasas_g, calorias };
 }
 
+export function estimateRecipeMacrosFromContent(
+  ingredientCount: number,
+  stepCount = 4
+): RecipeMacros {
+  return buildHeuristicMacros(Math.max(ingredientCount, 1), Math.max(stepCount, 1));
+}
+
 export function buildMacroDisplay(recipe: {
   macronutrientes?: RecipeMacros | null;
   ingredientes_detallados: string[];

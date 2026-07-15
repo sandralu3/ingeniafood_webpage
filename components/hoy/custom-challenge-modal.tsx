@@ -1,11 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, Plus, X } from "lucide-react";
+import { Loader2, Pencil, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+type CustomChallengeModalMode = "create" | "edit";
 
 type CustomChallengeModalProps = {
   open: boolean;
+  mode?: CustomChallengeModalMode;
+  initialTitulo?: string;
   isSaving: boolean;
   errorMessage?: string | null;
   onClose: () => void;
@@ -14,18 +18,24 @@ type CustomChallengeModalProps = {
 
 export function CustomChallengeModal({
   open,
+  mode = "create",
+  initialTitulo = "",
   isSaving,
   errorMessage,
   onClose,
   onSubmit
 }: CustomChallengeModalProps) {
   const [titulo, setTitulo] = useState("");
+  const isEditMode = mode === "edit";
 
   useEffect(() => {
     if (!open) {
       setTitulo("");
+      return;
     }
-  }, [open]);
+
+    setTitulo(initialTitulo);
+  }, [open, initialTitulo]);
 
   if (!open) return null;
 
@@ -47,13 +57,15 @@ export function CustomChallengeModal({
         <div className="flex items-start justify-between gap-3 border-b border-stone-100 px-5 py-4">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-amber-700/80">
-              Nueva meta
+              {isEditMode ? "Editar meta" : "Nueva meta"}
             </p>
             <h2 id="custom-challenge-title" className="mt-1 font-serif text-xl font-semibold text-stone-900">
-              Crear meta personalizada
+              {isEditMode ? "Modificar meta personalizada" : "Crear meta personalizada"}
             </h2>
             <p className="mt-1 text-xs text-stone-500">
-              Define un hábito saludable que quieras cumplir hoy.
+              {isEditMode
+                ? "Actualiza el nombre de tu hábito cuando quieras."
+                : "Define un hábito saludable que quieras cumplir hoy."}
             </p>
           </div>
           <button
@@ -111,6 +123,11 @@ export function CustomChallengeModal({
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
                   Guardando...
+                </>
+              ) : isEditMode ? (
+                <>
+                  <Pencil className="h-4 w-4" />
+                  Guardar cambios
                 </>
               ) : (
                 <>

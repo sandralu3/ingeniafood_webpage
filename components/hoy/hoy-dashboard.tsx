@@ -5,6 +5,7 @@ import { ArrowRight, ScanLine } from "lucide-react";
 import { DailyChallenges } from "@/components/hoy/daily-challenges";
 import { HoyGreetingHeader } from "@/components/hoy/hoy-greeting-header";
 import { ProgressBoard } from "@/components/hoy/progress-board/progress-board";
+import { TodayPlanNutrition } from "@/components/hoy/today-plan-nutrition";
 import { SandraTipCard } from "@/components/home/sandra-tip-card";
 import {
   HoyDailyChallengesSkeleton,
@@ -54,6 +55,8 @@ export function HoyDashboard() {
           <ProgressBoard data={data} isLoading={isLoading} />
         )}
 
+        {showPageSkeleton ? null : <TodayPlanNutrition data={data} />}
+
         {showPageSkeleton ? (
           <HoyDailyChallengesSkeleton />
         ) : (
@@ -61,6 +64,7 @@ export function HoyDashboard() {
             userId={userId}
             challenges={data?.activeChallenges ?? []}
             completedIds={data?.todayCompletedIds ?? []}
+            planSyncedChallengeIds={data?.planSyncedChallengeIds ?? []}
             isLoading={isLoading}
             onDataChange={() => void refresh({ force: true })}
           />
