@@ -64,9 +64,8 @@ export function MarketingLanguageSelector({ className }: MarketingLanguageSelect
     setOptimisticLocale(nextLocale);
     writeLocaleCookie(nextLocale);
 
-    // Ruta corta /en o /es para entry points localizados (cookie + redirect).
+    // Solo cookie + refresh (sin /fr redirect) para evitar doble navegación y parpadeo en móvil.
     startTransition(() => {
-      router.replace(`/${nextLocale}`);
       router.refresh();
     });
   };

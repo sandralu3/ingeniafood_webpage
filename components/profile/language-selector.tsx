@@ -39,15 +39,23 @@ export function LanguageSelector({
   const [optimisticLocale, setOptimisticLocale] = useState<AppLocale>(locale);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const listboxId = useId();
+  /** Evita el bucle refresh: perfil viejo vs cookie nueva. */
+  const userPickedLocaleRef = useRef(false);
+  const didInitialProfileSyncRef = useRef(false);
 
   useEffect(() => {
     setOptimisticLocale(locale);
   }, [locale]);
 
-  // Si el perfil trae un idioma distinto a la cookie, alinea la cookie y refresca.
+  // Solo al cargar: si el perfil tiene un idioma distinto a la cookie, alinear una vez.
   useEffect(() => {
+    if (userPickedLocaleRef.current || didInitialProfileSyncRef.current) return;
+    if (!profileLanguage) return;
+
     const remote = parseAppLocale(profileLanguage, locale);
-    if (!profileLanguage || remote === locale) return;
+    didInitialProfileSyncRef.current = true;
+
+    if (remote === locale) return;
 
     writeLocaleCookie(remote);
     setOptimisticLocale(remote);
@@ -86,23 +94,22 @@ export function LanguageSelector({
     }
 
     setOpen(false);
+    userPickedLocaleRef.current = true;
     setOptimisticLocale(nextLocale);
 
-    // a) Cookie + refresh inmediato → UI en el nuevo idioma
+    // Actualizar estado del padre YA para que no pelee el sync con el valor viejo de Supabase.
+    onPersisted?.(nextLocale);
+
     writeLocaleCookie(nextLocale);
     startTransition(() => {
       router.refresh();
     });
 
-    // b) Persistencia en segundo plano
     if (!userId) return;
 
     void (async () => {
       const result = await updateProfileLanguage(userId, nextLocale);
-      if (result.ok) {
-        onPersisted?.(nextLocale);
-        return;
-      }
+      if (result.ok) return;
       onPersistError?.(result.error);
     })();
   };
