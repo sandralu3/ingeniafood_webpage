@@ -316,7 +316,7 @@ type NutritionImpactModalProps = {
   protein: number;
   totalKcal?: number;
   planHasVegetables?: boolean;
-  planHasProtein?: boolean;
+  planHasProteinBreakfast?: boolean;
 };
 
 export function NutritionImpactModal({
@@ -327,7 +327,7 @@ export function NutritionImpactModal({
   protein,
   totalKcal = 0,
   planHasVegetables = false,
-  planHasProtein = false
+  planHasProteinBreakfast = false
 }: NutritionImpactModalProps) {
   const metrics = [
     {
@@ -346,10 +346,10 @@ export function NutritionImpactModal({
     },
     {
       key: "protein",
-      label: "Proteínas",
+      label: "Proteína en el desayuno",
       value: protein,
       color: "bg-amber-400",
-      tip: "La proteína en el desayuno ayuda a mantener la saciedad."
+      tip: "Un desayuno con proteína ayuda a mantener la saciedad a media mañana."
     }
   ] as const;
 
@@ -361,7 +361,7 @@ export function NutritionImpactModal({
       title="Impacto nutricional de hoy"
       description={
         totalKcal > 0
-          ? `Tu plan suma ${totalKcal} kcal. Vegetales y proteínas se calculan según las recetas planificadas; el agua sigue vinculada a tus retos.`
+          ? `Tu plan suma ${totalKcal} kcal. Vegetales y proteína del desayuno se calculan según las recetas planificadas; el agua sigue vinculada a tus retos.`
           : "Estimación basada en tu plan semanal y los retos activos completados hoy."
       }
     >
@@ -369,7 +369,7 @@ export function NutritionImpactModal({
         <p className="mb-3 rounded-2xl bg-orange-50 px-3 py-2 text-xs text-orange-900">
           Plan de hoy: <span className="font-bold">{totalKcal} kcal</span>
           {planHasVegetables ? " · incluye vegetales" : ""}
-          {planHasProtein ? " · incluye proteínas" : ""}
+          {planHasProteinBreakfast ? " · desayuno con proteína" : ""}
         </p>
       ) : null}
       <ul className="space-y-3">

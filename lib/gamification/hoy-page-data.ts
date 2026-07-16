@@ -5,7 +5,6 @@ import {
   fetchCompletionsInRange,
   fetchTodayCompletedChallengeIds
 } from "@/lib/gamification/challenge-service";
-import { syncPlanLinkedChallenges } from "@/lib/gamification/plan-challenge-sync";
 import { calculateWeeklyHealthMetrics, type WeeklyHealthMetrics } from "@/lib/gamification/weekly-metrics";
 import {
   EMPTY_DAY_PLAN_NUTRITION,
@@ -24,7 +23,6 @@ export type HoyPageData = {
   weekCompletions: Array<{ reto_id: string; completado_at: string }>;
   streakCompletions: Array<{ reto_id: string; completado_at: string }>;
   todayPlanNutrition: DayPlanNutritionSummary;
-  planSyncedChallengeIds: string[];
 };
 
 type InflightRequest = {
@@ -84,29 +82,12 @@ async function loadHoyPageData(userId: string): Promise<HoyPageData> {
   const todayPlanNutrition: DayPlanNutritionSummary =
     todayPlanDay?.nutrition ?? EMPTY_DAY_PLAN_NUTRITION;
 
-  let mergedCompletedIds = [...todayCompletedIds];
-  let planSyncedChallengeIds: string[] = [];
-
-  try {
-    planSyncedChallengeIds = await syncPlanLinkedChallenges({
-      userId,
-      activeChallenges,
-      todayCompletedIds: mergedCompletedIds,
-      planNutrition: todayPlanNutrition
-    });
-    mergedCompletedIds = Array.from(
-      new Set([...mergedCompletedIds, ...planSyncedChallengeIds])
-    );
-  } catch (error) {
-    console.error("[hoy-page-data] Error sincronizando retos con el plan:", error);
-  }
-
   const metrics = calculateWeeklyHealthMetrics({
     activeChallenges,
     allChallenges,
     weekCompletions,
     streakCompletions,
-    todayCompletedIds: mergedCompletedIds,
+    todayCompletedIds,
     today
   });
 
@@ -116,10 +97,9 @@ async function loadHoyPageData(userId: string): Promise<HoyPageData> {
     metrics,
     activeChallenges,
     allChallenges,
-    todayCompletedIds: mergedCompletedIds,
+    todayCompletedIds,
     weekCompletions,
     streakCompletions,
-    todayPlanNutrition,
-    planSyncedChallengeIds
+    todayPlanNutrition
   };
 }

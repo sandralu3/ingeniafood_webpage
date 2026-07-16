@@ -29,7 +29,6 @@ type DailyChallengesProps = {
   userId: string | null;
   challenges: DailyChallenge[];
   completedIds: string[];
-  planSyncedChallengeIds?: string[];
   isLoading?: boolean;
   onDataChange?: () => void;
   className?: string;
@@ -51,7 +50,6 @@ export function DailyChallenges({
   userId,
   challenges,
   completedIds,
-  planSyncedChallengeIds = [],
   isLoading = false,
   onDataChange,
   className
@@ -170,7 +168,6 @@ export function DailyChallenges({
             const isDone = Boolean(completed[challenge.id]);
             const isPending = pendingId === challenge.id;
             const isFocused = focusedChallengeId === challenge.id;
-            const isPlanSynced = planSyncedChallengeIds.includes(challenge.id);
             const ChallengeIcon = resolveChallengeIcon(challenge.label);
 
             return (
@@ -219,11 +216,6 @@ export function DailyChallenges({
                       {challenge.source === "custom" ? (
                         <span className="ml-1 text-[9px] font-semibold uppercase text-stone-400">
                           · Propio
-                        </span>
-                      ) : null}
-                      {isPlanSynced ? (
-                        <span className="ml-1 text-[9px] font-semibold uppercase text-[#556B2F]">
-                          · Plan
                         </span>
                       ) : null}
                     </span>

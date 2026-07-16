@@ -14,8 +14,14 @@ import {
 import { getChallengeImportanceMessage } from "@/lib/gamification/challenge-importance";
 import type { ConfigurableChallenge } from "@/lib/gamification/challenges";
 import { clearHoyCache } from "@/lib/gamification/hoy-cache";
+import { prefetchHoyPageData } from "@/lib/gamification/prefetch-hoy-page-data";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import { cn } from "@/lib/utils";
+
+function invalidateHoyAfterRetosChange(userId: string) {
+  clearHoyCache(userId);
+  void prefetchHoyPageData({ userId, force: true });
+}
 
 type ChallengeModalState =
   | { mode: "create" }
@@ -82,7 +88,7 @@ export function ChallengesConfigView() {
         retoId: challenge.id,
         active: nextActive
       });
-      clearHoyCache(userId);
+      invalidateHoyAfterRetosChange(userId);
     } catch (error) {
       console.error("[challenges-config] Error actualizando reto:", error);
       setChallenges((prev) =>
@@ -104,7 +110,7 @@ export function ChallengesConfigView() {
       const created = await createCustomChallenge({ userId, titulo });
       setChallenges((prev) => [...prev, { ...created, isActive: true }]);
       setModalState(null);
-      clearHoyCache(userId);
+      invalidateHoyAfterRetosChange(userId);
     } catch (error) {
       console.error("[challenges-config] Error creando meta:", error);
       setModalErrorMessage(
@@ -137,7 +143,7 @@ export function ChallengesConfigView() {
         )
       );
       setModalState(null);
-      clearHoyCache(userId);
+      invalidateHoyAfterRetosChange(userId);
     } catch (error) {
       console.error("[challenges-config] Error editando meta:", error);
       setModalErrorMessage(
@@ -158,7 +164,7 @@ export function ChallengesConfigView() {
       await deleteCustomChallenge({ userId, id: deleteTarget.id });
       setChallenges((prev) => prev.filter((item) => item.id !== deleteTarget.id));
       setDeleteTarget(null);
-      clearHoyCache(userId);
+      invalidateHoyAfterRetosChange(userId);
     } catch (error) {
       console.error("[challenges-config] Error eliminando meta:", error);
       setErrorMessage(
@@ -221,7 +227,7 @@ export function ChallengesConfigView() {
             <>
               <ChallengeSection
                 title="Retos del sistema"
-                subtitle="10 hábitos predefinidos"
+                subtitle="8 hábitos predefinidos"
                 challenges={systemChallenges}
                 pendingId={pendingId}
                 disabled={!userId}

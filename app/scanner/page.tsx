@@ -21,10 +21,12 @@ import {
 import {
   FREE_DEFAULT_CUISINE_STYLE,
   FREE_DEFAULT_MEAL_TYPE,
+  FREE_DEFAULT_SERVINGS,
   getRecipeMealTypeLabel,
   type AppliedRecipeFilters,
   type RecipeCuisineStyle,
-  type RecipeMealType
+  type RecipeMealType,
+  type RecipeServings
 } from "@/lib/recipes/premium-recipe-filters";
 import { tagsToLegacyFlags } from "@/lib/recipes/recipe-tags";
 import {
@@ -227,6 +229,7 @@ export default function ScannerPage() {
   const [cuisineStyleFilter, setCuisineStyleFilter] = useState<RecipeCuisineStyle>(
     FREE_DEFAULT_CUISINE_STYLE
   );
+  const [servingsFilter, setServingsFilter] = useState<RecipeServings>(FREE_DEFAULT_SERVINGS);
   const [appliedRecipeFilters, setAppliedRecipeFilters] = useState<AppliedRecipeFilters | null>(
     null
   );
@@ -462,6 +465,7 @@ export default function ScannerPage() {
               selectedIngredients,
               mealType: mealTypeFilter,
               cuisineStyle: cuisineStyleFilter,
+              servings: servingsFilter,
               ...(imagePayload ?? {})
             }),
             signal: createFetchSignal()
@@ -648,7 +652,8 @@ export default function ScannerPage() {
       setAppliedRecipeFilters(
         payload.appliedFilters ?? {
           mealType: mealTypeFilter,
-          cuisineStyle: cuisineStyleFilter
+          cuisineStyle: cuisineStyleFilter,
+          servings: servingsFilter
         }
       );
       setMealTypeAdvisory(
@@ -806,20 +811,17 @@ export default function ScannerPage() {
   const isPantryIdleView =
     !isLoading && !recipe && !showGenerationError && scannerMode === "pantry";
   const isRecipeFlowView = isLoading || Boolean(displayRecipe) || showGenerationError;
-  const pantryViewportHeight = pendingPlanAssignment
-    ? "h-[calc(100dvh-17rem)] max-h-[calc(100dvh-17rem)]"
-    : "h-[calc(100dvh-12.5rem)] max-h-[calc(100dvh-12.5rem)]";
 
   return (
     <div
       className={cn(
         isRecipeFlowView
-          ? "-mx-4 -mb-6 min-h-full bg-gradient-to-b from-stone-50 via-amber-50/20 to-sv-surface px-4 pb-6 pt-1"
+          ? "-mx-4 min-h-0 flex-1 bg-gradient-to-b from-stone-50 via-amber-50/20 to-sv-surface px-4 pt-1"
           : "bg-[#FBF9F6]",
         isPantryIdleView
-          ? cn("flex flex-col overflow-hidden", pantryViewportHeight)
+          ? "flex min-h-0 flex-1 flex-col overflow-hidden"
           : isRecipeFlowView
-            ? "min-h-[calc(100dvh-10rem)]"
+            ? "flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain touch-pan-y [-webkit-overflow-scrolling:touch] pb-[calc(var(--app-bottom-nav-height)+0.75rem)]"
             : "min-h-[calc(100dvh-10rem)]"
       )}
     >
@@ -997,11 +999,13 @@ export default function ScannerPage() {
       {!isLoading && !recipe && !showGenerationError ? (
         <div
           className={cn(
-            "animate-fade-in flex min-h-0 flex-1 flex-col gap-3 overflow-hidden",
-            scannerMode === "pantry" ? "min-h-0" : ""
+            "flex min-h-0 flex-1 flex-col gap-3 overflow-hidden",
+            scannerMode === "pantry" ? "min-h-0" : "overflow-y-auto"
           )}
         >
-          <ScannerModeTabs mode={scannerMode} onChange={setScannerMode} disabled={isLoading} />
+          <div className="shrink-0">
+            <ScannerModeTabs mode={scannerMode} onChange={setScannerMode} disabled={isLoading} />
+          </div>
 
           {scannerMode === "instagram" ? (
             <InstagramCuratedCatalog
@@ -1050,8 +1054,10 @@ export default function ScannerPage() {
             onGenerationsExhausted={() => setShowGenerationsModal(true)}
             mealType={mealTypeFilter}
             cuisineStyle={cuisineStyleFilter}
+            servings={servingsFilter}
             onMealTypeChange={setMealTypeFilter}
             onCuisineStyleChange={setCuisineStyleFilter}
+            onServingsChange={setServingsFilter}
           />
           </div>
           <GenerationsLimitModal

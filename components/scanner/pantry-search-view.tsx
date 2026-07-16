@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import { isUnlimitedGenerationsCount } from "@/lib/generations/admin-unlimited";
 import {
   ScanLine,
@@ -20,7 +22,7 @@ import {
 import { AdvancedRecipeFilters, SCANNER_SECTION_CLASS } from "@/components/scanner/advanced-recipe-filters";
 import { PlanSectionDivider } from "@/components/plan/plan-section-divider";
 import { IngredientCombobox } from "@/components/scanner/ingredient-combobox";
-import type { RecipeCuisineStyle, RecipeMealType } from "@/lib/recipes/premium-recipe-filters";
+import type { RecipeCuisineStyle, RecipeMealType, RecipeServings } from "@/lib/recipes/premium-recipe-filters";
 import { usePantryData } from "@/hooks/use-pantry-data";
 import { cn } from "@/lib/utils";
 import { SCANNER_SECTION_ACCENTS } from "@/lib/scanner/scanner-section-accent";
@@ -87,8 +89,10 @@ type Props = {
   onGenerationsExhausted?: () => void;
   mealType: RecipeMealType;
   cuisineStyle: RecipeCuisineStyle;
+  servings: RecipeServings;
   onMealTypeChange: (value: RecipeMealType) => void;
   onCuisineStyleChange: (value: RecipeCuisineStyle) => void;
+  onServingsChange: (value: RecipeServings) => void;
 };
 
 export function PantrySearchView({
@@ -107,12 +111,24 @@ export function PantrySearchView({
   onGenerationsExhausted,
   mealType,
   cuisineStyle,
+  servings,
   onMealTypeChange,
-  onCuisineStyleChange
+  onCuisineStyleChange,
+  onServingsChange
 }: Props) {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const [showSourceModal, setShowSourceModal] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+  const pathname = usePathname();
+  const hasBottomNav = pathname.startsWith("/app-recetas");
+  const scrollBottomPaddingClass = hasBottomNav
+    ? "pb-[calc(var(--app-bottom-nav-height)+var(--app-scan-footer-height))]"
+    : "pb-28";
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
   const {
     masterIngredients,
     favorites,
@@ -247,6 +263,52 @@ export function PantrySearchView({
     openSourceModal();
   }, [hasSelection, onFindRecipes, onGenerationsExhausted, openSourceModal, scansExhausted]);
 
+  const scanFooter = (
+    <div
+      className={cn(
+        "fixed inset-x-0 z-[45] border-t border-stone-200/70 bg-[#FBF9F6]/98 pt-2 shadow-[0_-6px_20px_rgba(0,0,0,0.08)] backdrop-blur-md",
+        hasBottomNav ? "bottom-[var(--app-bottom-nav-height)]" : "bottom-0"
+      )}
+    >
+      <div className="mx-auto w-full max-w-md px-4 pb-1">
+        {isUnlimitedGenerationsCount(generationsLeft) ? (
+          <span className="mb-1 block text-center text-[10px] text-stone-400">
+            Escaneos ilimitados · cuenta admin
+          </span>
+        ) : generationsLeft !== null && generationsLeft > 0 ? (
+          <span className="mb-1 block text-center text-[10px] text-stone-400">
+            {generationsLeft}{" "}
+            {generationsLeft === 1 ? "escaneo restante hoy" : "escaneos restantes hoy"}
+          </span>
+        ) : (
+          <span className="mb-1 block" />
+        )}
+
+        <button
+          type="button"
+          onClick={handlePrimaryAction}
+          disabled={isBusy}
+          aria-label={
+            scansExhausted
+              ? "Escaneos gratuitos agotados"
+              : hasSelection
+                ? "Generar receta saludable"
+                : "Escanear Nevera"
+          }
+          className="w-full rounded-full bg-[#556B2F] py-2.5 text-center text-sm font-semibold text-white shadow-sm transition hover:bg-[#4a5f28] disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {scansExhausted
+            ? "Pruebas gratuitas agotadas"
+            : hasSelection
+              ? rateLimitSecondsLeft > 0
+                ? `Reintentar en ${rateLimitSecondsLeft}s`
+                : "Generar receta saludable"
+              : "Escanear Nevera"}
+        </button>
+      </div>
+    </div>
+  );
+
   const handleComboboxSelect = useCallback(
     (ingredient: MasterIngredient) => {
       if (!selectedIngredients.includes(ingredient.name)) {
@@ -295,8 +357,13 @@ export function PantrySearchView({
   );
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden">
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pt-2 pb-2">
+    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
+      <div
+        className={cn(
+          "min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-1 pt-2 touch-pan-y [-webkit-overflow-scrolling:touch]",
+          scrollBottomPaddingClass
+        )}
+      >
 
         <div
           className={[
@@ -545,8 +612,10 @@ export function PantrySearchView({
       <AdvancedRecipeFilters
         mealType={mealType}
         cuisineStyle={cuisineStyle}
+        servings={servings}
         onMealTypeChange={onMealTypeChange}
         onCuisineStyleChange={onCuisineStyleChange}
+        onServingsChange={onServingsChange}
         disabled={isBusy}
       />
 
@@ -569,44 +638,7 @@ export function PantrySearchView({
 
       </div>
 
-      <div className="z-10 shrink-0 border-t border-stone-200/70 bg-[#FBF9F6] px-4 pb-1 pt-2 shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
-        {isUnlimitedGenerationsCount(generationsLeft) ? (
-          <span className="text-[10px] text-stone-400 text-center block mb-1">
-            Escaneos ilimitados · cuenta admin
-          </span>
-        ) : generationsLeft !== null && generationsLeft > 0 ? (
-          <span className="text-[10px] text-stone-400 text-center block mb-1">
-            {generationsLeft}{" "}
-            {generationsLeft === 1
-              ? "escaneo restante hoy"
-              : "escaneos restantes hoy"}
-          </span>
-        ) : (
-          <span className="block mb-1" />
-        )}
-
-        <button
-          type="button"
-          onClick={handlePrimaryAction}
-          disabled={isBusy}
-          aria-label={
-            scansExhausted
-              ? "Escaneos gratuitos agotados"
-              : hasSelection
-                ? "Generar receta saludable"
-                : "Escanear Nevera"
-          }
-          className="w-full rounded-full bg-[#556B2F] py-2.5 text-center text-sm font-semibold text-white shadow-sm transition hover:bg-[#4a5f28] disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {scansExhausted
-            ? "Pruebas gratuitas agotadas"
-            : hasSelection
-              ? rateLimitSecondsLeft > 0
-                ? `Reintentar en ${rateLimitSecondsLeft}s`
-                : "Generar receta saludable"
-              : "Escanear Nevera"}
-        </button>
-      </div>
+      {isMounted ? createPortal(scanFooter, document.body) : null}
 
       {showSourceModal ? (
         <>

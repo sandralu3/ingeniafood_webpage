@@ -1,8 +1,10 @@
 import {
   isPremiumCuisineStyle,
   isPremiumMealType,
+  isPremiumServings,
   type RecipeCuisineStyle,
-  type RecipeMealType
+  type RecipeMealType,
+  type RecipeServings
 } from "@/lib/recipes/premium-recipe-filters";
 import { isSandraAdmin } from "@/lib/auth/sandra-admin";
 
@@ -60,6 +62,11 @@ export function resolvePremiumAccess(
 export function usedPremiumRecipeFilters(filters: {
   mealType: RecipeMealType;
   cuisineStyle: RecipeCuisineStyle;
+  servings: RecipeServings;
 }): boolean {
-  return isPremiumMealType(filters.mealType) || isPremiumCuisineStyle(filters.cuisineStyle);
+  return (
+    isPremiumMealType(filters.mealType) ||
+    isPremiumCuisineStyle(filters.cuisineStyle) ||
+    isPremiumServings(filters.servings)
+  );
 }

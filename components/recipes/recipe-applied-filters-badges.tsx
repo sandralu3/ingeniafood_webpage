@@ -1,9 +1,10 @@
 "use client";
 
-import { Globe2, Moon, Sparkles, Sun, UtensilsCrossed } from "lucide-react";
+import { Globe2, Moon, Sparkles, Sun, Users, UtensilsCrossed } from "lucide-react";
 import {
   getRecipeCuisineStyleLabel,
   getRecipeMealTypeLabel,
+  getRecipeServingsShortLabel,
   type AppliedRecipeFilters,
   type RecipeCuisineStyle,
   type RecipeMealType
@@ -45,6 +46,7 @@ export function RecipeAppliedFiltersBadges({ filters }: Props) {
   const CuisineIcon = cuisineStyleIcon(filters.cuisineStyle);
   const mealLabel = getRecipeMealTypeLabel(filters.mealType);
   const cuisineLabel = getRecipeCuisineStyleLabel(filters.cuisineStyle);
+  const servingsLabel = getRecipeServingsShortLabel(filters.servings);
 
   return (
     <>
@@ -55,6 +57,10 @@ export function RecipeAppliedFiltersBadges({ filters }: Props) {
       <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-amber-200/70 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-900">
         <CuisineIcon className="h-3 w-3" strokeWidth={1.75} aria-hidden />
         {cuisineLabel}
+      </span>
+      <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-sky-200/70 bg-sky-50 px-2 py-0.5 text-[10px] font-bold text-sky-900">
+        <Users className="h-3 w-3" strokeWidth={1.75} aria-hidden />
+        {servingsLabel}
       </span>
     </>
   );

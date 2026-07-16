@@ -4,7 +4,9 @@ import { macrosToJson, type RecipeMacros } from "@/lib/recipes/recipe-macros";
 import type { AppliedRecipeFilters } from "@/lib/recipes/premium-recipe-filters";
 import {
   parseRecipeCuisineStyle,
-  parseRecipeMealType
+  parseRecipeMealType,
+  parseRecipeServings,
+  FREE_DEFAULT_SERVINGS
 } from "@/lib/recipes/premium-recipe-filters";
 import { normalizeRecipeTags } from "@/lib/recipes/recipe-tags";
 
@@ -99,6 +101,7 @@ function buildInsertPayload(input: SaveGeneratedRecipeInput, options?: InsertOpt
     payload.reference_image_url = input.referenceImageUrl ?? null;
     payload.meal_type = input.appliedFilters?.mealType ?? null;
     payload.cuisine_style = input.appliedFilters?.cuisineStyle ?? null;
+    payload.servings = input.appliedFilters?.servings ?? null;
     payload.meal_type_advisory = input.mealTypeAdvisory?.trim() || null;
   }
 
@@ -175,6 +178,7 @@ export async function saveGeneratedRecipeToLibrary(
       isMissingColumnError(error, "meal_type") ||
       isMissingColumnError(error, "cuisine_style") ||
       isMissingColumnError(error, "meal_type_advisory") ||
+      isMissingColumnError(error, "servings") ||
       isMissingColumnError(error, "tags") ||
       isMissingColumnError(error, "cooking_time");
 
@@ -195,13 +199,16 @@ export async function saveGeneratedRecipeToLibrary(
 export function parseStoredAppliedFilters(recipe: {
   meal_type?: string | null;
   cuisine_style?: string | null;
+  servings?: number | null;
 }): AppliedRecipeFilters | null {
   const mealType = parseRecipeMealType(recipe.meal_type);
   const cuisineStyle = parseRecipeCuisineStyle(recipe.cuisine_style);
-  if (!mealType && !cuisineStyle) return null;
+  const servings = parseRecipeServings(recipe.servings) ?? FREE_DEFAULT_SERVINGS;
+  if (!mealType && !cuisineStyle && !recipe.servings) return null;
   return {
     mealType: mealType ?? "almuerzo",
-    cuisineStyle: cuisineStyle ?? "estandar"
+    cuisineStyle: cuisineStyle ?? "estandar",
+    servings
   };
 }
 

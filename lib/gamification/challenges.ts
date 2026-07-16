@@ -11,18 +11,23 @@ export type ConfigurableChallenge = DailyChallenge & {
   isActive: boolean;
 };
 
+/** Retos retirados: ahora se calculan desde el plan del día en Hoy. */
+export const RETIRED_SYSTEM_CHALLENGE_IDS = new Set(["3", "6"]);
+
 export const SYSTEM_DAILY_CHALLENGES: DailyChallenge[] = [
   { id: "1", label: "Beber 2 L de agua", points: 10, source: "system" },
   { id: "2", label: "Caminar 20 minutos", points: 15, source: "system" },
-  { id: "3", label: "Añadir vegetales a una comida", points: 15, source: "system" },
   { id: "4", label: "Escanear tu despensa", points: 20, source: "system" },
   { id: "5", label: "Cocinar sin harinas refinadas", points: 15, source: "system" },
-  { id: "6", label: "Desayunar con proteína", points: 12, source: "system" },
   { id: "7", label: "Evitar bebidas azucaradas", points: 10, source: "system" },
   { id: "8", label: "Dormir al menos 7 horas", points: 15, source: "system" },
   { id: "9", label: "Preparar una comida casera", points: 20, source: "system" },
   { id: "10", label: "Hacer una pausa activa de 5 min", points: 8, source: "system" }
 ];
+
+export function isRetiredSystemChallenge(id: string): boolean {
+  return RETIRED_SYSTEM_CHALLENGE_IDS.has(id);
+}
 
 /** @deprecated Usa SYSTEM_DAILY_CHALLENGES */
 export const DEFAULT_DAILY_CHALLENGES = SYSTEM_DAILY_CHALLENGES;

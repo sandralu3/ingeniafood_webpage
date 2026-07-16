@@ -9,7 +9,9 @@ import { getUserIsPremium } from "@/lib/auth/user-premium";
 import { consumePremiumTrialUse } from "@/lib/auth/premium-trial";
 import { usedPremiumRecipeFilters } from "@/lib/auth/premium-access";
 import {
+  buildIngredientQuantityPromptClause,
   buildRecipeFiltersPromptClause,
+  MACRO_ESTIMATION_PROMPT_CLAUSE,
   resolveRecipeFilters
 } from "@/lib/recipes/premium-recipe-filters";
 import {
@@ -37,24 +39,13 @@ const HEALTHY_NUTRITION_RULE =
   "Si los ingredientes del usuario no permiten un plato tradicional con harina, propón una versión saludable alternativa con lo que SÍ tienen (ej. queso al horno con verduras, tortilla, bowl proteico), sin inventar masas fritas ni rebozados. " +
   "Evita recetas tipo empanada, tequeños, buñuelos o frituras con harina si el usuario no aportó harina.\n\n";
 
-const INGREDIENT_QUANTITY_RULE =
-  "FORMATO OBLIGATORIO DE INGREDIENTES (1-2 porciones): cada ingrediente DEBE incluir cantidad y unidad. " +
-  "En ingredientes_detallados usa strings como '1/2 taza de avena en hojuelas', '200 g de yogur natural', '30 g de chocolate negro'. " +
-  "Unidades permitidas: g, kg, ml, l, cdita, cda, taza, ud. Para condimentos sin medida exacta: 'Sal (al gusto)'. " +
-  "PROHIBIDO devolver solo el nombre del ingrediente sin cantidad. " +
-  "Además incluye ingredientes_estructurados: [{\"name\": string, \"amount\": number, \"unit\": string, \"optional\": boolean}].\n\n";
-
 const INGREDIENT_VALIDATION_RULE =
   'Antes de generar cualquier receta, analiza minuciosamente la lista de ingredientes que te envía el usuario. Si detectas que alguno de los textos enviados NO es un ingrediente, condimento, bebida o alimento comestible real (por ejemplo: frases como "esto no es un ingrediente", "eres feo", "zapatos", etc.), debes abortar inmediatamente la creación de la receta y responder ÚNICAMENTE con este objeto JSON: {"error":"ingrediente_invalido","mensaje":"Parece que hay algo en tu despensa que no es un alimento válido. ¡Revisa tus ingredientes seleccionados e inténtalo de nuevo!"}. Si todos los ingredientes son válidos, procede a generar la estructura habitual de la receta en formato JSON.\n\n';
 
 const VISION_SYSTEM_PREFIX =
   "Tu primera tarea es analizar si la imagen contiene ingredientes, alimentos o comida. Si la imagen NO muestra nada comestible (por ejemplo: objetos, personas, paisajes, animales), debes responder ÚNICAMENTE con este código de error: { \"error\": \"NOT_FOOD\" }. No generes ninguna receta en ese caso.\nAnaliza esta imagen de una nevera o despensa. Identifica los ingredientes comestibles visibles. Úsalos como base para generar una receta que también incluya los ingredientes que el usuario haya seleccionado manualmente.\n\n";
 
-const MACRO_ESTIMATION_RULE =
-  "MACRONUTRIENTES (obligatorio): incluye el objeto macronutrientes con estimación REAL por 1 porción de la receta, basada en ingredientes y cantidades. " +
-  'Formato: {"proteinas_g": number, "carbohidratos_g": number, "grasas_g": number, "calorias": number}. ' +
-  "proteinas_g, carbohidratos_g y grasas_g en gramos enteros; calorias en kcal enteras coherentes con 4×proteínas + 4×carbohidratos + 9×grasas (±10%). " +
-  "No inventes valores decorativos: deben reflejar el plato generado.\n\n";
+const MACRO_ESTIMATION_RULE = MACRO_ESTIMATION_PROMPT_CLAUSE;
 
 const ALLOWED_IMAGE_MIME = new Set([
   "image/jpeg",
@@ -72,6 +63,7 @@ type GenerateRecipePayload = {
   mimeType?: string;
   mealType?: string;
   cuisineStyle?: string;
+  servings?: number;
 };
 
 type GeminiRecipe = {
@@ -378,8 +370,10 @@ export async function POST(request: Request) {
     const resolvedFilters = resolveRecipeFilters({
       isPremium,
       requestedMealType: body.mealType,
-      requestedCuisineStyle: body.cuisineStyle
+      requestedCuisineStyle: body.cuisineStyle,
+      requestedServings: body.servings
     });
+    const ingredientQuantityRule = buildIngredientQuantityPromptClause(resolvedFilters.servings);
     const filtersPromptClause = buildRecipeFiltersPromptClause(resolvedFilters);
     const mealTypeCompatibilityClause = buildMealTypeCompatibilityPromptClause(
       resolvedFilters.mealType
@@ -473,7 +467,7 @@ export async function POST(request: Request) {
     const jsonRules =
       PANTRY_PRIORITY_RULE +
       HEALTHY_NUTRITION_RULE +
-      INGREDIENT_QUANTITY_RULE +
+      ingredientQuantityRule +
       MACRO_ESTIMATION_RULE +
       `${filtersPromptClause}\n\n${mealTypeCompatibilityClause}\n\n${mealTypePantryClause}\n\n` +
       "Solo JSON valido. Entrega receta saludable y rapida. Formato esperado: { \"titulo\": \"\", \"tiempo_preparacion\": \"X min\", \"ingredientes_detallados\": [], \"ingredientes_estructurados\": [], \"pasos_ordenados\": [], \"tip_sandra\": \"\", \"etiquetas\": [], \"advertencia_ingredientes\": \"\", \"macronutrientes\": {\"proteinas_g\": 0, \"carbohidratos_g\": 0, \"grasas_g\": 0, \"calorias\": 0} }. " +
@@ -490,8 +484,8 @@ export async function POST(request: Request) {
       "Genera un 'Tip de Sandra' para cada receta. Debe ser un consejo experto de no mas de 2 frases sobre tecnica de cocina, nutricion o conservacion, escrito con un tono profesional, cercano y motivador.";
 
     const systemInstruction = hasImage
-      ? `${INGREDIENT_VALIDATION_RULE}${INGREDIENT_QUANTITY_RULE}${VISION_SYSTEM_PREFIX}${jsonRules} ${manualClause}`
-      : `${INGREDIENT_VALIDATION_RULE}${INGREDIENT_QUANTITY_RULE}Solo JSON valido. Usa ingredientes: [${selectedList}]. Entrega receta saludable y rapida con formato { "titulo": "", "tiempo_preparacion": "X min", "ingredientes_detallados": [], "ingredientes_estructurados": [], "pasos_ordenados": [], "tip_sandra": "", "etiquetas": [], "macronutrientes": {"proteinas_g": 0, "carbohidratos_g": 0, "grasas_g": 0, "calorias": 0} }. ${jsonRules}`;
+      ? `${INGREDIENT_VALIDATION_RULE}${ingredientQuantityRule}${VISION_SYSTEM_PREFIX}${jsonRules} ${manualClause}`
+      : `${INGREDIENT_VALIDATION_RULE}${ingredientQuantityRule}Solo JSON valido. Usa ingredientes: [${selectedList}]. Entrega receta saludable y rapida con formato { "titulo": "", "tiempo_preparacion": "X min", "ingredientes_detallados": [], "ingredientes_estructurados": [], "pasos_ordenados": [], "tip_sandra": "", "etiquetas": [], "macronutrientes": {"proteinas_g": 0, "carbohidratos_g": 0, "grasas_g": 0, "calorias": 0} }. ${jsonRules}`;
 
     const promptTail =
       selectedIngredients.length && hasImage
@@ -805,7 +799,8 @@ export async function POST(request: Request) {
         : {}),
       appliedFilters: {
         mealType: resolvedFilters.mealType,
-        cuisineStyle: resolvedFilters.cuisineStyle
+        cuisineStyle: resolvedFilters.cuisineStyle,
+        servings: resolvedFilters.servings
       },
       ...(mealTypeAdvisory ? { mealTypeAdvisory } : {}),
       premiumTrialRemaining

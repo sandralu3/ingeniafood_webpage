@@ -10,7 +10,10 @@ import {
   isShareExcludedTag,
   resolveRecipeTags
 } from "@/lib/recipes/recipe-tags";
-import { type AppliedRecipeFilters } from "@/lib/recipes/premium-recipe-filters";
+import {
+  getRecipeServingsShortLabel,
+  type AppliedRecipeFilters
+} from "@/lib/recipes/premium-recipe-filters";
 import type { ShareableRecipe } from "@/lib/share/recipe-share-image";
 import { normalizeRecipeSteps } from "@/lib/recipes/sentence-case";
 import {
@@ -72,6 +75,12 @@ export function RecipeDetailMagazine({
           {recipe.titulo}
         </h1>
 
+        {showAppliedFilters && appliedFilters ? (
+          <p className="text-[11px] font-medium text-stone-600">
+            Receta para {getRecipeServingsShortLabel(appliedFilters.servings).toLowerCase()}
+          </p>
+        ) : null}
+
         <div className="flex flex-wrap items-center gap-1.5">
           {showAppliedFilters && appliedFilters ? (
             <RecipeAppliedFiltersBadges filters={appliedFilters} />
@@ -100,6 +109,9 @@ export function RecipeDetailMagazine({
         <h2 className="mb-2 font-serif text-sm font-semibold text-stone-900">
           Macronutrientes
         </h2>
+        {showAppliedFilters && appliedFilters ? (
+          <p className="mb-2 text-[10px] font-medium text-stone-500">Valores estimados por porción</p>
+        ) : null}
         <div className="space-y-2.5">
           {macroData.map((macro) => (
             <div key={macro.label} className="space-y-1.5">
@@ -122,6 +134,11 @@ export function RecipeDetailMagazine({
 
       <section className={SECTION_CARD}>
         <h2 className="mb-2 font-serif text-sm font-semibold text-stone-900">Ingredientes</h2>
+        {showAppliedFilters && appliedFilters ? (
+          <p className="mb-2 text-[10px] font-medium text-stone-500">
+            Cantidades calculadas para {getRecipeServingsShortLabel(appliedFilters.servings).toLowerCase()}
+          </p>
+        ) : null}
         <ul className="space-y-1.5">
           {recipe.ingredientes_detallados.map((item) => (
             <li

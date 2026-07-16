@@ -8,20 +8,17 @@ export type NutritionImpactMetrics = {
   totalKcal: number;
   plannedMealCount: number;
   planHasVegetables: boolean;
-  planHasProtein: boolean;
+  planHasProteinBreakfast: boolean;
 };
 
 const HYDRATION_PATTERN = /agua|hidrat|líquid/i;
-const VEGETABLES_PATTERN = /vegetal|verdura|ensalada|fibra/i;
-const PROTEIN_PATTERN = /proteín|protein|huevo|desayun/i;
 
-function categoryProgress(
+function hydrationProgress(
   challenges: DailyChallenge[],
   completedIds: Set<string>,
-  pattern: RegExp,
   fallbackRatio: number
 ): number {
-  const matching = challenges.filter((challenge) => pattern.test(challenge.label));
+  const matching = challenges.filter((challenge) => HYDRATION_PATTERN.test(challenge.label));
 
   if (matching.length === 0) {
     return Math.round(fallbackRatio * 100);
@@ -40,33 +37,13 @@ export function calculateNutritionImpact(
   const fallbackRatio =
     challenges.length === 0 ? 0 : completedSet.size / challenges.length;
 
-  const hydration = categoryProgress(
-    challenges,
-    completedSet,
-    HYDRATION_PATTERN,
-    fallbackRatio
-  );
-
-  const challengeVegetables = categoryProgress(
-    challenges,
-    completedSet,
-    VEGETABLES_PATTERN,
-    fallbackRatio
-  );
-  const challengeProtein = categoryProgress(
-    challenges,
-    completedSet,
-    PROTEIN_PATTERN,
-    fallbackRatio
-  );
-
   return {
-    hydration,
-    vegetables: planNutrition.hasVegetables ? 100 : challengeVegetables,
-    protein: planNutrition.hasProtein ? 100 : challengeProtein,
+    hydration: hydrationProgress(challenges, completedSet, fallbackRatio),
+    vegetables: planNutrition.hasVegetables ? 100 : 0,
+    protein: planNutrition.hasProteinBreakfast ? 100 : 0,
     totalKcal: planNutrition.totalKcal,
     plannedMealCount: planNutrition.plannedMealCount,
     planHasVegetables: planNutrition.hasVegetables,
-    planHasProtein: planNutrition.hasProtein
+    planHasProteinBreakfast: planNutrition.hasProteinBreakfast
   };
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Flame } from "lucide-react";
+import { Check, Egg, Flame, Leaf } from "lucide-react";
 import { HoySection } from "@/components/hoy/hoy-section-header";
 import type { HoyPageData } from "@/lib/gamification/hoy-page-data";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
@@ -12,30 +12,51 @@ type TodayPlanNutritionProps = {
   className?: string;
 };
 
-function SignalBadge({
-  active,
-  activeLabel,
-  inactiveLabel,
-  tone
-}: {
+type PlanSignalProps = {
+  icon: typeof Leaf;
+  label: string;
   active: boolean;
-  activeLabel: string;
-  inactiveLabel: string;
+  activeHint: string;
+  inactiveHint: string;
   tone: "green" | "amber";
-}) {
+};
+
+function PlanNutritionSignal({
+  icon: Icon,
+  label,
+  active,
+  activeHint,
+  inactiveHint,
+  tone
+}: PlanSignalProps) {
   return (
-    <span
+    <div
       className={cn(
-        "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold",
+        "flex items-center gap-2 rounded-xl px-2.5 py-2",
         active
           ? tone === "green"
-            ? "bg-emerald-50 text-emerald-800"
-            : "bg-amber-50 text-amber-900"
-          : "bg-stone-100 text-stone-500"
+            ? "bg-emerald-50/80"
+            : "bg-amber-50/70"
+          : "border border-dashed border-stone-200 bg-stone-50/60"
       )}
     >
-      {active ? activeLabel : inactiveLabel}
-    </span>
+      <span
+        className={cn(
+          "flex h-7 w-7 shrink-0 items-center justify-center rounded-full",
+          active
+            ? tone === "green"
+              ? "bg-white text-emerald-700 shadow-sm"
+              : "bg-white text-amber-800 shadow-sm"
+            : "bg-white text-stone-400"
+        )}
+      >
+        {active ? <Check className="h-3.5 w-3.5" strokeWidth={2.5} /> : <Icon className="h-3.5 w-3.5" />}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-xs font-semibold text-stone-800">{label}</p>
+        <p className="text-[10px] leading-snug text-stone-500">{active ? activeHint : inactiveHint}</p>
+      </div>
+    </div>
   );
 }
 
@@ -84,17 +105,21 @@ export function TodayPlanNutrition({ data, className }: TodayPlanNutritionProps)
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-1.5">
-            <SignalBadge
+          <div className="space-y-1.5">
+            <PlanNutritionSignal
+              icon={Leaf}
+              label="Vegetales en el plan"
               active={nutrition.hasVegetables}
-              activeLabel="Vegetales en el plan"
-              inactiveLabel="Sin vegetales detectados"
+              activeHint="Tus recetas de hoy incluyen verduras o vegetales"
+              inactiveHint="Añade una receta con vegetales al plan de hoy"
               tone="green"
             />
-            <SignalBadge
-              active={nutrition.hasProtein}
-              activeLabel="Proteínas en el plan"
-              inactiveLabel="Sin proteínas detectadas"
+            <PlanNutritionSignal
+              icon={Egg}
+              label="Proteína en el desayuno"
+              active={nutrition.hasProteinBreakfast}
+              activeHint="Tu desayuno planificado aporta proteína"
+              inactiveHint="Planifica un desayuno con huevo, yogur, legumbres u otra proteína"
               tone="amber"
             />
           </div>

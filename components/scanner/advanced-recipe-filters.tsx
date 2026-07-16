@@ -10,10 +10,13 @@ import { SCANNER_SECTION_ACCENTS } from "@/lib/scanner/scanner-section-accent";
 import {
   getRecipeCuisineStyleShortLabel,
   getRecipeMealTypeLabel,
+  getRecipeServingsShortLabel,
   RECIPE_CUISINE_STYLES,
   RECIPE_MEAL_TYPES,
+  RECIPE_SERVINGS_OPTIONS,
   type RecipeCuisineStyle,
-  type RecipeMealType
+  type RecipeMealType,
+  type RecipeServings
 } from "@/lib/recipes/premium-recipe-filters";
 import { cn } from "@/lib/utils";
 
@@ -23,8 +26,10 @@ export const SCANNER_SECTION_CLASS =
 type Props = {
   mealType: RecipeMealType;
   cuisineStyle: RecipeCuisineStyle;
+  servings: RecipeServings;
   onMealTypeChange: (value: RecipeMealType) => void;
   onCuisineStyleChange: (value: RecipeCuisineStyle) => void;
+  onServingsChange: (value: RecipeServings) => void;
   disabled?: boolean;
 };
 
@@ -46,30 +51,29 @@ function FilterChip({
       type="button"
       onClick={onClick}
       disabled={disabled}
+      aria-pressed={selected}
       className={cn(
-        "inline-flex shrink-0 items-center gap-0.5 rounded-full border px-2 py-0.5 text-[10px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-50",
+        "inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-50",
         selected
-          ? "border-[#4C6B3F]/35 bg-[#F4F6F2] text-[#3e5219]"
+          ? "border-[#556B2F]/45 bg-[#eef4e6] text-[#3e5219] shadow-sm shadow-[#556B2F]/5"
           : locked
-            ? "border-stone-200/80 bg-white text-stone-400"
-            : "border-stone-200/80 bg-white text-[#8E8A80] hover:border-stone-300 hover:text-stone-700"
+            ? "border-stone-200 bg-stone-50/60 text-stone-400"
+            : "border-stone-200 bg-white text-stone-600 hover:border-stone-300 hover:bg-stone-50"
       )}
     >
-      {locked ? <Lock className="h-2.5 w-2.5 shrink-0" aria-hidden /> : null}
-      {label}
+      {locked ? <Lock className="h-3 w-3 shrink-0 opacity-70" aria-hidden /> : null}
+      <span>{label}</span>
     </button>
   );
 }
 
-function FilterRow({ label, children }: { label: string; children: ReactNode }) {
+function FilterGroup({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="flex items-center gap-2">
-      <span className="w-9 shrink-0 text-[9px] font-bold uppercase tracking-[0.1em] text-stone-400">
+    <div className="space-y-2">
+      <p className="px-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-stone-400">
         {label}
-      </span>
-      <div className="-mx-0.5 flex flex-1 gap-1 overflow-x-auto px-0.5 pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {children}
-      </div>
+      </p>
+      <div className="flex flex-wrap gap-2">{children}</div>
     </div>
   );
 }
@@ -77,8 +81,10 @@ function FilterRow({ label, children }: { label: string; children: ReactNode }) 
 export function AdvancedRecipeFilters({
   mealType,
   cuisineStyle,
+  servings,
   onMealTypeChange,
   onCuisineStyleChange,
+  onServingsChange,
   disabled = false
 }: Props) {
   const { isPremium, isLoading, isPaidPremium, premiumTrialRemaining, refresh } = usePremium();
@@ -87,7 +93,8 @@ export function AdvancedRecipeFilters({
 
   const mealLabel = getRecipeMealTypeLabel(mealType);
   const cuisineLabel = getRecipeCuisineStyleShortLabel(cuisineStyle);
-  const summaryLabel = `${mealLabel} · ${cuisineLabel}`;
+  const servingsLabel = getRecipeServingsShortLabel(servings);
+  const summaryLabel = `${mealLabel} · ${cuisineLabel} · ${servingsLabel}`;
 
   const handleMealTypeClick = (option: (typeof RECIPE_MEAL_TYPES)[number]) => {
     if (disabled || isLoading) return;
@@ -105,6 +112,15 @@ export function AdvancedRecipeFilters({
       return;
     }
     onCuisineStyleChange(option.id);
+  };
+
+  const handleServingsClick = (option: (typeof RECIPE_SERVINGS_OPTIONS)[number]) => {
+    if (disabled || isLoading) return;
+    if (option.premium && !isPremium) {
+      setShowUpgradeDialog(true);
+      return;
+    }
+    onServingsChange(option.value);
   };
 
   return (
@@ -156,8 +172,8 @@ export function AdvancedRecipeFilters({
         </button>
 
         {expanded ? (
-          <div className="mt-1.5 space-y-1.5 border-t border-stone-100 pt-1.5">
-            <FilterRow label="Plato">
+          <div className="mt-2 space-y-4 border-t border-stone-100 px-0.5 pt-3">
+            <FilterGroup label="Plato">
               {RECIPE_MEAL_TYPES.map((option) => (
                 <FilterChip
                   key={option.id}
@@ -168,9 +184,9 @@ export function AdvancedRecipeFilters({
                   onClick={() => handleMealTypeClick(option)}
                 />
               ))}
-            </FilterRow>
+            </FilterGroup>
 
-            <FilterRow label="Estilo">
+            <FilterGroup label="Estilo">
               {RECIPE_CUISINE_STYLES.map((option) => (
                 <FilterChip
                   key={option.id}
@@ -181,7 +197,20 @@ export function AdvancedRecipeFilters({
                   onClick={() => handleCuisineStyleClick(option)}
                 />
               ))}
-            </FilterRow>
+            </FilterGroup>
+
+            <FilterGroup label="Raciones">
+              {RECIPE_SERVINGS_OPTIONS.map((option) => (
+                <FilterChip
+                  key={option.value}
+                  label={option.label}
+                  selected={servings === option.value}
+                  locked={option.premium && !isPremium}
+                  disabled={disabled || isLoading}
+                  onClick={() => handleServingsClick(option)}
+                />
+              ))}
+            </FilterGroup>
           </div>
         ) : null}
       </section>

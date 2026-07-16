@@ -63,8 +63,8 @@ export function ProgressBoard({ data, isLoading = false, className }: ProgressBo
     () =>
       data
         ? buildDailyPointsHistory({
-            completions: data.weekCompletions,
-            challenges: data.allChallenges,
+            completions: data.weekCompletions ?? [],
+            challenges: data.allChallenges ?? [],
             today
           })
         : [],
@@ -225,7 +225,7 @@ export function ProgressBoard({ data, isLoading = false, className }: ProgressBo
         protein={nutrition.protein}
         totalKcal={nutrition.totalKcal}
         planHasVegetables={nutrition.planHasVegetables}
-        planHasProtein={nutrition.planHasProtein}
+        planHasProteinBreakfast={nutrition.planHasProteinBreakfast}
       />
     </>
   );

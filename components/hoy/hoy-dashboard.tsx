@@ -64,7 +64,6 @@ export function HoyDashboard() {
             userId={userId}
             challenges={data?.activeChallenges ?? []}
             completedIds={data?.todayCompletedIds ?? []}
-            planSyncedChallengeIds={data?.planSyncedChallengeIds ?? []}
             isLoading={isLoading}
             onDataChange={() => void refresh({ force: true })}
           />

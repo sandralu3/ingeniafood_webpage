@@ -1,5 +1,6 @@
 import {
   CUSTOM_CHALLENGE_DEFAULT_POINTS,
+  isRetiredSystemChallenge,
   SYSTEM_DAILY_CHALLENGES,
   type ConfigurableChallenge,
   type DailyChallenge,
@@ -186,7 +187,7 @@ export async function fetchConfigurableChallenges(userId: string): Promise<Confi
     fetchActiveRetoIds(userId)
   ]);
 
-  const activeSet = new Set(activeIds);
+  const activeSet = new Set(activeIds.filter((id) => !isRetiredSystemChallenge(id)));
   return allChallenges.map((challenge) => ({
     ...challenge,
     isActive: activeSet.has(challenge.id)
@@ -203,13 +204,17 @@ export async function fetchActiveDailyChallengesForUser(userId: string): Promise
     return [];
   }
 
-  const activeSet = new Set(activeIds);
+  const activeSet = new Set(activeIds.filter((id) => !isRetiredSystemChallenge(id)));
   return allChallenges.filter((challenge) => activeSet.has(challenge.id));
+}
+
+function excludeRetiredChallenges(challenges: DailyChallenge[]): DailyChallenge[] {
+  return challenges.filter((challenge) => !isRetiredSystemChallenge(challenge.id));
 }
 
 export async function fetchAllChallengesForUser(userId: string): Promise<DailyChallenge[]> {
   const customChallenges = await fetchCustomChallenges(userId);
-  return [...SYSTEM_DAILY_CHALLENGES, ...customChallenges];
+  return excludeRetiredChallenges([...SYSTEM_DAILY_CHALLENGES, ...customChallenges]);
 }
 
 /** @deprecated Usa fetchAllChallengesForUser o fetchActiveDailyChallengesForUser */

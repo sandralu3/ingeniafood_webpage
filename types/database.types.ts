@@ -87,6 +87,7 @@ export type Database = {
           instagram_url: string | null;
           meal_type: string | null;
           cuisine_style: string | null;
+          servings: number | null;
           meal_type_advisory: string | null;
           tags: Json | null;
           is_airfryer: boolean;
@@ -112,6 +113,7 @@ export type Database = {
           instagram_url?: string | null;
           meal_type?: string | null;
           cuisine_style?: string | null;
+          servings?: number | null;
           meal_type_advisory?: string | null;
           tags?: Json | null;
           is_airfryer?: boolean;
@@ -137,6 +139,7 @@ export type Database = {
           instagram_url?: string | null;
           meal_type?: string | null;
           cuisine_style?: string | null;
+          servings?: number | null;
           meal_type_advisory?: string | null;
           tags?: Json | null;
           is_airfryer?: boolean;

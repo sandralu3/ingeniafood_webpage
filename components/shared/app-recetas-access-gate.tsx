@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { usePathname } from "next/navigation";
 import { Download } from "lucide-react";
 import AuthPage from "@/app/auth/page";
 import { resolveSupabaseAuthLandingUrl } from "@/lib/auth/resolve-supabase-auth-landing";
@@ -10,6 +11,7 @@ import {
   refreshHoyPageDataInBackground
 } from "@/lib/gamification/prefetch-hoy-page-data";
 import { prefetchInstagramCatalog } from "@/lib/recipes/prefetch-instagram-catalog";
+import { APP_ROUTES } from "@/lib/navigation/app-routes";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import { Header } from "@/components/shared/header";
 import { BottomNav } from "@/components/shared/bottom-nav";
@@ -112,6 +114,9 @@ function InstallationLanding({
 }
 
 export function AppRecetasAccessGate({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const isScannerRoute =
+    pathname === APP_ROUTES.scanner || pathname.startsWith(`${APP_ROUTES.scanner}/`);
   const [isStandalone, setIsStandalone] = useState(false);
   const [checkedStandalone, setCheckedStandalone] = useState(false);
   const [allowWebAccess, setAllowWebAccess] = useState(false);
@@ -280,9 +285,17 @@ export function AppRecetasAccessGate({ children }: { children: React.ReactNode }
 
     return (
       <div className="min-h-screen bg-sv-surface text-sv-on-surface">
-        <div className="mx-auto flex min-h-screen w-full max-w-md flex-col pb-20">
+        <div className="mx-auto flex h-[100dvh] max-h-[100dvh] w-full max-w-md flex-col overflow-hidden pb-[var(--app-bottom-nav-height)]">
           <Header />
-          <main className="flex-1 px-4 pt-3 pb-6">{children}</main>
+          <main
+            className={
+              isScannerRoute
+                ? "flex min-h-0 flex-1 flex-col overflow-hidden px-4 pt-3 pb-2"
+                : "flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pt-3 pb-2"
+            }
+          >
+            {children}
+          </main>
         </div>
         <BottomNav />
       </div>
@@ -293,6 +306,7 @@ export function AppRecetasAccessGate({ children }: { children: React.ReactNode }
     children,
     deferredPrompt,
     isIos,
+    isScannerRoute,
     isStandalone,
     allowWebAccess,
     pendingAuthRedirect,
