@@ -21,7 +21,7 @@ export async function completePendingPlanAssignment(
     return { hadPending: false, assigned: false, pending: null };
   }
 
-  const assigned = await assignRecipeToPlan({
+  const meal = await assignRecipeToPlan({
     userId,
     diaSemana: pending.dayLabel,
     tipoComida: pending.mealType,
@@ -33,7 +33,7 @@ export async function completePendingPlanAssignment(
 
   return {
     hadPending: true,
-    assigned,
+    assigned: meal !== null,
     pending
   };
 }

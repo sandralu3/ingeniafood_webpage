@@ -286,7 +286,9 @@ export function InstagramCuratedCatalog({
                       type="button"
                       onClick={() => void handleAssignToPendingPlan(recipe)}
                       disabled={isBusy}
-                      aria-label={t("assignToPlanAria", { slot: pendingAssignmentLabel })}
+                      aria-label={t("assignToPlanAria", {
+                        slot: pendingAssignmentLabel ?? formatPendingPlanSlot(pendingPlanAssignment, tPlan, t)
+                      })}
                       className="inline-flex w-full items-center justify-center gap-1 rounded-full border border-[#4C6B3F]/25 bg-[#4C6B3F] px-2.5 py-1.5 text-[10px] font-semibold leading-tight text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {isAssigningPending ? (
