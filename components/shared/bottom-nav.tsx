@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { MouseEvent } from "react";
+import { useTranslations } from "next-intl";
 import {
   Bookmark,
   CalendarDays,
@@ -19,17 +20,17 @@ import { cn } from "@/lib/utils";
 
 type NavItem = {
   href: string;
-  label: string;
+  labelKey: "hoy" | "plan" | "scanner" | "saved" | "profile";
   icon: LucideIcon;
   highlight?: boolean;
 };
 
 const navItems: NavItem[] = [
-  { href: APP_ROUTES.hoy, label: "Hoy", icon: Sparkles },
-  { href: APP_ROUTES.plan, label: "Plan", icon: CalendarDays },
-  { href: APP_ROUTES.scanner, label: "Escáner", icon: ScanLine, highlight: true },
-  { href: APP_ROUTES.guardadas, label: "Guardadas", icon: Bookmark },
-  { href: APP_ROUTES.perfil, label: "Perfil", icon: UserRound }
+  { href: APP_ROUTES.hoy, labelKey: "hoy", icon: Sparkles },
+  { href: APP_ROUTES.plan, labelKey: "plan", icon: CalendarDays },
+  { href: APP_ROUTES.scanner, labelKey: "scanner", icon: ScanLine, highlight: true },
+  { href: APP_ROUTES.guardadas, labelKey: "saved", icon: Bookmark },
+  { href: APP_ROUTES.perfil, labelKey: "profile", icon: UserRound }
 ];
 
 function isNavItemActive(pathname: string, href: string): boolean {
@@ -51,6 +52,7 @@ function prefetchNavTarget(href: string) {
 }
 
 export function BottomNav() {
+  const t = useTranslations("Nav");
   const pathname = usePathname();
   const scannerReset = useScannerReset();
 
@@ -66,7 +68,7 @@ export function BottomNav() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 flex items-end justify-around rounded-t-[1.25rem] border-t border-sv-outline-variant/15 bg-sv-surface/95 px-1 pb-2 pt-1.5 shadow-[0_-8px_24px_rgba(0,0,0,0.04)] backdrop-blur-2xl supports-[backdrop-filter]:bg-sv-surface/90">
-      {navItems.map(({ href, label, icon: Icon, highlight }) => {
+      {navItems.map(({ href, labelKey, icon: Icon, highlight }) => {
         const isActive = isNavItemActive(pathname, href);
         const iconStroke = isActive && highlight ? 1.85 : 1.4;
 
@@ -91,7 +93,7 @@ export function BottomNav() {
               strokeWidth={iconStroke}
             />
             <span className="w-full truncate text-center text-[9px] font-medium uppercase tracking-[0.08em] leading-none text-inherit">
-              {label}
+              {t(labelKey)}
             </span>
           </Link>
         );

@@ -1,6 +1,7 @@
 "use client";
 
 import { Plus } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { MealType } from "@/lib/plan/constants";
 import { getMealTypeIcon, getMealTypeSubtleAccent } from "@/lib/plan/meal-type-accent";
 import { cn } from "@/lib/utils";
@@ -19,7 +20,9 @@ export function EmptyMealSlot({
   variant = "panel",
   className
 }: EmptyMealSlotProps) {
-  const label = "Elegir receta";
+  const t = useTranslations("Plan");
+  const label = t("chooseRecipe");
+  const mealLabel = t(`meals.${mealType}`);
   const MealIcon = getMealTypeIcon(mealType);
   const accent = getMealTypeSubtleAccent(mealType);
 
@@ -28,7 +31,7 @@ export function EmptyMealSlot({
       <button
         type="button"
         onClick={onAdd}
-        aria-label={`${label} de ${mealType}`}
+        aria-label={t("chooseRecipeAria", { meal: mealLabel })}
         className={cn(
           "flex min-h-[6.5rem] w-full flex-col items-center justify-center gap-1.5 rounded-xl border border-stone-100/90 bg-white px-2 py-3 text-center text-[11px] font-medium text-stone-500 shadow-sm shadow-stone-100/20 transition hover:border-stone-200/80",
           className
@@ -53,7 +56,7 @@ export function EmptyMealSlot({
     <button
       type="button"
       onClick={onAdd}
-      aria-label={`${label} de ${mealType}`}
+      aria-label={t("chooseRecipeAria", { meal: mealLabel })}
       className={cn(
         "group flex w-full items-center gap-2 rounded-lg border border-stone-100/90 bg-white px-2 py-1.5 text-left shadow-sm shadow-stone-100/20 transition hover:border-stone-200/70",
         className

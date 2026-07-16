@@ -1,6 +1,7 @@
 "use client";
 
 import { ScanLine, Instagram } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { SCANNER_SECTION_CLASS } from "@/components/scanner/advanced-recipe-filters";
 import { cn } from "@/lib/utils";
 
@@ -13,28 +14,30 @@ type ScannerModeTabsProps = {
   className?: string;
 };
 
-const MODES: Array<{
-  id: ScannerMode;
-  label: string;
-  icon: typeof ScanLine;
-}> = [
-  {
-    id: "pantry",
-    label: "Escanear despensa",
-    icon: ScanLine
-  },
-  {
-    id: "instagram",
-    label: "Desde Instagram",
-    icon: Instagram
-  }
-];
-
 export function ScannerModeTabs({ mode, onChange, disabled = false, className }: ScannerModeTabsProps) {
+  const t = useTranslations("Scanner");
+
+  const modes: Array<{
+    id: ScannerMode;
+    label: string;
+    icon: typeof ScanLine;
+  }> = [
+    {
+      id: "pantry",
+      label: t("modePantry"),
+      icon: ScanLine
+    },
+    {
+      id: "instagram",
+      label: t("modeInstagram"),
+      icon: Instagram
+    }
+  ];
+
   return (
     <div className={cn(SCANNER_SECTION_CLASS, "mb-0 p-1.5", className)}>
       <div className="grid w-full grid-cols-2 gap-1.5">
-        {MODES.map((item) => {
+        {modes.map((item) => {
           const isActive = mode === item.id;
           const Icon = item.icon;
           const isInstagram = item.id === "instagram";

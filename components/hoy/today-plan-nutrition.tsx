@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Check, Egg, Flame, Leaf } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { HoySection } from "@/components/hoy/hoy-section-header";
 import type { HoyPageData } from "@/lib/gamification/hoy-page-data";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
@@ -61,6 +62,7 @@ function PlanNutritionSignal({
 }
 
 export function TodayPlanNutrition({ data, className }: TodayPlanNutritionProps) {
+  const t = useTranslations("Hoy");
   const nutrition = data?.todayPlanNutrition;
 
   if (!nutrition) return null;
@@ -68,23 +70,21 @@ export function TodayPlanNutrition({ data, className }: TodayPlanNutritionProps)
   return (
     <HoySection
       className={className}
-      title="Plan de hoy"
-      subtitle="Calorías y balance según tus comidas planificadas"
+      title={t("todayPlan")}
+      subtitle={t("todayPlanSubtitle")}
       action={
         <Link
           href={APP_ROUTES.plan}
           className="text-[10px] font-semibold text-[#556B2F] transition hover:text-[#3e5219]"
         >
-          Ver plan
+          {t("viewPlan")}
         </Link>
       }
     >
       {nutrition.plannedMealCount === 0 ? (
         <div className="rounded-xl border border-dashed border-stone-200 bg-stone-50/70 px-3 py-3 text-center">
-          <p className="text-xs font-medium text-stone-700">Aún no tienes comidas en el plan de hoy</p>
-          <p className="mt-1 text-[11px] text-stone-500">
-            Añade recetas al plan semanal para ver calorías, vegetales y proteínas.
-          </p>
+          <p className="text-xs font-medium text-stone-700">{t("noMealsToday")}</p>
+          <p className="mt-1 text-[11px] text-stone-500">{t("noMealsHint")}</p>
         </div>
       ) : (
         <>
@@ -98,9 +98,7 @@ export function TodayPlanNutrition({ data, className }: TodayPlanNutritionProps)
                 <span className="ml-1 text-xs font-semibold text-stone-500">kcal</span>
               </p>
               <p className="text-[10px] text-stone-500">
-                Suma estimada de {nutrition.plannedMealCount} comida
-                {nutrition.plannedMealCount === 1 ? "" : "s"} planificada
-                {nutrition.plannedMealCount === 1 ? "" : "s"}
+                {t("estimatedMealsSum", { count: nutrition.plannedMealCount })}
               </p>
             </div>
           </div>
@@ -108,18 +106,18 @@ export function TodayPlanNutrition({ data, className }: TodayPlanNutritionProps)
           <div className="space-y-1.5">
             <PlanNutritionSignal
               icon={Leaf}
-              label="Vegetales en el plan"
+              label={t("vegetablesInPlan")}
               active={nutrition.hasVegetables}
-              activeHint="Tus recetas de hoy incluyen verduras o vegetales"
-              inactiveHint="Añade una receta con vegetales al plan de hoy"
+              activeHint={t("vegetablesActive")}
+              inactiveHint={t("vegetablesInactive")}
               tone="green"
             />
             <PlanNutritionSignal
               icon={Egg}
-              label="Proteína en el desayuno"
+              label={t("proteinBreakfast")}
               active={nutrition.hasProteinBreakfast}
-              activeHint="Tu desayuno planificado aporta proteína"
-              inactiveHint="Planifica un desayuno con huevo, yogur, legumbres u otra proteína"
+              activeHint={t("proteinActive")}
+              inactiveHint={t("proteinInactive")}
               tone="amber"
             />
           </div>

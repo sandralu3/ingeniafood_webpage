@@ -1,6 +1,7 @@
 "use client";
 
 import { Clock, UtensilsCrossed } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { RecipeMealTypeAdvisory } from "@/components/recipes/recipe-meal-type-advisory";
 import { RecipeDishImage } from "@/components/recipes/recipe-dish-image";
 import { SandraTipCard } from "@/components/recipes/sandra-tip-card";
@@ -11,15 +12,14 @@ import {
   resolveRecipeTags
 } from "@/lib/recipes/recipe-tags";
 import {
-  getRecipeServingsShortLabel,
   type AppliedRecipeFilters
 } from "@/lib/recipes/premium-recipe-filters";
+import { translateRecipeTag } from "@/lib/i18n/filter-labels";
 import type { ShareableRecipe } from "@/lib/share/recipe-share-image";
 import { normalizeRecipeSteps } from "@/lib/recipes/sentence-case";
 import {
   buildMacroData,
-  formatTimeLabel,
-  inferDifficulty
+  formatTimeLabel
 } from "@/lib/share/recipe-share-utils";
 
 type Props = {
@@ -38,6 +38,19 @@ const SECTION_CARD =
 const tagPillClass =
   "inline-flex shrink-0 items-center rounded-full border border-[#556B2F]/15 bg-[#F0F4ED]/80 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#3e5219]";
 
+const MACRO_LABEL_KEYS = [
+  "macroProtein",
+  "macroCarbs",
+  "macroFat",
+  "macroCalories"
+] as const;
+
+function resolveDifficultyKey(stepsCount: number): "difficultyEasy" | "difficultyMedium" | "difficultyHard" {
+  if (stepsCount <= 3) return "difficultyEasy";
+  if (stepsCount <= 5) return "difficultyMedium";
+  return "difficultyHard";
+}
+
 export function RecipeDetailMagazine({
   recipe,
   showScanBanner = false,
@@ -47,11 +60,24 @@ export function RecipeDetailMagazine({
   mealTypeAdvisory = null,
   imageDisplayMode = "live"
 }: Props) {
+  const t = useTranslations("RecipeDetail");
   const macroData = buildMacroData(recipe);
   const steps = normalizeRecipeSteps(recipe.pasos_ordenados ?? []);
   const tags = filterRecipeTagsForDisplay(resolveRecipeTags({ tags: recipe.tags }), {
     hideMealMomentTags: showAppliedFilters && Boolean(appliedFilters)
   });
+  const difficultyLabel = appliedFilters?.complexity
+    ? t(
+        appliedFilters.complexity === "facil"
+          ? "difficultyEasy"
+          : appliedFilters.complexity === "intermedio"
+            ? "difficultyMedium"
+            : "difficultyHard"
+      )
+    : t(resolveDifficultyKey(steps.length));
+  const servingsLabel = appliedFilters
+    ? t("servings", { count: appliedFilters.servings })
+    : "";
 
   return (
     <div className="space-y-3">
@@ -67,7 +93,7 @@ export function RecipeDetailMagazine({
       <header className={`${SECTION_CARD} space-y-2`}>
         {showScanBanner ? (
           <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-stone-400">
-            Receta optimizada a partir de tu escaneo
+            {t("scanBanner")}
           </p>
         ) : null}
 
@@ -77,7 +103,7 @@ export function RecipeDetailMagazine({
 
         {showAppliedFilters && appliedFilters ? (
           <p className="text-[11px] font-medium text-stone-600">
-            Receta para {getRecipeServingsShortLabel(appliedFilters.servings).toLowerCase()}
+            {t("recipeFor", { servings: servingsLabel.toLowerCase() })}
           </p>
         ) : null}
 
@@ -91,32 +117,36 @@ export function RecipeDetailMagazine({
               {...(isShareExcludedTag(tag) ? { "data-share-exclude": true } : {})}
               className={tagPillClass}
             >
-              {tag}
+              {translateRecipeTag(t, tag)}
             </span>
           ))}
           <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-stone-200/60 bg-white px-2 py-0.5 text-[10px] font-medium text-stone-600">
             <Clock className="h-3 w-3 text-[#556B2F]" strokeWidth={1.75} />
             {formatTimeLabel(recipe.tiempo_preparacion)}
           </span>
-          <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-stone-200/60 bg-white px-2 py-0.5 text-[10px] font-medium text-stone-600">
-            <UtensilsCrossed className="h-3 w-3 text-[#556B2F]" strokeWidth={1.75} />
-            {inferDifficulty(steps.length)}
-          </span>
+          {!appliedFilters?.complexity ? (
+            <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-stone-200/60 bg-white px-2 py-0.5 text-[10px] font-medium text-stone-600">
+              <UtensilsCrossed className="h-3 w-3 text-[#556B2F]" strokeWidth={1.75} />
+              {difficultyLabel}
+            </span>
+          ) : null}
         </div>
       </header>
 
       <section className={SECTION_CARD}>
         <h2 className="mb-2 font-serif text-sm font-semibold text-stone-900">
-          Macronutrientes
+          {t("macros")}
         </h2>
         {showAppliedFilters && appliedFilters ? (
-          <p className="mb-2 text-[10px] font-medium text-stone-500">Valores estimados por porción</p>
+          <p className="mb-2 text-[10px] font-medium text-stone-500">{t("perServing")}</p>
         ) : null}
         <div className="space-y-2.5">
-          {macroData.map((macro) => (
-            <div key={macro.label} className="space-y-1.5">
+          {macroData.map((macro, index) => (
+            <div key={MACRO_LABEL_KEYS[index] ?? macro.label} className="space-y-1.5">
               <div className="flex items-baseline justify-between gap-3">
-                <span className="text-[11px] font-medium text-stone-500">{macro.label}</span>
+                <span className="text-[11px] font-medium text-stone-500">
+                  {MACRO_LABEL_KEYS[index] ? t(MACRO_LABEL_KEYS[index]) : macro.label}
+                </span>
                 <span className="text-[11px] font-semibold tabular-nums text-stone-800">
                   {macro.value}
                 </span>
@@ -133,10 +163,10 @@ export function RecipeDetailMagazine({
       </section>
 
       <section className={SECTION_CARD}>
-        <h2 className="mb-2 font-serif text-sm font-semibold text-stone-900">Ingredientes</h2>
+        <h2 className="mb-2 font-serif text-sm font-semibold text-stone-900">{t("ingredients")}</h2>
         {showAppliedFilters && appliedFilters ? (
           <p className="mb-2 text-[10px] font-medium text-stone-500">
-            Cantidades calculadas para {getRecipeServingsShortLabel(appliedFilters.servings).toLowerCase()}
+            {t("quantitiesFor", { servings: servingsLabel.toLowerCase() })}
           </p>
         ) : null}
         <ul className="space-y-1.5">
@@ -153,7 +183,7 @@ export function RecipeDetailMagazine({
       </section>
 
       <section className="rounded-2xl bg-[#FCFBFA] px-2.5 py-2 shadow-sm shadow-stone-200/25">
-        <h2 className="mb-2 font-serif text-sm font-semibold text-stone-900">Preparación</h2>
+        <h2 className="mb-2 font-serif text-sm font-semibold text-stone-900">{t("preparation")}</h2>
         <div className="space-y-3">
           {steps.map((step, index) => {
             const num = String(index + 1).padStart(2, "0");

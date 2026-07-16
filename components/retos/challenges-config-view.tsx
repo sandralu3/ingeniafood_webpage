@@ -11,12 +11,16 @@ import {
   setRetoActiveForHoy,
   updateCustomChallenge
 } from "@/lib/gamification/challenge-service";
-import { getChallengeImportanceMessage } from "@/lib/gamification/challenge-importance";
+import {
+  translateChallengeImportance,
+  translateChallengeLabel
+} from "@/lib/gamification/challenge-i18n";
 import type { ConfigurableChallenge } from "@/lib/gamification/challenges";
 import { clearHoyCache } from "@/lib/gamification/hoy-cache";
 import { prefetchHoyPageData } from "@/lib/gamification/prefetch-hoy-page-data";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 
 function invalidateHoyAfterRetosChange(userId: string) {
   clearHoyCache(userId);
@@ -28,6 +32,8 @@ type ChallengeModalState =
   | { mode: "edit"; challenge: ConfigurableChallenge };
 
 export function ChallengesConfigView() {
+  const t = useTranslations("Retos");
+  const tCommon = useTranslations("Common");
   const [challenges, setChallenges] = useState<ConfigurableChallenge[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -62,11 +68,11 @@ export function ChallengesConfigView() {
       setChallenges(configurable);
     } catch (error) {
       console.error("[challenges-config] Error cargando retos:", error);
-      setErrorMessage("No pudimos cargar tus retos.");
+      setErrorMessage(t("loadError"));
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void loadChallenges();
@@ -94,7 +100,7 @@ export function ChallengesConfigView() {
       setChallenges((prev) =>
         prev.map((item) => (item.id === challenge.id ? { ...item, isActive: !nextActive } : item))
       );
-      setErrorMessage("No pudimos guardar el cambio. Inténtalo de nuevo.");
+      setErrorMessage(t("saveToggleError"));
     } finally {
       setPendingId(null);
     }
@@ -113,9 +119,7 @@ export function ChallengesConfigView() {
       invalidateHoyAfterRetosChange(userId);
     } catch (error) {
       console.error("[challenges-config] Error creando meta:", error);
-      setModalErrorMessage(
-        error instanceof Error ? error.message : "No pudimos crear la meta. Inténtalo de nuevo."
-      );
+      setModalErrorMessage(error instanceof Error ? error.message : t("createError"));
     } finally {
       setIsSavingChallenge(false);
     }
@@ -146,9 +150,7 @@ export function ChallengesConfigView() {
       invalidateHoyAfterRetosChange(userId);
     } catch (error) {
       console.error("[challenges-config] Error editando meta:", error);
-      setModalErrorMessage(
-        error instanceof Error ? error.message : "No pudimos guardar los cambios. Inténtalo de nuevo."
-      );
+      setModalErrorMessage(error instanceof Error ? error.message : t("editError"));
     } finally {
       setIsSavingChallenge(false);
     }
@@ -167,9 +169,7 @@ export function ChallengesConfigView() {
       invalidateHoyAfterRetosChange(userId);
     } catch (error) {
       console.error("[challenges-config] Error eliminando meta:", error);
-      setErrorMessage(
-        error instanceof Error ? error.message : "No pudimos eliminar la meta. Inténtalo de nuevo."
-      );
+      setErrorMessage(error instanceof Error ? error.message : t("deleteError"));
     } finally {
       setIsDeletingChallenge(false);
     }
@@ -178,6 +178,9 @@ export function ChallengesConfigView() {
   const activeCount = challenges.filter((challenge) => challenge.isActive).length;
   const systemChallenges = challenges.filter((challenge) => challenge.source === "system");
   const customChallenges = challenges.filter((challenge) => challenge.source === "custom");
+  const deleteLabel = deleteTarget
+    ? translateChallengeLabel(deleteTarget, t)
+    : "";
 
   return (
     <>
@@ -185,12 +188,10 @@ export function ChallengesConfigView() {
         <section className="space-y-3">
           <header className="px-0.5 pt-1">
             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-stone-400">
-              Hábitos
+              {t("eyebrow")}
             </p>
-            <h1 className="mt-0.5 font-serif text-lg font-semibold text-stone-900">Tus retos</h1>
-            <p className="mt-1 text-xs leading-relaxed text-stone-500">
-              Activa los hábitos que quieras ver cada día en Hoy.
-            </p>
+            <h1 className="mt-0.5 font-serif text-lg font-semibold text-stone-900">{t("title")}</h1>
+            <p className="mt-1 text-xs leading-relaxed text-stone-500">{t("subtitle")}</p>
           </header>
 
           <div className="rounded-2xl bg-white/90 px-2.5 py-2 shadow-sm shadow-stone-100/30">
@@ -200,11 +201,9 @@ export function ChallengesConfigView() {
               </span>
               <div className="min-w-0">
                 <p className="text-xs font-semibold text-stone-900">
-                  {isLoading ? "Cargando..." : `${activeCount} retos activos en Hoy`}
+                  {isLoading ? tCommon("loading") : t("activeCount", { count: activeCount })}
                 </p>
-                <p className="text-[11px] text-stone-500">
-                  Los desactivados no aparecen en tu resumen diario.
-                </p>
+                <p className="text-[11px] text-stone-500">{t("activeHint")}</p>
               </div>
             </div>
           </div>
@@ -221,13 +220,13 @@ export function ChallengesConfigView() {
           {isLoading ? (
             <div className="flex items-center justify-center gap-2 py-8 text-xs text-stone-500">
               <Loader2 className="h-4 w-4 animate-spin text-[#556B2F]" />
-              Cargando retos...
+              {t("loading")}
             </div>
           ) : (
             <>
               <ChallengeSection
-                title="Retos del sistema"
-                subtitle="8 hábitos predefinidos"
+                title={t("systemTitle")}
+                subtitle={t("systemSubtitle")}
                 challenges={systemChallenges}
                 pendingId={pendingId}
                 disabled={!userId}
@@ -236,8 +235,8 @@ export function ChallengesConfigView() {
 
               {customChallenges.length > 0 ? (
                 <ChallengeSection
-                  title="Tus metas personalizadas"
-                  subtitle="Creadas por ti · puedes editarlas o eliminarlas"
+                  title={t("customTitle")}
+                  subtitle={t("customSubtitle")}
                   challenges={customChallenges}
                   pendingId={pendingId}
                   disabled={!userId}
@@ -254,7 +253,7 @@ export function ChallengesConfigView() {
                 type="button"
                 onClick={() => {
                   if (!userId) {
-                    setErrorMessage("Inicia sesión para crear metas personalizadas.");
+                    setErrorMessage(t("loginToCreate"));
                     return;
                   }
                   setModalErrorMessage(null);
@@ -264,7 +263,7 @@ export function ChallengesConfigView() {
                 className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-stone-300/80 bg-stone-50/60 px-3 py-2 text-xs font-medium text-stone-500 transition hover:border-[#556B2F]/30 hover:text-[#3e5219] disabled:opacity-60"
               >
                 <Plus className="h-3.5 w-3.5" />
-                Crear meta personalizada
+                {t("createCustom")}
               </button>
             </>
           )}
@@ -298,14 +297,14 @@ export function ChallengesConfigView() {
             setDeleteTarget(null);
           }
         }}
-        title="Eliminar meta personalizada"
+        title={t("deleteTitle")}
         description={
           deleteTarget
-            ? `¿Seguro que quieres eliminar "${deleteTarget.label}"? Se quitará de Hoy y se borrará su historial de cumplimiento.`
+            ? t("deleteDescription", { label: deleteLabel })
             : undefined
         }
-        confirmLabel="Eliminar meta"
-        cancelLabel="Cancelar"
+        confirmLabel={t("deleteConfirm")}
+        cancelLabel={tCommon("cancel")}
         destructive
         isLoading={isDeletingChallenge}
         onConfirm={() => void handleDeleteChallenge()}
@@ -333,6 +332,7 @@ function ChallengeSection({
   onEdit?: (challenge: ConfigurableChallenge) => void;
   onDelete?: (challenge: ConfigurableChallenge) => void;
 }) {
+  const t = useTranslations("Retos");
   const [focusedChallengeId, setFocusedChallengeId] = useState<string | null>(null);
 
   return (
@@ -352,6 +352,7 @@ function ChallengeSection({
           const isPending = pendingId === challenge.id;
           const isFocused = focusedChallengeId === challenge.id;
           const canManage = Boolean(onEdit && onDelete);
+          const displayLabel = translateChallengeLabel(challenge, t);
 
           return (
             <li
@@ -392,10 +393,10 @@ function ChallengeSection({
                       challenge.isActive ? "text-[#3e5219]" : "text-stone-800"
                     )}
                   >
-                    {challenge.label}
+                    {displayLabel}
                     {challenge.source === "custom" ? (
                       <span className="ml-1 text-[9px] font-semibold uppercase text-stone-400">
-                        · Propio
+                        · {t("customBadge")}
                       </span>
                     ) : null}
                   </span>
@@ -416,7 +417,7 @@ function ChallengeSection({
                       onClick={() => onEdit?.(challenge)}
                       disabled={disabled || Boolean(pendingId)}
                       className="shrink-0 rounded-full p-1 text-stone-400 transition-colors hover:bg-white hover:text-[#556B2F] disabled:opacity-50"
-                      aria-label={`Editar meta: ${challenge.label}`}
+                      aria-label={t("editAria", { label: displayLabel })}
                     >
                       <Pencil className="h-3 w-3" />
                     </button>
@@ -425,7 +426,7 @@ function ChallengeSection({
                       onClick={() => onDelete?.(challenge)}
                       disabled={disabled || Boolean(pendingId)}
                       className="shrink-0 rounded-full p-1 text-stone-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
-                      aria-label={`Eliminar meta: ${challenge.label}`}
+                      aria-label={t("deleteAria", { label: displayLabel })}
                     >
                       <Trash2 className="h-3 w-3" />
                     </button>
@@ -443,7 +444,7 @@ function ChallengeSection({
                     "shrink-0 rounded-full p-1 transition-colors",
                     isFocused ? "bg-white text-[#556B2F]" : "text-stone-400 hover:text-[#556B2F]"
                   )}
-                  aria-label={`Por qué importa: ${challenge.label}`}
+                  aria-label={t("whyMattersAria", { label: displayLabel })}
                   aria-expanded={isFocused}
                 >
                   <Info className="h-3 w-3" />
@@ -452,9 +453,10 @@ function ChallengeSection({
 
               {isFocused ? (
                 <p className="mt-1.5 rounded-md bg-white/75 px-2 py-1.5 text-[10px] leading-snug text-stone-600">
-                  {getChallengeImportanceMessage(challenge)}{" "}
-                  <span className="font-semibold text-[#556B2F]">+{challenge.points} pts</span> al
-                  completarlo.
+                  {translateChallengeImportance(challenge, t)}{" "}
+                  <span className="font-semibold text-[#556B2F]">
+                    {t("pointsOnComplete", { points: challenge.points })}
+                  </span>
                 </p>
               ) : null}
             </li>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Loader2, Pencil, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 
 type CustomChallengeModalMode = "create" | "edit";
 
@@ -25,6 +26,8 @@ export function CustomChallengeModal({
   onClose,
   onSubmit
 }: CustomChallengeModalProps) {
+  const t = useTranslations("Retos");
+  const tCommon = useTranslations("Common");
   const [titulo, setTitulo] = useState("");
   const isEditMode = mode === "edit";
 
@@ -57,15 +60,13 @@ export function CustomChallengeModal({
         <div className="flex items-start justify-between gap-3 border-b border-stone-100 px-5 py-4">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-amber-700/80">
-              {isEditMode ? "Editar meta" : "Nueva meta"}
+              {isEditMode ? t("modalEditEyebrow") : t("modalCreateEyebrow")}
             </p>
             <h2 id="custom-challenge-title" className="mt-1 font-serif text-xl font-semibold text-stone-900">
-              {isEditMode ? "Modificar meta personalizada" : "Crear meta personalizada"}
+              {isEditMode ? t("modalEditTitle") : t("modalCreateTitle")}
             </h2>
             <p className="mt-1 text-xs text-stone-500">
-              {isEditMode
-                ? "Actualiza el nombre de tu hábito cuando quieras."
-                : "Define un hábito saludable que quieras cumplir hoy."}
+              {isEditMode ? t("modalEditSubtitle") : t("modalCreateSubtitle")}
             </p>
           </div>
           <button
@@ -73,7 +74,7 @@ export function CustomChallengeModal({
             onClick={onClose}
             disabled={isSaving}
             className="rounded-full p-2 text-stone-400 transition hover:bg-stone-100 hover:text-stone-700 disabled:opacity-50"
-            aria-label="Cerrar"
+            aria-label={tCommon("close")}
           >
             <X className="h-4 w-4" />
           </button>
@@ -88,13 +89,13 @@ export function CustomChallengeModal({
 
           <label className="block">
             <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-stone-500">
-              Tu meta
+              {t("modalLabel")}
             </span>
             <input
               type="text"
               value={titulo}
               onChange={(event) => setTitulo(event.target.value)}
-              placeholder="Ej: Meditar 10 minutos"
+              placeholder={t("modalPlaceholder")}
               maxLength={80}
               autoFocus
               disabled={isSaving}
@@ -109,7 +110,7 @@ export function CustomChallengeModal({
               disabled={isSaving}
               className="flex-1 rounded-2xl border border-stone-200 px-4 py-2.5 text-sm font-medium text-stone-600 transition hover:bg-stone-50 disabled:opacity-50"
             >
-              Cancelar
+              {tCommon("cancel")}
             </button>
             <button
               type="submit"
@@ -122,17 +123,17 @@ export function CustomChallengeModal({
               {isSaving ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Guardando...
+                  {t("modalSaving")}
                 </>
               ) : isEditMode ? (
                 <>
                   <Pencil className="h-4 w-4" />
-                  Guardar cambios
+                  {t("modalSaveChanges")}
                 </>
               ) : (
                 <>
                   <Plus className="h-4 w-4" />
-                  Crear meta
+                  {t("modalCreate")}
                 </>
               )}
             </button>

@@ -18,12 +18,16 @@ import {
   completeDailyChallenge,
   uncompleteDailyChallenge
 } from "@/lib/gamification/challenge-service";
-import { getChallengeImportanceMessage } from "@/lib/gamification/challenge-importance";
+import {
+  translateChallengeImportance,
+  translateChallengeLabel
+} from "@/lib/gamification/challenge-i18n";
 import type { DailyChallenge } from "@/lib/gamification/challenges";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
 import { ChallengeRowSkeleton } from "@/components/skeletons/hoy-dashboard-skeleton";
 import { HoySection } from "@/components/hoy/hoy-section-header";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 
 type DailyChallengesProps = {
   userId: string | null;
@@ -54,6 +58,8 @@ export function DailyChallenges({
   onDataChange,
   className
 }: DailyChallengesProps) {
+  const t = useTranslations("Hoy");
+  const tRetos = useTranslations("Retos");
   const [completed, setCompleted] = useState<Record<string, boolean>>({});
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -92,7 +98,7 @@ export function DailyChallenges({
     } catch (error) {
       console.error("[daily-challenges] Error guardando reto:", error);
       setCompleted((prev) => ({ ...prev, [challenge.id]: isDone }));
-      setErrorMessage("No pudimos guardar el reto. Inténtalo de nuevo.");
+      setErrorMessage(t("saveChallengeError"));
     } finally {
       setPendingId(null);
     }
@@ -108,7 +114,7 @@ export function DailyChallenges({
   return (
     <HoySection
       className={className}
-      title="Retos del día"
+      title={t("dailyChallenges")}
       meta={
         !showSkeleton && challenges.length > 0 ? (
           <span className="text-[11px] font-medium normal-case tracking-normal text-stone-500">
@@ -127,7 +133,7 @@ export function DailyChallenges({
             href={APP_ROUTES.retos}
             className="text-[10px] font-semibold text-[#556B2F] transition hover:text-[#3e5219]"
           >
-            Editar
+            {t("edit")}
           </Link>
         </>
       }
@@ -148,15 +154,13 @@ export function DailyChallenges({
 
       {!showSkeleton && challenges.length === 0 ? (
         <div className="rounded-xl border border-dashed border-amber-200/80 bg-amber-50/40 px-3 py-4 text-center">
-          <p className="text-xs font-semibold text-stone-800">Aún no tienes retos en Hoy</p>
-          <p className="mt-1 text-[11px] leading-relaxed text-stone-500">
-            Activa hábitos en el módulo de Retos.
-          </p>
+          <p className="text-xs font-semibold text-stone-800">{t("noChallengesTitle")}</p>
+          <p className="mt-1 text-[11px] leading-relaxed text-stone-500">{t("noChallengesHint")}</p>
           <Link
             href={APP_ROUTES.retos}
             className="mt-3 inline-flex items-center gap-1 rounded-full bg-[#556B2F] px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-[#4a5f28]"
           >
-            Configurar
+            {t("configure")}
             <ArrowRight className="h-3 w-3" />
           </Link>
         </div>
@@ -168,6 +172,7 @@ export function DailyChallenges({
             const isDone = Boolean(completed[challenge.id]);
             const isPending = pendingId === challenge.id;
             const isFocused = focusedChallengeId === challenge.id;
+            const displayLabel = translateChallengeLabel(challenge, tRetos);
             const ChallengeIcon = resolveChallengeIcon(challenge.label);
 
             return (
@@ -212,10 +217,10 @@ export function DailyChallenges({
                         isDone ? "text-[#3e5219]/65 line-through" : "text-stone-800"
                       )}
                     >
-                      {challenge.label}
+                      {displayLabel}
                       {challenge.source === "custom" ? (
                         <span className="ml-1 text-[9px] font-semibold uppercase text-stone-400">
-                          · Propio
+                          · {t("customBadge")}
                         </span>
                       ) : null}
                     </span>
@@ -243,7 +248,7 @@ export function DailyChallenges({
                         ? "bg-white text-[#556B2F]"
                         : "text-stone-400 hover:text-[#556B2F]"
                     )}
-                    aria-label={`Por qué importa: ${challenge.label}`}
+                    aria-label={t("whyMattersAria", { label: displayLabel })}
                     aria-expanded={isFocused}
                   >
                     <Info className="h-3 w-3" />
@@ -252,8 +257,10 @@ export function DailyChallenges({
 
                 {isFocused ? (
                   <p className="mt-1.5 rounded-md bg-white/75 px-2 py-1.5 text-[10px] leading-snug text-stone-600">
-                    {getChallengeImportanceMessage(challenge)}{" "}
-                    <span className="font-semibold text-[#556B2F]">+{challenge.points} pts</span> hoy.
+                    {translateChallengeImportance(challenge, tRetos)}{" "}
+                    <span className="font-semibold text-[#556B2F]">
+                      {t("pointsTodaySuffix", { points: challenge.points })}
+                    </span>
                   </p>
                 ) : null}
               </li>

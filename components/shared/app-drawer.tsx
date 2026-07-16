@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
   Bookmark,
   CalendarDays,
@@ -27,7 +28,7 @@ type AppDrawerProps = {
 
 type DrawerItem = {
   href: string;
-  label: string;
+  labelKey: "hoy" | "planWeekly" | "retos" | "scanner" | "saved" | "profile";
   icon: LucideIcon;
 };
 
@@ -35,12 +36,12 @@ const DRAWER_TRANSITION_MS = 300;
 const DRAWER_EASING = "cubic-bezier(0.32, 0.72, 0, 1)";
 
 const drawerItems: DrawerItem[] = [
-  { href: APP_ROUTES.hoy, label: "Hoy", icon: Sparkles },
-  { href: APP_ROUTES.plan, label: "Plan semanal", icon: CalendarDays },
-  { href: APP_ROUTES.retos, label: "Retos", icon: Target },
-  { href: APP_ROUTES.scanner, label: "Escáner", icon: ScanLine },
-  { href: APP_ROUTES.guardadas, label: "Guardadas", icon: Bookmark },
-  { href: APP_ROUTES.perfil, label: "Perfil", icon: UserRound }
+  { href: APP_ROUTES.hoy, labelKey: "hoy", icon: Sparkles },
+  { href: APP_ROUTES.plan, labelKey: "planWeekly", icon: CalendarDays },
+  { href: APP_ROUTES.retos, labelKey: "retos", icon: Target },
+  { href: APP_ROUTES.scanner, labelKey: "scanner", icon: ScanLine },
+  { href: APP_ROUTES.guardadas, labelKey: "saved", icon: Bookmark },
+  { href: APP_ROUTES.perfil, labelKey: "profile", icon: UserRound }
 ];
 
 function isDrawerItemActive(pathname: string, href: string): boolean {
@@ -51,6 +52,7 @@ function isDrawerItemActive(pathname: string, href: string): boolean {
 }
 
 export function AppDrawer({ open, onClose }: AppDrawerProps) {
+  const t = useTranslations("Nav");
   const pathname = usePathname();
   const scannerReset = useScannerReset();
   const [isMounted, setIsMounted] = useState(open);
@@ -129,7 +131,7 @@ export function AppDrawer({ open, onClose }: AppDrawerProps) {
       <aside
         role="dialog"
         aria-modal="true"
-        aria-label="Menú"
+        aria-label={t("menu")}
         className={cn(
           "absolute bottom-0 left-0 top-0 flex w-[min(18rem,85vw)] flex-col overflow-hidden rounded-r-[1.25rem] border border-stone-200/80 bg-white shadow-2xl",
           "transition-transform duration-300 will-change-transform",
@@ -143,14 +145,14 @@ export function AppDrawer({ open, onClose }: AppDrawerProps) {
             type="button"
             onClick={onClose}
             className="rounded-full p-2 text-stone-400 transition hover:bg-stone-100 hover:text-stone-700"
-            aria-label="Cerrar"
+            aria-label={t("menu")}
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
         <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-          {drawerItems.map(({ href, label, icon: Icon }) => {
+          {drawerItems.map(({ href, labelKey, icon: Icon }) => {
             const isActive = isDrawerItemActive(pathname, href);
 
             return (
@@ -173,7 +175,7 @@ export function AppDrawer({ open, onClose }: AppDrawerProps) {
                 )}
               >
                 <Icon className="h-4 w-4 shrink-0" strokeWidth={isActive ? 2 : 1.75} />
-                {label}
+                {t(labelKey)}
               </Link>
             );
           })}
@@ -187,7 +189,7 @@ export function AppDrawer({ open, onClose }: AppDrawerProps) {
             className="flex w-full items-center gap-3 rounded-2xl px-3.5 py-3 text-sm font-medium text-stone-500 transition hover:bg-red-50 hover:text-red-700 disabled:opacity-60"
           >
             <LogOut className="h-4 w-4 shrink-0" strokeWidth={1.75} />
-            {isSigningOut ? "Cerrando sesión..." : "Cerrar sesión"}
+            {isSigningOut ? t("signingOut") : t("signOut")}
           </button>
         </div>
       </aside>

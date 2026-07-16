@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { isUnlimitedGenerationsCount } from "@/lib/generations/admin-unlimited";
 import {
   ScanLine,
@@ -22,7 +23,8 @@ import {
 import { AdvancedRecipeFilters, SCANNER_SECTION_CLASS } from "@/components/scanner/advanced-recipe-filters";
 import { PlanSectionDivider } from "@/components/plan/plan-section-divider";
 import { IngredientCombobox } from "@/components/scanner/ingredient-combobox";
-import type { RecipeCuisineStyle, RecipeMealType, RecipeServings } from "@/lib/recipes/premium-recipe-filters";
+import type { RecipeCuisineStyle, RecipeMealType, RecipeServings, RecipeComplexity } from "@/lib/recipes/premium-recipe-filters";
+
 import { usePantryData } from "@/hooks/use-pantry-data";
 import { cn } from "@/lib/utils";
 import { SCANNER_SECTION_ACCENTS } from "@/lib/scanner/scanner-section-accent";
@@ -58,10 +60,10 @@ export const PANTRY_CATEGORIES: Record<
 
 const CATEGORY_KEYS: CategoryKey[] = ["Proteinas", "Vegetales", "Basicos de Despensa"];
 
-const CATEGORY_TAB_META: Record<CategoryKey, { label: string; emoji: string }> = {
-  Proteinas: { label: "Proteínas", emoji: "🥩" },
-  Vegetales: { label: "Vegetales", emoji: "🥦" },
-  "Basicos de Despensa": { label: "Básicos", emoji: "🌾" }
+const CATEGORY_TAB_META: Record<CategoryKey, { labelKey: "categoryProteins" | "categoryVegetables" | "categoryBasics"; emoji: string }> = {
+  Proteinas: { labelKey: "categoryProteins", emoji: "🥩" },
+  Vegetales: { labelKey: "categoryVegetables", emoji: "🥦" },
+  "Basicos de Despensa": { labelKey: "categoryBasics", emoji: "🌾" }
 };
 
 function pillIconFor(name: string) {
@@ -90,9 +92,11 @@ type Props = {
   mealType: RecipeMealType;
   cuisineStyle: RecipeCuisineStyle;
   servings: RecipeServings;
+  complexity: RecipeComplexity;
   onMealTypeChange: (value: RecipeMealType) => void;
   onCuisineStyleChange: (value: RecipeCuisineStyle) => void;
   onServingsChange: (value: RecipeServings) => void;
+  onComplexityChange: (value: RecipeComplexity) => void;
 };
 
 export function PantrySearchView({
@@ -112,10 +116,13 @@ export function PantrySearchView({
   mealType,
   cuisineStyle,
   servings,
+  complexity,
   onMealTypeChange,
   onCuisineStyleChange,
-  onServingsChange
+  onServingsChange,
+  onComplexityChange
 }: Props) {
+  const t = useTranslations("Scanner");
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const [showSourceModal, setShowSourceModal] = useState(false);
@@ -273,12 +280,11 @@ export function PantrySearchView({
       <div className="mx-auto w-full max-w-md px-4 pb-1">
         {isUnlimitedGenerationsCount(generationsLeft) ? (
           <span className="mb-1 block text-center text-[10px] text-stone-400">
-            Escaneos ilimitados · cuenta admin
+            {t("unlimitedScansAdmin")}
           </span>
         ) : generationsLeft !== null && generationsLeft > 0 ? (
           <span className="mb-1 block text-center text-[10px] text-stone-400">
-            {generationsLeft}{" "}
-            {generationsLeft === 1 ? "escaneo restante hoy" : "escaneos restantes hoy"}
+            {t("scansLeftToday", { count: generationsLeft })}
           </span>
         ) : (
           <span className="mb-1 block" />
@@ -292,8 +298,8 @@ export function PantrySearchView({
             scansExhausted
               ? "Escaneos gratuitos agotados"
               : hasSelection
-                ? "Generar receta saludable"
-                : "Escanear Nevera"
+                ? t("generateRecipe")
+                : t("scanFridge")
           }
           className="w-full rounded-full bg-[#556B2F] py-2.5 text-center text-sm font-semibold text-white shadow-sm transition hover:bg-[#4a5f28] disabled:cursor-not-allowed disabled:opacity-60"
         >
@@ -302,8 +308,8 @@ export function PantrySearchView({
             : hasSelection
               ? rateLimitSecondsLeft > 0
                 ? `Reintentar en ${rateLimitSecondsLeft}s`
-                : "Generar receta saludable"
-              : "Escanear Nevera"}
+                : t("generateRecipe")
+              : t("scanFridge")}
         </button>
       </div>
     </div>
@@ -415,9 +421,9 @@ export function PantrySearchView({
               </div>
               <div className="text-center sm:text-left">
                 <p className="text-sm font-medium text-stone-600">
-                  Toca para escanear tus ingredientes
+                  {t("tapToScan")}
                 </p>
-                <p className="mt-0.5 text-xs text-stone-500">O arrastra y suelta una foto aquí</p>
+                <p className="mt-0.5 text-xs text-stone-500">{t("orDropPhoto")}</p>
               </div>
             </div>
           )}
@@ -495,7 +501,7 @@ export function PantrySearchView({
                   type="button"
                   onClick={() => onRemoveIngredient(name)}
                   className="rounded-full p-1 opacity-60 transition hover:opacity-100"
-                  aria-label={`Quitar ${name}`}
+                  aria-label={t("removeIngredientAria", { name })}
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
@@ -506,18 +512,20 @@ export function PantrySearchView({
       ) : null}
 
       <section className={SCANNER_SECTION_CLASS}>
-        <PlanSectionDivider label="Favoritos" accent={SCANNER_SECTION_ACCENTS.favoritos} />
+        <PlanSectionDivider label={t("favorites")} accent={SCANNER_SECTION_ACCENTS.favoritos} />
 
         <div className="mb-1.5 px-0.5">
           {totalFavorites > 0 ? (
-            <p className="text-[11px] text-stone-500">{totalFavorites} guardados</p>
+            <p className="text-[11px] text-stone-500">{t("savedCount", { count: totalFavorites })}</p>
           ) : null}
           {activeCategory === null ? (
-            <p className="text-[11px] text-stone-500">Elige una categoría para ver tus ingredientes</p>
+            <p className="text-[11px] text-stone-500">{t("chooseCategory")}</p>
           ) : (
             <p className="text-[11px] text-stone-500">
-              {CATEGORY_TAB_META[activeCategory].label} ·{" "}
-              {favoritesByCategory[activeCategory].length} ingredientes
+              {t("categoryIngredients", {
+                category: t(CATEGORY_TAB_META[activeCategory].labelKey),
+                count: favoritesByCategory[activeCategory].length
+              })}
             </p>
           )}
         </div>
@@ -526,13 +534,14 @@ export function PantrySearchView({
           {CATEGORY_KEYS.map((key) => {
             const isActive = activeCategory === key;
             const meta = CATEGORY_TAB_META[key];
+            const categoryLabel = t(meta.labelKey);
             return (
               <button
                 key={key}
                 type="button"
                 onClick={() => setActiveCategory((current) => (current === key ? null : key))}
                 aria-pressed={isActive}
-                aria-label={`Ver favoritos de ${meta.label}`}
+                aria-label={t("viewFavoritesAria", { category: categoryLabel })}
                 className={cn(
                   "flex min-w-0 items-center justify-center gap-1 rounded-full border px-2 py-1 text-[10px] font-semibold transition-colors",
                   isActive
@@ -543,7 +552,7 @@ export function PantrySearchView({
                 <span aria-hidden className="shrink-0 text-sm leading-none">
                   {meta.emoji}
                 </span>
-                <span className="truncate">{meta.label}</span>
+                <span className="truncate">{categoryLabel}</span>
                 {favoritesByCategory[key].length > 0 ? (
                   <span
                     className={cn(
@@ -603,8 +612,9 @@ export function PantrySearchView({
           </div>
         ) : (
           <p className="text-[11px] leading-relaxed text-stone-500">
-            Sin favoritos en {CATEGORY_TAB_META[activeCategory].label.toLowerCase()}. Busca un
-            ingrediente arriba y pulsa el marcador para guardarlo aquí.
+            {t("noFavoritesInCategory", {
+              category: t(CATEGORY_TAB_META[activeCategory].labelKey).toLowerCase()
+            })}
           </p>
         )}
       </section>
@@ -613,9 +623,11 @@ export function PantrySearchView({
         mealType={mealType}
         cuisineStyle={cuisineStyle}
         servings={servings}
+        complexity={complexity}
         onMealTypeChange={onMealTypeChange}
         onCuisineStyleChange={onCuisineStyleChange}
         onServingsChange={onServingsChange}
+        onComplexityChange={onComplexityChange}
         disabled={isBusy}
       />
 

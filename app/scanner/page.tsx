@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { PantrySearchView } from "@/components/scanner/pantry-search-view";
 import { GenerationsLimitModal } from "@/components/scanner/generations-limit-modal";
 import { InstagramCuratedCatalog } from "@/components/scanner/instagram-curated-catalog";
@@ -14,20 +15,22 @@ import { completePendingPlanAssignment } from "@/lib/plan/complete-pending-assig
 import {
   clearPendingPlanAssignment,
   consumeScannerInitialMode,
-  formatPendingPlanAssignmentLabel,
   readPendingPlanAssignment,
   type PendingPlanAssignment
 } from "@/lib/plan/plan-pending-assignment";
 import {
+  FREE_DEFAULT_COMPLEXITY,
   FREE_DEFAULT_CUISINE_STYLE,
   FREE_DEFAULT_MEAL_TYPE,
   FREE_DEFAULT_SERVINGS,
-  getRecipeMealTypeLabel,
   type AppliedRecipeFilters,
+  type RecipeComplexity,
   type RecipeCuisineStyle,
   type RecipeMealType,
   type RecipeServings
 } from "@/lib/recipes/premium-recipe-filters";
+import { translateMealType } from "@/lib/i18n/filter-labels";
+import { formatPendingPlanSlot } from "@/lib/i18n/plan-pending-label";
 import { tagsToLegacyFlags } from "@/lib/recipes/recipe-tags";
 import {
   formatIngredientLinesForDisplay,
@@ -36,6 +39,7 @@ import {
 } from "@/lib/recipes/structured-ingredients";
 import { type RecipeMacros } from "@/lib/recipes/recipe-macros";
 import { saveGeneratedRecipeToLibrary, parseCookingMinutesFromLabel } from "@/lib/recipes/save-generated-recipe";
+import { completeScanPantryChallengeIfConfigured } from "@/lib/gamification/scan-pantry-challenge";
 import { usePremium } from "@/hooks/use-premium";
 import { useScannerReset } from "@/lib/scanner/scanner-reset-context";
 import { createSupabaseClient } from "@/lib/supabaseClient";
@@ -202,6 +206,9 @@ function resolveErrorMessage(
 }
 
 export default function ScannerPage() {
+  const t = useTranslations("Scanner");
+  const tPlan = useTranslations("Plan");
+  const locale = useLocale();
   const scannerReset = useScannerReset();
   const { refresh: refreshPremium } = usePremium();
   const [selectedIngredients, setSelectedIngredients] = useState<string[]>([]);
@@ -230,6 +237,8 @@ export default function ScannerPage() {
     FREE_DEFAULT_CUISINE_STYLE
   );
   const [servingsFilter, setServingsFilter] = useState<RecipeServings>(FREE_DEFAULT_SERVINGS);
+  const [complexityFilter, setComplexityFilter] =
+    useState<RecipeComplexity>(FREE_DEFAULT_COMPLEXITY);
   const [appliedRecipeFilters, setAppliedRecipeFilters] = useState<AppliedRecipeFilters | null>(
     null
   );
@@ -466,6 +475,8 @@ export default function ScannerPage() {
               mealType: mealTypeFilter,
               cuisineStyle: cuisineStyleFilter,
               servings: servingsFilter,
+              complexity: complexityFilter,
+              locale,
               ...(imagePayload ?? {})
             }),
             signal: createFetchSignal()
@@ -653,7 +664,8 @@ export default function ScannerPage() {
         payload.appliedFilters ?? {
           mealType: mealTypeFilter,
           cuisineStyle: cuisineStyleFilter,
-          servings: servingsFilter
+          servings: servingsFilter,
+          complexity: complexityFilter
         }
       );
       setMealTypeAdvisory(
@@ -664,12 +676,25 @@ export default function ScannerPage() {
       setRecipeFromPhoto(Boolean(pantryImageFile));
       setErrorMessage(null);
       setIsRecipeSaved(false);
-    setSavedRecipeId(null);
-    setSaveErrorMessage(null);
+      setSavedRecipeId(null);
+      setSaveErrorMessage(null);
       if (typeof payload.generationsLeft === "number") {
         setGenerationsLeft(payload.generationsLeft);
       }
       void refreshPremium();
+
+      void (async () => {
+        try {
+          const supabase = createSupabaseClient();
+          const {
+            data: { user }
+          } = await supabase.auth.getUser();
+          if (!user) return;
+          await completeScanPantryChallengeIfConfigured(user.id);
+        } catch (error) {
+          console.warn("[scanner] No se pudo sincronizar el reto de escanear despensa:", error);
+        }
+      })();
     } catch (err) {
       showDebugError("manejo de respuesta", err);
       setRecipe(null);
@@ -764,10 +789,16 @@ export default function ScannerPage() {
         const assignment = await completePendingPlanAssignment(user.id, recipeId);
         setPendingPlanAssignment(null);
 
-        if (assignment.message) {
-          setSaveSuccessMessage(assignment.message);
+        if (assignment.assigned && assignment.pending) {
+          setSaveSuccessMessage(
+            t("savedAndAssigned", {
+              slot: formatPendingPlanSlot(assignment.pending, tPlan, t)
+            })
+          );
+        } else if (assignment.hadPending) {
+          setSaveSuccessMessage(t("savedAssignFailed"));
         } else {
-          setSaveSuccessMessage("¡Receta guardada con éxito!");
+          setSaveSuccessMessage(t("savedSuccess"));
         }
         window.setTimeout(() => {
           window.location.assign(assignment.hadPending ? APP_ROUTES.plan : APP_ROUTES.guardadas);
@@ -827,13 +858,11 @@ export default function ScannerPage() {
     >
       {pendingPlanAssignment ? (
         <div className="mb-3 shrink-0 rounded-2xl border border-[#556B2F]/20 bg-[#F0F4ED]/80 px-4 py-3">
-          <p className="text-sm font-semibold text-[#3e5219]">Planificando tu semana</p>
+          <p className="text-sm font-semibold text-[#3e5219]">{t("planningWeekTitle")}</p>
           <p className="mt-1 text-xs leading-relaxed text-stone-600">
-            Al guardar la receta, se asignará al{" "}
-            <span className="font-medium text-stone-800">
-              {formatPendingPlanAssignmentLabel(pendingPlanAssignment)}
-            </span>
-            .
+            {t("planningWeekHint", {
+              slot: formatPendingPlanSlot(pendingPlanAssignment, tPlan, t)
+            })}
           </p>
           <button
             type="button"
@@ -843,7 +872,7 @@ export default function ScannerPage() {
             }}
             className="mt-2 text-xs font-medium text-stone-500 underline-offset-2 hover:text-stone-700 hover:underline"
           >
-            Cancelar asignación al plan
+            {t("planningWeekCancel")}
           </button>
         </div>
       ) : null}
@@ -912,17 +941,13 @@ export default function ScannerPage() {
             className="w-full max-w-md rounded-2xl border border-amber-300/60 bg-[#FDFCFB] p-5 shadow-xl"
           >
             <p id="meal-type-mismatch-title" className="text-lg font-semibold text-[#556B2F]">
-              Ingrediente no apto para este plato
+              {t("mealMismatchTitle")}
             </p>
             <p className="mt-2 text-sm leading-relaxed text-stone-700">
-              {mealTypeMismatchMessage ??
-                "Los ingredientes no encajan con el tipo de plato seleccionado. Cambia el filtro o prueba con otros alimentos."}
+              {mealTypeMismatchMessage ?? t("mealMismatchBody")}
             </p>
             <p className="mt-3 rounded-xl border border-[#556B2F]/15 bg-white px-3 py-2 text-xs text-stone-600">
-              Filtro actual:{" "}
-              <span className="font-semibold text-stone-800">
-                {getRecipeMealTypeLabel(mealTypeFilter)}
-              </span>
+              {t("mealMismatchFilter", { meal: translateMealType(t, mealTypeFilter) })}
             </p>
             <button
               type="button"
@@ -932,7 +957,7 @@ export default function ScannerPage() {
               }}
               className="mt-4 w-full rounded-full bg-[#556B2F] px-4 py-2.5 text-sm font-semibold text-white transition hover:brightness-110"
             >
-              Entendido, cambiaré el filtro
+              {t("mealMismatchClose")}
             </button>
           </div>
         </div>
@@ -1055,9 +1080,11 @@ export default function ScannerPage() {
             mealType={mealTypeFilter}
             cuisineStyle={cuisineStyleFilter}
             servings={servingsFilter}
+            complexity={complexityFilter}
             onMealTypeChange={setMealTypeFilter}
             onCuisineStyleChange={setCuisineStyleFilter}
             onServingsChange={setServingsFilter}
+            onComplexityChange={setComplexityFilter}
           />
           </div>
           <GenerationsLimitModal

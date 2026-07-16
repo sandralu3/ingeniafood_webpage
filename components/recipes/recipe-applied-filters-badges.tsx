@@ -1,14 +1,18 @@
 "use client";
 
-import { Globe2, Moon, Sparkles, Sun, Users, UtensilsCrossed } from "lucide-react";
+import { Gauge, Globe2, Moon, Sparkles, Sun, Users, UtensilsCrossed } from "lucide-react";
+import { useTranslations } from "next-intl";
 import {
-  getRecipeCuisineStyleLabel,
-  getRecipeMealTypeLabel,
-  getRecipeServingsShortLabel,
   type AppliedRecipeFilters,
   type RecipeCuisineStyle,
   type RecipeMealType
 } from "@/lib/recipes/premium-recipe-filters";
+import {
+  translateComplexity,
+  translateCuisineStyle,
+  translateMealType,
+  translateServingsShort
+} from "@/lib/i18n/filter-labels";
 
 type Props = {
   filters: AppliedRecipeFilters;
@@ -42,11 +46,13 @@ function cuisineStyleIcon(cuisineStyle: RecipeCuisineStyle) {
 }
 
 export function RecipeAppliedFiltersBadges({ filters }: Props) {
+  const t = useTranslations("Scanner");
   const MealIcon = mealTypeIcon(filters.mealType);
   const CuisineIcon = cuisineStyleIcon(filters.cuisineStyle);
-  const mealLabel = getRecipeMealTypeLabel(filters.mealType);
-  const cuisineLabel = getRecipeCuisineStyleLabel(filters.cuisineStyle);
-  const servingsLabel = getRecipeServingsShortLabel(filters.servings);
+  const mealLabel = translateMealType(t, filters.mealType);
+  const cuisineLabel = translateCuisineStyle(t, filters.cuisineStyle);
+  const servingsLabel = translateServingsShort(t, filters.servings);
+  const complexityLabel = translateComplexity(t, filters.complexity);
 
   return (
     <>
@@ -61,6 +67,10 @@ export function RecipeAppliedFiltersBadges({ filters }: Props) {
       <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-sky-200/70 bg-sky-50 px-2 py-0.5 text-[10px] font-bold text-sky-900">
         <Users className="h-3 w-3" strokeWidth={1.75} aria-hidden />
         {servingsLabel}
+      </span>
+      <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-teal-200/70 bg-teal-50 px-2 py-0.5 text-[10px] font-bold text-teal-900">
+        <Gauge className="h-3 w-3" strokeWidth={1.75} aria-hidden />
+        {complexityLabel}
       </span>
     </>
   );

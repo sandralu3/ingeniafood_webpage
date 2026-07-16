@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
@@ -21,6 +22,7 @@ export function HoyGreetingHeader({
   isLoading = false,
   className
 }: HoyGreetingHeaderProps) {
+  const t = useTranslations("Hoy");
   const showNameSkeleton = isLoading || !displayName;
 
   return (
@@ -31,7 +33,7 @@ export function HoyGreetingHeader({
       )}
     >
       <div className="min-w-0 flex-1">
-        <p className="text-[11px] font-medium tracking-wide text-stone-400">Tu día en marcha</p>
+        <p className="text-[11px] font-medium tracking-wide text-stone-400">{t("dayInProgress")}</p>
         {showNameSkeleton ? (
           <Skeleton silent className="mt-1 h-6 w-28 rounded-md" />
         ) : (
@@ -42,7 +44,7 @@ export function HoyGreetingHeader({
       <Link
         href={APP_ROUTES.perfil}
         className="shrink-0 transition hover:opacity-90"
-        aria-label="Ir a tu perfil"
+        aria-label={t("goToProfile")}
       >
         {showNameSkeleton ? (
           <Skeleton silent className="h-10 w-10 rounded-full" />

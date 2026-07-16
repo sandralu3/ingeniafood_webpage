@@ -2,6 +2,7 @@
 
 import { Loader2, Copy } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   formatShoppingListText,
   groupShoppingListByCategory,
@@ -18,7 +19,13 @@ type ShoppingListModalProps = {
   onClose: () => void;
 };
 
-function ShoppingListItemRow({ item }: { item: ShoppingListItem }) {
+function ShoppingListItemRow({
+  item,
+  usedInMealsLabel
+}: {
+  item: ShoppingListItem;
+  usedInMealsLabel: string;
+}) {
   return (
     <li className="flex items-start justify-between gap-3 rounded-xl bg-white/80 px-3 py-2.5">
       <span className="min-w-0 pr-2 text-sm font-medium leading-snug text-stone-800">
@@ -34,7 +41,7 @@ function ShoppingListItemRow({ item }: { item: ShoppingListItem }) {
               "mt-0.5 block rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-semibold text-stone-500"
             )}
           >
-            en {item.usedInRecipes} comidas
+            {usedInMealsLabel}
           </span>
         ) : null}
       </div>
@@ -50,9 +57,19 @@ export function ShoppingListModal({
   errorMessage,
   onClose
 }: ShoppingListModalProps) {
+  const t = useTranslations("Plan");
+  const tCommon = useTranslations("Common");
   const [isCopying, setIsCopying] = useState(false);
 
-  const text = useMemo(() => formatShoppingListText(items), [items]);
+  const text = useMemo(
+    () =>
+      formatShoppingListText(items, {
+        emptyMessage: t("shoppingListEmptyCopy"),
+        getCategoryLabel: (categoryId) => t(`categories.${categoryId}`),
+        usedInMealsLabel: (count) => t("usedInMeals", { count })
+      }),
+    [items, t]
+  );
   const groupedItems = useMemo(() => groupShoppingListByCategory(items), [items]);
   const useCompactScroll = items.length > 18;
 
@@ -81,7 +98,7 @@ export function ShoppingListModal({
         <div className="flex shrink-0 items-start justify-between gap-3 border-b border-stone-100 px-5 py-4">
           <div className="min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-amber-700/80">
-              Plan semanal
+              {t("shoppingListEyebrow")}
             </p>
             <h2 className="mt-1 truncate font-serif text-xl font-semibold text-stone-900">
               {title}
@@ -92,7 +109,7 @@ export function ShoppingListModal({
             onClick={onClose}
             className="rounded-full border border-stone-200 bg-white px-3 py-2 text-xs font-medium text-stone-600 transition hover:bg-stone-50"
           >
-            Cerrar
+            {tCommon("close")}
           </button>
         </div>
 
@@ -106,7 +123,7 @@ export function ShoppingListModal({
           {isLoading ? (
             <div className="flex items-center gap-2 rounded-2xl border border-stone-100 bg-stone-50/70 px-4 py-4 text-sm text-stone-600">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Generando lista de compra...
+              {t("generatingShoppingList")}
             </div>
           ) : null}
 
@@ -126,7 +143,7 @@ export function ShoppingListModal({
                           {group.category.emoji}
                         </span>
                         <h3 className="text-[11px] font-bold uppercase tracking-[0.12em] text-stone-500">
-                          {group.category.label}
+                          {t(`categories.${group.category.id}`)}
                         </h3>
                         <span className="ml-auto rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-semibold text-stone-400">
                           {group.items.length}
@@ -134,16 +151,18 @@ export function ShoppingListModal({
                       </div>
                       <ul className="space-y-1.5">
                         {group.items.map((item) => (
-                          <ShoppingListItemRow key={item.id} item={item} />
+                          <ShoppingListItemRow
+                            key={item.id}
+                            item={item}
+                            usedInMealsLabel={t("usedInMeals", { count: item.usedInRecipes })}
+                          />
                         ))}
                       </ul>
                     </section>
                   ))}
                 </div>
               ) : (
-                <p className="px-2 text-sm text-stone-600">
-                  No hay recetas asignadas en tu plan semanal.
-                </p>
+                <p className="px-2 text-sm text-stone-600">{t("emptyShoppingList")}</p>
               )}
             </div>
           ) : null}
@@ -155,7 +174,7 @@ export function ShoppingListModal({
             className="flex w-full shrink-0 items-center justify-center gap-2 rounded-2xl bg-[#4c6633] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#3e5219] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isCopying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Copy className="h-4 w-4" />}
-            {isCopying ? "Copiando..." : "Copiar lista"}
+            {isCopying ? t("copying") : t("copyList")}
           </button>
         </div>
       </div>

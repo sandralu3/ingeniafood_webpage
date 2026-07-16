@@ -19,6 +19,15 @@ export type RecipeCuisineStyle = (typeof RECIPE_CUISINE_STYLES)[number]["id"];
 export const FREE_DEFAULT_MEAL_TYPE: RecipeMealType = "almuerzo";
 export const FREE_DEFAULT_CUISINE_STYLE: RecipeCuisineStyle = "estandar";
 
+export const RECIPE_COMPLEXITY_LEVELS = [
+  { id: "facil", label: "Fácil", shortLabel: "Fácil", premium: false },
+  { id: "intermedio", label: "Intermedio", shortLabel: "Intermedio", premium: true },
+  { id: "avanzado", label: "Avanzado", shortLabel: "Avanzado", premium: true }
+] as const;
+
+export type RecipeComplexity = (typeof RECIPE_COMPLEXITY_LEVELS)[number]["id"];
+export const FREE_DEFAULT_COMPLEXITY: RecipeComplexity = "facil";
+
 export const RECIPE_SERVINGS_OPTIONS = [
   { value: 1, label: "1 persona", premium: true },
   { value: 2, label: "2 personas", premium: false },
@@ -52,6 +61,10 @@ const PREMIUM_CUISINE_STYLES = new Set<RecipeCuisineStyle>(
   RECIPE_CUISINE_STYLES.filter((item) => item.premium).map((item) => item.id)
 );
 
+const PREMIUM_COMPLEXITY = new Set<RecipeComplexity>(
+  RECIPE_COMPLEXITY_LEVELS.filter((item) => item.premium).map((item) => item.id)
+);
+
 export function parseRecipeMealType(raw: unknown): RecipeMealType | null {
   if (typeof raw !== "string") return null;
   const normalized = raw.trim().toLowerCase();
@@ -66,6 +79,26 @@ export function parseRecipeCuisineStyle(raw: unknown): RecipeCuisineStyle | null
   return CUISINE_STYLE_IDS.has(normalized as RecipeCuisineStyle)
     ? (normalized as RecipeCuisineStyle)
     : null;
+}
+
+export function parseRecipeComplexity(raw: unknown): RecipeComplexity | null {
+  if (typeof raw !== "string") return null;
+  const normalized = raw
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+  const aliases: Record<string, RecipeComplexity> = {
+    facil: "facil",
+    easy: "facil",
+    intermedio: "intermedio",
+    intermediate: "intermedio",
+    medio: "intermedio",
+    avanzado: "avanzado",
+    advanced: "avanzado",
+    dificil: "avanzado"
+  };
+  return aliases[normalized] ?? null;
 }
 
 export function parseRecipeServings(raw: unknown): RecipeServings | null {
@@ -92,16 +125,21 @@ export function isPremiumCuisineStyle(cuisineStyle: RecipeCuisineStyle): boolean
   return PREMIUM_CUISINE_STYLES.has(cuisineStyle);
 }
 
+export function isPremiumComplexity(complexity: RecipeComplexity): boolean {
+  return PREMIUM_COMPLEXITY.has(complexity);
+}
+
 export type ResolvedRecipeFilters = {
   mealType: RecipeMealType;
   cuisineStyle: RecipeCuisineStyle;
   servings: RecipeServings;
+  complexity: RecipeComplexity;
   sanitized: boolean;
 };
 
 export type AppliedRecipeFilters = Pick<
   ResolvedRecipeFilters,
-  "mealType" | "cuisineStyle" | "servings"
+  "mealType" | "cuisineStyle" | "servings" | "complexity"
 >;
 
 export function getRecipeMealTypeLabel(mealType: RecipeMealType): string {
@@ -114,6 +152,14 @@ export function getRecipeCuisineStyleLabel(cuisineStyle: RecipeCuisineStyle): st
 
 export function getRecipeCuisineStyleShortLabel(cuisineStyle: RecipeCuisineStyle): string {
   return RECIPE_CUISINE_STYLES.find((item) => item.id === cuisineStyle)?.shortLabel ?? cuisineStyle;
+}
+
+export function getRecipeComplexityLabel(complexity: RecipeComplexity): string {
+  return RECIPE_COMPLEXITY_LEVELS.find((item) => item.id === complexity)?.label ?? complexity;
+}
+
+export function getRecipeComplexityBadgeLabel(complexity: RecipeComplexity): string {
+  return getRecipeComplexityLabel(complexity).toUpperCase();
 }
 
 export function getRecipeServingsLabel(servings: RecipeServings): string {
@@ -129,17 +175,21 @@ export function resolveRecipeFilters(options: {
   requestedMealType?: unknown;
   requestedCuisineStyle?: unknown;
   requestedServings?: unknown;
+  requestedComplexity?: unknown;
 }): ResolvedRecipeFilters {
   const parsedMealType = parseRecipeMealType(options.requestedMealType) ?? FREE_DEFAULT_MEAL_TYPE;
   const parsedCuisineStyle =
     parseRecipeCuisineStyle(options.requestedCuisineStyle) ?? FREE_DEFAULT_CUISINE_STYLE;
   const parsedServings = parseRecipeServings(options.requestedServings) ?? FREE_DEFAULT_SERVINGS;
+  const parsedComplexity =
+    parseRecipeComplexity(options.requestedComplexity) ?? FREE_DEFAULT_COMPLEXITY;
 
   if (options.isPremium) {
     return {
       mealType: parsedMealType,
       cuisineStyle: parsedCuisineStyle,
       servings: parsedServings,
+      complexity: parsedComplexity,
       sanitized: false
     };
   }
@@ -149,15 +199,20 @@ export function resolveRecipeFilters(options: {
     ? FREE_DEFAULT_CUISINE_STYLE
     : parsedCuisineStyle;
   const servings = isPremiumServings(parsedServings) ? FREE_DEFAULT_SERVINGS : parsedServings;
+  const complexity = isPremiumComplexity(parsedComplexity)
+    ? FREE_DEFAULT_COMPLEXITY
+    : parsedComplexity;
 
   return {
     mealType,
     cuisineStyle,
     servings,
+    complexity,
     sanitized:
       mealType !== parsedMealType ||
       cuisineStyle !== parsedCuisineStyle ||
-      servings !== parsedServings
+      servings !== parsedServings ||
+      complexity !== parsedComplexity
   };
 }
 
@@ -193,6 +248,30 @@ export function buildCuisineStylePromptClause(cuisineStyle: RecipeCuisineStyle):
   }
 }
 
+export function buildComplexityPromptClause(complexity: RecipeComplexity): string {
+  switch (complexity) {
+    case "intermedio":
+      return (
+        "NIVEL DE COMPLEJIDAD (obligatorio): Intermedio. " +
+        "La receta debe exigir algo más de técnica o atención: 4-6 pasos claros, 1-2 técnicas moderadas (saltear, hornear, reducir, montar), " +
+        "y un tiempo razonable (aprox. 20-40 min). No la hagas trivial ni de chef profesional."
+      );
+    case "avanzado":
+      return (
+        "NIVEL DE COMPLEJIDAD (obligatorio): Avanzado. " +
+        "La receta debe ser exigente: 6-9 pasos bien estructurados, técnicas más precisas (temperatura, tiempos, texturas, emplatado), " +
+        "y mayor control del proceso. Mantén ingredientes realistas con lo disponible; la dificultad viene de la técnica, no de inventar productos."
+      );
+    case "facil":
+    default:
+      return (
+        "NIVEL DE COMPLEJIDAD (obligatorio): Fácil. " +
+        "Receta sencilla para cocinar rápido: máximo 3-4 pasos, técnicas básicas (mezclar, saltear ligero, hervir, hornear simple), " +
+        "pocos utensilios y tiempo corto. Evita procesos largos o técnicas avanzadas."
+      );
+  }
+}
+
 export function buildServingsPromptClause(servings: RecipeServings): string {
   const peopleLabel = servings === 1 ? "1 persona" : `${servings} personas`;
   return (
@@ -224,6 +303,7 @@ export function buildRecipeFiltersPromptClause(filters: {
   mealType: RecipeMealType;
   cuisineStyle: RecipeCuisineStyle;
   servings: RecipeServings;
+  complexity: RecipeComplexity;
 }): string {
-  return `${buildMealTypePromptClause(filters.mealType)} ${buildCuisineStylePromptClause(filters.cuisineStyle)} ${buildServingsPromptClause(filters.servings)}`;
+  return `${buildMealTypePromptClause(filters.mealType)} ${buildCuisineStylePromptClause(filters.cuisineStyle)} ${buildServingsPromptClause(filters.servings)} ${buildComplexityPromptClause(filters.complexity)}`;
 }

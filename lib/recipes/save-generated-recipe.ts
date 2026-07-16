@@ -3,9 +3,11 @@ import type { Database, Json } from "@/types/database.types";
 import { macrosToJson, type RecipeMacros } from "@/lib/recipes/recipe-macros";
 import type { AppliedRecipeFilters } from "@/lib/recipes/premium-recipe-filters";
 import {
+  parseRecipeComplexity,
   parseRecipeCuisineStyle,
   parseRecipeMealType,
   parseRecipeServings,
+  FREE_DEFAULT_COMPLEXITY,
   FREE_DEFAULT_SERVINGS
 } from "@/lib/recipes/premium-recipe-filters";
 import { normalizeRecipeTags } from "@/lib/recipes/recipe-tags";
@@ -102,6 +104,7 @@ function buildInsertPayload(input: SaveGeneratedRecipeInput, options?: InsertOpt
     payload.meal_type = input.appliedFilters?.mealType ?? null;
     payload.cuisine_style = input.appliedFilters?.cuisineStyle ?? null;
     payload.servings = input.appliedFilters?.servings ?? null;
+    payload.complexity = input.appliedFilters?.complexity ?? null;
     payload.meal_type_advisory = input.mealTypeAdvisory?.trim() || null;
   }
 
@@ -179,6 +182,7 @@ export async function saveGeneratedRecipeToLibrary(
       isMissingColumnError(error, "cuisine_style") ||
       isMissingColumnError(error, "meal_type_advisory") ||
       isMissingColumnError(error, "servings") ||
+      isMissingColumnError(error, "complexity") ||
       isMissingColumnError(error, "tags") ||
       isMissingColumnError(error, "cooking_time");
 
@@ -200,15 +204,18 @@ export function parseStoredAppliedFilters(recipe: {
   meal_type?: string | null;
   cuisine_style?: string | null;
   servings?: number | null;
+  complexity?: string | null;
 }): AppliedRecipeFilters | null {
   const mealType = parseRecipeMealType(recipe.meal_type);
   const cuisineStyle = parseRecipeCuisineStyle(recipe.cuisine_style);
   const servings = parseRecipeServings(recipe.servings) ?? FREE_DEFAULT_SERVINGS;
-  if (!mealType && !cuisineStyle && !recipe.servings) return null;
+  const complexity = parseRecipeComplexity(recipe.complexity) ?? FREE_DEFAULT_COMPLEXITY;
+  if (!mealType && !cuisineStyle && !recipe.servings && !recipe.complexity) return null;
   return {
     mealType: mealType ?? "almuerzo",
     cuisineStyle: cuisineStyle ?? "estandar",
-    servings
+    servings,
+    complexity
   };
 }
 

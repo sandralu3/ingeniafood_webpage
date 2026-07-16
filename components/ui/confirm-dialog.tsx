@@ -11,6 +11,7 @@ import {
   AlertDialogTitle
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 
 type ConfirmDialogProps = {
   open: boolean;
@@ -29,12 +30,16 @@ export function ConfirmDialog({
   onOpenChange,
   title,
   description,
-  confirmLabel = "Confirmar",
-  cancelLabel = "Cancelar",
+  confirmLabel,
+  cancelLabel,
   onConfirm,
   isLoading = false,
   destructive = false
 }: ConfirmDialogProps) {
+  const t = useTranslations("Common");
+  const resolvedConfirm = confirmLabel ?? t("confirm");
+  const resolvedCancel = cancelLabel ?? t("cancel");
+
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
@@ -43,7 +48,7 @@ export function ConfirmDialog({
           {description ? <AlertDialogDescription>{description}</AlertDialogDescription> : null}
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={isLoading}>{cancelLabel}</AlertDialogCancel>
+          <AlertDialogCancel disabled={isLoading}>{resolvedCancel}</AlertDialogCancel>
           <AlertDialogAction
             disabled={isLoading}
             onClick={(event) => {
@@ -54,7 +59,7 @@ export function ConfirmDialog({
               destructive && "bg-red-600 hover:opacity-90 focus-visible:ring-red-600/40"
             )}
           >
-            {isLoading ? "Procesando..." : confirmLabel}
+            {isLoading ? t("processing") : resolvedConfirm}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

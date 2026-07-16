@@ -3,10 +3,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, MoreVertical, ScanLine, Search, Instagram, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { PlanRecipePickerRow } from "@/components/plan/plan-recipe-picker-row";
 import type { ScannerMode } from "@/components/scanner/scanner-mode-tabs";
 import type { RecipePickerItem } from "@/lib/plan/plan-service";
-import type { MealType, WeekDay } from "@/lib/plan/constants";
+import { WEEK_DAYS, type MealType, type WeekDay } from "@/lib/plan/constants";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
 import {
   savePendingPlanAssignment,
@@ -32,6 +33,14 @@ type PlanRecipePickerModalProps = {
   onSelectRecipe: (recipeId: string) => void;
 };
 
+const FILTER_LABEL_KEYS: Record<SavedRecipeFilter, string> = {
+  Todas: "filterAll",
+  Airfryer: "filterAirfryer",
+  Desayunos: "filterBreakfasts",
+  Cenas: "filterDinners",
+  "Sin Harinas": "filterFlourless"
+};
+
 export function PlanRecipePickerModal({
   open,
   dayLabel,
@@ -44,11 +53,19 @@ export function PlanRecipePickerModal({
   onClose,
   onSelectRecipe
 }: PlanRecipePickerModalProps) {
+  const t = useTranslations("Plan");
+  const tCommon = useTranslations("Common");
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilter, setActiveFilter] = useState<SavedRecipeFilter>("Todas");
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
   const filterMenuRef = useRef<HTMLDivElement>(null);
+
+  const dayDisplay =
+    dayLabel && (WEEK_DAYS as readonly string[]).includes(dayLabel)
+      ? t(`days.${dayLabel as WeekDay}`)
+      : dayLabel;
+  const mealDisplay = t(`meals.${mealType}`);
 
   useEffect(() => {
     if (!open) {
@@ -104,21 +121,19 @@ export function PlanRecipePickerModal({
         <div className="flex items-start justify-between gap-3 border-b border-stone-100 bg-white px-5 py-4">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-amber-700/80">
-              {dayLabel} · {mealType}
+              {dayDisplay} · {mealDisplay}
             </p>
             <h2 id="plan-picker-title" className="mt-1 font-serif text-xl font-semibold text-stone-900">
-              Elige una receta
+              {t("pickerTitle")}
             </h2>
-            <p className="mt-1 text-xs text-stone-500">
-              Selecciona desde tu biblioteca de recetas guardadas.
-            </p>
+            <p className="mt-1 text-xs text-stone-500">{t("pickerSubtitle")}</p>
           </div>
           <button
             type="button"
             onClick={onClose}
             disabled={isAssigning}
             className="rounded-full p-2 text-stone-400 transition hover:bg-stone-100 hover:text-stone-700 disabled:opacity-50"
-            aria-label="Cerrar"
+            aria-label={tCommon("close")}
           >
             <X className="h-4 w-4" />
           </button>
@@ -136,7 +151,7 @@ export function PlanRecipePickerModal({
                 type="search"
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
-                placeholder="Buscar receta..."
+                placeholder={t("searchPlaceholder")}
                 className="w-full rounded-full border border-stone-200/80 bg-white py-2.5 pl-11 pr-4 text-sm text-stone-700 shadow-sm outline-none placeholder:text-stone-400 transition focus:border-[#4C6B3F] focus:ring-1 focus:ring-[#4C6B3F]"
               />
             </label>
@@ -146,7 +161,7 @@ export function PlanRecipePickerModal({
                 type="button"
                 onClick={() => setIsFilterMenuOpen((current) => !current)}
                 className="flex h-10 w-10 items-center justify-center rounded-full border border-stone-200/60 bg-stone-100 text-stone-600 transition-colors hover:bg-stone-200/50"
-                aria-label="Filtrar recetas"
+                aria-label={t("filterRecipesAria")}
                 aria-expanded={isFilterMenuOpen}
               >
                 <MoreVertical size={18} />
@@ -171,7 +186,7 @@ export function PlanRecipePickerModal({
                             : "text-stone-600 hover:bg-stone-50"
                         )}
                       >
-                        {chip}
+                        {t(FILTER_LABEL_KEYS[chip])}
                       </button>
                     );
                   })}
@@ -191,16 +206,14 @@ export function PlanRecipePickerModal({
           {isLoading ? (
             <div className="flex items-center justify-center gap-2 py-12 text-sm text-stone-500">
               <Loader2 className="h-4 w-4 animate-spin text-[#556B2F]" />
-              Cargando recetas...
+              {t("loadingRecipes")}
             </div>
           ) : null}
 
           {!isLoading && filteredRecipes.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-stone-200 bg-white px-4 py-8 text-center">
-              <p className="text-sm font-medium text-stone-700">No hay recetas disponibles.</p>
-              <p className="mt-1 text-xs text-stone-500">
-                Prueba otro término o filtro, o escanea ingredientes para crear nuevas recetas.
-              </p>
+              <p className="text-sm font-medium text-stone-700">{t("noRecipes")}</p>
+              <p className="mt-1 text-xs text-stone-500">{t("noRecipesHint")}</p>
             </div>
           ) : null}
 
@@ -219,9 +232,7 @@ export function PlanRecipePickerModal({
         </div>
 
         <div className="border-t border-stone-100 bg-stone-50/80 px-5 py-4">
-          <p className="mb-3 text-center text-xs font-medium text-stone-500">
-            ¿No encuentras la receta que quieres?
-          </p>
+          <p className="mb-3 text-center text-xs font-medium text-stone-500">{t("cantFindRecipe")}</p>
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
@@ -233,7 +244,7 @@ export function PlanRecipePickerModal({
               )}
             >
               <ScanLine className="h-4 w-4 shrink-0" />
-              Escanear despensa
+              {t("scanPantry")}
             </button>
             <button
               type="button"
@@ -245,18 +256,18 @@ export function PlanRecipePickerModal({
               )}
             >
               <Instagram className="h-4 w-4 shrink-0" strokeWidth={1.75} />
-              Desde Instagram
+              {t("fromInstagram")}
             </button>
           </div>
           <p className="mt-2 text-center text-[10px] leading-relaxed text-stone-400">
-            Al guardar la receta, se asignará al {mealType.toLowerCase()} del {dayLabel}.
+            {t("willAssignHint", { meal: mealDisplay, day: dayDisplay })}
           </p>
         </div>
 
         {isAssigning ? (
           <div className="border-t border-stone-100 px-5 py-3 text-center text-xs font-medium text-[#556B2F]">
             <Loader2 className="mr-1.5 inline h-3.5 w-3.5 animate-spin" />
-            Asignando receta al plan...
+            {t("assigning")}
           </div>
         ) : null}
       </div>

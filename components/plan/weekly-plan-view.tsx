@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Loader2, MoreVertical, ShoppingBag } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { PlanDayCarousel } from "@/components/plan/plan-day-carousel";
 import { PlanDayMealsPanel } from "@/components/plan/plan-day-meals-panel";
 import { PlanRecipePickerModal } from "@/components/plan/plan-recipe-picker-modal";
@@ -54,6 +55,7 @@ function patchDaySlots(day: PlanDay, slots: PlanDaySlots): PlanDay {
 }
 
 export function WeeklyPlanView() {
+  const t = useTranslations("Plan");
   const [weekStartDate, setWeekStartDate] = useState<Date>(() => {
     const last = readLastPlanWeekStartISO();
     return last ? parseISODateToLocalDate(last) : getMondayOfWeek();
@@ -89,49 +91,52 @@ export function WeeklyPlanView() {
     [days, selectedDay]
   );
 
-  const loadWeeklyPlan = useCallback(async (anchorWeekStart: Date) => {
-    setIsLoading(true);
-    setErrorMessage(null);
+  const loadWeeklyPlan = useCallback(
+    async (anchorWeekStart: Date) => {
+      setIsLoading(true);
+      setErrorMessage(null);
 
-    try {
-      const supabase = createSupabaseClient();
-      const {
-        data: { user }
-      } = await supabase.auth.getUser();
+      try {
+        const supabase = createSupabaseClient();
+        const {
+          data: { user }
+        } = await supabase.auth.getUser();
 
-      if (!user) {
-        setUserId(null);
+        if (!user) {
+          setUserId(null);
+          const emptyDays = buildEmptyWeekDays(anchorWeekStart);
+          setDays(emptyDays);
+          setSelectedDay(resolveInitialDay(emptyDays));
+          setErrorMessage(t("loginToView"));
+          return;
+        }
+
+        setUserId(user.id);
+        const { days: fetchedDays } = await fetchWeeklyPlan(user.id, anchorWeekStart);
+        setDays(fetchedDays);
+        setSelectedDay((current) =>
+          fetchedDays.some((day) => day.label === current)
+            ? current
+            : resolveInitialDay(fetchedDays)
+        );
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : typeof error === "object" && error !== null && "message" in error
+              ? String((error as { message?: unknown }).message ?? "Error desconocido")
+              : "Error desconocido";
+        console.error("[weekly-plan] Error cargando plan:", message, error);
+        setErrorMessage(t("loadError"));
         const emptyDays = buildEmptyWeekDays(anchorWeekStart);
         setDays(emptyDays);
         setSelectedDay(resolveInitialDay(emptyDays));
-        setErrorMessage("Inicia sesión para ver tu plan semanal.");
-        return;
+      } finally {
+        setIsLoading(false);
       }
-
-      setUserId(user.id);
-      const { days: fetchedDays } = await fetchWeeklyPlan(user.id, anchorWeekStart);
-      setDays(fetchedDays);
-      setSelectedDay((current) =>
-        fetchedDays.some((day) => day.label === current)
-          ? current
-          : resolveInitialDay(fetchedDays)
-      );
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : typeof error === "object" && error !== null && "message" in error
-            ? String((error as { message?: unknown }).message ?? "Error desconocido")
-            : "Error desconocido";
-      console.error("[weekly-plan] Error cargando plan:", message, error);
-      setErrorMessage("No pudimos cargar tu plan semanal.");
-      const emptyDays = buildEmptyWeekDays(anchorWeekStart);
-      setDays(emptyDays);
-      setSelectedDay(resolveInitialDay(emptyDays));
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+    },
+    [t]
+  );
 
   useEffect(() => {
     void loadWeeklyPlan(weekStartDate);
@@ -186,7 +191,7 @@ export function WeeklyPlanView() {
 
   const openPicker = async (dayLabel: WeekDay, mealType: MealType) => {
     if (!userId) {
-      setSwapNotice("Inicia sesión para asignar recetas al plan.");
+      setSwapNotice(t("loginToAssign"));
       window.setTimeout(() => setSwapNotice(null), 2800);
       return;
     }
@@ -201,7 +206,7 @@ export function WeeklyPlanView() {
     } catch (error) {
       console.error("[weekly-plan] Error cargando recetas para picker:", error);
       setPickerRecipes([]);
-      setPickerError("No pudimos cargar tus recetas guardadas.");
+      setPickerError(t("pickerLoadError"));
     } finally {
       setIsPickerLoading(false);
     }
@@ -229,7 +234,7 @@ export function WeeklyPlanView() {
       });
 
       if (!assigned) {
-        setPickerError("No pudimos asignar la receta. Puede que ese bloque ya esté ocupado.");
+        setPickerError(t("assignOccupiedError"));
         return;
       }
 
@@ -247,12 +252,18 @@ export function WeeklyPlanView() {
       clearHoyCache(userId);
 
       setSelectedDay(pickerTarget.dayLabel);
-      setSwapNotice(`«${assigned.title}» añadida al ${pickerTarget.mealType.toLowerCase()} del ${pickerTarget.dayLabel}.`);
+      setSwapNotice(
+        t("recipeAdded", {
+          title: assigned.title,
+          meal: t(`meals.${pickerTarget.mealType}`),
+          day: t(`days.${pickerTarget.dayLabel}`)
+        })
+      );
       window.setTimeout(() => setSwapNotice(null), 2800);
       setPickerTarget(null);
     } catch (error) {
       console.error("[weekly-plan] Error asignando receta:", error);
-      setPickerError("Ocurrió un error al asignar la receta.");
+      setPickerError(t("assignError"));
     } finally {
       setIsAssigning(false);
     }
@@ -270,7 +281,7 @@ export function WeeklyPlanView() {
       )
     );
     if (userId) clearHoyCache(userId);
-    setSwapNotice(`Receta intercambiada: «${updatedMeal.title}»`);
+    setSwapNotice(t("recipeSwapped", { title: updatedMeal.title }));
     window.setTimeout(() => setSwapNotice(null), 2800);
   };
 
@@ -292,7 +303,12 @@ export function WeeklyPlanView() {
     );
     if (userId) clearHoyCache(userId);
 
-    setSwapNotice(`Receta quitada del ${mealType.toLowerCase()} de ${dayLabel}.`);
+    setSwapNotice(
+      t("recipeRemoved", {
+        meal: t(`meals.${mealType}`),
+        day: t(`days.${dayLabel}`)
+      })
+    );
     window.setTimeout(() => setSwapNotice(null), 3200);
   };
 
@@ -304,7 +320,7 @@ export function WeeklyPlanView() {
 
     try {
       if (!userId) {
-        setShoppingListError("Inicia sesión para generar tu lista de compra.");
+        setShoppingListError(t("loginForShoppingList"));
         return;
       }
 
@@ -316,7 +332,7 @@ export function WeeklyPlanView() {
       setShoppingListItems(items);
     } catch (error) {
       console.error("[weekly-plan] Error generando lista de compra:", error);
-      setShoppingListError("No pudimos generar la lista de compra.");
+      setShoppingListError(t("shoppingListError"));
     } finally {
       setIsShoppingListLoading(false);
     }
@@ -332,7 +348,7 @@ export function WeeklyPlanView() {
 
   const clonePreviousWeek = async () => {
     if (!userId) {
-      setSwapNotice("Inicia sesión para clonar menús.");
+      setSwapNotice(t("loginToClone"));
       window.setTimeout(() => setSwapNotice(null), 2800);
       return;
     }
@@ -357,7 +373,7 @@ export function WeeklyPlanView() {
       if (error) throw error;
 
       if (!data || data.length === 0) {
-        setSwapNotice("No encontramos una semana anterior para clonar.");
+        setSwapNotice(t("noWeekToClone"));
         window.setTimeout(() => setSwapNotice(null), 3200);
         return;
       }
@@ -376,12 +392,12 @@ export function WeeklyPlanView() {
 
       if (upsertError) throw upsertError;
 
-      setSwapNotice("Semana anterior copiada con éxito.");
+      setSwapNotice(t("cloneSuccess"));
       window.setTimeout(() => setSwapNotice(null), 3200);
       await loadWeeklyPlan(weekStartDate);
     } catch (error) {
       console.error("[weekly-plan] Error clonando semana anterior:", error);
-      setSwapNotice("No pudimos clonar la semana anterior.");
+      setSwapNotice(t("cloneError"));
       window.setTimeout(() => setSwapNotice(null), 3200);
     } finally {
       setIsCloningWeek(false);
@@ -397,11 +413,8 @@ export function WeeklyPlanView() {
     <div className="-mx-4 -mb-6 min-h-full bg-gradient-to-b from-stone-50 via-amber-50/20 to-sv-surface px-4 pb-6 pt-1">
       <section className="space-y-3">
         <header>
-          <h1 className="font-serif text-lg font-semibold text-stone-900">Tu plan semanal</h1>
-          <p className="mt-1 text-[11px] leading-relaxed text-stone-500">
-            Organiza tus comidas de la semana y asegúrate un menú variado y equilibrado. Haz un
-            seguimiento de tu progreso.
-          </p>
+          <h1 className="font-serif text-lg font-semibold text-stone-900">{t("title")}</h1>
+          <p className="mt-1 text-[11px] leading-relaxed text-stone-500">{t("subtitle")}</p>
 
           <div className="mt-2.5 flex items-center justify-between gap-2">
             <div className="flex items-center rounded-full border border-stone-100 bg-white p-0.5 shadow-sm">
@@ -413,7 +426,7 @@ export function WeeklyPlanView() {
                   "rounded-full p-1.5 text-stone-500 transition-colors hover:bg-stone-50",
                   isLoading || isCloningWeek ? "cursor-not-allowed opacity-50" : ""
                 )}
-                aria-label="Semana anterior"
+                aria-label={t("prevWeek")}
               >
                 <ChevronLeft className="h-4 w-4" strokeWidth={2.25} />
               </button>
@@ -430,7 +443,7 @@ export function WeeklyPlanView() {
                   "rounded-full p-1.5 text-stone-500 transition-colors hover:bg-stone-50",
                   isLoading || isCloningWeek ? "cursor-not-allowed opacity-50" : ""
                 )}
-                aria-label="Semana siguiente"
+                aria-label={t("nextWeek")}
               >
                 <ChevronRight className="h-4 w-4" strokeWidth={2.25} />
               </button>
@@ -447,7 +460,7 @@ export function WeeklyPlanView() {
                 )}
               >
                 <ShoppingBag className="h-3.5 w-3.5" strokeWidth={2} />
-                Lista de compras
+                {t("shoppingListButton")}
               </button>
 
               <div className="relative">
@@ -459,7 +472,7 @@ export function WeeklyPlanView() {
                     "flex h-8 w-8 items-center justify-center rounded-full border border-stone-200/60 bg-stone-100 text-stone-600 transition hover:bg-stone-200/50",
                     isLoading || isCloningWeek ? "cursor-not-allowed opacity-60" : ""
                   )}
-                  aria-label="Acciones"
+                  aria-label={t("actionsAria")}
                 >
                   <MoreVertical className="h-4 w-4" strokeWidth={2.25} />
                 </button>
@@ -481,10 +494,10 @@ export function WeeklyPlanView() {
                     >
                       <span>
                         {isCheckingCloneAvailability
-                          ? "Comprobando..."
+                          ? t("checkingClone")
                           : canClonePreviousWeek
-                            ? "Copiar semana anterior"
-                            : "Sin semana anterior"}
+                            ? t("copyPreviousWeek")
+                            : t("noPreviousWeek")}
                       </span>
                       {isCloningWeek || isCheckingCloneAvailability ? (
                         <Loader2 className="h-4 w-4 animate-spin" />

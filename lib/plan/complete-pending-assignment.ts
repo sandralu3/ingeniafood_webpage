@@ -1,14 +1,15 @@
 import { assignRecipeToPlan } from "@/lib/plan/plan-service";
 import {
   clearPendingPlanAssignment,
-  formatPendingPlanAssignmentLabel,
-  readPendingPlanAssignment
+  readPendingPlanAssignment,
+  type PendingPlanAssignment
 } from "@/lib/plan/plan-pending-assignment";
 
 export type PendingAssignmentOutcome = {
   hadPending: boolean;
   assigned: boolean;
-  message: string | null;
+  /** Copia del pending (antes de limpiarlo) para que la UI formatee el mensaje. */
+  pending: PendingPlanAssignment | null;
 };
 
 export async function completePendingPlanAssignment(
@@ -17,7 +18,7 @@ export async function completePendingPlanAssignment(
 ): Promise<PendingAssignmentOutcome> {
   const pending = readPendingPlanAssignment();
   if (!pending) {
-    return { hadPending: false, assigned: false, message: null };
+    return { hadPending: false, assigned: false, pending: null };
   }
 
   const assigned = await assignRecipeToPlan({
@@ -30,17 +31,9 @@ export async function completePendingPlanAssignment(
 
   clearPendingPlanAssignment();
 
-  if (assigned) {
-    return {
-      hadPending: true,
-      assigned: true,
-      message: `¡Receta guardada y asignada al ${formatPendingPlanAssignmentLabel(pending)}!`
-    };
-  }
-
   return {
     hadPending: true,
-    assigned: false,
-    message: "Receta guardada. No pudimos asignarla al plan automáticamente."
+    assigned,
+    pending
   };
 }

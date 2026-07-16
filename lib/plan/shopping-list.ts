@@ -129,21 +129,37 @@ export function buildShoppingListItems(params: {
 
 export { groupShoppingListByCategory, type ShoppingListCategoryGroup };
 
-export function formatShoppingListText(items: ShoppingListItem[]): string {
-  if (!items.length) return "Tu lista de compra está vacía esta semana.";
+export type FormatShoppingListTextOptions = {
+  emptyMessage?: string;
+  getCategoryLabel?: (categoryId: ShoppingListItem["category"]) => string;
+  usedInMealsLabel?: (count: number) => string;
+};
+
+export function formatShoppingListText(
+  items: ShoppingListItem[],
+  options?: FormatShoppingListTextOptions
+): string {
+  if (!items.length) {
+    return options?.emptyMessage ?? "Tu lista de compra está vacía esta semana.";
+  }
 
   const groups = groupShoppingListByCategory(items);
 
   return groups
     .map((group) => {
-      const header = `${group.category.emoji} ${group.category.label.toUpperCase()}`;
+      const categoryLabel =
+        options?.getCategoryLabel?.(group.category.id) ?? group.category.label;
+      const header = `${group.category.emoji} ${categoryLabel.toUpperCase()}`;
       const lines = group.items.map((item) => {
         if (item.quantityLabel) {
           return `  • ${item.name} — ${item.quantityLabel}`;
         }
 
         if (item.usedInRecipes > 1) {
-          return `  • ${item.name} (en ${item.usedInRecipes} comidas)`;
+          const usedLabel =
+            options?.usedInMealsLabel?.(item.usedInRecipes) ??
+            `en ${item.usedInRecipes} comidas`;
+          return `  • ${item.name} (${usedLabel})`;
         }
 
         return `  • ${item.name}`;

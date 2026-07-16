@@ -173,24 +173,26 @@ export function MiniSparkline({ values, className }: MiniSparklineProps) {
 
 export function StreakBadge({
   days,
-  activeDaysThisWeek
+  activeDaysThisWeek,
+  daysLabel,
+  activeThisWeekLabel
 }: {
   days: number;
   activeDaysThisWeek?: number;
+  daysLabel: string;
+  activeThisWeekLabel?: string;
 }) {
   return (
     <div className="space-y-1">
       <div className="flex items-baseline gap-1">
         <Flame className="h-3.5 w-3.5 shrink-0 text-orange-500" />
         <span className={METRIC_NUMBER_CLASS}>{days}</span>
-        <span className="text-[10px] font-medium text-stone-500">
-          día{days === 1 ? "" : "s"} seguidos
-        </span>
+        <span className="text-[10px] font-medium text-stone-500">{daysLabel}</span>
       </div>
-      {typeof activeDaysThisWeek === "number" && activeDaysThisWeek > days ? (
-        <p className="text-[9px] text-stone-400">
-          {activeDaysThisWeek} activos esta semana
-        </p>
+      {typeof activeDaysThisWeek === "number" &&
+      activeDaysThisWeek > days &&
+      activeThisWeekLabel ? (
+        <p className="text-[9px] text-stone-400">{activeThisWeekLabel}</p>
       ) : null}
     </div>
   );

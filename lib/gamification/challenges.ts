@@ -25,6 +25,9 @@ export const SYSTEM_DAILY_CHALLENGES: DailyChallenge[] = [
   { id: "10", label: "Hacer una pausa activa de 5 min", points: 8, source: "system" }
 ];
 
+/** Reto que se completa al generar una receta con el escáner de despensa. */
+export const SCAN_PANTRY_CHALLENGE_ID = "4";
+
 export function isRetiredSystemChallenge(id: string): boolean {
   return RETIRED_SYSTEM_CHALLENGE_IDS.has(id);
 }

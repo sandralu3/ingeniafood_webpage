@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Menu } from "lucide-react";
 import { AppDrawer } from "@/components/shared/app-drawer";
 import { IngeniaFoodLogo } from "@/components/shared/ingenia-food-logo";
@@ -17,6 +18,7 @@ function shouldHideHeaderAvatar(pathname: string): boolean {
 }
 
 export function Header() {
+  const t = useTranslations("Nav");
   const pathname = usePathname();
   const { isPremium, isLoading: isPremiumLoading } = usePremium();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -75,7 +77,7 @@ export function Header() {
             type="button"
             onClick={() => setIsDrawerOpen(true)}
             className="text-sv-primary-container transition hover:opacity-80"
-            aria-label="Abrir menú"
+            aria-label={t("openMenu")}
           >
             <Menu className="h-5 w-5" strokeWidth={1.75} />
           </button>

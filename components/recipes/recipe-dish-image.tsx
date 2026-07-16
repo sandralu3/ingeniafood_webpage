@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ImageOff, Lock, Sparkles } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { PremiumRichText } from "@/components/premium/premium-label";
 import { PremiumUpgradeDialog } from "@/components/premium/premium-upgrade-dialog";
 import { usePremium } from "@/hooks/use-premium";
@@ -23,6 +24,7 @@ export function RecipeDishImage({
   className,
   displayMode = "live"
 }: Props) {
+  const t = useTranslations("RecipeDetail");
   const { isPaidPremium, isLoading } = usePremium();
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
   const [realImageFailed, setRealImageFailed] = useState(false);
@@ -40,7 +42,11 @@ export function RecipeDishImage({
           <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-stone-100 shadow-sm shadow-stone-200/40">
             <img
               src={libraryUrl}
-              alt={recipeTitle ? `Foto del plato: ${recipeTitle}` : "Foto del plato"}
+              alt={
+                recipeTitle
+                  ? t("dishPhotoAlt", { title: recipeTitle })
+                  : t("dishPhotoAltFallback")
+              }
               className="h-full w-full object-cover"
               loading="eager"
               decoding="async"
@@ -48,7 +54,7 @@ export function RecipeDishImage({
             />
           </div>
           <p className="text-center text-[10px] font-medium text-stone-500">
-            Foto guardada de esta receta
+            {t("savedPhotoCaption")}
           </p>
         </div>
       );
@@ -62,9 +68,7 @@ export function RecipeDishImage({
           )}
         >
           <ImageOff className="h-7 w-7 text-stone-400" aria-hidden />
-          <p className="text-[10px] font-medium text-stone-500">
-            No pudimos cargar la imagen guardada.
-          </p>
+          <p className="text-[10px] font-medium text-stone-500">{t("savedPhotoLoadError")}</p>
         </div>
       );
     }
@@ -89,7 +93,11 @@ export function RecipeDishImage({
         <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-stone-100 shadow-sm shadow-stone-200/40">
           <img
             src={effectiveRealUrl!}
-            alt={recipeTitle ? `Foto del plato: ${recipeTitle}` : "Foto del plato"}
+            alt={
+              recipeTitle
+                ? t("dishPhotoAlt", { title: recipeTitle })
+                : t("dishPhotoAltFallback")
+            }
             className="h-full w-full object-cover"
             loading="eager"
             decoding="async"
@@ -97,7 +105,7 @@ export function RecipeDishImage({
           />
         </div>
         <p className="text-center text-[10px] font-medium text-stone-500">
-          Foto de tu plato generada para esta receta
+          {t("generatedPhotoCaption")}
         </p>
       </div>
     );
@@ -113,7 +121,11 @@ export function RecipeDishImage({
           <div className="relative aspect-[4/3] overflow-hidden rounded-xl border border-stone-200/80 bg-stone-100">
             <img
               src={effectiveReferenceUrl!}
-              alt={recipeTitle ? `Imagen de referencia: ${recipeTitle}` : "Imagen de referencia"}
+              alt={
+                recipeTitle
+                  ? t("referenceImageAlt", { title: recipeTitle })
+                  : t("referenceImageAltFallback")
+              }
               className="h-full w-full object-cover opacity-90"
               loading="lazy"
               decoding="async"
@@ -122,16 +134,13 @@ export function RecipeDishImage({
           </div>
 
           <p className="text-center text-[10px] leading-snug text-stone-500">
-            Imagen de referencia. No corresponde específicamente a esta receta.
+            {t("referenceImageNote")}
           </p>
 
           {!isPaidPremium ? (
             <div className="rounded-xl border border-amber-200/70 bg-amber-50/80 px-3 py-2.5 text-center">
               <p className="text-[10px] font-semibold leading-snug text-stone-700">
-                <PremiumRichText
-                  text="¿Quieres ver la foto real de tu plato? Activa Premium"
-                  size="2xs"
-                />
+                <PremiumRichText text={t("premiumRealPhotoPrompt")} size="2xs" />
               </p>
               <button
                 type="button"
@@ -139,7 +148,7 @@ export function RecipeDishImage({
                 className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[#B8860B] via-[#D4AF37] to-[#C9A227] px-3.5 py-1.5 text-[10px] font-semibold text-white shadow-sm transition hover:brightness-105"
               >
                 <Sparkles className="h-3 w-3" strokeWidth={2} aria-hidden />
-                Ver foto real del plato
+                {t("viewRealPhoto")}
               </button>
             </div>
           ) : null}
@@ -148,7 +157,7 @@ export function RecipeDishImage({
         <PremiumUpgradeDialog
           open={showUpgradeDialog}
           onClose={() => setShowUpgradeDialog(false)}
-          featureLabel="Foto real del plato"
+          featureLabel={t("realPhotoFeature")}
         />
       </>
     );
@@ -163,9 +172,7 @@ export function RecipeDishImage({
         )}
       >
         <ImageOff className="h-7 w-7 text-stone-400" aria-hidden />
-        <p className="text-[10px] font-medium text-stone-500">
-          No pudimos cargar la imagen. Genera la receta de nuevo.
-        </p>
+        <p className="text-[10px] font-medium text-stone-500">{t("imageLoadError")}</p>
       </div>
     );
   }
@@ -187,10 +194,7 @@ export function RecipeDishImage({
           <Lock className="h-4 w-4" strokeWidth={2} aria-hidden />
         </span>
         <p className="text-[10px] font-semibold leading-snug text-stone-700">
-          <PremiumRichText
-            text="La foto real de tu plato es una función Premium"
-            size="2xs"
-          />
+          <PremiumRichText text={t("premiumRealPhoto")} size="2xs" />
         </p>
         <button
           type="button"
@@ -198,14 +202,14 @@ export function RecipeDishImage({
           className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[#B8860B] via-[#D4AF37] to-[#C9A227] px-3.5 py-1.5 text-[10px] font-semibold text-white shadow-sm transition hover:brightness-105"
         >
           <Sparkles className="h-3 w-3" strokeWidth={2} aria-hidden />
-          Ver foto real del plato
+          {t("viewRealPhoto")}
         </button>
       </div>
 
       <PremiumUpgradeDialog
         open={showUpgradeDialog}
         onClose={() => setShowUpgradeDialog(false)}
-        featureLabel="Foto real del plato"
+        featureLabel={t("realPhotoFeature")}
       />
     </>
   );

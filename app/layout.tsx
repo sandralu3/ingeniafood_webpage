@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getMessages } from "next-intl/server";
 import { AppProviders } from "@/components/providers/app-providers";
 import { SupabaseAuthRedirect } from "@/components/auth/supabase-auth-redirect";
 import { AppUpdateBanner } from "@/components/shared/app-update-banner";
@@ -35,20 +37,25 @@ export const metadata: Metadata = {
   }
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = await getLocale();
+  const messages = await getMessages();
+
   return (
-    <html lang="es">
+    <html lang={locale}>
       <body>
-        <AppProviders>
-          <SupabaseAuthRedirect />
-          <ChunkLoadRecovery />
-          <AppUpdateBanner />
-          {children}
-        </AppProviders>
+        <NextIntlClientProvider locale={locale} messages={messages}>
+          <AppProviders>
+            <SupabaseAuthRedirect />
+            <ChunkLoadRecovery />
+            <AppUpdateBanner />
+            {children}
+          </AppProviders>
+        </NextIntlClientProvider>
       </body>
     </html>
   );

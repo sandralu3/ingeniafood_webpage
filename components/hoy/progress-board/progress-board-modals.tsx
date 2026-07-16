@@ -2,9 +2,13 @@
 
 import Link from "next/link";
 import { Check, Plus, UtensilsCrossed, X } from "lucide-react";
+import {
+  translateChallengeLabel
+} from "@/lib/gamification/challenge-i18n";
 import type { DailyChallenge } from "@/lib/gamification/challenges";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 
 type HoyDetailModalProps = {
   open: boolean;
@@ -23,6 +27,8 @@ function HoyDetailModal({
   description,
   children
 }: HoyDetailModalProps) {
+  const tCommon = useTranslations("Common");
+
   if (!open) return null;
 
   return (
@@ -49,7 +55,7 @@ function HoyDetailModal({
             type="button"
             onClick={onClose}
             className="rounded-full p-2 text-stone-400 transition hover:bg-stone-100 hover:text-stone-700"
-            aria-label="Cerrar"
+            aria-label={tCommon("close")}
           >
             <X className="h-4 w-4" />
           </button>
@@ -73,19 +79,26 @@ export function TodayAchievementsModal({
   challenges,
   completed
 }: TodayAchievementsModalProps) {
+  const t = useTranslations("Hoy");
+  const tRetos = useTranslations("Retos");
+  const tNav = useTranslations("Nav");
   const completedCount = challenges.filter((challenge) => completed[challenge.id]).length;
 
   return (
     <HoyDetailModal
       open={open}
       onClose={onClose}
-      eyebrow="Hoy"
-      title="Logros del día"
-      description={`${completedCount} de ${challenges.length} retos completados hoy.`}
+      eyebrow={tNav("hoy")}
+      title={t("achievementsTitle")}
+      description={t("achievementsDescription", {
+        completed: completedCount,
+        total: challenges.length
+      })}
     >
       <ul className="space-y-2">
         {challenges.map((challenge) => {
           const isDone = Boolean(completed[challenge.id]);
+          const displayLabel = translateChallengeLabel(challenge, tRetos);
 
           return (
             <li
@@ -114,10 +127,10 @@ export function TodayAchievementsModal({
                     isDone ? "text-[#3e5219]" : "text-stone-700"
                   )}
                 >
-                  {challenge.label}
+                  {displayLabel}
                 </p>
                 <p className="text-[10px] text-stone-400">
-                  {isDone ? "Completado" : "Pendiente"} · +{challenge.points} pts
+                  {isDone ? t("completed") : t("pending")} · +{challenge.points} pts
                 </p>
               </div>
             </li>
@@ -132,7 +145,7 @@ export function TodayAchievementsModal({
           className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-[#556B2F] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#4a5f28]"
         >
           <UtensilsCrossed className="h-4 w-4" />
-          Añadir comida
+          {t("addMeal")}
         </Link>
         <Link
           href={APP_ROUTES.retos}
@@ -140,7 +153,7 @@ export function TodayAchievementsModal({
           className="inline-flex flex-1 items-center justify-center gap-2 rounded-full border border-stone-200 bg-white px-4 py-2.5 text-sm font-semibold text-stone-700 transition hover:border-[#556B2F]/30 hover:text-[#3e5219]"
         >
           <Plus className="h-4 w-4" />
-          Gestionar retos
+          {t("manageChallenges")}
         </Link>
       </div>
     </HoyDetailModal>
@@ -164,15 +177,21 @@ export function WeeklyProgressModal({
   percentage,
   dailyPoints
 }: WeeklyProgressModalProps) {
+  const t = useTranslations("Hoy");
   const maxDaily = Math.max(...dailyPoints.map((day) => day.points), 1);
+  const ofMax = maxPoints > 0 ? t("weeklyProgressOfMax", { max: maxPoints }) : "";
 
   return (
     <HoyDetailModal
       open={open}
       onClose={onClose}
-      eyebrow="Semana"
-      title="Progreso semanal"
-      description={`Llevas ${earnedPoints}${maxPoints > 0 ? ` de ${maxPoints}` : ""} puntos (${percentage}% de tu meta).`}
+      eyebrow={t("weekEyebrow")}
+      title={t("weeklyProgressTitle")}
+      description={t("weeklyProgressDescription", {
+        earned: earnedPoints,
+        ofMax,
+        percentage
+      })}
     >
       <div className="mb-4 rounded-2xl bg-amber-50/80 px-4 py-3">
         <p className="text-2xl font-bold text-amber-900">
@@ -182,11 +201,13 @@ export function WeeklyProgressModal({
           ) : null}
           <span className="ml-1 text-sm font-semibold text-amber-700/80">PTS</span>
         </p>
-        <p className="mt-1 text-xs text-amber-800/80">{percentage}% de la meta semanal alcanzada</p>
+        <p className="mt-1 text-xs text-amber-800/80">
+          {t("weeklyGoalReached", { percentage })}
+        </p>
       </div>
 
       <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.12em] text-stone-400">
-        Histórico de puntos
+        {t("pointsHistory")}
       </p>
       <ul className="space-y-2">
         {dailyPoints.map((day) => (
@@ -239,34 +260,35 @@ export function StreakCalendarModal({
   activeDaysThisWeek,
   weekDays
 }: StreakCalendarModalProps) {
+  const t = useTranslations("Hoy");
+  const daysLabel = t("daysInARow", { count: streakDays });
+
   return (
     <HoyDetailModal
       open={open}
       onClose={onClose}
-      eyebrow="Racha"
-      title="Calendario de consistencia"
+      eyebrow={t("streakEyebrow")}
+      title={t("streakCalendarTitle")}
       description={
         streakDays > 0
-          ? `Llevas ${streakDays} día${streakDays === 1 ? "" : "s"} seguidos cumpliendo al menos un reto. Si saltas un día, la racha se reinicia.`
-          : "Completa un reto hoy para empezar tu racha."
+          ? t("streakDescription", { days: streakDays, daysLabel })
+          : t("streakStartHint")
       }
     >
       <div className="mb-4 flex items-center gap-3 rounded-2xl bg-orange-50 px-4 py-3">
         <p className="font-serif text-3xl font-bold text-orange-900">{streakDays}</p>
         <div>
-          <p className="text-sm text-orange-800/90">
-            día{streakDays === 1 ? "" : "s"} seguidos
-          </p>
+          <p className="text-sm text-orange-800/90">{daysLabel}</p>
           {activeDaysThisWeek > streakDays ? (
             <p className="text-xs text-orange-700/80">
-              {activeDaysThisWeek} días activos esta semana
+              {t("activeDaysThisWeek", { count: activeDaysThisWeek })}
             </p>
           ) : null}
         </div>
       </div>
 
       <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.12em] text-stone-400">
-        Esta semana
+        {t("thisWeek")}
       </p>
       <div className="grid grid-cols-7 gap-2">
         {weekDays.map((day) => (
@@ -299,10 +321,10 @@ export function StreakCalendarModal({
         ))}
       </div>
       <p className="mt-3 text-[11px] leading-relaxed text-stone-500">
-        <span className="font-semibold text-orange-700">Naranja</span>: días en racha consecutiva.
-        {" "}
-        <span className="font-semibold text-stone-600">Gris</span>: cumpliste retos, pero se cortó
-        la racha al faltar un día intermedio.
+        <span className="font-semibold text-orange-700">{t("streakLegendOrange")}</span>
+        {t("streakLegendOrangePart")}{" "}
+        <span className="font-semibold text-stone-600">{t("streakLegendGray")}</span>
+        {t("streakLegendGrayPart")}
       </p>
     </HoyDetailModal>
   );
@@ -329,27 +351,28 @@ export function NutritionImpactModal({
   planHasVegetables = false,
   planHasProteinBreakfast = false
 }: NutritionImpactModalProps) {
+  const t = useTranslations("Hoy");
   const metrics = [
     {
       key: "hydration",
-      label: "Hidratación / Agua",
+      label: t("hydrationLabel"),
       value: hydration,
       color: "bg-sky-400",
-      tip: "Beber suficiente agua mejora tu energía y digestión."
+      tip: t("hydrationTip")
     },
     {
       key: "vegetables",
-      label: "Vegetales",
+      label: t("vegetablesLabel"),
       value: vegetables,
       color: "bg-emerald-400",
-      tip: "Añadir vegetales a tus comidas aporta fibra y micronutrientes."
+      tip: t("vegetablesTip")
     },
     {
       key: "protein",
-      label: "Proteína en el desayuno",
+      label: t("proteinImpactLabel"),
       value: protein,
       color: "bg-amber-400",
-      tip: "Un desayuno con proteína ayuda a mantener la saciedad a media mañana."
+      tip: t("proteinImpactTip")
     }
   ] as const;
 
@@ -357,19 +380,19 @@ export function NutritionImpactModal({
     <HoyDetailModal
       open={open}
       onClose={onClose}
-      eyebrow="Nutrición"
-      title="Impacto nutricional de hoy"
+      eyebrow={t("nutritionEyebrow")}
+      title={t("nutritionTitle")}
       description={
         totalKcal > 0
-          ? `Tu plan suma ${totalKcal} kcal. Vegetales y proteína del desayuno se calculan según las recetas planificadas; el agua sigue vinculada a tus retos.`
-          : "Estimación basada en tu plan semanal y los retos activos completados hoy."
+          ? t("nutritionDescWithKcal", { kcal: totalKcal })
+          : t("nutritionDescFallback")
       }
     >
       {totalKcal > 0 ? (
         <p className="mb-3 rounded-2xl bg-orange-50 px-3 py-2 text-xs text-orange-900">
-          Plan de hoy: <span className="font-bold">{totalKcal} kcal</span>
-          {planHasVegetables ? " · incluye vegetales" : ""}
-          {planHasProteinBreakfast ? " · desayuno con proteína" : ""}
+          {t("todayPlanKcalLabel")} <span className="font-bold">{totalKcal} kcal</span>
+          {planHasVegetables ? t("includesVegetables") : ""}
+          {planHasProteinBreakfast ? t("proteinBreakfastSuffix") : ""}
         </p>
       ) : null}
       <ul className="space-y-3">

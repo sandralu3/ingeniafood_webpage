@@ -15,6 +15,7 @@ export type Database = {
           full_name: string | null;
           avatar_url: string | null;
           country: string | null;
+          language: string;
           is_premium: boolean;
           can_self_toggle_premium: boolean;
           generations_left: number;
@@ -32,6 +33,7 @@ export type Database = {
           full_name?: string | null;
           avatar_url?: string | null;
           country?: string | null;
+          language?: string;
           is_premium?: boolean;
           can_self_toggle_premium?: boolean;
           generations_left?: number;
@@ -49,6 +51,7 @@ export type Database = {
           full_name?: string | null;
           avatar_url?: string | null;
           country?: string | null;
+          language?: string;
           is_premium?: boolean;
           can_self_toggle_premium?: boolean;
           generations_left?: number;
@@ -88,6 +91,7 @@ export type Database = {
           meal_type: string | null;
           cuisine_style: string | null;
           servings: number | null;
+          complexity: string | null;
           meal_type_advisory: string | null;
           tags: Json | null;
           is_airfryer: boolean;
@@ -114,6 +118,7 @@ export type Database = {
           meal_type?: string | null;
           cuisine_style?: string | null;
           servings?: number | null;
+          complexity?: string | null;
           meal_type_advisory?: string | null;
           tags?: Json | null;
           is_airfryer?: boolean;
@@ -140,6 +145,7 @@ export type Database = {
           meal_type?: string | null;
           cuisine_style?: string | null;
           servings?: number | null;
+          complexity?: string | null;
           meal_type_advisory?: string | null;
           tags?: Json | null;
           is_airfryer?: boolean;
@@ -294,16 +300,19 @@ export type Database = {
           id: string;
           contenido: string;
           creado_at: string;
+          language: string;
         };
         Insert: {
           id?: string;
           contenido: string;
           creado_at?: string;
+          language?: string;
         };
         Update: {
           id?: string;
           contenido?: string;
           creado_at?: string;
+          language?: string;
         };
         Relationships: [];
       };

@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Sparkles, Target, TrendingUp, Leaf } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { ProgressBoardCard } from "@/components/hoy/progress-board/progress-board-card";
 import { HoyProgressBoardSkeleton } from "@/components/skeletons/hoy-dashboard-skeleton";
 import {
@@ -49,6 +50,7 @@ type ProgressBoardProps = {
 };
 
 export function ProgressBoard({ data, isLoading = false, className }: ProgressBoardProps) {
+  const t = useTranslations("Hoy");
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
 
   const today = toISODateString(new Date());
@@ -110,14 +112,14 @@ export function ProgressBoard({ data, isLoading = false, className }: ProgressBo
   return (
     <>
       <section className={cn("space-y-2", className)}>
-        <HoySectionHeader title="Tablero de progreso" />
+        <HoySectionHeader title={t("progressBoard")} />
 
         {showSkeleton ? (
           <HoyProgressBoardSkeleton showSectionLabel={false} />
         ) : (
           <div className="grid grid-cols-2 gap-2.5">
             <ProgressBoardCard
-              title="Hoy: Logros"
+              title={t("todayAchievements")}
               accentBarClass="bg-[#88ab75]"
               accentTextClass="text-[#4c6633]"
               icon={Sparkles}
@@ -127,11 +129,11 @@ export function ProgressBoard({ data, isLoading = false, className }: ProgressBo
                 {completedToday}
                 <span className={METRIC_DENOMINATOR_CLASS}>/{totalActiveChallenges}</span>
               </p>
-              <p className="mt-0.5 text-[10px] font-medium text-stone-500">Retos completados</p>
+              <p className="mt-0.5 text-[10px] font-medium text-stone-500">{t("challengesCompleted")}</p>
             </ProgressBoardCard>
 
             <ProgressBoardCard
-              title="Progreso semanal"
+              title={t("weeklyProgress")}
               accentBarClass="bg-[#e8d9b8]"
               accentTextClass="text-amber-800/90"
               icon={Target}
@@ -161,32 +163,37 @@ export function ProgressBoard({ data, isLoading = false, className }: ProgressBo
             </ProgressBoardCard>
 
             <ProgressBoardCard
-              title="Racha"
+              title={t("streak")}
               accentBarClass="bg-[#f0c9a8]"
               accentTextClass="text-orange-800/90"
               icon={TrendingUp}
               onClick={() => setActiveModal("streak")}
             >
-              <StreakBadge days={streakDays} activeDaysThisWeek={activeDaysThisWeek} />
+              <StreakBadge
+                days={streakDays}
+                activeDaysThisWeek={activeDaysThisWeek}
+                daysLabel={t("daysInARow", { count: streakDays })}
+                activeThisWeekLabel={t("activeThisWeekShort", { count: activeDaysThisWeek })}
+              />
               <ConsistencyDots days={weekConsistency} className="mt-1.5" />
             </ProgressBoardCard>
 
             <ProgressBoardCard
-              title="Impacto nutricional"
+              title={t("nutritionImpact")}
               accentBarClass="bg-[#b8ddd4]"
               accentTextClass="text-teal-800/90"
               icon={Leaf}
               onClick={() => setActiveModal("nutrition")}
             >
               <div className="flex items-end justify-between gap-0.5 px-0.5">
-                <MiniSemiArc value={nutrition.hydration} color="#38bdf8" label="Agua" />
-                <MiniSemiArc value={nutrition.vegetables} color="#34d399" label="Veg." />
-                <MiniSemiArc value={nutrition.protein} color="#fbbf24" label="Prot." />
+                <MiniSemiArc value={nutrition.hydration} color="#38bdf8" label={t("water")} />
+                <MiniSemiArc value={nutrition.vegetables} color="#34d399" label={t("vegShort")} />
+                <MiniSemiArc value={nutrition.protein} color="#fbbf24" label={t("protShort")} />
               </div>
               <p className="mt-0.5 text-[9px] text-stone-400">
                 {nutrition.totalKcal > 0
-                  ? `${nutrition.totalKcal} kcal planificadas · veg/prot. según tu plan`
-                  : "Basado en tu plan y retos de hoy"}
+                  ? t("kcalPlanned", { kcal: nutrition.totalKcal })
+                  : t("basedOnPlan")}
               </p>
             </ProgressBoardCard>
           </div>

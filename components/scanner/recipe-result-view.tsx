@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ArrowLeft, Bookmark, Calendar, Loader2, Share2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { AddToPlanSheet } from "@/components/scanner/add-to-plan-sheet";
 import { RecipeShareCapture } from "@/components/share/recipe-share-capture";
 import { useShareRecipeImage } from "@/hooks/use-share-recipe-image";
@@ -35,6 +36,7 @@ export function RecipeResultView({
   showAppliedFilters = false,
   mealTypeAdvisory = null
 }: Props) {
+  const t = useTranslations("Scanner");
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
   const { captureRef, shareRecipeImage, isGenerating, errorMessage, clearError } =
     useShareRecipeImage();
@@ -56,7 +58,7 @@ export function RecipeResultView({
             className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#556B2F] transition hover:text-[#3e5219]"
           >
             <ArrowLeft className="h-3.5 w-3.5" strokeWidth={2} />
-            Nueva búsqueda
+            {t("newSearch")}
           </button>
         </div>
       ) : null}
@@ -78,7 +80,7 @@ export function RecipeResultView({
           className="flex w-full items-center justify-center gap-1.5 rounded-full border border-stone-200/60 bg-[#F0F4ED] px-4 py-2.5 text-sm font-semibold text-[#3e5219] transition hover:bg-[#E9F0E6] disabled:cursor-not-allowed disabled:opacity-60"
         >
           <Calendar className="h-4 w-4" strokeWidth={2} />
-          Añadir al plan semanal
+          {t("addToWeeklyPlan")}
         </button>
 
         <button
@@ -92,7 +94,7 @@ export function RecipeResultView({
           ) : (
             <Share2 className="h-4 w-4" strokeWidth={2} />
           )}
-          {isGenerating ? "Generando imagen..." : "Compartir receta"}
+          {isGenerating ? t("generatingImage") : t("shareRecipe")}
         </button>
 
         {errorMessage ? (
@@ -109,10 +111,10 @@ export function RecipeResultView({
         >
           <Bookmark className="h-4 w-4" strokeWidth={2} />
           {isSavedFavorites
-            ? "Guardado"
+            ? t("saved")
             : isSavingFavorites
-              ? "Guardando..."
-              : "Guardar en mi recetario"}
+              ? t("saving")
+              : t("saveToCookbook")}
         </button>
       </div>
 

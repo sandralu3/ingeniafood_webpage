@@ -18,9 +18,15 @@ import {
   buildMealTypeCompatibilityPromptClause,
   buildMealTypePantryExpansionClause
 } from "@/lib/recipes/meal-type-ingredient-compatibility";
+import {
+  buildRecipeLanguagePromptClause,
+  resolveRecipeGenerationLocale
+} from "@/lib/recipes/recipe-locale-prompt";
 import { generateRecipeDishImage } from "@/lib/recipes/generate-recipe-image";
 import { resolveDishImageMatch } from "@/lib/recipes/resolve-dish-image-match";
 import { createSupabaseRouteClient } from "@/lib/supabaseRoute";
+import { LOCALE_COOKIE_NAME } from "@/i18n/config";
+import { cookies } from "next/headers";
 
 /** Vision + JSON + imagen Premium puede tardar más (p. ej. en Vercel). */
 export const maxDuration = 60;
@@ -64,6 +70,9 @@ type GenerateRecipePayload = {
   mealType?: string;
   cuisineStyle?: string;
   servings?: number;
+  complexity?: string;
+  /** Idioma de interfaz / salida de la receta (es | en). */
+  locale?: string;
 };
 
 type GeminiRecipe = {
@@ -350,6 +359,13 @@ export async function POST(request: Request) {
           .filter((ingredient) => ingredient.length > 0)
       : [];
 
+    const cookieStore = await cookies();
+    const recipeLocale = resolveRecipeGenerationLocale({
+      bodyLocale: body.locale,
+      cookieLocale: cookieStore.get(LOCALE_COOKIE_NAME)?.value
+    });
+    const languagePromptClause = buildRecipeLanguagePromptClause(recipeLocale);
+
     const { isPremium, access: premiumAccess, error: premiumError } = await getUserIsPremium(
       supabase,
       user.id,
@@ -371,7 +387,8 @@ export async function POST(request: Request) {
       isPremium,
       requestedMealType: body.mealType,
       requestedCuisineStyle: body.cuisineStyle,
-      requestedServings: body.servings
+      requestedServings: body.servings,
+      requestedComplexity: body.complexity
     });
     const ingredientQuantityRule = buildIngredientQuantityPromptClause(resolvedFilters.servings);
     const filtersPromptClause = buildRecipeFiltersPromptClause(resolvedFilters);
@@ -465,13 +482,14 @@ export async function POST(request: Request) {
       : "El usuario no seleccionó ingredientes manualmente; infiere los ingredientes únicamente desde la imagen si es posible y no inventes ingredientes principales que no se vean.";
 
     const jsonRules =
+      languagePromptClause +
       PANTRY_PRIORITY_RULE +
       HEALTHY_NUTRITION_RULE +
       ingredientQuantityRule +
       MACRO_ESTIMATION_RULE +
       `${filtersPromptClause}\n\n${mealTypeCompatibilityClause}\n\n${mealTypePantryClause}\n\n` +
       "Solo JSON valido. Entrega receta saludable y rapida. Formato esperado: { \"titulo\": \"\", \"tiempo_preparacion\": \"X min\", \"ingredientes_detallados\": [], \"ingredientes_estructurados\": [], \"pasos_ordenados\": [], \"tip_sandra\": \"\", \"etiquetas\": [], \"advertencia_ingredientes\": \"\", \"macronutrientes\": {\"proteinas_g\": 0, \"carbohidratos_g\": 0, \"grasas_g\": 0, \"calorias\": 0} }. " +
-      "advertencia_ingredientes: opcional; texto breve si hace falta avisar de complementos no escaneados. Si no aplica, usa \"\". " +
+      "advertencia_ingredientes: opcional; texto breve (en el idioma de salida) si hace falta avisar de complementos no escaneados. Si no aplica, usa \"\". " +
       "ETIQUETAS (campo etiquetas): array de 0 a 3 strings. Valores permitidos SOLO: \"Sin Harinas\", \"Apto para Airfryer\", \"Alto en Proteína\". " +
       "NO incluyas Desayuno, Cena, Snack, Almuerzo ni Postre en etiquetas (el momento del plato ya se define por filtros del usuario). " +
       "Reglas estrictas: incluye \"Sin Harinas\" solo si la receta no usa harinas ni cereales refinados; incluye \"Apto para Airfryer\" solo si la cocción principal es en airfryer; incluye \"Alto en Proteína\" solo si aplica de verdad. Si ninguna aplica, devuelve etiquetas: []. " +
@@ -481,7 +499,7 @@ export async function POST(request: Request) {
       "PRIORIDAD DE ATRIBUTOS: el titulo debe ser una descripcion tecnica y real de los ingredientes capturados; no inventes sabores externos para hacerlo atractivo. " +
       "VALIDACION CRUZADA obligatoria antes de responder: verifica internamente si todos los elementos del titulo estan presentes en ingredientes_detallados; si no, renombra la receta para que coincida. " +
       "AJUSTE EN TIP DE SANDRA: si consideras que falta algun ingrediente para mejorar sabor (ej. curry), NO lo agregues a la receta principal; incluyelo solo como sugerencia opcional en tip_sandra. " +
-      "Genera un 'Tip de Sandra' para cada receta. Debe ser un consejo experto de no mas de 2 frases sobre tecnica de cocina, nutricion o conservacion, escrito con un tono profesional, cercano y motivador.";
+      "Genera un 'Tip de Sandra' para cada receta (máximo 2 frases) en el idioma de salida indicado arriba, con tono profesional, cercano y motivador.";
 
     const systemInstruction = hasImage
       ? `${INGREDIENT_VALIDATION_RULE}${ingredientQuantityRule}${VISION_SYSTEM_PREFIX}${jsonRules} ${manualClause}`
@@ -800,7 +818,8 @@ export async function POST(request: Request) {
       appliedFilters: {
         mealType: resolvedFilters.mealType,
         cuisineStyle: resolvedFilters.cuisineStyle,
-        servings: resolvedFilters.servings
+        servings: resolvedFilters.servings,
+        complexity: resolvedFilters.complexity
       },
       ...(mealTypeAdvisory ? { mealTypeAdvisory } : {}),
       premiumTrialRemaining

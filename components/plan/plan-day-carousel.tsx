@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { MEAL_TYPES, WEEK_DAY_SHORT, type WeekDay } from "@/lib/plan/constants";
+import { useTranslations } from "next-intl";
+import { MEAL_TYPES, type WeekDay } from "@/lib/plan/constants";
 import type { PlanDay } from "@/lib/plan/types";
 import { cn } from "@/lib/utils";
 
@@ -21,6 +22,7 @@ export function PlanDayCarousel({
   onSelectDay,
   className
 }: PlanDayCarouselProps) {
+  const t = useTranslations("Plan");
   const scrollRef = useRef<HTMLDivElement>(null);
   const selectedRef = useRef<HTMLButtonElement>(null);
 
@@ -48,9 +50,9 @@ export function PlanDayCarousel({
       <div className="mb-1.5 flex items-center justify-between gap-2 px-0.5">
         <div className="min-w-0">
           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-            <h2 className="font-serif text-sm font-semibold text-stone-900">Tu semana</h2>
+            <h2 className="font-serif text-sm font-semibold text-stone-900">{t("yourWeek")}</h2>
             <span className="text-[11px] text-stone-500">
-              {weekAssigned}/{weekTotal} comidas
+              {t("mealsCount", { assigned: weekAssigned, total: weekTotal })}
             </span>
           </div>
         </div>
@@ -87,7 +89,7 @@ export function PlanDayCarousel({
                   isSelected ? cn("font-bold", ACTIVE_DAY_TEXT) : cn("font-medium", MUTED_DAY_TEXT)
                 )}
               >
-                {WEEK_DAY_SHORT[day.label]}
+                {t(`daysShort.${day.label}`)}
               </span>
               <span
                 className={cn(
@@ -116,7 +118,7 @@ export function PlanDayCarousel({
                       : "bg-stone-50 text-[#8E8A80]"
                   )}
                 >
-                  Hoy
+                  {t("today")}
                 </span>
               ) : (
                 <span

@@ -1,6 +1,7 @@
 "use client";
 
 import { ChevronRight, Play } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { getRecipePlaceholder } from "@/lib/recipes/recipe-placeholder";
 import type { RecipePickerItem } from "@/lib/plan/plan-service";
 import { getRecipePickerCardLabel } from "@/lib/recipes/saved-recipes-filter";
@@ -19,19 +20,21 @@ function PickerThumbnail({
   title,
   recipeId,
   imageUrl,
-  isSocialVideo
+  isSocialVideo,
+  imageAlt
 }: {
   title: string;
   recipeId: string;
   imageUrl?: string | null;
   isSocialVideo?: boolean;
+  imageAlt: string;
 }) {
   if (imageUrl) {
     return (
       <div className={cn(thumbnailClass, "border border-stone-200/40 bg-stone-100")}>
         <img
           src={imageUrl}
-          alt={title ? `Imagen de ${title}` : ""}
+          alt={title ? imageAlt : ""}
           className="h-full w-full object-cover"
           loading="lazy"
         />
@@ -71,8 +74,30 @@ function PickerThumbnail({
   );
 }
 
+function translatePickerCardLabel(
+  label: string | null,
+  t: (key: string) => string
+): string | null {
+  if (!label) return null;
+  switch (label) {
+    case "Desayuno":
+      return t("meals.Desayuno");
+    case "Almuerzo":
+      return t("meals.Almuerzo");
+    case "Cena":
+      return t("meals.Cena");
+    case "Sin Harinas":
+      return t("tagFlourless");
+    case "Airfryer":
+      return t("tagAirfryer");
+    default:
+      return label;
+  }
+}
+
 export function PlanRecipePickerRow({ recipe, disabled = false, onSelect }: Props) {
-  const categoryLabel = getRecipePickerCardLabel(recipe);
+  const t = useTranslations("Plan");
+  const categoryLabel = translatePickerCardLabel(getRecipePickerCardLabel(recipe), t);
   const isSocialVideo = Boolean(recipe.instagram_url && !recipe.image_url);
 
   return (
@@ -90,6 +115,7 @@ export function PlanRecipePickerRow({ recipe, disabled = false, onSelect }: Prop
         recipeId={recipe.id}
         imageUrl={recipe.image_url}
         isSocialVideo={isSocialVideo}
+        imageAlt={t("recipeImageAlt", { title: recipe.title })}
       />
 
       <div className="flex h-full min-w-0 flex-1 flex-col justify-center px-3">

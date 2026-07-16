@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { ArrowRight, ScanLine } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { DailyChallenges } from "@/components/hoy/daily-challenges";
 import { HoyGreetingHeader } from "@/components/hoy/hoy-greeting-header";
 import { ProgressBoard } from "@/components/hoy/progress-board/progress-board";
@@ -16,6 +17,7 @@ import { useHoyPageData } from "@/hooks/use-hoy-page-data";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
 
 export function HoyDashboard() {
+  const t = useTranslations("Hoy");
   const { data, userId, profile, isLoading, isProfileLoading, refresh } = useHoyPageData();
   const showPageSkeleton = isLoading && !data;
 
@@ -41,8 +43,8 @@ export function HoyDashboard() {
                 <ScanLine className="h-3.5 w-3.5" strokeWidth={1.75} />
               </span>
               <div>
-                <p className="text-xs font-bold text-stone-900">Escanea tu despensa</p>
-                <p className="text-[10px] text-stone-500">Recetas saludables al instante</p>
+                <p className="text-xs font-bold text-stone-900">{t("scanBannerTitle")}</p>
+                <p className="text-[10px] text-stone-500">{t("scanBannerSubtitle")}</p>
               </div>
             </div>
             <ArrowRight className="h-3.5 w-3.5 shrink-0 text-[#556B2F] transition group-hover:translate-x-0.5" />

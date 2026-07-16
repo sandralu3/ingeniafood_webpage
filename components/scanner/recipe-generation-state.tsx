@@ -1,13 +1,14 @@
 "use client";
 
 import { Sparkles } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useEffect, useState, type ReactNode } from "react";
 
-const LOADING_HINTS = [
-  "Sandra está buscando el mejor tip para ti...",
-  "Sandra está eligiendo las mejores técnicas para tus ingredientes...",
-  "Sandra está optimizando los tiempos de cocción...",
-  "Casi listo... Sandra le da el toque final a tu plan saludable."
+const LOADING_HINT_KEYS = [
+  "loadingHint1",
+  "loadingHint2",
+  "loadingHint3",
+  "loadingHint4"
 ] as const;
 
 type LoadingProps = {
@@ -36,6 +37,7 @@ function GenerationShell({ children }: { children: ReactNode }) {
 }
 
 function LoadingView({ retryMessage }: { retryMessage?: string | null }) {
+  const t = useTranslations("Scanner");
   const [hintIndex, setHintIndex] = useState(0);
   const [hintVisible, setHintVisible] = useState(true);
 
@@ -43,7 +45,7 @@ function LoadingView({ retryMessage }: { retryMessage?: string | null }) {
     const interval = window.setInterval(() => {
       setHintVisible(false);
       window.setTimeout(() => {
-        setHintIndex((prev) => (prev + 1) % LOADING_HINTS.length);
+        setHintIndex((prev) => (prev + 1) % LOADING_HINT_KEYS.length);
         setHintVisible(true);
       }, 280);
     }, 4500);
@@ -62,17 +64,17 @@ function LoadingView({ retryMessage }: { retryMessage?: string | null }) {
 
         <div className="space-y-1.5">
           <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-stone-400">
-            Generando receta
+            {t("generatingEyebrow")}
           </p>
           <h1 className="font-serif text-lg font-semibold text-stone-900">
-            Diseñando tu receta ideal
+            {t("generatingTitle")}
           </h1>
           <p
             className={`text-[11px] leading-relaxed text-stone-500 transition-opacity duration-300 ${
               hintVisible ? "opacity-100" : "opacity-0"
             }`}
           >
-            {LOADING_HINTS[hintIndex]}
+            {t(LOADING_HINT_KEYS[hintIndex])}
           </p>
           {retryMessage ? (
             <p className="text-[10px] font-medium text-stone-400">{retryMessage}</p>
@@ -92,6 +94,7 @@ function ErrorView({
   onRetry: () => void;
   rateLimitSecondsLeft?: number;
 }) {
+  const t = useTranslations("Scanner");
   const isRateLimited = rateLimitSecondsLeft > 0;
 
   return (
@@ -101,7 +104,7 @@ function ErrorView({
         className="w-full max-w-sm rounded-xl border border-red-200/80 bg-red-50/80 px-3 py-3 text-left text-red-800"
       >
         <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-red-500/90">
-          No pudimos generar
+          {t("generationFailed")}
         </p>
         <p className="mt-1 text-xs leading-relaxed">{errorMessage}</p>
         <button
@@ -111,8 +114,8 @@ function ErrorView({
           className="mt-3 w-full rounded-full bg-[#556B2F] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#4a5f28] disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isRateLimited
-            ? `Intentar de nuevo en ${rateLimitSecondsLeft}s`
-            : "Intentar escanear de nuevo"}
+            ? t("retryInSeconds", { seconds: rateLimitSecondsLeft })
+            : t("retryScan")}
         </button>
       </div>
     </GenerationShell>

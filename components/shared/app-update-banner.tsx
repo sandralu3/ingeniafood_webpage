@@ -2,6 +2,7 @@
 
 import { RefreshCw, X } from "lucide-react";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useAppUpdate } from "@/hooks/use-app-update";
 import { cn } from "@/lib/utils";
 
@@ -10,6 +11,7 @@ type AppUpdateBannerProps = {
 };
 
 export function AppUpdateBanner({ className }: AppUpdateBannerProps) {
+  const t = useTranslations("Common");
   const pathname = usePathname();
   const { updateAvailable, isUpdating, applyUpdate, dismissUpdate } = useAppUpdate();
   const isAppRecetasRoute = pathname?.startsWith("/app-recetas") ?? false;
@@ -34,8 +36,8 @@ export function AppUpdateBanner({ className }: AppUpdateBannerProps) {
         </span>
 
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-stone-900">Nueva versión disponible</p>
-          <p className="text-xs text-stone-500">Actualiza para usar los últimos cambios.</p>
+          <p className="text-sm font-semibold text-stone-900">{t("updateAvailable")}</p>
+          <p className="text-xs text-stone-500">{t("updateHint")}</p>
         </div>
 
         <div className="flex shrink-0 items-center gap-1.5">
@@ -44,7 +46,7 @@ export function AppUpdateBanner({ className }: AppUpdateBannerProps) {
             onClick={dismissUpdate}
             disabled={isUpdating}
             className="rounded-full p-2 text-stone-400 transition hover:bg-stone-100 hover:text-stone-600 disabled:opacity-50"
-            aria-label="Recordar más tarde"
+            aria-label={t("remindLater")}
           >
             <X className="h-4 w-4" />
           </button>
@@ -54,7 +56,7 @@ export function AppUpdateBanner({ className }: AppUpdateBannerProps) {
             disabled={isUpdating}
             className="rounded-full bg-[#556B2F] px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-[#4a5f28] disabled:opacity-60"
           >
-            {isUpdating ? "Actualizando..." : "Actualizar"}
+            {isUpdating ? t("updating") : t("update")}
           </button>
         </div>
       </div>

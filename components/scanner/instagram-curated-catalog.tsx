@@ -2,15 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Instagram, Loader2, Plus } from "lucide-react";
 import { RecipeCatalogThumbnail } from "@/components/recipes/recipe-catalog-thumbnail";
 import { MEAL_TYPES, type MealType } from "@/lib/plan/constants";
 import { completePendingPlanAssignment } from "@/lib/plan/complete-pending-assignment";
 import { assignRecipeToPlan } from "@/lib/plan/plan-service";
-import {
-  formatPendingPlanAssignmentLabel,
-  type PendingPlanAssignment
-} from "@/lib/plan/plan-pending-assignment";
+import { type PendingPlanAssignment } from "@/lib/plan/plan-pending-assignment";
+import { formatPendingPlanSlot } from "@/lib/i18n/plan-pending-label";
 import { getTodayWeekDay } from "@/lib/plan/week-utils";
 import { fetchInstagramCatalogFromApi } from "@/lib/recipes/fetch-instagram-catalog-api";
 import {
@@ -36,6 +35,8 @@ export function InstagramCuratedCatalog({
   pendingPlanAssignment = null,
   onPendingAssignmentComplete
 }: InstagramCuratedCatalogProps) {
+  const t = useTranslations("Scanner");
+  const tPlan = useTranslations("Plan");
   const router = useRouter();
   const [recipes, setRecipes] = useState<InstagramCatalogRecipe[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -46,7 +47,7 @@ export function InstagramCuratedCatalog({
   const [assigningRecipeId, setAssigningRecipeId] = useState<string | null>(null);
 
   const pendingAssignmentLabel = pendingPlanAssignment
-    ? formatPendingPlanAssignmentLabel(pendingPlanAssignment)
+    ? formatPendingPlanSlot(pendingPlanAssignment, tPlan, t)
     : null;
 
   const loadCatalog = useCallback(async (options?: { background?: boolean }) => {
@@ -118,9 +119,11 @@ export function InstagramCuratedCatalog({
       const assignment = await completePendingPlanAssignment(user.id, saved.recipeId);
       onPendingAssignmentComplete?.();
 
-      if (assignment.assigned) {
+      if (assignment.assigned && assignment.pending) {
         setStatusMessage(
-          assignment.message ?? `"${recipe.title}" asignada al ${pendingAssignmentLabel}.`
+          t("savedAndAssigned", {
+            slot: formatPendingPlanSlot(assignment.pending, tPlan, t)
+          })
         );
         window.setTimeout(() => {
           router.push(APP_ROUTES.plan);
@@ -128,12 +131,10 @@ export function InstagramCuratedCatalog({
         return;
       }
 
-      setErrorMessage(
-        assignment.message ?? "No pudimos asignar la receta al plan."
-      );
+      setErrorMessage(t("savedAssignFailed"));
     } catch (error) {
       console.error("[instagram-curated-catalog] Error asignando al plan pendiente:", error);
-      setErrorMessage("No pudimos añadir la receta al plan.");
+      setErrorMessage(t("savedAssignFailed"));
     } finally {
       setAssigningRecipeId(null);
     }
@@ -285,16 +286,16 @@ export function InstagramCuratedCatalog({
                       type="button"
                       onClick={() => void handleAssignToPendingPlan(recipe)}
                       disabled={isBusy}
-                      aria-label={`Asignar al ${pendingAssignmentLabel}`}
+                      aria-label={t("assignToPlanAria", { slot: pendingAssignmentLabel })}
                       className="inline-flex w-full items-center justify-center gap-1 rounded-full border border-[#4C6B3F]/25 bg-[#4C6B3F] px-2.5 py-1.5 text-[10px] font-semibold leading-tight text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {isAssigningPending ? (
                         <>
                           <Loader2 className="h-3 w-3 shrink-0 animate-spin" />
-                          Asignando...
+                          {t("assigning")}
                         </>
                       ) : (
-                        <>Asignar al plan</>
+                        <>{t("assignToPlan")}</>
                       )}
                     </button>
                   ) : (
@@ -302,19 +303,19 @@ export function InstagramCuratedCatalog({
                       type="button"
                       onClick={() => togglePlanPicker(recipe.id)}
                       disabled={isBusy}
-                      aria-label="Añadir al plan semanal"
+                      aria-label={t("addToPlanAria")}
                       aria-expanded={showPlanPicker}
                       className="inline-flex w-full items-center justify-center gap-1 rounded-full border border-[#4C6B3F]/20 bg-[#F0F4ED] px-2.5 py-1.5 text-[10px] font-semibold leading-tight text-[#4C6B3F] transition hover:bg-[#dce7c3] disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       <Plus className="h-3 w-3 shrink-0" strokeWidth={2} />
-                      Añadir al plan
+                      {t("addToPlan")}
                     </button>
                   )}
 
                   {showPlanPicker ? (
                     <div className="space-y-1.5 rounded-lg border border-stone-100 bg-stone-50/80 p-1.5">
                       <p className="text-[9px] font-semibold uppercase tracking-wide text-stone-500">
-                        Añadir hoy
+                        {t("addToday")}
                       </p>
                       <div className="grid grid-cols-1 gap-1">
                         {MEAL_TYPES.map((mealType) => (
@@ -328,10 +329,10 @@ export function InstagramCuratedCatalog({
                             {assigningMealType === mealType ? (
                               <span className="inline-flex items-center gap-1">
                                 <Loader2 className="h-3 w-3 animate-spin" />
-                                Añadiendo...
+                                {t("assigning")}
                               </span>
                             ) : (
-                              mealType
+                              tPlan(`meals.${mealType}`)
                             )}
                           </button>
                         ))}

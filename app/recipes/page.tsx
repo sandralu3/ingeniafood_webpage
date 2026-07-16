@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MoreVertical, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useLocale, useTranslations } from "next-intl";
 import { RecipeCard } from "@/components/recipes/RecipeCard";
 import { RecipeShareCaptureHost } from "@/components/share/recipe-share-capture-host";
 import { useShareRecipeImage } from "@/hooks/use-share-recipe-image";
@@ -15,6 +16,11 @@ import {
   SAVED_RECIPE_FILTERS,
   type SavedRecipeFilter
 } from "@/lib/recipes/saved-recipes-filter";
+import {
+  translateSavedCardLabel,
+  translateSavedFilterChip
+} from "@/lib/i18n/filter-labels";
+import { parseAppLocale, toBcp47Locale } from "@/i18n/config";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/types/database.types";
@@ -28,16 +34,18 @@ function isMissingTipSandraColumnError(error: { code?: string; message?: string 
   return error.code === "42703" || error.message?.includes("column recipes.tip_sandra does not exist") === true;
 }
 
-function formatSavedDate(isoDate: string): string {
-  const formatted = new Intl.DateTimeFormat("es-ES", {
+function formatSavedDate(isoDate: string, locale: string, template: (date: string) => string): string {
+  const formatted = new Intl.DateTimeFormat(toBcp47Locale(parseAppLocale(locale)), {
     day: "numeric",
     month: "long",
     year: "numeric"
   }).format(new Date(isoDate));
-  return `Guardado el ${formatted}`;
+  return template(formatted);
 }
 
 export default function RecipesPage() {
+  const t = useTranslations("Saved");
+  const locale = useLocale();
   const router = useRouter();
   const [recipes, setRecipes] = useState<RecipeRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -211,7 +219,7 @@ export default function RecipesPage() {
     if (recipes.length === 0) {
       return (
         <p className="rounded-xl bg-white/90 px-3 py-2 text-xs text-stone-500 shadow-sm">
-          Aún no hay recetas guardadas. Escanea tus ingredientes para empezar.
+          {t("empty")}
         </p>
       );
     }
@@ -228,7 +236,7 @@ export default function RecipesPage() {
       <div className="space-y-0">
         <div className="grid grid-cols-1">
           {visibleRecipes.map((recipe, index) => {
-            const cardLabel = getRecipeCardLabel(recipe);
+            const cardLabel = translateSavedCardLabel(t, getRecipeCardLabel(recipe));
 
             return (
               <div
@@ -244,7 +252,9 @@ export default function RecipesPage() {
                   title={recipe.title}
                   recipeId={recipe.id}
                   categoryLabel={cardLabel}
-                  savedAtLabel={formatSavedDate(recipe.created_at)}
+                  savedAtLabel={formatSavedDate(recipe.created_at, locale, (date) =>
+                    t("savedOn", { date })
+                  )}
                   imageUrl={recipe.image_url}
                   instagramUrl={recipe.instagram_url}
                   isSocialVideo={Boolean(recipe.instagram_url && !recipe.image_url)}
@@ -269,7 +279,7 @@ export default function RecipesPage() {
               onClick={() => setMostrarTodas((previous) => !previous)}
               className="inline-flex items-center justify-center rounded-full border border-stone-200/60 bg-white px-6 py-2.5 text-sm font-medium text-[#4C6B3F] shadow-sm transition hover:border-stone-300 hover:bg-stone-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#4C6B3F]"
             >
-              {mostrarTodas ? "Ver menos" : `Ver todas mis recetas (${filteredRecipes.length})`}
+              {mostrarTodas ? t("viewLess") : t("viewAll", { count: filteredRecipes.length })}
             </button>
           </div>
         ) : null}
@@ -285,6 +295,8 @@ export default function RecipesPage() {
     recipes.length,
     sharingRecipeId,
     removingRecipeId,
+    locale,
+    t,
     visibleRecipes
   ]);
 
@@ -294,10 +306,9 @@ export default function RecipesPage() {
         <RecipeShareCaptureHost captureRef={captureRef} recipe={captureRecipe} mode="offscreen" />
 
         <header>
-          <h1 className="font-serif text-lg font-semibold text-stone-900">Recetas guardadas</h1>
+          <h1 className="font-serif text-lg font-semibold text-stone-900">{t("title")}</h1>
           <p className="mt-0.5 text-[11px] leading-relaxed text-stone-500">
-            {recipes.length} {recipes.length === 1 ? "receta" : "recetas"} en tu libro de cocina
-            personal. Filtra por categoría o busca por ingrediente.
+            {t("subtitle", { count: recipes.length })}
           </p>
         </header>
 
@@ -313,7 +324,7 @@ export default function RecipesPage() {
                 type="text"
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
-                placeholder="Buscar en mis recetas..."
+                placeholder={t("searchPlaceholder")}
                 className="w-full rounded-full border border-stone-200/80 bg-white px-4 py-2.5 pl-11 text-sm text-stone-700 shadow-sm outline-none placeholder:text-stone-400 transition focus:border-[#4C6B3F] focus:ring-1 focus:ring-[#4C6B3F]"
               />
             </label>
@@ -323,7 +334,7 @@ export default function RecipesPage() {
                 type="button"
                 onClick={() => setIsFilterMenuOpen((current) => !current)}
                 className="flex h-10 w-10 items-center justify-center rounded-full border border-stone-200/60 bg-stone-100 text-stone-600 transition-colors hover:bg-stone-200/50"
-                aria-label="Filtrar recetas"
+                aria-label={t("filterAria")}
                 aria-expanded={isFilterMenuOpen}
               >
                 <MoreVertical size={18} />
@@ -348,7 +359,7 @@ export default function RecipesPage() {
                             : "text-stone-600 hover:bg-stone-50"
                         )}
                       >
-                        {chip}
+                        {translateSavedFilterChip(t, chip)}
                       </button>
                     );
                   })}

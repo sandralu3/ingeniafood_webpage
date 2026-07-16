@@ -1,7 +1,9 @@
 import {
+  isPremiumComplexity,
   isPremiumCuisineStyle,
   isPremiumMealType,
   isPremiumServings,
+  type RecipeComplexity,
   type RecipeCuisineStyle,
   type RecipeMealType,
   type RecipeServings
@@ -63,10 +65,12 @@ export function usedPremiumRecipeFilters(filters: {
   mealType: RecipeMealType;
   cuisineStyle: RecipeCuisineStyle;
   servings: RecipeServings;
+  complexity: RecipeComplexity;
 }): boolean {
   return (
     isPremiumMealType(filters.mealType) ||
     isPremiumCuisineStyle(filters.cuisineStyle) ||
-    isPremiumServings(filters.servings)
+    isPremiumServings(filters.servings) ||
+    isPremiumComplexity(filters.complexity)
   );
 }

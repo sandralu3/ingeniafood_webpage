@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { EmptyMealSlot } from "@/components/plan/empty-meal-slot";
 import { PlanMealCard, type PlanMeal } from "@/components/plan/plan-meal-card";
 import { MEAL_TYPES, type MealType, type WeekDay } from "@/lib/plan/constants";
@@ -31,6 +32,7 @@ export function WeeklyPlanDaySection({
   onRemoveError,
   className
 }: WeeklyPlanDaySectionProps) {
+  const t = useTranslations("Plan");
   const [isExpanded, setIsExpanded] = useState(defaultExpanded || day.isToday);
   const assignedCount = MEAL_TYPES.filter((type) => day.slots[type] !== null).length;
 
@@ -54,11 +56,11 @@ export function WeeklyPlanDaySection({
               day.isToday ? "text-[#3e5219]" : "text-stone-900"
             )}
           >
-            {day.label}
+            {t(`days.${day.label}`)}
           </h2>
           {day.isToday ? (
             <span className="rounded-full bg-gradient-to-r from-[#dce7c3] to-amber-100 px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[#3e5219]">
-              Hoy
+              {t("today")}
             </span>
           ) : null}
           <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-semibold text-stone-500">
@@ -95,7 +97,7 @@ export function WeeklyPlanDaySection({
                     className="flex w-[11.5rem] min-w-[11.5rem] flex-shrink-0 flex-col gap-2 sm:w-auto sm:min-w-0 sm:flex-1"
                   >
                     <p className="px-0.5 text-center text-[10px] font-bold uppercase tracking-[0.14em] text-stone-400">
-                      {mealType}
+                      {t(`meals.${mealType}`)}
                     </p>
 
                     {meal ? (

@@ -2,8 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { Camera, ChevronDown, LogOut, Pencil, Users, Wand2 } from "lucide-react";
 import { AvatarCropModal } from "@/components/profile/avatar-crop-modal";
+import { LanguageSelector } from "@/components/profile/language-selector";
 import { PremiumSelfToggle } from "@/components/profile/premium-self-toggle";
 import { PremiumLabel } from "@/components/premium/premium-label";
 import { usePremium } from "@/hooks/use-premium";
@@ -38,6 +40,15 @@ function isMissingCountryColumnError(error: { code?: string; message?: string } 
   return error.code === "42703" || error.message?.includes("column profiles.country does not exist") === true;
 }
 
+function isMissingLanguageColumnError(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  return (
+    error.code === "42703" ||
+    error.code === "PGRST204" ||
+    error.message?.includes("language") === true
+  );
+}
+
 function getInitials(name?: string | null, email?: string | null): string {
   const source = name?.trim() || email?.trim() || "SV";
   const parts = source.split(/\s+/).filter(Boolean);
@@ -47,6 +58,7 @@ function getInitials(name?: string | null, email?: string | null): string {
 }
 
 export default function ProfilePage() {
+  const t = useTranslations("Profile");
   const { isPremium, refresh: refreshPremium } = usePremium();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -54,6 +66,7 @@ export default function ProfilePage() {
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [fullName, setFullName] = useState("");
   const [country, setCountry] = useState("");
+  const [language, setLanguage] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -82,7 +95,7 @@ export default function ProfilePage() {
         } = await supabase.auth.getUser();
 
         if (userError || !user) {
-          setErrorMessage("No se pudo obtener el usuario autenticado.");
+          setErrorMessage(t("authError"));
           return;
         }
 
@@ -92,46 +105,86 @@ export default function ProfilePage() {
 
         const { data: profile, error: profileError } = await supabase
           .from("profiles")
-          .select("id, full_name, avatar_url, country, is_premium, created_at, updated_at")
+          .select("id, full_name, avatar_url, country, language, is_premium, created_at, updated_at")
           .eq("id", user.id)
           .maybeSingle<ProfileRow>();
+
+        if (profileError && isMissingLanguageColumnError(profileError)) {
+          const { data: withoutLanguage, error: withoutLanguageError } = await supabase
+            .from("profiles")
+            .select("id, full_name, avatar_url, country, is_premium, created_at, updated_at")
+            .eq("id", user.id)
+            .maybeSingle<ProfileRow>();
+
+          if (withoutLanguageError && isMissingCountryColumnError(withoutLanguageError)) {
+            const { data: fallbackProfile, error: fallbackError } = await supabase
+              .from("profiles")
+              .select("id, full_name, avatar_url, is_premium, created_at, updated_at")
+              .eq("id", user.id)
+              .maybeSingle<ProfileRow>();
+
+            if (fallbackError) {
+              setErrorMessage(t("loadError"));
+              return;
+            }
+
+            setFullName(fallbackProfile?.full_name ?? "");
+            setCountry("");
+            setLanguage(null);
+            setAvatarUrl(fallbackProfile?.avatar_url ?? null);
+            return;
+          }
+
+          if (withoutLanguageError) {
+            setErrorMessage(t("loadError"));
+            return;
+          }
+
+          setFullName(withoutLanguage?.full_name ?? "");
+          setCountry(withoutLanguage?.country ?? "");
+          setLanguage(null);
+          setAvatarUrl(withoutLanguage?.avatar_url ?? null);
+          return;
+        }
 
         if (profileError && isMissingCountryColumnError(profileError)) {
           const { data: fallbackProfile, error: fallbackError } = await supabase
             .from("profiles")
-            .select("id, full_name, avatar_url, is_premium, created_at, updated_at")
+            .select("id, full_name, avatar_url, language, is_premium, created_at, updated_at")
             .eq("id", user.id)
             .maybeSingle<ProfileRow>();
 
           if (fallbackError) {
-            setErrorMessage("No pudimos cargar tu perfil. Intenta nuevamente.");
+            setErrorMessage(t("loadError"));
             return;
           }
 
           setFullName(fallbackProfile?.full_name ?? "");
           setCountry("");
+          setLanguage(fallbackProfile?.language ?? null);
           setAvatarUrl(fallbackProfile?.avatar_url ?? null);
           return;
         }
 
         if (profileError) {
-          setErrorMessage("No pudimos cargar tu perfil. Intenta nuevamente.");
+          setErrorMessage(t("loadError"));
           return;
         }
 
         setFullName(profile?.full_name ?? "");
         setCountry(profile?.country ?? "");
+        setLanguage(profile?.language ?? null);
         setAvatarUrl(profile?.avatar_url ?? null);
       } catch (error) {
         console.error("[profile] Error cargando perfil:", error);
-        setErrorMessage("No pudimos cargar tu perfil. Intenta nuevamente.");
+        setErrorMessage(t("loadError"));
       } finally {
         setIsLoading(false);
       }
     };
 
     void loadProfile();
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (!toast.visible) return;
@@ -295,16 +348,16 @@ export default function ProfilePage() {
         return;
       }
 
-      showToast("¡Perfil actualizado con éxito!");
-      await refreshPremium();
-    } catch (error) {
-      console.error("[profile] Error guardando perfil:", error);
-      setErrorMessage("No pudimos guardar los cambios del perfil.");
-      showToast("No se pudo guardar el perfil.", "error");
-    } finally {
-      setIsSaving(false);
-    }
-  };
+        showToast(t("toastSaved"));
+        await refreshPremium();
+      } catch (error) {
+        console.error("[profile] Error guardando perfil:", error);
+        setErrorMessage(t("toastSaveError"));
+        showToast(t("toastSaveError"), "error");
+      } finally {
+        setIsSaving(false);
+      }
+    };
 
   const handleSignOut = async () => {
     if (isSigningOut) return;
@@ -351,10 +404,10 @@ export default function ProfilePage() {
         <div className="mx-auto max-w-md space-y-6">
           <header className="text-center">
             <h1 className="font-serif text-lg font-semibold tracking-tight text-stone-900">
-              Mi Perfil
+              {t("title")}
             </h1>
             <p className="mt-1 text-[11px] leading-relaxed text-stone-500">
-              Gestiona tus datos personales y tu foto.
+              {t("subtitle")}
             </p>
           </header>
 
@@ -363,12 +416,12 @@ export default function ProfilePage() {
               type="button"
               onClick={handleAvatarClick}
               className="relative h-24 w-24 rounded-full border border-[#4c6633]/35 bg-[#dce7c3]/20 text-[#4c6633]"
-              aria-label="Actualizar foto de perfil"
+              aria-label={t("updateAvatarAria")}
             >
               {avatarUrl ? (
                 <img
                   src={avatarUrl}
-                  alt="Avatar del usuario"
+                  alt=""
                   className="h-full w-full rounded-full object-cover"
                 />
               ) : (
@@ -382,7 +435,7 @@ export default function ProfilePage() {
               {isUploadingAvatar ? (
                 <span className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden rounded-full bg-black/35 text-xs font-medium text-white">
                   <span className="mb-2 h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-                  Subiendo...
+                  {t("uploading")}
                 </span>
               ) : null}
             </button>
@@ -401,27 +454,27 @@ export default function ProfilePage() {
           <div className="space-y-4 rounded-2xl bg-white/90 p-3 shadow-sm">
             <div className="space-y-2">
               <label htmlFor="fullName" className="text-sm font-medium text-stone-600">
-                Nombre completo
+                {t("fullName")}
               </label>
               <Input
                 id="fullName"
                 value={fullName}
                 onChange={(event) => setFullName(sanitizePersonNameInput(event.target.value))}
-                placeholder="Tu nombre completo"
+                placeholder={t("fullNamePlaceholder")}
                 className={inputClassName}
               />
             </div>
 
             <div className="space-y-2">
               <label htmlFor="email" className="text-sm font-medium text-stone-600">
-                Correo electrónico
+                {t("email")}
               </label>
               <Input id="email" value={email} disabled className={inputClassName} />
             </div>
 
             <div className="space-y-2">
               <label htmlFor="country" className="text-sm font-medium text-stone-600">
-                País / Región
+                {t("country")}
               </label>
               <div className="relative">
                 <select
@@ -430,7 +483,7 @@ export default function ProfilePage() {
                   onChange={(event) => setCountry(event.target.value)}
                   className={cn(selectClassName, !country && "text-stone-400")}
                 >
-                  <option value="">Selecciona tu país</option>
+                  <option value="">{t("countryPlaceholder")}</option>
                   {PROFILE_COUNTRIES.map((option) => (
                     <option key={option.code} value={option.code}>
                       {option.label}
@@ -444,6 +497,17 @@ export default function ProfilePage() {
                 />
               </div>
             </div>
+
+            <LanguageSelector
+              userId={userId}
+              profileLanguage={language}
+              disabled={isSaving || isUploadingAvatar || isSigningOut}
+              onPersisted={(nextLocale) => {
+                setLanguage(nextLocale);
+                showToast(t("toastLanguageSaved"));
+              }}
+              onPersistError={() => showToast(t("toastLanguageError"), "error")}
+            />
 
             <PremiumSelfToggle />
 
@@ -459,7 +523,7 @@ export default function ProfilePage() {
               disabled={isSaving || isUploadingAvatar || isSigningOut}
               className="w-full rounded-full bg-[#4c6633] px-5 py-3.5 text-sm font-semibold text-white shadow-lg shadow-[#4c6633]/20 transition hover:bg-[#556B2F] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isSaving ? "Guardando..." : "Guardar Cambios"}
+              {isSaving ? t("saving") : t("saveChanges")}
             </button>
 
             <button
@@ -469,7 +533,7 @@ export default function ProfilePage() {
               className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-stone-200 bg-white px-5 py-3.5 text-sm font-semibold text-stone-600 transition hover:border-stone-300 hover:bg-stone-50 hover:text-stone-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <LogOut className="h-4 w-4" />
-              {isSigningOut ? "Cerrando sesión..." : "Cerrar sesión"}
+              {isSigningOut ? t("signingOut") : t("signOut")}
             </button>
 
             {isAdmin ? (

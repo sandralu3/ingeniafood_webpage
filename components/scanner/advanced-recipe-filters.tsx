@@ -6,18 +6,25 @@ import { PlanSectionDivider } from "@/components/plan/plan-section-divider";
 import { PremiumLabel } from "@/components/premium/premium-label";
 import { PremiumUpgradeDialog } from "@/components/premium/premium-upgrade-dialog";
 import { usePremium } from "@/hooks/use-premium";
+import { useTranslations } from "next-intl";
 import { SCANNER_SECTION_ACCENTS } from "@/lib/scanner/scanner-section-accent";
 import {
-  getRecipeCuisineStyleShortLabel,
-  getRecipeMealTypeLabel,
-  getRecipeServingsShortLabel,
+  RECIPE_COMPLEXITY_LEVELS,
   RECIPE_CUISINE_STYLES,
   RECIPE_MEAL_TYPES,
   RECIPE_SERVINGS_OPTIONS,
+  type RecipeComplexity,
   type RecipeCuisineStyle,
   type RecipeMealType,
   type RecipeServings
 } from "@/lib/recipes/premium-recipe-filters";
+import {
+  translateComplexity,
+  translateCuisineStyleShort,
+  translateMealType,
+  translateServingsPeople,
+  translateServingsShort
+} from "@/lib/i18n/filter-labels";
 import { cn } from "@/lib/utils";
 
 export const SCANNER_SECTION_CLASS =
@@ -27,9 +34,11 @@ type Props = {
   mealType: RecipeMealType;
   cuisineStyle: RecipeCuisineStyle;
   servings: RecipeServings;
+  complexity: RecipeComplexity;
   onMealTypeChange: (value: RecipeMealType) => void;
   onCuisineStyleChange: (value: RecipeCuisineStyle) => void;
   onServingsChange: (value: RecipeServings) => void;
+  onComplexityChange: (value: RecipeComplexity) => void;
   disabled?: boolean;
 };
 
@@ -82,19 +91,23 @@ export function AdvancedRecipeFilters({
   mealType,
   cuisineStyle,
   servings,
+  complexity,
   onMealTypeChange,
   onCuisineStyleChange,
   onServingsChange,
+  onComplexityChange,
   disabled = false
 }: Props) {
+  const t = useTranslations("Scanner");
   const { isPremium, isLoading, isPaidPremium, premiumTrialRemaining, refresh } = usePremium();
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
-  const mealLabel = getRecipeMealTypeLabel(mealType);
-  const cuisineLabel = getRecipeCuisineStyleShortLabel(cuisineStyle);
-  const servingsLabel = getRecipeServingsShortLabel(servings);
-  const summaryLabel = `${mealLabel} · ${cuisineLabel} · ${servingsLabel}`;
+  const mealLabel = translateMealType(t, mealType);
+  const cuisineLabel = translateCuisineStyleShort(t, cuisineStyle);
+  const servingsLabel = translateServingsShort(t, servings);
+  const complexityLabel = translateComplexity(t, complexity);
+  const summaryLabel = `${mealLabel} · ${cuisineLabel} · ${servingsLabel} · ${complexityLabel}`;
 
   const handleMealTypeClick = (option: (typeof RECIPE_MEAL_TYPES)[number]) => {
     if (disabled || isLoading) return;
@@ -123,6 +136,15 @@ export function AdvancedRecipeFilters({
     onServingsChange(option.value);
   };
 
+  const handleComplexityClick = (option: (typeof RECIPE_COMPLEXITY_LEVELS)[number]) => {
+    if (disabled || isLoading) return;
+    if (option.premium && !isPremium) {
+      setShowUpgradeDialog(true);
+      return;
+    }
+    onComplexityChange(option.id);
+  };
+
   return (
     <>
       <section className={SCANNER_SECTION_CLASS}>
@@ -134,7 +156,7 @@ export function AdvancedRecipeFilters({
           aria-expanded={expanded}
         >
           <PlanSectionDivider
-            label="Filtros avanzados"
+            label={t("advancedFilters")}
             accent={SCANNER_SECTION_ACCENTS.filtros}
             trailing={
               <div className="flex items-center gap-1.5">
@@ -142,7 +164,7 @@ export function AdvancedRecipeFilters({
                   <PremiumLabel size="2xs" />
                 ) : premiumTrialRemaining > 0 ? (
                   <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-900">
-                    1 prueba
+                    {t("trialBadge")}
                   </span>
                 ) : null}
                 <ChevronDown
@@ -163,9 +185,9 @@ export function AdvancedRecipeFilters({
               <p className="text-[11px] text-stone-500">
                 {isPremium
                   ? isPaidPremium
-                    ? "Toca para personalizar"
-                    : "Prueba activa · toca para personalizar"
-                  : "Plan Free · toca para ver opciones"}
+                    ? t("customizeFilters")
+                    : t("trialActiveHint")
+                  : t("freePlanHint")}
               </p>
             </div>
           ) : null}
@@ -173,11 +195,11 @@ export function AdvancedRecipeFilters({
 
         {expanded ? (
           <div className="mt-2 space-y-4 border-t border-stone-100 px-0.5 pt-3">
-            <FilterGroup label="Plato">
+            <FilterGroup label={t("filterMeal")}>
               {RECIPE_MEAL_TYPES.map((option) => (
                 <FilterChip
                   key={option.id}
-                  label={option.label}
+                  label={translateMealType(t, option.id)}
                   selected={mealType === option.id}
                   locked={option.premium && !isPremium}
                   disabled={disabled || isLoading}
@@ -186,11 +208,11 @@ export function AdvancedRecipeFilters({
               ))}
             </FilterGroup>
 
-            <FilterGroup label="Estilo">
+            <FilterGroup label={t("filterStyle")}>
               {RECIPE_CUISINE_STYLES.map((option) => (
                 <FilterChip
                   key={option.id}
-                  label={option.shortLabel}
+                  label={translateCuisineStyleShort(t, option.id)}
                   selected={cuisineStyle === option.id}
                   locked={option.premium && !isPremium}
                   disabled={disabled || isLoading}
@@ -199,15 +221,28 @@ export function AdvancedRecipeFilters({
               ))}
             </FilterGroup>
 
-            <FilterGroup label="Raciones">
+            <FilterGroup label={t("filterServings")}>
               {RECIPE_SERVINGS_OPTIONS.map((option) => (
                 <FilterChip
                   key={option.value}
-                  label={option.label}
+                  label={translateServingsPeople(t, option.value)}
                   selected={servings === option.value}
                   locked={option.premium && !isPremium}
                   disabled={disabled || isLoading}
                   onClick={() => handleServingsClick(option)}
+                />
+              ))}
+            </FilterGroup>
+
+            <FilterGroup label={t("filterComplexity")}>
+              {RECIPE_COMPLEXITY_LEVELS.map((option) => (
+                <FilterChip
+                  key={option.id}
+                  label={translateComplexity(t, option.id)}
+                  selected={complexity === option.id}
+                  locked={option.premium && !isPremium}
+                  disabled={disabled || isLoading}
+                  onClick={() => handleComplexityClick(option)}
                 />
               ))}
             </FilterGroup>

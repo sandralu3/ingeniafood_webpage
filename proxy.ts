@@ -1,7 +1,32 @@
+/**
+ * Proxy (Next.js 16; equivalente a middleware.ts):
+ * - Auth / acceso PWA a /app-recetas
+ * - Entry points localizados /es y /en → set cookie NEXT_LOCALE + redirect sin prefijo
+ * - Si no hay cookie, fija idioma desde Accept-Language
+ *
+ * No usamos createMiddleware de next-intl con localePrefix en todas las rutas
+ * para no romper APP_ROUTES (/app-recetas) ni deep links de la PWA.
+ */
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import type { Database } from "@/types/database.types";
 import { getSupabaseProjectUrl } from "@/lib/supabaseConfig";
+import {
+  DEFAULT_LOCALE,
+  isAppLocale,
+  LOCALE_COOKIE_MAX_AGE_SECONDS,
+  LOCALE_COOKIE_NAME,
+  type AppLocale
+} from "@/i18n/config";
+import { negotiateLocaleFromAcceptLanguage } from "@/lib/i18n/negotiate-locale";
+
+function setLocaleCookie(response: NextResponse, locale: AppLocale) {
+  response.cookies.set(LOCALE_COOKIE_NAME, locale, {
+    path: "/",
+    maxAge: LOCALE_COOKIE_MAX_AGE_SECONDS,
+    sameSite: "lax"
+  });
+}
 
 const PUBLIC_ROUTES = new Set([
   "/",
@@ -39,6 +64,23 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(httpsUrl, 308);
   }
 
+  // No redirigir ni proteger APIs aquí; cada endpoint maneja su auth/errores JSON.
+  if (pathname.startsWith("/api/")) {
+    return NextResponse.next();
+  }
+
+  // /es|/en|/fr|/pt|/de → cookie + ruta canónica sin prefijo.
+  const localePathMatch = pathname.match(/^\/(es|en|fr|pt|de)(\/.*)?$/);
+  if (localePathMatch) {
+    const locale = localePathMatch[1] as AppLocale;
+    const rest = localePathMatch[2] && localePathMatch[2].length > 0 ? localePathMatch[2] : "/";
+    const targetUrl = request.nextUrl.clone();
+    targetUrl.pathname = rest;
+    const redirectResponse = NextResponse.redirect(targetUrl);
+    setLocaleCookie(redirectResponse, locale);
+    return redirectResponse;
+  }
+
   const userAgent = request.headers.get("user-agent") ?? "";
   const isMobile = isMobileUserAgent(userAgent);
   const isProtectedAppRoute =
@@ -46,11 +88,6 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith("/app-recetas/") ||
     pathname === "/desktop-app-recetas" ||
     pathname.startsWith("/desktop-app-recetas");
-
-  // No redirigir ni proteger APIs aquí; cada endpoint maneja su auth/errores JSON.
-  if (pathname.startsWith("/api/")) {
-    return NextResponse.next();
-  }
 
   // En producción, solo permite acceso a la app con enlace secreto.
   if (process.env.NODE_ENV === "production" && isProtectedAppRoute) {
@@ -98,6 +135,15 @@ export async function proxy(request: NextRequest) {
       headers: request.headers
     }
   });
+
+  const existingLocale = request.cookies.get(LOCALE_COOKIE_NAME)?.value;
+  if (!isAppLocale(existingLocale)) {
+    const negotiated = negotiateLocaleFromAcceptLanguage(
+      request.headers.get("accept-language"),
+      DEFAULT_LOCALE
+    );
+    setLocaleCookie(response, negotiated);
+  }
 
   const supabaseUrl = getSupabaseProjectUrl();
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;

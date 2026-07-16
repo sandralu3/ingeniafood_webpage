@@ -2,6 +2,7 @@
 
 import { FormEvent, Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { IngeniaFoodLogo } from "@/components/shared/ingenia-food-logo";
 import { PasswordInput } from "@/components/ui/password-input";
 import { createSupabaseClient } from "@/lib/supabaseClient";
@@ -27,14 +28,16 @@ export default function AuthPage() {
 }
 
 function AuthFallback() {
+  const t = useTranslations("Auth");
+
   return (
     <div className="flex min-h-[80vh] items-center justify-center bg-[#FDFCFB] px-4 py-10">
       <section className="w-full max-w-md rounded-2xl bg-white p-6 shadow-sm">
         <IngeniaFoodLogo variant="auth" />
         <h1 className="mt-5 text-center text-3xl font-bold tracking-tight text-[#1F2937]">
-          Iniciar sesión
+          {t("loginTitle")}
         </h1>
-        <p className="mt-2 text-center text-sm text-[#6B7280]">Cargando formulario de autenticación...</p>
+        <p className="mt-2 text-center text-sm text-[#6B7280]">{t("loadingForm")}</p>
       </section>
     </div>
   );
@@ -48,7 +51,24 @@ function resolveInitialMode(modeParam: string | null): AuthMode {
   return "login";
 }
 
+function resolveAuthLinkError(
+  authLinkError: string | null,
+  t: (key: string) => string
+): string | null {
+  if (authLinkError === "exchange_failed") {
+    return t("linkExchangeFailed");
+  }
+  if (authLinkError === "link_expired" || authLinkError === "otp_expired") {
+    return t("linkExpired");
+  }
+  if (authLinkError) {
+    return t("verificationFailed");
+  }
+  return null;
+}
+
 function AuthForm() {
+  const t = useTranslations("Auth");
   const searchParams = useSearchParams();
   const requestedNextPath = searchParams.get("next");
   const nextPath =
@@ -67,18 +87,9 @@ function AuthForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(() => {
-    if (authLinkError === "exchange_failed") {
-      return "No se pudo validar el enlace. Solicita uno nuevo e inténtalo de nuevo.";
-    }
-    if (authLinkError === "link_expired" || authLinkError === "otp_expired") {
-      return "El enlace ha expirado o ya se usó para cambiar la contraseña. Solicita uno nuevo.";
-    }
-    if (authLinkError) {
-      return "No se pudo completar la verificación. Intenta de nuevo.";
-    }
-    return null;
-  });
+  const [errorMessage, setErrorMessage] = useState<string | null>(() =>
+    resolveAuthLinkError(authLinkError, t)
+  );
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [resendCooldownSeconds, setResendCooldownSeconds] = useState(0);
 
@@ -108,7 +119,7 @@ function AuthForm() {
     if (mode === "forgot") {
       const emailValue = email.trim();
       if (!emailValue) {
-        setErrorMessage("Ingresa el correo asociado a tu cuenta.");
+        setErrorMessage(t("forgotEmailRequired"));
         return;
       }
 
@@ -119,9 +130,7 @@ function AuthForm() {
         supabase = createSupabaseClient();
       } catch (error) {
         setErrorMessage(
-          error instanceof Error
-            ? error.message
-            : "No se pudo inicializar Supabase. Revisa tus variables de entorno."
+          error instanceof Error ? error.message : t("supabaseInitError")
         );
         setIsSubmitting(false);
         return;
@@ -146,9 +155,7 @@ function AuthForm() {
         return;
       }
 
-      setSuccessMessage(
-        "Te enviamos un correo con el enlace para restablecer tu contraseña. Puedes abrirlo en el móvil o en el ordenador; permanecerá activo hasta que cambies la contraseña."
-      );
+      setSuccessMessage(t("forgotSuccess"));
       setResendCooldownSeconds(60);
       setIsSubmitting(false);
       return;
@@ -163,7 +170,7 @@ function AuthForm() {
     }
 
     if (password.length < 6) {
-      setErrorMessage("La contraseña debe tener al menos 6 caracteres.");
+      setErrorMessage(t("passwordTooShort"));
       return;
     }
 
@@ -174,9 +181,7 @@ function AuthForm() {
       supabase = createSupabaseClient();
     } catch (error) {
       setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "No se pudo inicializar Supabase. Revisa tus variables de entorno."
+        error instanceof Error ? error.message : t("supabaseInitError")
       );
       setIsSubmitting(false);
       return;
@@ -217,19 +222,17 @@ function AuthForm() {
         return;
       }
 
-      setSuccessMessage(
-        "Cuenta creada. Revisa tu correo para confirmar el registro. Puedes abrir el enlace en el móvil o en el ordenador."
-      );
+      setSuccessMessage(t("signupSuccess"));
       setModeOverride("login");
     } else {
       const session = authResult.data?.session ?? null;
       if (!session) {
-        setErrorMessage("No se pudo abrir sesion. Verifica tu correo y contraseña.");
+        setErrorMessage(t("sessionOpenError"));
         setIsSubmitting(false);
         return;
       }
 
-      setSuccessMessage("Sesion iniciada correctamente. Redirigiendo...");
+      setSuccessMessage(t("loginSuccess"));
       window.location.assign(nextPath);
       return;
     }
@@ -249,14 +252,28 @@ function AuthForm() {
   };
 
   const title =
-    mode === "signup" ? "Crear cuenta" : mode === "forgot" ? "Recuperar contraseña" : "Iniciar sesión";
+    mode === "signup" ? t("signupTitle") : mode === "forgot" ? t("forgotTitle") : t("loginTitle");
 
   const subtitle =
     mode === "signup"
-      ? "Regístrate para guardar recetas saludables y escanear tu nevera."
+      ? t("signupSubtitle")
       : mode === "forgot"
-        ? "Te enviaremos un enlace a tu correo. Podrás abrirlo en cualquier dispositivo y seguirá activo hasta que cambies la contraseña."
-        : "Ingresa para continuar con tu plan de cocina saludable.";
+        ? t("forgotSubtitle")
+        : t("loginSubtitle");
+
+  const submitLabel = isSubmitting
+    ? mode === "signup"
+      ? t("submittingSignup")
+      : mode === "forgot"
+        ? t("submittingForgot")
+        : t("submittingLogin")
+    : mode === "forgot" && resendCooldownSeconds > 0
+      ? t("waitToResend", { seconds: resendCooldownSeconds })
+      : mode === "signup"
+        ? t("submitSignup")
+        : mode === "forgot"
+          ? t("submitForgot")
+          : t("submitLogin");
 
   return (
     <div className="flex min-h-[80vh] items-center justify-center bg-[#FDFCFB] px-4 py-10">
@@ -266,9 +283,7 @@ function AuthForm() {
           <h1 className="mt-5 text-3xl font-bold tracking-tight text-[#1F2937]">{title}</h1>
           <p className="mt-2 text-sm text-[#6B7280]">{subtitle}</p>
           {showAppRecetasMessage ? (
-            <p className="mt-2 text-xs font-medium text-[#6B7280]">
-              Para guardar tus recetas y usar la IA, necesitas crear una cuenta gratuita.
-            </p>
+            <p className="mt-2 text-xs font-medium text-[#6B7280]">{t("appRecetasMessage")}</p>
           ) : null}
         </header>
 
@@ -283,7 +298,7 @@ function AuthForm() {
                   : "text-[#6B7280] hover:text-[#374151]"
               }`}
             >
-              Login
+              {t("goToLogin")}
             </button>
             <button
               type="button"
@@ -294,7 +309,7 @@ function AuthForm() {
                   : "text-[#6B7280] hover:text-[#374151]"
               }`}
             >
-              Registro
+              {t("goToSignup")}
             </button>
           </div>
         ) : null}
@@ -305,7 +320,7 @@ function AuthForm() {
             onClick={() => handleModeChange("login")}
             className="mt-5 text-sm font-medium text-[#556B2F] hover:underline"
           >
-            ← Volver al inicio de sesión
+            {t("backToLogin")}
           </button>
         ) : null}
 
@@ -313,7 +328,7 @@ function AuthForm() {
         {mode === "signup" ? (
           <div className="space-y-1.5">
             <label htmlFor="fullName" className="text-sm font-medium text-[#374151]">
-              Nombre y apellidos
+              {t("fullName")}
             </label>
             <input
               id="fullName"
@@ -322,7 +337,7 @@ function AuthForm() {
               onChange={(event) => setFullName(sanitizePersonNameInput(event.target.value))}
               suppressHydrationWarning
               className="h-12 w-full rounded-xl border border-[#E5E7EB] bg-white px-4 text-sm text-[#1F2937] outline-none transition focus:border-[#556B2F]/55 focus:ring-2 focus:ring-[#556B2F]/15"
-              placeholder="Ej. Ana López"
+              placeholder={t("fullNamePlaceholder")}
               autoComplete="name"
               required
             />
@@ -331,7 +346,7 @@ function AuthForm() {
 
         <div className="space-y-1.5">
           <label htmlFor="email" className="text-sm font-medium text-[#374151]">
-            Correo electronico
+            {t("email")}
           </label>
           <input
             id="email"
@@ -340,7 +355,7 @@ function AuthForm() {
             onChange={(event) => setEmail(event.target.value)}
             suppressHydrationWarning
             className="h-12 w-full rounded-xl border border-[#E5E7EB] bg-white px-4 text-sm text-[#1F2937] outline-none transition focus:border-[#556B2F]/55 focus:ring-2 focus:ring-[#556B2F]/15"
-            placeholder="tuemail@correo.com"
+            placeholder={t("emailPlaceholder")}
             autoComplete="email"
             required
           />
@@ -349,14 +364,14 @@ function AuthForm() {
         {mode !== "forgot" ? (
           <div className="space-y-1.5">
             <label htmlFor="password" className="text-sm font-medium text-[#374151]">
-              Contraseña
+              {t("password")}
             </label>
             <PasswordInput
               id="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               suppressHydrationWarning
-              placeholder="Minimo 6 caracteres"
+              placeholder={t("passwordPlaceholder")}
               autoComplete={mode === "signup" ? "new-password" : "current-password"}
               minLength={6}
               required
@@ -371,7 +386,7 @@ function AuthForm() {
               onClick={() => handleModeChange("forgot")}
               className="text-sm font-medium text-[#556B2F] hover:underline"
             >
-              ¿Olvidaste tu contraseña?
+              {t("goToForgot")}
             </button>
           </div>
         ) : null}
@@ -391,9 +406,7 @@ function AuthForm() {
         {successMessage || verifiedFromLink || passwordResetSuccess ? (
           <p className="rounded-xl border border-brand-green-light/35 bg-brand-green-light/10 px-3 py-2 text-sm text-brand-green-dark">
             {successMessage ??
-              (passwordResetSuccess
-                ? "Contraseña actualizada. Ya puedes iniciar sesión."
-                : "Correo confirmado. Ahora inicia sesion.")}
+              (passwordResetSuccess ? t("passwordResetSuccess") : t("emailConfirmed"))}
           </p>
         ) : null}
 
@@ -402,19 +415,7 @@ function AuthForm() {
           disabled={isSubmitting || (mode === "forgot" && resendCooldownSeconds > 0)}
           className="h-12 w-full rounded-full bg-[#556B2F] px-4 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-60"
         >
-          {isSubmitting
-            ? mode === "signup"
-              ? "Creando cuenta..."
-              : mode === "forgot"
-                ? "Enviando enlace..."
-                : "Ingresando..."
-            : mode === "forgot" && resendCooldownSeconds > 0
-              ? `Espera ${resendCooldownSeconds}s para reenviar`
-              : mode === "signup"
-                ? "Crear cuenta"
-                : mode === "forgot"
-                  ? "Enviar enlace de recuperación"
-                  : "Iniciar sesion"}
+          {submitLabel}
         </button>
         </form>
       </section>

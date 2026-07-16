@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Heart, Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { RecipeDetailMagazine } from "@/components/recipes/recipe-detail-magazine";
 import { RecipeInstagramAdminForm } from "@/components/recipes/recipe-instagram-admin-form";
 import { RecipeInstagramLink } from "@/components/recipes/recipe-instagram-link";
@@ -33,7 +34,7 @@ function isMissingOptionalColumnError(
 }
 
 const RECIPE_DETAIL_COLUMNS =
-  "id,title,description,cooking_time,is_airfryer,is_flourless,is_public,es_instagram,created_at,user_id,ingredients,steps,instructions,image_url,reference_image_url,tip_sandra,instagram_url,macros,meal_type,cuisine_style,meal_type_advisory,tags" as const;
+  "id,title,description,cooking_time,is_airfryer,is_flourless,is_public,es_instagram,created_at,user_id,ingredients,steps,instructions,image_url,reference_image_url,tip_sandra,instagram_url,macros,meal_type,cuisine_style,servings,complexity,meal_type_advisory,tags" as const;
 
 const RECIPE_DETAIL_COLUMNS_LEGACY =
   "id,title,description,cooking_time,is_airfryer,is_flourless,is_public,es_instagram,created_at,user_id,ingredients,steps,instructions,image_url,tip_sandra,instagram_url,macros" as const;
@@ -43,6 +44,7 @@ type RecipeDetailPageProps = {
 };
 
 export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
+  const t = useTranslations("RecipeDetail");
   const router = useRouter();
   const [recipeId, setRecipeId] = useState<string>("");
   const [recipe, setRecipe] = useState<RecipeRow | null>(null);
@@ -83,7 +85,7 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
         setErrorMessage(
           error instanceof Error
             ? error.message
-            : "No se pudo inicializar Supabase. Revisa tus variables de entorno."
+            : t("loadError")
         );
         setIsLoading(false);
         return;
@@ -94,7 +96,7 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
       } = await supabase.auth.getUser();
 
       if (!user) {
-        setErrorMessage("No encontramos tu sesión activa. Inicia sesión para ver la receta.");
+        setErrorMessage(t("sessionError"));
         setIsLoading(false);
         return;
       }
@@ -130,6 +132,8 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
               reference_image_url: null,
               meal_type: null,
               cuisine_style: null,
+              servings: null,
+              complexity: null,
               meal_type_advisory: null,
               tags: null
             } as RecipeRow)
@@ -194,7 +198,7 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
       }
 
       if (recipeError) {
-        setErrorMessage("No pudimos cargar el detalle de la receta. Inténtalo de nuevo.");
+        setErrorMessage(t("loadError"));
         setRecipe(null);
         setIsLoading(false);
         return;
@@ -206,7 +210,7 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
     };
 
     void loadRecipe();
-  }, [recipeId]);
+  }, [recipeId, t]);
 
   const shareableRecipe = useMemo(
     () => (recipe ? savedRecipeToShareable(recipe) : null),
@@ -248,7 +252,7 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
           className="inline-flex items-center gap-2 text-xs font-medium text-[#4c6633]/80 transition hover:text-[#4c6633]"
         >
           <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.5} />
-          Volver a Mis Recetas
+          {t("backToRecipes")}
         </Link>
 
         {!isLoading && recipe ? (
@@ -256,7 +260,7 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
             type="button"
             onClick={() => void handleRemoveFavorite()}
             disabled={isRemoving || !isFavorite}
-            aria-label={isFavorite ? "Quitar de favoritos" : "Receta no guardada"}
+            aria-label={isFavorite ? t("removeFavoriteAria") : t("notSavedAria")}
             className={cn(
               "inline-flex h-10 w-10 items-center justify-center rounded-full border transition",
               isFavorite
@@ -293,7 +297,7 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
 
       {!isLoading && !errorMessage && !recipe ? (
         <p className="rounded-2xl border border-stone-100 bg-white p-5 text-sm text-stone-600 shadow-sm">
-          No encontramos esa receta en tu historial.
+          {t("notFound")}
         </p>
       ) : null}
 

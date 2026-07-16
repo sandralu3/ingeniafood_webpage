@@ -15,7 +15,7 @@ export function buildMealTypeCompatibilityPromptClause(mealType: RecipeMealType)
     "Tu trabajo es encontrar la MEJOR receta posible de ese tipo con los ingredientes detectados o seleccionados, por muy neutros que sean. " +
     "Ejemplos válidos: arroz → arroz con leche (Postre); plátano → crepe o bowl (Desayuno); huevos → tortilla (Almuerzo/Cena); avena → porridge (Desayuno). " +
     "Puedes añadir ingredientes básicos de despensa imprescindibles para ese tipo de plato (leche, azúcar, canela, miel, vainilla, huevos, etc.) aunque no aparezcan en la foto. " +
-    "Incluye el campo opcional advertencia_ingredientes (string, 1-2 frases en español) cuando la receta necesite complementos que el usuario no escaneó; si no aplica, omítelo o déjalo vacío. " +
+    "Incluye el campo opcional advertencia_ingredientes (string, 1-2 frases en el mismo idioma de salida de la receta) cuando la receta necesite complementos que el usuario no escaneó; si no aplica, omítelo o déjalo vacío. " +
     'Responde con {"error":"tipo_plato_incompatible","mensaje":"..."} SOLO si no existe ninguna receta razonable de ' +
     `${label} con esos ingredientes (casos extremos). En ese mensaje explica por qué y sugiere otro tipo de plato. ` +
     `Si SÍ existe opción (aunque requiera despensa básica), GENERA la receta como ${label} y no cambies el momento del día.`
