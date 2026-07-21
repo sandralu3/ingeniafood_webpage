@@ -11,12 +11,10 @@ import {
   type ReactNode
 } from "react";
 import {
-  ADMIN_PREMIUM_ACCESS,
   resolvePremiumAccess,
   type PremiumAccess,
   type PremiumProfileRow
 } from "@/lib/auth/premium-access";
-import { isSandraAdmin } from "@/lib/auth/sandra-admin";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 
 type UsePremiumResult = PremiumAccess & {
@@ -31,7 +29,7 @@ type UsePremiumResult = PremiumAccess & {
 };
 
 const PREMIUM_PROFILE_SELECT =
-  "is_premium, premium_trial_remaining, premium_trial_claimed_at" as const;
+  "is_premium, is_tester, openai_photo_credits, premium_trial_remaining, premium_trial_claimed_at" as const;
 
 const PremiumContext = createContext<UsePremiumResult | null>(null);
 
@@ -47,9 +45,13 @@ function usePremiumState(): UsePremiumResult {
     setError(null);
   }, []);
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (options?: { showLoading?: boolean }) => {
+    const showLoading = options?.showLoading ?? false;
+
     const runRefresh = async () => {
-      setIsLoading(true);
+      if (showLoading) {
+        setIsLoading(true);
+      }
       setError(null);
 
       try {
@@ -66,11 +68,6 @@ function usePremiumState(): UsePremiumResult {
         }
 
         setUserId(user.id);
-        if (isSandraAdmin(user.email)) {
-          setAccess(ADMIN_PREMIUM_ACCESS);
-          return;
-        }
-
         const { data: profile, error: profileError } = await supabase
           .from("profiles")
           .select(PREMIUM_PROFILE_SELECT)
@@ -79,7 +76,7 @@ function usePremiumState(): UsePremiumResult {
 
         if (profileError) {
           setError("No pudimos cargar tu estado Premium.");
-          setAccess(resolvePremiumAccess(null));
+          setAccess(resolvePremiumAccess(null, { email: user.email }));
           return;
         }
 
@@ -88,7 +85,9 @@ function usePremiumState(): UsePremiumResult {
         setError("No pudimos cargar tu estado Premium.");
         setAccess(resolvePremiumAccess(null));
       } finally {
-        setIsLoading(false);
+        if (showLoading) {
+          setIsLoading(false);
+        }
       }
     };
 
@@ -98,7 +97,7 @@ function usePremiumState(): UsePremiumResult {
   }, []);
 
   useEffect(() => {
-    void refresh();
+    void refresh({ showLoading: true });
   }, [refresh]);
 
   return {

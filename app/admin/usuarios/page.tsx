@@ -2,14 +2,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { ArrowLeft, Loader2, Save, Trash2, Users } from "lucide-react";
 import type { AdminUserListItem } from "@/lib/admin/users-admin";
 import { MAX_DAILY_SCAN_LIMIT } from "@/lib/admin/users-admin";
 import { PremiumLabel, PremiumRichText } from "@/components/premium/premium-label";
-import { isSandraAdmin } from "@/lib/auth/sandra-admin";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
-import { createSupabaseClient } from "@/lib/supabaseClient";
+import { useSandraAdminGate } from "@/hooks/use-sandra-admin-gate";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { cn } from "@/lib/utils";
 
@@ -22,14 +20,13 @@ function getInitials(name: string | null, email: string): string {
 }
 
 export default function AdminUsuariosPage() {
-  const router = useRouter();
-  const [authState, setAuthState] = useState<"loading" | "allowed" | "denied">("loading");
+  const authState = useSandraAdminGate("/admin/usuarios");
   const [users, setUsers] = useState<AdminUserListItem[]>([]);
   const [draftLimits, setDraftLimits] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
   const [savingPremiumUserId, setSavingPremiumUserId] = useState<string | null>(null);
-  const [savingSelfToggleUserId, setSavingSelfToggleUserId] = useState<string | null>(null);
+  const [savingTesterUserId, setSavingTesterUserId] = useState<string | null>(null);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
   const [userPendingDelete, setUserPendingDelete] = useState<AdminUserListItem | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -69,37 +66,9 @@ export default function AdminUsuariosPage() {
   }, []);
 
   useEffect(() => {
-    let active = true;
-
-    const verifyAccess = async () => {
-      const supabase = createSupabaseClient();
-      const {
-        data: { user }
-      } = await supabase.auth.getUser();
-
-      if (!active) return;
-
-      if (!user) {
-        setAuthState("denied");
-        router.replace("/login?next=/admin/usuarios");
-        return;
-      }
-
-      if (!isSandraAdmin(user.email)) {
-        setAuthState("denied");
-        return;
-      }
-
-      setAuthState("allowed");
-      void loadUsers();
-    };
-
-    void verifyAccess();
-
-    return () => {
-      active = false;
-    };
-  }, [loadUsers, router]);
+    if (authState !== "allowed") return;
+    void loadUsers();
+  }, [authState, loadUsers]);
 
   const handleTogglePremium = async (userId: string, nextValue: boolean) => {
     const user = users.find((item) => item.id === userId);
@@ -141,11 +110,11 @@ export default function AdminUsuariosPage() {
     }
   };
 
-  const handleToggleSelfPremiumPermission = async (userId: string, nextValue: boolean) => {
+  const handleToggleTester = async (userId: string, nextValue: boolean) => {
     const user = users.find((item) => item.id === userId);
-    if (!user || user.unlimitedScans) return;
+    if (!user) return;
 
-    setSavingSelfToggleUserId(userId);
+    setSavingTesterUserId(userId);
     setErrorMessage(null);
     setSuccessMessage(null);
 
@@ -153,7 +122,7 @@ export default function AdminUsuariosPage() {
       const response = await fetch(`/api/admin/users/${userId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ canSelfTogglePremium: nextValue })
+        body: JSON.stringify({ isTester: nextValue })
       });
 
       const payload = (await response.json()) as {
@@ -162,7 +131,7 @@ export default function AdminUsuariosPage() {
       };
 
       if (!response.ok) {
-        throw new Error(payload.error ?? "No se pudo actualizar el permiso de autogestión.");
+        throw new Error(payload.error ?? "No se pudo actualizar el estado de tester.");
       }
 
       if (payload.user) {
@@ -173,15 +142,15 @@ export default function AdminUsuariosPage() {
 
       setSuccessMessage(
         nextValue
-          ? "El usuario ya puede activar/desactivar Premium desde su perfil."
-          : "Autogestión Premium desactivada para el usuario."
+          ? "Usuario marcado como tester (Premium / Stripe visibles)."
+          : "Usuario ya no es tester (sin acceso a Premium / Stripe)."
       );
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "Error al guardar autogestión Premium."
+        error instanceof Error ? error.message : "Error al guardar el estado de tester."
       );
     } finally {
-      setSavingSelfToggleUserId(null);
+      setSavingTesterUserId(null);
     }
   };
 
@@ -362,10 +331,10 @@ export default function AdminUsuariosPage() {
                     <th className="px-5 py-3.5">Usuario</th>
                     <th className="px-5 py-3.5">Correo</th>
                     <th className="px-5 py-3.5">Hoy</th>
+                    <th className="px-5 py-3.5">Tester</th>
                     <th className="px-5 py-3.5">
                       <PremiumLabel size="xs" />
                     </th>
-                    <th className="px-5 py-3.5">Autogestión</th>
                     <th className="px-5 py-3.5">Escaneos / día</th>
                     <th className="px-5 py-3.5 text-right">Acción</th>
                   </tr>
@@ -374,7 +343,7 @@ export default function AdminUsuariosPage() {
                   {users.map((user) => {
                     const isSaving = savingUserId === user.id;
                     const isSavingPremium = savingPremiumUserId === user.id;
-                    const isSavingSelfToggle = savingSelfToggleUserId === user.id;
+                    const isSavingTester = savingTesterUserId === user.id;
                     const premiumStatusLabel = user.isPremium
                       ? "Suscriptor"
                       : user.premiumTrialRemaining > 0
@@ -415,6 +384,32 @@ export default function AdminUsuariosPage() {
                             <span className="text-stone-600">
                               {user.scansUsedToday} usados · {user.scansRemainingToday} restantes
                             </span>
+                          )}
+                        </td>
+                        <td className="px-5 py-4">
+                          {user.unlimitedScans ? (
+                            <span className="rounded-full bg-[#eef4e6] px-2.5 py-1 text-[10px] font-semibold text-[#3e5219]">
+                              Admin
+                            </span>
+                          ) : (
+                            <label className="inline-flex cursor-pointer items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={user.isTester}
+                                disabled={isSavingTester}
+                                onChange={(event) =>
+                                  void handleToggleTester(user.id, event.target.checked)
+                                }
+                                className="h-4 w-4 rounded border-stone-300 text-[#556B2F] focus:ring-[#556B2F]/30"
+                              />
+                              <span className="text-xs font-medium text-stone-700">
+                                {isSavingTester
+                                  ? "Guardando…"
+                                  : user.isTester
+                                    ? "Sí"
+                                    : "No"}
+                              </span>
+                            </label>
                           )}
                         </td>
                         <td className="px-5 py-4">
@@ -460,33 +455,6 @@ export default function AdminUsuariosPage() {
                                 {premiumStatusLabel}
                               </span>
                             </div>
-                          )}
-                        </td>
-                        <td className="px-5 py-4">
-                          {user.unlimitedScans ? (
-                            <span className="text-xs text-stone-400">—</span>
-                          ) : (
-                            <label className="inline-flex cursor-pointer items-center gap-2">
-                              <input
-                                type="checkbox"
-                                checked={user.canSelfTogglePremium}
-                                disabled={isSavingSelfToggle}
-                                onChange={(event) =>
-                                  void handleToggleSelfPremiumPermission(
-                                    user.id,
-                                    event.target.checked
-                                  )
-                                }
-                                className="h-4 w-4 rounded border-stone-300 text-[#556B2F] focus:ring-[#556B2F]/30"
-                              />
-                              <span className="text-xs text-stone-600">
-                                {isSavingSelfToggle
-                                  ? "Guardando…"
-                                  : user.canSelfTogglePremium
-                                    ? "Desde perfil"
-                                    : "No"}
-                              </span>
-                            </label>
                           )}
                         </td>
                         <td className="px-5 py-4">

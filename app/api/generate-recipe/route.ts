@@ -22,14 +22,26 @@ import {
   buildRecipeLanguagePromptClause,
   resolveRecipeGenerationLocale
 } from "@/lib/recipes/recipe-locale-prompt";
-import { generateRecipeDishImage } from "@/lib/recipes/generate-recipe-image";
+import { resolveDishImagePlaceholder } from "@/lib/recipes/generate-recipe-image";
 import { resolveDishImageMatch } from "@/lib/recipes/resolve-dish-image-match";
+import { canGenerateOpenAiDishPhoto } from "@/lib/recipes/can-generate-openai-dish-photo";
+import { schedulePremiumDishPhoto } from "@/lib/recipes/schedule-premium-dish-photo";
+import {
+  parseCookingMinutesFromLabel,
+  saveGeneratedRecipeToLibrary
+} from "@/lib/recipes/save-generated-recipe";
+import { tagsToLegacyFlags } from "@/lib/recipes/recipe-tags";
+import {
+  stringsToStructuredIngredients,
+  structuredIngredientsToJson
+} from "@/lib/recipes/structured-ingredients";
 import { createSupabaseRouteClient } from "@/lib/supabaseRoute";
 import { LOCALE_COOKIE_NAME } from "@/i18n/config";
 import { cookies } from "next/headers";
 
-/** Vision + JSON + imagen Premium puede tardar más (p. ej. en Vercel). */
-export const maxDuration = 60;
+/** Texto Gemini + after() de imagen Premium (~20s en background). */
+export const maxDuration = 90;
+export const runtime = "nodejs";
 
 const PANTRY_PRIORITY_RULE =
   "REGLA ABSOLUTA DE INGREDIENTES PRINCIPALES: La receta DEBE construirse PRINCIPALMENTE con los ingredientes que el usuario proporcionó (selección manual y/o detección en imagen). " +
@@ -73,6 +85,8 @@ type GenerateRecipePayload = {
   complexity?: string;
   /** Idioma de interfaz / salida de la receta (es | en). */
   locale?: string;
+  /** Consentimiento explícito del tester para gastar 1 crédito de foto OpenAI. */
+  useDishPhoto?: boolean;
 };
 
 type GeminiRecipe = {
@@ -776,51 +790,123 @@ export async function POST(request: Request) {
       }
     }
 
+    // Imágenes (banco u OpenAI) solo para Premium de pago. Free/trial: ninguna.
+    const canUseDishImages = premiumAccess.isPaidPremium;
+
     let referenceImageUrl: string | null = null;
-    try {
-      const referenceMatch = await resolveDishImageMatch({
-        recipeTitle: safeRecipe.titulo,
-        ingredients: safeRecipe.ingredientes_detallados,
-        tags: safeRecipe.tags,
-        mealType: resolvedFilters.mealType,
-        cuisineStyle: resolvedFilters.cuisineStyle
-      });
-      referenceImageUrl = referenceMatch?.imageUrl ?? null;
-    } catch (referenceError) {
-      console.warn("[recipe-image] No se pudo resolver imagen de referencia:", referenceError);
+    if (canUseDishImages) {
+      try {
+        const referenceMatch = await resolveDishImageMatch({
+          recipeTitle: safeRecipe.titulo,
+          ingredients: safeRecipe.ingredientes_detallados,
+          tags: safeRecipe.tags,
+          mealType: resolvedFilters.mealType,
+          cuisineStyle: resolvedFilters.cuisineStyle
+        });
+        referenceImageUrl = referenceMatch?.imageUrl ?? null;
+      } catch (referenceError) {
+        console.warn("[recipe-image] No se pudo resolver imagen de referencia:", referenceError);
+      }
     }
 
-    let imageUrl: string | null = null;
-    let imageGenerationError: string | undefined;
-    if (premiumAccess.isPaidPremium) {
-      const imageResult = await generateRecipeDishImage({
+    const dishImageInput = {
+      userId: user.id,
+      title: safeRecipe.titulo,
+      ingredients: safeRecipe.ingredientes_detallados,
+      tags: safeRecipe.tags,
+      mealType: resolvedFilters.mealType,
+      cuisineStyle: resolvedFilters.cuisineStyle,
+      tipSandra: safeRecipe.tip_sandra
+    };
+
+    // Foto OpenAI solo si el tester confirmó gastar el crédito.
+    const userWantsDishPhoto = body.useDishPhoto === true;
+    const eligibleForDishPhoto = await canGenerateOpenAiDishPhoto(
+      supabase,
+      user.id,
+      user.email
+    );
+    const canGenerateDishPhoto = userWantsDishPhoto && eligibleForDishPhoto;
+
+    if (!canGenerateDishPhoto && process.env.NODE_ENV !== "production") {
+      const enabled = process.env.OPENAI_DISH_PHOTOS_ENABLED?.trim().toLowerCase();
+      console.info("[generate-recipe] Foto OpenAI no programada", {
+        userId: user.id,
+        userWantsDishPhoto,
+        eligibleForDishPhoto,
+        openAiDishPhotosEnabled: enabled === "true" || enabled === "1",
+        hint:
+          !userWantsDishPhoto
+            ? "El usuario no confirmó usar el crédito de foto."
+            : enabled !== "true" && enabled !== "1"
+              ? "Activa OPENAI_DISH_PHOTOS_ENABLED=true en .env.local y reinicia el servidor."
+              : "Revisa is_tester + créditos + suscripción Stripe (o is_premium)."
+      });
+    }
+
+    const provisionalImageUrl = canUseDishImages
+      ? referenceImageUrl ?? (await resolveDishImagePlaceholder(dishImageInput))
+      : null;
+
+    const appliedFilters = {
+      mealType: resolvedFilters.mealType,
+      cuisineStyle: resolvedFilters.cuisineStyle,
+      servings: resolvedFilters.servings,
+      complexity: resolvedFilters.complexity
+    };
+
+    let savedRecipeId: string | null = null;
+
+    if (canGenerateDishPhoto) {
+      const instructions = safeRecipe.pasos_ordenados
+        .map((step, index) => `${index + 1}. ${step}`)
+        .join("\n");
+      const { is_airfryer, is_flourless } = tagsToLegacyFlags(safeRecipe.tags);
+      const structuredIngredients = structuredIngredientsToJson(
+        stringsToStructuredIngredients(safeRecipe.ingredientes_detallados)
+      );
+
+      // Auto-guardar solo Premium: after() necesita un row para actualizar image_url.
+      const saveResult = await saveGeneratedRecipeToLibrary(supabase, {
         userId: user.id,
         title: safeRecipe.titulo,
-        ingredients: safeRecipe.ingredientes_detallados,
+        ingredients: structuredIngredients,
+        steps: safeRecipe.pasos_ordenados,
+        instructions: instructions || "Sin pasos detallados",
+        tipSandra: safeRecipe.tip_sandra,
+        isAirfryer: is_airfryer,
+        isFlourless: is_flourless,
         tags: safeRecipe.tags,
-        mealType: resolvedFilters.mealType,
-        cuisineStyle: resolvedFilters.cuisineStyle,
-        tipSandra: safeRecipe.tip_sandra
+        macronutrientes: safeRecipe.macronutrientes,
+        cookingTimeMinutes: parseCookingMinutesFromLabel(safeRecipe.tiempo_preparacion),
+        imageUrl: null,
+        referenceImageUrl,
+        appliedFilters,
+        mealTypeAdvisory: mealTypeAdvisory ?? null
       });
-      imageUrl = imageResult.imageUrl;
-      imageGenerationError = imageResult.error;
+
+      if ("recipeId" in saveResult) {
+        savedRecipeId = saveResult.recipeId;
+        schedulePremiumDishPhoto({
+          recipeId: savedRecipeId,
+          userEmail: user.email,
+          ...dishImageInput
+        });
+      } else {
+        console.warn("[generate-recipe] Auto-guardado Premium falló:", saveResult.error);
+      }
     }
 
     return jsonResponse({
       recipe: safeRecipe,
-      savedRecipe: null,
+      savedRecipe: savedRecipeId ? { id: savedRecipeId } : null,
+      savedRecipeId,
       generationsLeft: remainingGenerations,
       referenceImageUrl,
-      imageUrl,
-      ...(process.env.NODE_ENV !== "production" && imageGenerationError
-        ? { imageGenerationError }
-        : {}),
-      appliedFilters: {
-        mealType: resolvedFilters.mealType,
-        cuisineStyle: resolvedFilters.cuisineStyle,
-        servings: resolvedFilters.servings,
-        complexity: resolvedFilters.complexity
-      },
+      // Premium+OpenAI: sin URL final (skeleton). Premium sin foto: banco. Free: null.
+      imageUrl: canGenerateDishPhoto && savedRecipeId ? null : provisionalImageUrl,
+      dishPhotoPending: Boolean(canGenerateDishPhoto && savedRecipeId),
+      appliedFilters,
       ...(mealTypeAdvisory ? { mealTypeAdvisory } : {}),
       premiumTrialRemaining
     });

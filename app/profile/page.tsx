@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { Camera, ChevronDown, LogOut, Pencil, Users, Wand2 } from "lucide-react";
 import { AvatarCropModal } from "@/components/profile/avatar-crop-modal";
 import { LanguageSelector } from "@/components/profile/language-selector";
-import { PremiumSelfToggle } from "@/components/profile/premium-self-toggle";
+import { PremiumBillingActions } from "@/components/profile/premium-billing-actions";
 import { PremiumLabel } from "@/components/premium/premium-label";
 import { usePremium } from "@/hooks/use-premium";
 import { isSandraAdmin } from "@/lib/auth/sandra-admin";
@@ -509,7 +509,7 @@ export default function ProfilePage() {
               onPersistError={() => showToast(t("toastLanguageError"), "error")}
             />
 
-            <PremiumSelfToggle />
+            <PremiumBillingActions />
 
             {errorMessage ? (
               <p className="rounded-xl border border-red-100 bg-red-50/80 px-3 py-2.5 text-sm text-red-700">

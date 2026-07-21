@@ -12,6 +12,7 @@ export type AdminUserListItem = {
   createdAt: string;
   unlimitedScans: boolean;
   isPremium: boolean;
+  isTester: boolean;
   canSelfTogglePremium: boolean;
   premiumTrialRemaining: number;
   premiumTrialClaimed: boolean;
@@ -20,9 +21,12 @@ export type AdminUserListItem = {
 const MAX_DAILY_SCAN_LIMIT = 500;
 
 const ADMIN_PROFILE_SELECT =
-  "id, full_name, daily_scan_limit, scans_used_today, scan_quota_date, created_at, is_premium, can_self_toggle_premium, premium_trial_remaining, premium_trial_claimed_at" as const;
+  "id, full_name, daily_scan_limit, scans_used_today, scan_quota_date, created_at, is_premium, is_tester, can_self_toggle_premium, premium_trial_remaining, premium_trial_claimed_at" as const;
 
 const ADMIN_PROFILE_SELECT_LEGACY =
+  "id, full_name, daily_scan_limit, scans_used_today, scan_quota_date, created_at, is_premium, can_self_toggle_premium, premium_trial_remaining, premium_trial_claimed_at" as const;
+
+const ADMIN_PROFILE_SELECT_LEGACY_NO_TOGGLE =
   "id, full_name, daily_scan_limit, scans_used_today, scan_quota_date, created_at, is_premium, premium_trial_remaining, premium_trial_claimed_at" as const;
 
 type AdminProfileRow = {
@@ -33,25 +37,37 @@ type AdminProfileRow = {
   scan_quota_date: string;
   created_at: string;
   is_premium: boolean;
+  is_tester?: boolean;
   can_self_toggle_premium?: boolean;
   premium_trial_remaining: number;
   premium_trial_claimed_at: string | null;
 };
 
-function isMissingSelfToggleColumnError(error: { code?: string; message?: string } | null): boolean {
+function isMissingColumnError(
+  error: { code?: string; message?: string } | null,
+  column: string
+): boolean {
   if (!error) return false;
   return (
     error.code === "42703" ||
     error.code === "PGRST204" ||
-    error.message?.includes("can_self_toggle_premium") === true ||
-    error.message?.includes("Could not find the 'can_self_toggle_premium' column") === true ||
+    error.message?.includes(column) === true ||
     error.message?.includes("schema cache") === true
   );
+}
+
+function isMissingSelfToggleColumnError(error: { code?: string; message?: string } | null): boolean {
+  return isMissingColumnError(error, "can_self_toggle_premium");
+}
+
+function isMissingTesterColumnError(error: { code?: string; message?: string } | null): boolean {
+  return isMissingColumnError(error, "is_tester");
 }
 
 function normalizeAdminProfileRow(profile: AdminProfileRow): AdminProfileRow {
   return {
     ...profile,
+    is_tester: Boolean(profile.is_tester),
     can_self_toggle_premium: Boolean(profile.can_self_toggle_premium)
   };
 }
@@ -68,13 +84,31 @@ async function fetchAdminProfiles(
     return (data ?? []).map((profile) => normalizeAdminProfileRow(profile as AdminProfileRow));
   }
 
-  if (!isMissingSelfToggleColumnError(error)) {
+  if (isMissingTesterColumnError(error)) {
+    const { data: withoutTester, error: withoutTesterError } = await admin
+      .from("profiles")
+      .select(ADMIN_PROFILE_SELECT_LEGACY)
+      .order("created_at", { ascending: false });
+
+    if (!withoutTesterError) {
+      return (withoutTester ?? []).map((profile) =>
+        normalizeAdminProfileRow({
+          ...(profile as AdminProfileRow),
+          is_tester: false
+        })
+      );
+    }
+
+    if (!isMissingSelfToggleColumnError(withoutTesterError)) {
+      throw withoutTesterError;
+    }
+  } else if (!isMissingSelfToggleColumnError(error)) {
     throw error;
   }
 
   const { data: legacyData, error: legacyError } = await admin
     .from("profiles")
-    .select(ADMIN_PROFILE_SELECT_LEGACY)
+    .select(ADMIN_PROFILE_SELECT_LEGACY_NO_TOGGLE)
     .order("created_at", { ascending: false });
 
   if (legacyError) {
@@ -84,6 +118,7 @@ async function fetchAdminProfiles(
   return (legacyData ?? []).map((profile) =>
     normalizeAdminProfileRow({
       ...(profile as AdminProfileRow),
+      is_tester: false,
       can_self_toggle_premium: false
     })
   );
@@ -110,6 +145,7 @@ function buildAdminUserListItem(
     createdAt: profile.created_at ?? createdAtFallback,
     unlimitedScans,
     isPremium: unlimitedScans || Boolean(profile.is_premium),
+    isTester: Boolean(profile.is_tester),
     canSelfTogglePremium: Boolean(profile.can_self_toggle_premium),
     premiumTrialRemaining: Math.max(0, profile.premium_trial_remaining ?? 0),
     premiumTrialClaimed: Boolean(profile.premium_trial_claimed_at)
@@ -225,7 +261,7 @@ export async function updateUserDailyScanLimit(
     .maybeSingle();
 
   let profile = updatedProfile as AdminProfileRow | null;
-  if (updateError && isMissingSelfToggleColumnError(updateError)) {
+  if (updateError && (isMissingTesterColumnError(updateError) || isMissingSelfToggleColumnError(updateError))) {
     const { data: legacyProfile, error: legacyError } = await admin
       .from("profiles")
       .update({
@@ -233,12 +269,16 @@ export async function updateUserDailyScanLimit(
         generations_left: dailyScanLimit
       })
       .eq("id", userId)
-      .select(ADMIN_PROFILE_SELECT_LEGACY)
+      .select(ADMIN_PROFILE_SELECT_LEGACY_NO_TOGGLE)
       .maybeSingle();
     if (legacyError || !legacyProfile) {
       throw legacyError ?? new Error("No se encontró el perfil del usuario.");
     }
-    profile = { ...(legacyProfile as AdminProfileRow), can_self_toggle_premium: false };
+    profile = {
+      ...(legacyProfile as AdminProfileRow),
+      is_tester: false,
+      can_self_toggle_premium: false
+    };
   } else if (updateError || !profile) {
     throw updateError ?? new Error("No se encontró el perfil del usuario.");
   }
@@ -288,23 +328,73 @@ export async function updateUserPremiumStatus(
     .maybeSingle();
 
   let profile = updatedProfile as AdminProfileRow | null;
-  if (updateError && isMissingSelfToggleColumnError(updateError)) {
+  if (updateError && (isMissingTesterColumnError(updateError) || isMissingSelfToggleColumnError(updateError))) {
     const { data: legacyProfile, error: legacyError } = await admin
       .from("profiles")
       .update(updatePayload)
       .eq("id", userId)
-      .select(ADMIN_PROFILE_SELECT_LEGACY)
+      .select(ADMIN_PROFILE_SELECT_LEGACY_NO_TOGGLE)
       .maybeSingle();
     if (legacyError || !legacyProfile) {
       throw legacyError ?? new Error("No se encontró el perfil del usuario.");
     }
-    profile = { ...(legacyProfile as AdminProfileRow), can_self_toggle_premium: false };
+    profile = {
+      ...(legacyProfile as AdminProfileRow),
+      is_tester: false,
+      can_self_toggle_premium: false
+    };
   } else if (updateError || !profile) {
     throw updateError ?? new Error("No se encontró el perfil del usuario.");
   }
 
   return buildAdminUserListItem(
     normalizeAdminProfileRow(profile),
+    authData.user.email ?? "—",
+    authData.user.created_at
+  );
+}
+
+export async function updateUserTesterStatus(
+  userId: string,
+  isTester: boolean
+): Promise<AdminUserListItem> {
+  const admin = getSupabaseAdminClient();
+
+  const { data: authData, error: authError } = await admin.auth.admin.getUserById(userId);
+  if (authError || !authData.user) {
+    throw authError ?? new Error("No se encontró el usuario.");
+  }
+
+  const { data: updatedProfile, error: updateError } = await admin
+    .from("profiles")
+    .update({
+      is_tester: isTester,
+      // Testers: 1 foto OpenAI. Resto: 0.
+      openai_photo_credits: isTester ? 1 : 0,
+      updated_at: new Date().toISOString()
+    })
+    .eq("id", userId)
+    .select(ADMIN_PROFILE_SELECT)
+    .maybeSingle();
+
+  if (updateError && isMissingTesterColumnError(updateError)) {
+    throw new Error(
+      "Falta la migración is_tester. Ejecuta supabase/migrations/20260718120000_profiles_is_tester.sql en Supabase."
+    );
+  }
+
+  if (updateError && isMissingColumnError(updateError, "openai_photo_credits")) {
+    throw new Error(
+      "Falta la migración openai_photo_credits. Ejecuta supabase/migrations/20260721120000_profiles_openai_photo_credits.sql en Supabase."
+    );
+  }
+
+  if (updateError || !updatedProfile) {
+    throw updateError ?? new Error("No se encontró el perfil del usuario.");
+  }
+
+  return buildAdminUserListItem(
+    normalizeAdminProfileRow(updatedProfile as AdminProfileRow),
     authData.user.email ?? "—",
     authData.user.created_at
   );
@@ -338,6 +428,31 @@ export async function updateUserPremiumSelfTogglePermission(
   if (updateError && isMissingSelfToggleColumnError(updateError)) {
     throw new Error(
       "Falta la migración can_self_toggle_premium. Ejecuta supabase/migrations/20260714150000_profiles_can_self_toggle_premium.sql en Supabase."
+    );
+  }
+
+  if (updateError && isMissingTesterColumnError(updateError)) {
+    const { data: withoutTester, error: withoutTesterError } = await admin
+      .from("profiles")
+      .update({
+        can_self_toggle_premium: canSelfTogglePremium,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", userId)
+      .select(ADMIN_PROFILE_SELECT_LEGACY)
+      .maybeSingle();
+
+    if (withoutTesterError || !withoutTester) {
+      throw withoutTesterError ?? new Error("No se encontró el perfil del usuario.");
+    }
+
+    return buildAdminUserListItem(
+      normalizeAdminProfileRow({
+        ...(withoutTester as AdminProfileRow),
+        is_tester: false
+      }),
+      authData.user.email ?? "—",
+      authData.user.created_at
     );
   }
 

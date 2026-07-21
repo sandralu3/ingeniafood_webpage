@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import {
   deleteAdminUser,
   updateUserDailyScanLimit,
-  updateUserPremiumSelfTogglePermission,
-  updateUserPremiumStatus
+  updateUserPremiumStatus,
+  updateUserTesterStatus
 } from "@/lib/admin/users-admin";
 import { requireSandraAdmin } from "@/lib/admin/require-sandra-admin";
 
@@ -14,7 +14,7 @@ type RouteContext = {
 type PatchBody = {
   dailyScanLimit?: number;
   isPremium?: boolean;
-  canSelfTogglePremium?: boolean;
+  isTester?: boolean;
 };
 
 export async function PATCH(request: Request, context: RouteContext) {
@@ -34,11 +34,13 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   const hasScanLimit = typeof body.dailyScanLimit === "number";
   const hasPremium = typeof body.isPremium === "boolean";
-  const hasSelfToggle = typeof body.canSelfTogglePremium === "boolean";
+  const hasTester = typeof body.isTester === "boolean";
 
-  if (!hasScanLimit && !hasPremium && !hasSelfToggle) {
+  if (!hasScanLimit && !hasPremium && !hasTester) {
     return NextResponse.json(
-      { error: "Debes indicar dailyScanLimit, isPremium o canSelfTogglePremium." },
+      {
+        error: "Debes indicar dailyScanLimit, isPremium o isTester."
+      },
       { status: 400 }
     );
   }
@@ -51,8 +53,8 @@ export async function PATCH(request: Request, context: RouteContext) {
     if (hasPremium) {
       user = await updateUserPremiumStatus(id, body.isPremium!);
     }
-    if (hasSelfToggle) {
-      user = await updateUserPremiumSelfTogglePermission(id, body.canSelfTogglePremium!);
+    if (hasTester) {
+      user = await updateUserTesterStatus(id, body.isTester!);
     }
 
     if (!user) {
@@ -87,7 +89,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
     const message = error instanceof Error ? error.message : "No pudimos eliminar el usuario.";
     const isClientError =
       error instanceof Error &&
-      (/No se puede|No puedes|No se encontró|Debes indicar/.test(message));
+      /No se puede|No puedes|No se encontró|Debes indicar/.test(message);
 
     return NextResponse.json({ error: message }, { status: isClientError ? 400 : 500 });
   }

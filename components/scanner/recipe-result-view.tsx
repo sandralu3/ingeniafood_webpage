@@ -22,6 +22,7 @@ type Props = {
   onPlanAssigned?: (message: string) => void;
   isSavingFavorites?: boolean;
   isSavedFavorites?: boolean;
+  isGeneratingPhoto?: boolean;
 };
 
 export function RecipeResultView({
@@ -34,7 +35,8 @@ export function RecipeResultView({
   isSavedFavorites = false,
   appliedFilters = null,
   showAppliedFilters = false,
-  mealTypeAdvisory = null
+  mealTypeAdvisory = null,
+  isGeneratingPhoto = false
 }: Props) {
   const t = useTranslations("Scanner");
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
@@ -70,6 +72,7 @@ export function RecipeResultView({
         appliedFilters={appliedFilters}
         showAppliedFilters={showAppliedFilters}
         mealTypeAdvisory={mealTypeAdvisory}
+        isGeneratingPhoto={isGeneratingPhoto}
       />
 
       <div className="space-y-2" data-share-exclude>

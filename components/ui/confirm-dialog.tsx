@@ -21,6 +21,8 @@ type ConfirmDialogProps = {
   confirmLabel?: string;
   cancelLabel?: string;
   onConfirm: () => void;
+  /** Si se define, se llama al pulsar cancelar (además de cerrar). */
+  onCancel?: () => void;
   isLoading?: boolean;
   destructive?: boolean;
 };
@@ -33,6 +35,7 @@ export function ConfirmDialog({
   confirmLabel,
   cancelLabel,
   onConfirm,
+  onCancel,
   isLoading = false,
   destructive = false
 }: ConfirmDialogProps) {
@@ -48,7 +51,14 @@ export function ConfirmDialog({
           {description ? <AlertDialogDescription>{description}</AlertDialogDescription> : null}
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={isLoading}>{resolvedCancel}</AlertDialogCancel>
+          <AlertDialogCancel
+            disabled={isLoading}
+            onClick={() => {
+              onCancel?.();
+            }}
+          >
+            {resolvedCancel}
+          </AlertDialogCancel>
           <AlertDialogAction
             disabled={isLoading}
             onClick={(event) => {

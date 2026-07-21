@@ -1,6 +1,5 @@
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin";
 import { resolvePremiumAccess, type PremiumAccess } from "@/lib/auth/premium-access";
-import { isSandraAdmin } from "@/lib/auth/sandra-admin";
 
 export async function claimPremiumTrial(
   userId: string,
@@ -9,14 +8,10 @@ export async function claimPremiumTrial(
   | { ok: true; access: PremiumAccess }
   | { ok: false; code: "ALREADY_PREMIUM" | "ALREADY_CLAIMED" | "UPDATE_FAILED" }
 > {
-  if (isSandraAdmin(email)) {
-    return { ok: false, code: "ALREADY_PREMIUM" };
-  }
-
   const admin = getSupabaseAdminClient();
   const { data: profile, error } = await admin
     .from("profiles")
-    .select("is_premium, premium_trial_remaining, premium_trial_claimed_at")
+    .select("is_premium, is_tester, openai_photo_credits, premium_trial_remaining, premium_trial_claimed_at")
     .eq("id", userId)
     .maybeSingle();
 
@@ -24,7 +19,11 @@ export async function claimPremiumTrial(
     return { ok: false, code: "UPDATE_FAILED" };
   }
 
-  const access = resolvePremiumAccess(profile);
+  if (profile.is_tester !== true) {
+    return { ok: false, code: "UPDATE_FAILED" };
+  }
+
+  const access = resolvePremiumAccess(profile, { email });
   if (access.isPaidPremium) {
     return { ok: false, code: "ALREADY_PREMIUM" };
   }
@@ -40,15 +39,16 @@ export async function claimPremiumTrial(
       premium_trial_claimed_at: new Date().toISOString()
     })
     .eq("id", userId)
+    .eq("is_tester", true)
     .is("premium_trial_claimed_at", null)
-    .select("is_premium, premium_trial_remaining, premium_trial_claimed_at")
+    .select("is_premium, is_tester, openai_photo_credits, premium_trial_remaining, premium_trial_claimed_at")
     .maybeSingle();
 
   if (updateError || !updated) {
     return { ok: false, code: "UPDATE_FAILED" };
   }
 
-  return { ok: true, access: resolvePremiumAccess(updated) };
+  return { ok: true, access: resolvePremiumAccess(updated, { email }) };
 }
 
 export async function consumePremiumTrialUse(userId: string): Promise<number> {

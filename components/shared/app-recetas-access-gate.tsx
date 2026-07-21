@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Download } from "lucide-react";
 import AuthPage from "@/app/auth/page";
@@ -243,75 +243,61 @@ export function AppRecetasAccessGate({ children }: { children: React.ReactNode }
     setDeferredPrompt(null);
   };
 
-  const content = useMemo(() => {
-    if (pendingAuthRedirect) {
-      return (
-        <div className="flex min-h-screen items-center justify-center bg-[#FDFCFB]">
-          <p className="text-sm text-stone-600">Redirigiendo...</p>
-        </div>
-      );
-    }
-
-    if (!checkedStandalone) {
-      return <div className="min-h-screen bg-[#FDFCFB]" />;
-    }
-
-    if (!isStandalone && !allowWebAccess) {
-      return (
-        <InstallationLanding
-          onInstallClick={handleInstallClick}
-          showIosModal={showIosModal}
-          setShowIosModal={setShowIosModal}
-          installButtonDisabled={!isIos && !deferredPrompt}
-        />
-      );
-    }
-
-    if (authState === "loading") {
-      return (
-        <div className="flex min-h-screen items-center justify-center bg-[#FDFCFB]">
-          <p className="text-sm text-stone-600">Preparando tu experiencia IngeniaFood...</p>
-        </div>
-      );
-    }
-
-    if (authState === "unauthenticated") {
-      return (
-        <div className="min-h-screen bg-[#FDFCFB] px-4 py-6">
-          <AuthPage />
-        </div>
-      );
-    }
-
+  if (pendingAuthRedirect || !checkedStandalone) {
     return (
-      <div className="min-h-screen bg-sv-surface text-sv-on-surface">
-        <div className="mx-auto flex h-[100dvh] max-h-[100dvh] w-full max-w-md flex-col overflow-hidden pb-[var(--app-bottom-nav-height)]">
-          <Header />
-          <main
-            className={
-              isScannerRoute
-                ? "flex min-h-0 flex-1 flex-col overflow-hidden px-4 pt-3 pb-2"
-                : "flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pt-3 pb-2"
-            }
-          >
-            {children}
-          </main>
-        </div>
-        <BottomNav />
+      <div
+        className="min-h-screen bg-[#FDFCFB]"
+        aria-busy="true"
+        suppressHydrationWarning
+      />
+    );
+  }
+
+  if (!isStandalone && !allowWebAccess) {
+    return (
+      <InstallationLanding
+        onInstallClick={handleInstallClick}
+        showIosModal={showIosModal}
+        setShowIosModal={setShowIosModal}
+        installButtonDisabled={!isIos && !deferredPrompt}
+      />
+    );
+  }
+
+  if (authState === "loading") {
+    return (
+      <div
+        className="min-h-screen bg-[#FDFCFB]"
+        aria-busy="true"
+        suppressHydrationWarning
+      />
+    );
+  }
+
+  if (authState === "unauthenticated") {
+    return (
+      <div className="min-h-screen bg-[#FDFCFB] px-4 py-6">
+        <AuthPage />
       </div>
     );
-  }, [
-    authState,
-    checkedStandalone,
-    children,
-    deferredPrompt,
-    isIos,
-    isScannerRoute,
-    isStandalone,
-    allowWebAccess,
-    pendingAuthRedirect,
-    showIosModal
-  ]);
+  }
 
-  return content;
+  return (
+    <div className="min-h-screen bg-sv-surface text-sv-on-surface">
+      <div className="mx-auto flex h-[100dvh] max-h-[100dvh] w-full max-w-md flex-col overflow-hidden pb-[var(--app-bottom-nav-height)]">
+        <Header />
+        <main
+          key={pathname}
+          className={
+            isScannerRoute
+              ? "flex min-h-0 flex-1 flex-col overflow-hidden px-4 pt-3 pb-2"
+              : "flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pt-3 pb-2"
+          }
+        >
+          {children}
+        </main>
+      </div>
+      <BottomNav />
+    </div>
+  );
 }

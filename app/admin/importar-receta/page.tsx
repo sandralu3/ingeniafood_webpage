@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -15,15 +14,13 @@ import {
 } from "lucide-react";
 import type { StructuredInstagramRecipe } from "@/lib/admin/instagram-recipe-extractor";
 import { EditableStringList } from "@/components/admin/editable-string-list";
-import { isSandraAdmin } from "@/lib/auth/sandra-admin";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
+import { useSandraAdminGate } from "@/hooks/use-sandra-admin-gate";
 import { normalizeInstagramUrl } from "@/lib/recipes/instagram-url";
-import { createSupabaseClient } from "@/lib/supabaseClient";
 import { cn } from "@/lib/utils";
 
 export default function ImportarRecetaAdminPage() {
-  const router = useRouter();
-  const [authState, setAuthState] = useState<"loading" | "allowed" | "denied">("loading");
+  const authState = useSandraAdminGate("/admin/importar-receta");
   const [rawText, setRawText] = useState("");
   const [instagramUrl, setInstagramUrl] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -34,38 +31,6 @@ export default function ImportarRecetaAdminPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [publishedRecipeId, setPublishedRecipeId] = useState<string | null>(null);
-
-  useEffect(() => {
-    let active = true;
-
-    const verifyAccess = async () => {
-      const supabase = createSupabaseClient();
-      const {
-        data: { user }
-      } = await supabase.auth.getUser();
-
-      if (!active) return;
-
-      if (!user) {
-        setAuthState("denied");
-        router.replace("/login?next=/admin/importar-receta");
-        return;
-      }
-
-      if (!isSandraAdmin(user.email)) {
-        setAuthState("denied");
-        return;
-      }
-
-      setAuthState("allowed");
-    };
-
-    void verifyAccess();
-
-    return () => {
-      active = false;
-    };
-  }, [router]);
 
   useEffect(() => {
     if (!imageFile) {

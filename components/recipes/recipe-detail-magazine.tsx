@@ -30,6 +30,7 @@ type Props = {
   showAppliedFilters?: boolean;
   mealTypeAdvisory?: string | null;
   imageDisplayMode?: "live" | "library";
+  isGeneratingPhoto?: boolean;
 };
 
 const SECTION_CARD =
@@ -58,7 +59,8 @@ export function RecipeDetailMagazine({
   appliedFilters = null,
   showAppliedFilters = false,
   mealTypeAdvisory = null,
-  imageDisplayMode = "live"
+  imageDisplayMode = "live",
+  isGeneratingPhoto = false
 }: Props) {
   const t = useTranslations("RecipeDetail");
   const macroData = buildMacroData(recipe);
@@ -86,6 +88,7 @@ export function RecipeDetailMagazine({
         referenceImageUrl={recipe.referenceImageUrl}
         recipeTitle={recipe.titulo}
         displayMode={imageDisplayMode}
+        isGeneratingPhoto={isGeneratingPhoto}
       />
 
       {mealTypeAdvisory ? <RecipeMealTypeAdvisory message={mealTypeAdvisory} /> : null}

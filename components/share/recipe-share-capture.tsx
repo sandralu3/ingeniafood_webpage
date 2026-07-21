@@ -13,10 +13,18 @@ type Props = {
   appliedFilters?: AppliedRecipeFilters | null;
   showAppliedFilters?: boolean;
   mealTypeAdvisory?: string | null;
+  isGeneratingPhoto?: boolean;
 };
 
 export const RecipeShareCapture = forwardRef<HTMLDivElement, Props>(function RecipeShareCapture(
-  { recipe, showScanBanner = false, appliedFilters = null, showAppliedFilters = false, mealTypeAdvisory = null },
+  {
+    recipe,
+    showScanBanner = false,
+    appliedFilters = null,
+    showAppliedFilters = false,
+    mealTypeAdvisory = null,
+    isGeneratingPhoto = false
+  },
   ref
 ) {
   return (
@@ -36,6 +44,7 @@ export const RecipeShareCapture = forwardRef<HTMLDivElement, Props>(function Rec
         appliedFilters={appliedFilters}
         showAppliedFilters={showAppliedFilters}
         mealTypeAdvisory={mealTypeAdvisory}
+        isGeneratingPhoto={isGeneratingPhoto}
       />
 
       <RecipeShareBranding tipSandra={recipe.tip_sandra ?? ""} />

@@ -1,11 +1,12 @@
 import { resolveDishImageMatch } from "@/lib/recipes/resolve-dish-image-match";
 import type { RecipeCuisineStyle, RecipeMealType } from "@/lib/recipes/premium-recipe-filters";
+import { isOpenAiDishPhotosEnabled } from "@/lib/recipes/can-generate-openai-dish-photo";
+import { getOpenAI } from "@/lib/openai";
 import { randomUUID } from "crypto";
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin";
 
 const RECIPE_IMAGES_BUCKET = "recetas-imagenes";
-const OPENAI_IMAGES_URL = "https://api.openai.com/v1/images/generations";
-const MOCK_DISH_IMAGE_URL =
+export const DEFAULT_DISH_IMAGE_PLACEHOLDER =
   "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=1200&q=80";
 
 const DEFAULT_GEMINI_IMAGE_MODELS = [
@@ -66,21 +67,23 @@ export function resolveRecipeImageProvider(): RecipeImageProvider {
 
 function buildGeminiImageModelCandidates(): string[] {
   const configured = process.env.GOOGLE_GENERATIVE_AI_IMAGE_MODEL?.trim();
-  const candidates = configured ? [configured, ...DEFAULT_GEMINI_IMAGE_MODELS] : [...DEFAULT_GEMINI_IMAGE_MODELS];
+  const candidates = configured
+    ? [configured, ...DEFAULT_GEMINI_IMAGE_MODELS]
+    : [...DEFAULT_GEMINI_IMAGE_MODELS];
   return Array.from(new Set(candidates.filter(Boolean)));
 }
 
-function buildDishImagePrompt(input: GenerateRecipeImageInput): string {
+/** Prompt gastronómico para DALL-E 3 / Gemini Image. */
+export function buildDishImagePrompt(input: GenerateRecipeImageInput): string {
   const ingredientSummary = input.ingredients.slice(0, 8).join(", ");
   const tip = input.tipSandra?.trim();
 
   return [
-    "Professional food photography of a finished plated dish.",
-    `Dish name: ${input.title}.`,
-    ingredientSummary ? `Key ingredients visible on the plate: ${ingredientSummary}.` : "",
-    tip ? `Presentation note: ${tip.slice(0, 180)}.` : "",
-    "Ultra-realistic, appetizing, natural daylight, shallow depth of field,",
-    "restaurant-quality styling on a ceramic plate, no text, no watermark, no people, no hands."
+    `Plato de ${input.title}, fotografía gastronómica profesional, estilo de revista de cocina,`,
+    "iluminación natural, plano cenital, alta resolución, apetitoso,",
+    "ultra-realista, plato cerámico, sin texto, sin marcas de agua, sin personas ni manos.",
+    ingredientSummary ? `Ingredientes visibles: ${ingredientSummary}.` : "",
+    tip ? `Nota de presentación: ${tip.slice(0, 160)}.` : ""
   ]
     .filter(Boolean)
     .join(" ");
@@ -122,6 +125,34 @@ async function fetchImageAsBuffer(url: string): Promise<{ buffer: Buffer; mimeTy
   return { buffer, mimeType };
 }
 
+/**
+ * Placeholder estable: banco de imágenes si hay match, si no Unsplash.
+ * Nunca lanza: la app no debe romperse por falta de foto.
+ */
+export async function resolveDishImagePlaceholder(
+  input: Pick<
+    GenerateRecipeImageInput,
+    "title" | "ingredients" | "tags" | "mealType" | "cuisineStyle"
+  >
+): Promise<string> {
+  try {
+    const match = await resolveDishImageMatch({
+      recipeTitle: input.title,
+      ingredients: input.ingredients,
+      tags: input.tags ?? [],
+      mealType: input.mealType,
+      cuisineStyle: input.cuisineStyle
+    });
+    if (match?.imageUrl) {
+      return match.imageUrl;
+    }
+  } catch (error) {
+    console.warn("[recipe-image] Placeholder banco falló:", error);
+  }
+
+  return DEFAULT_DISH_IMAGE_PLACEHOLDER;
+}
+
 async function generateWithBank(
   input: GenerateRecipeImageInput
 ): Promise<{ imageUrl: string | null; error?: string }> {
@@ -159,7 +190,7 @@ async function generateWithMock(input: GenerateRecipeImageInput): Promise<string
     console.info("[recipe-image] Usando proveedor mock para:", input.title);
   }
 
-  return MOCK_DISH_IMAGE_URL;
+  return DEFAULT_DISH_IMAGE_PLACEHOLDER;
 }
 
 type GeminiGenerateContentResponse = {
@@ -272,47 +303,54 @@ async function generateWithGemini(input: GenerateRecipeImageInput): Promise<stri
   throw new Error(summarizeGeminiImageFailure(errors));
 }
 
+/** Imagen OpenAI: gpt-image-1. Nunca llamar sin kill-switch + Premium de pago. */
 async function generateWithOpenAI(input: GenerateRecipeImageInput): Promise<string> {
-  if (!isOpenAiApiKeyConfigured()) {
+  if (!isOpenAiDishPhotosEnabled()) {
     throw new Error(
-      "OPENAI_API_KEY no está configurada. Sustituye el placeholder por una clave real (sk-...) o usa RECIPE_IMAGE_PROVIDER=gemini."
+      "OPENAI_DISH_PHOTOS_ENABLED no está activo. No se llamará a OpenAI."
     );
   }
 
-  const apiKey = process.env.OPENAI_API_KEY!.trim();
+  if (!isOpenAiApiKeyConfigured()) {
+    throw new Error(
+      "OPENAI_API_KEY no está configurada. Sustituye el placeholder por una clave real (sk-...)."
+    );
+  }
 
-  const response = await fetch(OPENAI_IMAGES_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      model: "dall-e-3",
-      prompt: buildDishImagePrompt(input),
-      n: 1,
-      size: "1024x1024",
-      quality: "standard",
-      response_format: "url"
-    })
+  console.info("[recipe-image] Llamando a OpenAI images.generate", {
+    userId: input.userId,
+    title: input.title.slice(0, 80)
   });
 
-  const payload = (await response.json()) as {
-    data?: Array<{ url?: string }>;
-    error?: { message?: string };
-  };
+  const client = getOpenAI();
+  const prompt = buildDishImagePrompt(input);
+  const model = process.env.OPENAI_IMAGE_MODEL?.trim() || "gpt-image-1";
+  const isLegacyDalle = model.startsWith("dall-e");
 
-  if (!response.ok) {
-    throw new Error(payload.error?.message ?? "OpenAI no pudo generar la imagen del plato.");
+  const result = await client.images.generate({
+    model,
+    prompt,
+    n: 1,
+    size: "1024x1024",
+    quality: isLegacyDalle ? "standard" : "medium"
+  });
+
+  const first = result.data?.[0];
+  if (first?.b64_json) {
+    const buffer = Buffer.from(first.b64_json, "base64");
+    return uploadImageBuffer({
+      userId: input.userId,
+      buffer,
+      mimeType: "image/png"
+    });
   }
 
-  const temporaryUrl = payload.data?.[0]?.url;
-  if (!temporaryUrl) {
-    throw new Error("OpenAI devolvió una respuesta de imagen vacía.");
+  if (first?.url) {
+    const { buffer, mimeType } = await fetchImageAsBuffer(first.url);
+    return uploadImageBuffer({ userId: input.userId, buffer, mimeType });
   }
 
-  const { buffer, mimeType } = await fetchImageAsBuffer(temporaryUrl);
-  return uploadImageBuffer({ userId: input.userId, buffer, mimeType });
+  throw new Error("OpenAI devolvió una respuesta de imagen vacía.");
 }
 
 function resolveProviderConfigError(provider: RecipeImageProvider): string | null {
@@ -326,8 +364,8 @@ function resolveProviderConfigError(provider: RecipeImageProvider): string | nul
 }
 
 /**
- * Genera y persiste la foto del plato. Solo debe invocarse para Premium de pago real.
- * Si falla, devuelve null para no bloquear la receta.
+ * Genera y persiste la foto del plato según RECIPE_IMAGE_PROVIDER.
+ * Si falla, devuelve null (el caller debe aplicar placeholder).
  */
 export async function generateRecipeDishImage(
   input: GenerateRecipeImageInput
@@ -363,11 +401,58 @@ export async function generateRecipeDishImage(
         throw error;
       }
     }
-    return { imageUrl: await generateWithOpenAI(input) };
+    // RECIPE_IMAGE_PROVIDER=openai: no usar OpenAI aquí (gasto). Solo bank/gemini/mock.
+    if (provider === "openai") {
+      return {
+        imageUrl: null,
+        error:
+          "RECIPE_IMAGE_PROVIDER=openai deshabilitado. Usa generatePremiumDishPhoto con Premium de pago."
+      };
+    }
+    return { imageUrl: null, error: `Proveedor de imagen no soportado: ${provider}` };
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Error desconocido al generar la imagen del plato.";
     console.error("[recipe-image] Error generando imagen del plato:", error);
     return { imageUrl: null, error: message };
+  }
+}
+
+/**
+ * Foto Premium de pago: llama a OpenAI SOLO si `authorizedPaidPremium: true`
+ * (el caller ya validó Stripe / is_premium y el kill-switch).
+ * Sin autorización → placeholder, cero llamadas a OpenAI.
+ */
+export async function generatePremiumDishPhoto(
+  input: GenerateRecipeImageInput,
+  options: { authorizedPaidPremium: boolean }
+): Promise<{ imageUrl: string; provider: "openai" | "placeholder"; error?: string }> {
+  if (!options.authorizedPaidPremium) {
+    const placeholder = await resolveDishImagePlaceholder(input);
+    return {
+      imageUrl: placeholder,
+      provider: "placeholder",
+      error: "OpenAI omitido: sin autorización Premium de pago."
+    };
+  }
+
+  if (!isOpenAiApiKeyConfigured()) {
+    const placeholder = await resolveDishImagePlaceholder(input);
+    return {
+      imageUrl: placeholder,
+      provider: "placeholder",
+      error: "OPENAI_API_KEY no configurada; se usó imagen de respaldo."
+    };
+  }
+
+  try {
+    const imageUrl = await generateWithOpenAI(input);
+    return { imageUrl, provider: "openai" };
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Error generando imagen con OpenAI.";
+    console.error("[recipe-image] OpenAI Image falló; usando placeholder:", message);
+    const placeholder = await resolveDishImagePlaceholder(input);
+    return { imageUrl: placeholder, provider: "placeholder", error: message };
   }
 }

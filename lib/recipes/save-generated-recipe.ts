@@ -66,7 +66,11 @@ function buildInsertPayload(input: SaveGeneratedRecipeInput, options?: InsertOpt
     typeof input.cookingTimeMinutes === "number" &&
     input.cookingTimeMinutes > 0;
 
-  const primaryImage = input.imageUrl ?? input.referenceImageUrl ?? null;
+  // `imageUrl: null` explícito = foto Premium pendiente (no usar la referencia como primaria).
+  const primaryImage =
+    input.imageUrl !== undefined
+      ? input.imageUrl
+      : (input.referenceImageUrl ?? null);
 
   const payload: RecipesInsert = {
     user_id: input.userId,

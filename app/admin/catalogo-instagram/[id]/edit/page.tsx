@@ -10,9 +10,9 @@ import {
 } from "@/components/admin/instagram-catalog-recipe-form";
 import type { AdminInstagramCatalogDetail } from "@/lib/admin/instagram-catalog-admin";
 import type { StructuredInstagramRecipe } from "@/lib/admin/instagram-recipe-extractor";
+import { getBrowserAuthUser } from "@/lib/auth/get-browser-user";
 import { isSandraAdmin } from "@/lib/auth/sandra-admin";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
-import { createSupabaseClient } from "@/lib/supabaseClient";
 
 export default function EditarCatalogoInstagramPage() {
   const router = useRouter();
@@ -30,41 +30,44 @@ export default function EditarCatalogoInstagramPage() {
     let active = true;
 
     const verifyAccessAndLoad = async () => {
-      const supabase = createSupabaseClient();
-      const {
-        data: { user }
-      } = await supabase.auth.getUser();
-
-      if (!active) return;
-
-      if (!user) {
-        setAuthState("denied");
-        router.replace(`/login?next=/admin/catalogo-instagram/${recipeId}/edit`);
-        return;
-      }
-
-      if (!isSandraAdmin(user.email)) {
-        setAuthState("denied");
-        return;
-      }
-
-      setAuthState("allowed");
-
       try {
-        const response = await fetch(`/api/admin/instagram-catalog/${recipeId}`);
-        const payload = (await response.json()) as {
-          recipe?: AdminInstagramCatalogDetail;
-          error?: string;
-        };
+        const user = await getBrowserAuthUser();
+        if (!active) return;
 
-        if (!response.ok || !payload.recipe) {
-          throw new Error(payload.error ?? "No pudimos cargar la receta.");
+        if (!user) {
+          setAuthState("denied");
+          router.replace(`/login?next=/admin/catalogo-instagram/${recipeId}/edit`);
+          return;
         }
 
-        setCatalogRecipe(payload.recipe);
+        if (!isSandraAdmin(user.email)) {
+          setAuthState("denied");
+          return;
+        }
+
+        setAuthState("allowed");
+
+        try {
+          const response = await fetch(`/api/admin/instagram-catalog/${recipeId}`);
+          const payload = (await response.json()) as {
+            recipe?: AdminInstagramCatalogDetail;
+            error?: string;
+          };
+
+          if (!response.ok || !payload.recipe) {
+            throw new Error(payload.error ?? "No pudimos cargar la receta.");
+          }
+
+          setCatalogRecipe(payload.recipe);
+        } catch (error) {
+          setErrorMessage(error instanceof Error ? error.message : "Error al cargar la receta.");
+        } finally {
+          setIsLoading(false);
+        }
       } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : "Error al cargar la receta.");
-      } finally {
+        console.error("[admin/catalogo-edit] verifyAccess", error);
+        if (!active) return;
+        setAuthState("denied");
         setIsLoading(false);
       }
     };

@@ -18,6 +18,8 @@ export type Database = {
           language: string;
           is_premium: boolean;
           can_self_toggle_premium: boolean;
+          is_tester: boolean;
+          openai_photo_credits: number;
           generations_left: number;
           daily_scan_limit: number;
           scans_used_today: number;
@@ -36,6 +38,8 @@ export type Database = {
           language?: string;
           is_premium?: boolean;
           can_self_toggle_premium?: boolean;
+          is_tester?: boolean;
+          openai_photo_credits?: number;
           generations_left?: number;
           daily_scan_limit?: number;
           scans_used_today?: number;
@@ -54,6 +58,8 @@ export type Database = {
           language?: string;
           is_premium?: boolean;
           can_self_toggle_premium?: boolean;
+          is_tester?: boolean;
+          openai_photo_credits?: number;
           generations_left?: number;
           daily_scan_limit?: number;
           scans_used_today?: number;
@@ -70,6 +76,47 @@ export type Database = {
             columns: ["id"];
             isOneToOne: true;
             referencedRelation: "users";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      subscriptions: {
+        Row: {
+          user_id: string;
+          stripe_customer_id: string | null;
+          stripe_subscription_id: string | null;
+          status: string;
+          price_id: string | null;
+          current_period_end: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          stripe_customer_id?: string | null;
+          stripe_subscription_id?: string | null;
+          status?: string;
+          price_id?: string | null;
+          current_period_end?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          stripe_customer_id?: string | null;
+          stripe_subscription_id?: string | null;
+          status?: string;
+          price_id?: string | null;
+          current_period_end?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: true;
+            referencedRelation: "profiles";
             referencedColumns: ["id"];
           }
         ];

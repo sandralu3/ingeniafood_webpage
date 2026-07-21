@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { PantrySearchView } from "@/components/scanner/pantry-search-view";
 import { GenerationsLimitModal } from "@/components/scanner/generations-limit-modal";
@@ -8,6 +8,7 @@ import { InstagramCuratedCatalog } from "@/components/scanner/instagram-curated-
 import { RecipeGenerationState } from "@/components/scanner/recipe-generation-state";
 import { RecipeResultView } from "@/components/scanner/recipe-result-view";
 import { ScannerModeTabs, type ScannerMode } from "@/components/scanner/scanner-mode-tabs";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
 import { UNLIMITED_GENERATIONS_SENTINEL } from "@/lib/generations/constants";
 import { hasUnlimitedGenerations } from "@/lib/generations/admin-unlimited";
@@ -69,8 +70,14 @@ type ApiPayload = {
   referenceImageUrl?: string | null;
   imageUrl?: string | null;
   imageGenerationError?: string;
+  dishPhotoPending?: boolean;
+  savedRecipeId?: string | null;
+  savedRecipe?: { id: string } | null;
   mealTypeAdvisory?: string;
 };
+
+const DISH_PHOTO_POLL_INTERVAL_MS = 3000;
+const DISH_PHOTO_POLL_MAX_ATTEMPTS = 20;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => {
@@ -210,7 +217,9 @@ export default function ScannerPage() {
   const tPlan = useTranslations("Plan");
   const locale = useLocale();
   const scannerReset = useScannerReset();
-  const { refresh: refreshPremium } = usePremium();
+  const { refresh: refreshPremium, isTester, isPaidPremium, openaiPhotoCredits } = usePremium();
+  const dishPhotoChoiceRef = useRef(false);
+  const [showPhotoCreditConfirm, setShowPhotoCreditConfirm] = useState(false);
   const [selectedIngredients, setSelectedIngredients] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -244,6 +253,7 @@ export default function ScannerPage() {
   );
   const [mealTypeAdvisory, setMealTypeAdvisory] = useState<string | null>(null);
   const [imageGenerationError, setImageGenerationError] = useState<string | null>(null);
+  const [isGeneratingDishPhoto, setIsGeneratingDishPhoto] = useState(false);
   const [pendingPlanAssignment, setPendingPlanAssignment] = useState<PendingPlanAssignment | null>(
     null
   );
@@ -327,6 +337,7 @@ export default function ScannerPage() {
     setAppliedRecipeFilters(null);
     setMealTypeAdvisory(null);
     setImageGenerationError(null);
+    setIsGeneratingDishPhoto(false);
   }, []);
 
   useEffect(() => {
@@ -401,7 +412,7 @@ export default function ScannerPage() {
     setRateLimitSecondsLeft(0);
   };
 
-  const generarReceta = async () => {
+  const generarReceta = async (options?: { useDishPhoto?: boolean }) => {
     if (generationsLeft !== null && generationsLeft <= 0) {
       setShowGenerationsModal(true);
       return;
@@ -413,6 +424,11 @@ export default function ScannerPage() {
       );
       return;
     }
+
+    if (typeof options?.useDishPhoto === "boolean") {
+      dishPhotoChoiceRef.current = options.useDishPhoto;
+    }
+    const useDishPhoto = dishPhotoChoiceRef.current;
 
     const FETCH_TIMEOUT_MS = 120_000;
     const createFetchSignal = (): AbortSignal => {
@@ -477,6 +493,7 @@ export default function ScannerPage() {
               servings: servingsFilter,
               complexity: complexityFilter,
               locale,
+              useDishPhoto,
               ...(imagePayload ?? {})
             }),
             signal: createFetchSignal()
@@ -659,7 +676,8 @@ export default function ScannerPage() {
         referenceImageUrl: payload.referenceImageUrl ?? null,
         imageUrl: payload.imageUrl ?? null
       });
-      setImageGenerationError(payload.imageGenerationError ?? null);
+      setImageGenerationError(null);
+      setIsGeneratingDishPhoto(Boolean(payload.dishPhotoPending));
       setAppliedRecipeFilters(
         payload.appliedFilters ?? {
           mealType: mealTypeFilter,
@@ -675,13 +693,76 @@ export default function ScannerPage() {
       );
       setRecipeFromPhoto(Boolean(pantryImageFile));
       setErrorMessage(null);
+
+      const autoSavedId =
+        (typeof payload.savedRecipeId === "string" && payload.savedRecipeId) ||
+        (payload.savedRecipe && typeof payload.savedRecipe.id === "string"
+          ? payload.savedRecipe.id
+          : null);
+
+      // El id auto-guardado solo sirve para el polling de la foto Premium.
+      // No marcar como "ya guardada": el usuario debe poder pulsar Guardar.
+      setSavedRecipeId(autoSavedId);
       setIsRecipeSaved(false);
-      setSavedRecipeId(null);
       setSaveErrorMessage(null);
       if (typeof payload.generationsLeft === "number") {
         setGenerationsLeft(payload.generationsLeft);
       }
       void refreshPremium();
+
+      // Polling: la foto se genera en after() del servidor y actualiza Supabase.
+      if (payload.dishPhotoPending && autoSavedId) {
+        const recipeIdToPoll = autoSavedId;
+        void (async () => {
+          try {
+            for (let attempt = 0; attempt < DISH_PHOTO_POLL_MAX_ATTEMPTS; attempt += 1) {
+              await sleep(DISH_PHOTO_POLL_INTERVAL_MS);
+
+              const statusResponse = await fetch(
+                `/api/recipes/${encodeURIComponent(recipeIdToPoll)}/image-status`,
+                { method: "GET", credentials: "include", cache: "no-store" }
+              );
+
+              if (!statusResponse.ok) {
+                continue;
+              }
+
+              const statusPayload = (await statusResponse.json()) as {
+                status?: string;
+                imageUrl?: string | null;
+                error?: string;
+              };
+
+              if (statusPayload.status === "ready" && statusPayload.imageUrl) {
+                setRecipe((current) =>
+                  current
+                    ? {
+                        ...current,
+                        imageUrl: statusPayload.imageUrl
+                      }
+                    : current
+                );
+                setImageGenerationError(null);
+                setIsGeneratingDishPhoto(false);
+                void refreshPremium();
+                return;
+              }
+            }
+
+            setImageGenerationError(
+              "La foto del plato está tardando más de lo esperado. Revisa la receta guardada en unos momentos."
+            );
+          } catch (error) {
+            console.warn("[scanner] Polling de foto Premium falló:", error);
+            setImageGenerationError(
+              error instanceof Error ? error.message : "No pudimos generar la foto del plato."
+            );
+          } finally {
+            setIsGeneratingDishPhoto(false);
+          }
+        })();
+      }
+      // Sin fallback a /api/generate-dish-photo: OpenAI solo vía after() con Premium de pago.
 
       void (async () => {
         try {
@@ -705,7 +786,16 @@ export default function ScannerPage() {
   };
 
   const handleFindRecipes = () => {
-    void generarReceta();
+    const shouldAskPhotoCredit =
+      isTester && isPaidPremium && openaiPhotoCredits > 0;
+
+    if (shouldAskPhotoCredit) {
+      setShowPhotoCreditConfirm(true);
+      return;
+    }
+
+    dishPhotoChoiceRef.current = false;
+    void generarReceta({ useDishPhoto: false });
   };
 
   const persistGeneratedRecipe = useCallback(async (): Promise<string | null> => {
@@ -784,6 +874,8 @@ export default function ScannerPage() {
         return;
       }
 
+      setIsRecipeSaved(true);
+
       const pending = readPendingPlanAssignment();
       if (pending) {
         const assignment = await completePendingPlanAssignment(user.id, recipeId);
@@ -841,6 +933,9 @@ export default function ScannerPage() {
 
   const isPantryIdleView =
     !isLoading && !recipe && !showGenerationError && scannerMode === "pantry";
+  const isInstagramIdleView =
+    !isLoading && !recipe && !showGenerationError && scannerMode === "instagram";
+  const isScannerIdleView = isPantryIdleView || isInstagramIdleView;
   const isRecipeFlowView = isLoading || Boolean(displayRecipe) || showGenerationError;
 
   return (
@@ -849,7 +944,7 @@ export default function ScannerPage() {
         isRecipeFlowView
           ? "-mx-4 min-h-0 flex-1 bg-gradient-to-b from-stone-50 via-amber-50/20 to-sv-surface px-4 pt-1"
           : "bg-[#FBF9F6]",
-        isPantryIdleView
+        isScannerIdleView
           ? "flex min-h-0 flex-1 flex-col overflow-hidden"
           : isRecipeFlowView
             ? "flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain touch-pan-y [-webkit-overflow-scrolling:touch] pb-[calc(var(--app-bottom-nav-height)+0.75rem)]"
@@ -909,7 +1004,7 @@ export default function ScannerPage() {
               {saveErrorMessage}
             </div>
           ) : null}
-          {imageGenerationError ? (
+          {imageGenerationError && !isGeneratingDishPhoto ? (
             <div
               role="status"
               className="rounded-2xl border border-amber-200/80 bg-amber-50/90 px-2.5 py-2 text-xs text-amber-900 shadow-sm"
@@ -929,6 +1024,7 @@ export default function ScannerPage() {
             onPlanAssigned={(message) => setSaveSuccessMessage(message)}
             isSavingFavorites={isSavingRecipe}
             isSavedFavorites={isRecipeSaved}
+            isGeneratingPhoto={isGeneratingDishPhoto}
           />
         </section>
       ) : null}
@@ -1024,8 +1120,10 @@ export default function ScannerPage() {
       {!isLoading && !recipe && !showGenerationError ? (
         <div
           className={cn(
-            "flex min-h-0 flex-1 flex-col gap-3 overflow-hidden",
-            scannerMode === "pantry" ? "min-h-0" : "overflow-y-auto"
+            "flex min-h-0 flex-1 flex-col gap-3",
+            isPantryIdleView && "overflow-hidden",
+            isInstagramIdleView &&
+              "overflow-y-auto overscroll-y-contain touch-pan-y [-webkit-overflow-scrolling:touch] pb-[calc(var(--app-bottom-nav-height)+0.5rem)]"
           )}
         >
           <div className="shrink-0">
@@ -1034,6 +1132,7 @@ export default function ScannerPage() {
 
           {scannerMode === "instagram" ? (
             <InstagramCuratedCatalog
+              className="mt-0"
               pendingPlanAssignment={pendingPlanAssignment}
               onPendingAssignmentComplete={() => setPendingPlanAssignment(null)}
             />
@@ -1090,6 +1189,22 @@ export default function ScannerPage() {
           <GenerationsLimitModal
             open={showGenerationsModal}
             onClose={() => setShowGenerationsModal(false)}
+          />
+          <ConfirmDialog
+            open={showPhotoCreditConfirm}
+            onOpenChange={setShowPhotoCreditConfirm}
+            title={t("photoCreditConfirmTitle")}
+            description={t("photoCreditConfirmDescription")}
+            confirmLabel={t("photoCreditConfirmYes")}
+            cancelLabel={t("photoCreditConfirmNo")}
+            onConfirm={() => {
+              setShowPhotoCreditConfirm(false);
+              void generarReceta({ useDishPhoto: true });
+            }}
+            onCancel={() => {
+              setShowPhotoCreditConfirm(false);
+              void generarReceta({ useDishPhoto: false });
+            }}
           />
             </div>
           )}

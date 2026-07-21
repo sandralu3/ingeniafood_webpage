@@ -97,7 +97,6 @@ export default function LandingPage() {
 
     window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
 
-    let fallbackRevealTimer: ReturnType<typeof setTimeout> | null = null;
     const sectionToSpy: Record<string, string> = {
       "app-beta": "app",
       "ingeniafood-redes": "app",
@@ -113,7 +112,7 @@ export default function LandingPage() {
     const revealEls = document.querySelectorAll<HTMLElement>(".reveal-on-scroll");
 
     const getNavOffset = () => {
-      const topNav = document.querySelector("body > nav");
+      const topNav = document.getElementById("site-nav");
       return (topNav ? topNav.getBoundingClientRect().height : 64) + 8;
     };
 
@@ -169,9 +168,7 @@ export default function LandingPage() {
     window.addEventListener("resize", onScrollOrResize);
 
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduceMotion) {
-      revealEls.forEach((el) => el.classList.add("is-visible"));
-    } else if ("IntersectionObserver" in window) {
+    if (!reduceMotion && "IntersectionObserver" in window) {
       const io = new IntersectionObserver(
         (entries) => {
           entries.forEach((e) => {
@@ -185,10 +182,16 @@ export default function LandingPage() {
       revealEls.forEach((el) => el.classList.add("is-visible"));
     }
 
-    // Fallback: evita secciones ocultas si IntersectionObserver no se activa.
-    fallbackRevealTimer = setTimeout(() => {
-      revealEls.forEach((el) => el.classList.add("is-visible"));
-    }, 1200);
+    // Asegura visibilidad al navegar por anclas (#app-beta, #beneficios, …).
+    const revealHashTarget = () => {
+      const hash = window.location.hash.replace(/^#/, "");
+      if (!hash) return;
+      const target = document.getElementById(hash);
+      target?.classList.add("is-visible");
+    };
+
+    revealHashTarget();
+    window.addEventListener("hashchange", revealHashTarget);
 
     const toggleBtn = document.getElementById("mobile-menu-toggle");
     const closeBtn = document.getElementById("mobile-menu-close");
@@ -243,7 +246,7 @@ export default function LandingPage() {
 
     return () => {
       window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);
-      if (fallbackRevealTimer) clearTimeout(fallbackRevealTimer);
+      window.removeEventListener("hashchange", revealHashTarget);
       document.body.classList.remove("overflow-hidden");
       window.removeEventListener("scroll", onScrollOrResize);
       window.removeEventListener("resize", onScrollOrResize);
@@ -252,7 +255,7 @@ export default function LandingPage() {
       if (backdrop) backdrop.removeEventListener("click", closeDrawer);
       links.forEach((link) => link.removeEventListener("click", closeDrawer));
     };
-  }, []);
+  }, [landingHtml]);
 
   return (
     <>

@@ -15,14 +15,10 @@
   -webkit-backdrop-filter: blur(12px);
 }
 
-/* Scroll reveal: activado vía .is-visible desde JS (respeta reducción de movimiento) */
+/* Scroll reveal: siempre visible (sin depender de JS). Animación opcional al entrar. */
 .reveal-on-scroll {
-  opacity: 0;
-  transform: translateY(1rem);
-  transition:
-    opacity 0.7s ease,
-    transform 0.7s ease;
-  will-change: opacity, transform;
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .reveal-on-scroll.is-visible {
@@ -30,12 +26,17 @@
   transform: translateY(0);
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  .reveal-on-scroll {
+    transition:
+      opacity 0.7s ease,
+      transform 0.7s ease;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .reveal-on-scroll {
-    opacity: 1;
-    transform: none;
     transition: none;
-    will-change: auto;
   }
 }
 

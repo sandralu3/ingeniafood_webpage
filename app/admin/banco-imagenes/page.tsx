@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   ChevronDown,
@@ -23,9 +22,8 @@ import {
   type RecipeCuisineStyle,
   type RecipeMealType
 } from "@/lib/recipes/premium-recipe-filters";
-import { isSandraAdmin } from "@/lib/auth/sandra-admin";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
-import { createSupabaseClient } from "@/lib/supabaseClient";
+import { useSandraAdminGate } from "@/hooks/use-sandra-admin-gate";
 import { cn } from "@/lib/utils";
 
 function joinList(values: string[]): string {
@@ -42,8 +40,7 @@ function parseListInput(value: string): string[] {
 const PAGE_SIZE = 24;
 
 export default function BancoImagenesAdminPage() {
-  const router = useRouter();
-  const [authState, setAuthState] = useState<"loading" | "allowed" | "denied">("loading");
+  const authState = useSandraAdminGate("/admin/banco-imagenes");
   const [items, setItems] = useState<DishImageBankItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -127,37 +124,9 @@ export default function BancoImagenesAdminPage() {
   }, []);
 
   useEffect(() => {
-    let active = true;
-
-    const verifyAccess = async () => {
-      const supabase = createSupabaseClient();
-      const {
-        data: { user }
-      } = await supabase.auth.getUser();
-
-      if (!active) return;
-
-      if (!user) {
-        setAuthState("denied");
-        router.replace("/login?next=/admin/banco-imagenes");
-        return;
-      }
-
-      if (!isSandraAdmin(user.email)) {
-        setAuthState("denied");
-        return;
-      }
-
-      setAuthState("allowed");
-      void loadItems();
-    };
-
-    void verifyAccess();
-
-    return () => {
-      active = false;
-    };
-  }, [loadItems, router]);
+    if (authState !== "allowed") return;
+    void loadItems();
+  }, [authState, loadItems]);
 
   const resetForm = () => {
     setTitle("");

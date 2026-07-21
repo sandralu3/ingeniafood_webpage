@@ -2,17 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { ArrowLeft, Loader2, Pencil } from "lucide-react";
 import { RecipeCatalogThumbnail } from "@/components/recipes/recipe-catalog-thumbnail";
 import type { AdminInstagramCatalogListItem } from "@/lib/admin/instagram-catalog-admin";
-import { isSandraAdmin } from "@/lib/auth/sandra-admin";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
-import { createSupabaseClient } from "@/lib/supabaseClient";
+import { useSandraAdminGate } from "@/hooks/use-sandra-admin-gate";
 
 export default function CatalogoInstagramAdminPage() {
-  const router = useRouter();
-  const [authState, setAuthState] = useState<"loading" | "allowed" | "denied">("loading");
+  const authState = useSandraAdminGate("/admin/catalogo-instagram");
   const [recipes, setRecipes] = useState<AdminInstagramCatalogListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -42,37 +39,9 @@ export default function CatalogoInstagramAdminPage() {
   }, []);
 
   useEffect(() => {
-    let active = true;
-
-    const verifyAccess = async () => {
-      const supabase = createSupabaseClient();
-      const {
-        data: { user }
-      } = await supabase.auth.getUser();
-
-      if (!active) return;
-
-      if (!user) {
-        setAuthState("denied");
-        router.replace("/login?next=/admin/catalogo-instagram");
-        return;
-      }
-
-      if (!isSandraAdmin(user.email)) {
-        setAuthState("denied");
-        return;
-      }
-
-      setAuthState("allowed");
-      void loadCatalog();
-    };
-
-    void verifyAccess();
-
-    return () => {
-      active = false;
-    };
-  }, [loadCatalog, router]);
+    if (authState !== "allowed") return;
+    void loadCatalog();
+  }, [authState, loadCatalog]);
 
   if (authState === "loading") {
     return (

@@ -99,7 +99,8 @@ export function AdvancedRecipeFilters({
   disabled = false
 }: Props) {
   const t = useTranslations("Scanner");
-  const { isPremium, isLoading, isPaidPremium, premiumTrialRemaining, refresh } = usePremium();
+  const { isPremium, isLoading, isPaidPremium, isTester, premiumTrialRemaining, refresh } =
+    usePremium();
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
@@ -112,7 +113,7 @@ export function AdvancedRecipeFilters({
   const handleMealTypeClick = (option: (typeof RECIPE_MEAL_TYPES)[number]) => {
     if (disabled || isLoading) return;
     if (option.premium && !isPremium) {
-      setShowUpgradeDialog(true);
+      if (isTester) setShowUpgradeDialog(true);
       return;
     }
     onMealTypeChange(option.id);
@@ -121,7 +122,7 @@ export function AdvancedRecipeFilters({
   const handleCuisineStyleClick = (option: (typeof RECIPE_CUISINE_STYLES)[number]) => {
     if (disabled || isLoading) return;
     if (option.premium && !isPremium) {
-      setShowUpgradeDialog(true);
+      if (isTester) setShowUpgradeDialog(true);
       return;
     }
     onCuisineStyleChange(option.id);
@@ -130,7 +131,7 @@ export function AdvancedRecipeFilters({
   const handleServingsClick = (option: (typeof RECIPE_SERVINGS_OPTIONS)[number]) => {
     if (disabled || isLoading) return;
     if (option.premium && !isPremium) {
-      setShowUpgradeDialog(true);
+      if (isTester) setShowUpgradeDialog(true);
       return;
     }
     onServingsChange(option.value);
@@ -139,7 +140,7 @@ export function AdvancedRecipeFilters({
   const handleComplexityClick = (option: (typeof RECIPE_COMPLEXITY_LEVELS)[number]) => {
     if (disabled || isLoading) return;
     if (option.premium && !isPremium) {
-      setShowUpgradeDialog(true);
+      if (isTester) setShowUpgradeDialog(true);
       return;
     }
     onComplexityChange(option.id);
@@ -183,11 +184,13 @@ export function AdvancedRecipeFilters({
             <div className="px-0.5">
               <p className="text-[11px] text-stone-500">{summaryLabel}</p>
               <p className="text-[11px] text-stone-500">
-                {isPremium
-                  ? isPaidPremium
-                    ? t("customizeFilters")
-                    : t("trialActiveHint")
-                  : t("freePlanHint")}
+                {isTester
+                  ? isPremium
+                    ? isPaidPremium
+                      ? t("customizeFilters")
+                      : t("trialActiveHint")
+                    : t("freePlanHint")
+                  : t("customizeFilters")}
               </p>
             </div>
           ) : null}
@@ -196,12 +199,12 @@ export function AdvancedRecipeFilters({
         {expanded ? (
           <div className="mt-2 space-y-4 border-t border-stone-100 px-0.5 pt-3">
             <FilterGroup label={t("filterMeal")}>
-              {RECIPE_MEAL_TYPES.map((option) => (
+              {RECIPE_MEAL_TYPES.filter((option) => isTester || !option.premium).map((option) => (
                 <FilterChip
                   key={option.id}
                   label={translateMealType(t, option.id)}
                   selected={mealType === option.id}
-                  locked={option.premium && !isPremium}
+                  locked={Boolean(isTester && option.premium && !isPremium)}
                   disabled={disabled || isLoading}
                   onClick={() => handleMealTypeClick(option)}
                 />
@@ -209,52 +212,60 @@ export function AdvancedRecipeFilters({
             </FilterGroup>
 
             <FilterGroup label={t("filterStyle")}>
-              {RECIPE_CUISINE_STYLES.map((option) => (
-                <FilterChip
-                  key={option.id}
-                  label={translateCuisineStyleShort(t, option.id)}
-                  selected={cuisineStyle === option.id}
-                  locked={option.premium && !isPremium}
-                  disabled={disabled || isLoading}
-                  onClick={() => handleCuisineStyleClick(option)}
-                />
-              ))}
+              {RECIPE_CUISINE_STYLES.filter((option) => isTester || !option.premium).map(
+                (option) => (
+                  <FilterChip
+                    key={option.id}
+                    label={translateCuisineStyleShort(t, option.id)}
+                    selected={cuisineStyle === option.id}
+                    locked={Boolean(isTester && option.premium && !isPremium)}
+                    disabled={disabled || isLoading}
+                    onClick={() => handleCuisineStyleClick(option)}
+                  />
+                )
+              )}
             </FilterGroup>
 
             <FilterGroup label={t("filterServings")}>
-              {RECIPE_SERVINGS_OPTIONS.map((option) => (
-                <FilterChip
-                  key={option.value}
-                  label={translateServingsPeople(t, option.value)}
-                  selected={servings === option.value}
-                  locked={option.premium && !isPremium}
-                  disabled={disabled || isLoading}
-                  onClick={() => handleServingsClick(option)}
-                />
-              ))}
+              {RECIPE_SERVINGS_OPTIONS.filter((option) => isTester || !option.premium).map(
+                (option) => (
+                  <FilterChip
+                    key={option.value}
+                    label={translateServingsPeople(t, option.value)}
+                    selected={servings === option.value}
+                    locked={Boolean(isTester && option.premium && !isPremium)}
+                    disabled={disabled || isLoading}
+                    onClick={() => handleServingsClick(option)}
+                  />
+                )
+              )}
             </FilterGroup>
 
             <FilterGroup label={t("filterComplexity")}>
-              {RECIPE_COMPLEXITY_LEVELS.map((option) => (
-                <FilterChip
-                  key={option.id}
-                  label={translateComplexity(t, option.id)}
-                  selected={complexity === option.id}
-                  locked={option.premium && !isPremium}
-                  disabled={disabled || isLoading}
-                  onClick={() => handleComplexityClick(option)}
-                />
-              ))}
+              {RECIPE_COMPLEXITY_LEVELS.filter((option) => isTester || !option.premium).map(
+                (option) => (
+                  <FilterChip
+                    key={option.id}
+                    label={translateComplexity(t, option.id)}
+                    selected={complexity === option.id}
+                    locked={Boolean(isTester && option.premium && !isPremium)}
+                    disabled={disabled || isLoading}
+                    onClick={() => handleComplexityClick(option)}
+                  />
+                )
+              )}
             </FilterGroup>
           </div>
         ) : null}
       </section>
 
-      <PremiumUpgradeDialog
-        open={showUpgradeDialog}
-        onClose={() => setShowUpgradeDialog(false)}
-        onUpgraded={() => void refresh()}
-      />
+      {isTester ? (
+        <PremiumUpgradeDialog
+          open={showUpgradeDialog}
+          onClose={() => setShowUpgradeDialog(false)}
+          onUpgraded={() => void refresh()}
+        />
+      ) : null}
     </>
   );
 }

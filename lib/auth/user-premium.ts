@@ -1,25 +1,19 @@
 import {
-  ADMIN_PREMIUM_ACCESS,
   resolvePremiumAccess,
   type PremiumAccess
 } from "@/lib/auth/premium-access";
-import { isSandraAdmin } from "@/lib/auth/sandra-admin";
 import type { createSupabaseRouteClient } from "@/lib/supabaseRoute";
 
 type SupabaseRouteClient = NonNullable<Awaited<ReturnType<typeof createSupabaseRouteClient>>>;
 
 const PREMIUM_PROFILE_SELECT =
-  "is_premium, premium_trial_remaining, premium_trial_claimed_at" as const;
+  "is_premium, is_tester, openai_photo_credits, premium_trial_remaining, premium_trial_claimed_at" as const;
 
 export async function getUserPremiumAccess(
   supabase: SupabaseRouteClient,
   userId: string,
   email?: string | null
 ): Promise<{ access: PremiumAccess; error?: string }> {
-  if (isSandraAdmin(email)) {
-    return { access: ADMIN_PREMIUM_ACCESS };
-  }
-
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select(PREMIUM_PROFILE_SELECT)
@@ -28,7 +22,7 @@ export async function getUserPremiumAccess(
 
   if (profileError) {
     return {
-      access: resolvePremiumAccess(null),
+      access: resolvePremiumAccess(null, { email }),
       error: "No pudimos validar tu plan de suscripción."
     };
   }

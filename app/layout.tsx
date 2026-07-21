@@ -46,8 +46,10 @@ export default async function RootLayout({
   const messages = await getMessages();
 
   return (
-    <html lang={locale}>
-      <body>
+    // suppressHydrationWarning: el atributo lang (y a veces class) puede diferir si
+    // el usuario cambia de idioma o si una extensión (p. ej. Google Translate) muta el DOM.
+    <html lang={locale} suppressHydrationWarning>
+      <body suppressHydrationWarning>
         <NextIntlClientProvider locale={locale} messages={messages}>
           <AppProviders>
             <SupabaseAuthRedirect />
