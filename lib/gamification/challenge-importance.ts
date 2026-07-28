@@ -18,6 +18,6 @@ export function getChallengeImportanceMessage(challenge: DailyChallenge): string
 
   return (
     SYSTEM_CHALLENGE_IMPORTANCE[challenge.id] ??
-    `Este hábito suma +${challenge.points} pts a tu progreso semanal cuando lo completas.`
+    `Este hábito refuerza tu constancia diaria y alimenta tu racha.`
   );
 }

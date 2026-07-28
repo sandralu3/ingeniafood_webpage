@@ -12,7 +12,6 @@ import {
   updateCustomChallenge
 } from "@/lib/gamification/challenge-service";
 import {
-  translateChallengeImportance,
   translateChallengeLabel
 } from "@/lib/gamification/challenge-i18n";
 import type { ConfigurableChallenge } from "@/lib/gamification/challenges";
@@ -403,11 +402,7 @@ function ChallengeSection({
 
                   {isPending ? (
                     <Loader2 className="h-3 w-3 shrink-0 animate-spin text-[#556B2F]" />
-                  ) : (
-                    <span className="shrink-0 text-[10px] font-bold tabular-nums text-amber-800">
-                      +{challenge.points}
-                    </span>
-                  )}
+                  ) : null}
                 </button>
 
                 {canManage ? (
@@ -453,10 +448,13 @@ function ChallengeSection({
 
               {isFocused ? (
                 <p className="mt-1.5 rounded-md bg-white/75 px-2 py-1.5 text-[10px] leading-snug text-stone-600">
-                  {translateChallengeImportance(challenge, t)}{" "}
-                  <span className="font-semibold text-[#556B2F]">
-                    {t("pointsOnComplete", { points: challenge.points })}
-                  </span>
+                  {challenge.source === "custom"
+                    ? t("importance.custom")
+                    : t.has(`importance.${challenge.id}`)
+                      ? t(`importance.${challenge.id}`)
+                      : t.has("importance.fallbackPremium")
+                        ? t("importance.fallbackPremium")
+                        : t("importance.custom")}
                 </p>
               ) : null}
             </li>

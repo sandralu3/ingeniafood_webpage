@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { Camera, ChevronDown, LogOut, Pencil, Users, Wand2 } from "lucide-react";
 import { AvatarCropModal } from "@/components/profile/avatar-crop-modal";
 import { LanguageSelector } from "@/components/profile/language-selector";
+import { NutritionGoalsForm, type NutritionGoalsFormHandle } from "@/components/profile/nutrition-goals-form";
 import { PremiumBillingActions } from "@/components/profile/premium-billing-actions";
 import { PremiumLabel } from "@/components/premium/premium-label";
 import { usePremium } from "@/hooks/use-premium";
@@ -30,10 +31,18 @@ type ToastState = {
 };
 
 const inputClassName =
-  "h-11 rounded-xl border-stone-200 bg-white focus-visible:border-[#4c6633]/35 focus-visible:ring-[#4c6633]/10";
+  "h-9 rounded-lg border-stone-200 bg-white px-2.5 text-[12px] focus-visible:border-[#4c6633]/35 focus-visible:ring-[#4c6633]/10";
 
 const selectClassName =
-  "h-11 w-full appearance-none rounded-xl border border-stone-200 bg-white px-3 pr-10 text-sm text-stone-800 focus:border-[#4c6633]/35 focus:outline-none focus:ring-2 focus:ring-[#4c6633]/10";
+  "h-9 w-full appearance-none rounded-lg border border-stone-200 bg-white px-2.5 pr-8 text-[12px] text-stone-800 focus:border-[#4c6633]/35 focus:outline-none focus:ring-2 focus:ring-[#4c6633]/10";
+
+const labelClassName = "text-[11px] font-medium text-stone-600";
+
+const primaryButtonClassName =
+  "w-full rounded-full bg-[#4c6633] px-4 py-2.5 text-[12px] font-semibold text-white shadow-md shadow-[#4c6633]/15 transition hover:bg-[#556B2F] disabled:cursor-not-allowed disabled:opacity-60";
+
+const secondaryButtonClassName =
+  "inline-flex w-full items-center justify-center gap-1.5 rounded-full border border-stone-200 bg-white px-4 py-2.5 text-[12px] font-semibold text-stone-600 transition hover:border-stone-300 hover:bg-stone-50 hover:text-stone-800 disabled:cursor-not-allowed disabled:opacity-60";
 
 function isMissingCountryColumnError(error: { code?: string; message?: string } | null): boolean {
   if (!error) return false;
@@ -82,6 +91,7 @@ export default function ProfilePage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const cropObjectUrlRef = useRef<string | null>(null);
   const previewObjectUrlRef = useRef<string | null>(null);
+  const nutritionFormRef = useRef<NutritionGoalsFormHandle | null>(null);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -318,9 +328,11 @@ export default function ProfilePage() {
     setErrorMessage(null);
     try {
       const supabase = createSupabaseClient();
+      const nutritionPayload = nutritionFormRef.current?.getPayload() ?? {};
       const payload = {
         full_name: fullName.trim() || null,
-        country: country || null
+        country: country || null,
+        ...nutritionPayload
       };
 
       const { error } = await supabase.from("profiles").update(payload).eq("id", userId);
@@ -342,22 +354,52 @@ export default function ProfilePage() {
         return;
       }
 
+      // Si fallan columnas nutricionales (migración pendiente), reintentar solo datos básicos.
       if (error) {
-        setErrorMessage("No pudimos guardar los cambios del perfil.");
-        showToast("No se pudo guardar el perfil.", "error");
-        return;
-      }
+        const { error: basicError } = await supabase
+          .from("profiles")
+          .update({
+            full_name: fullName.trim() || null,
+            country: country || null
+          })
+          .eq("id", userId);
+
+        if (basicError && isMissingCountryColumnError(basicError)) {
+          const { error: nameOnlyError } = await supabase
+            .from("profiles")
+            .update({ full_name: fullName.trim() || null })
+            .eq("id", userId);
+          if (nameOnlyError) {
+            setErrorMessage(t("toastSaveError"));
+            showToast(t("toastSaveError"), "error");
+            return;
+          }
+          showToast(t("toastSaved"));
+          await refreshPremium();
+          return;
+        }
+
+        if (basicError) {
+          setErrorMessage(t("toastSaveError"));
+          showToast(t("toastSaveError"), "error");
+          return;
+        }
 
         showToast(t("toastSaved"));
         await refreshPremium();
-      } catch (error) {
-        console.error("[profile] Error guardando perfil:", error);
-        setErrorMessage(t("toastSaveError"));
-        showToast(t("toastSaveError"), "error");
-      } finally {
-        setIsSaving(false);
+        return;
       }
-    };
+
+      showToast(t("toastSaved"));
+      await refreshPremium();
+    } catch (error) {
+      console.error("[profile] Error guardando perfil:", error);
+      setErrorMessage(t("toastSaveError"));
+      showToast(t("toastSaveError"), "error");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const handleSignOut = async () => {
     if (isSigningOut) return;
@@ -451,9 +493,9 @@ export default function ProfilePage() {
             ) : null}
           </div>
 
-          <div className="space-y-4 rounded-2xl bg-white/90 p-3 shadow-sm">
-            <div className="space-y-2">
-              <label htmlFor="fullName" className="text-sm font-medium text-stone-600">
+          <div className="space-y-3 rounded-2xl bg-white/90 p-3 shadow-sm">
+            <div className="space-y-1">
+              <label htmlFor="fullName" className={labelClassName}>
                 {t("fullName")}
               </label>
               <Input
@@ -465,15 +507,15 @@ export default function ProfilePage() {
               />
             </div>
 
-            <div className="space-y-2">
-              <label htmlFor="email" className="text-sm font-medium text-stone-600">
+            <div className="space-y-1">
+              <label htmlFor="email" className={labelClassName}>
                 {t("email")}
               </label>
               <Input id="email" value={email} disabled className={inputClassName} />
             </div>
 
-            <div className="space-y-2">
-              <label htmlFor="country" className="text-sm font-medium text-stone-600">
+            <div className="space-y-1">
+              <label htmlFor="country" className={labelClassName}>
                 {t("country")}
               </label>
               <div className="relative">
@@ -491,7 +533,7 @@ export default function ProfilePage() {
                   ))}
                 </select>
                 <ChevronDown
-                  className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400"
+                  className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-stone-400"
                   strokeWidth={1.75}
                   aria-hidden="true"
                 />
@@ -511,6 +553,10 @@ export default function ProfilePage() {
 
             <PremiumBillingActions />
 
+            {userId ? (
+              <NutritionGoalsForm apiRef={nutritionFormRef} userId={userId} />
+            ) : null}
+
             {errorMessage ? (
               <p className="rounded-xl border border-red-100 bg-red-50/80 px-3 py-2.5 text-sm text-red-700">
                 {errorMessage}
@@ -521,7 +567,7 @@ export default function ProfilePage() {
               type="button"
               onClick={() => void handleSaveChanges()}
               disabled={isSaving || isUploadingAvatar || isSigningOut}
-              className="w-full rounded-full bg-[#4c6633] px-5 py-3.5 text-sm font-semibold text-white shadow-lg shadow-[#4c6633]/20 transition hover:bg-[#556B2F] disabled:cursor-not-allowed disabled:opacity-60"
+              className={primaryButtonClassName}
             >
               {isSaving ? t("saving") : t("saveChanges")}
             </button>
@@ -530,9 +576,9 @@ export default function ProfilePage() {
               type="button"
               onClick={() => void handleSignOut()}
               disabled={isSaving || isUploadingAvatar || isSigningOut}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-stone-200 bg-white px-5 py-3.5 text-sm font-semibold text-stone-600 transition hover:border-stone-300 hover:bg-stone-50 hover:text-stone-800 disabled:cursor-not-allowed disabled:opacity-60"
+              className={secondaryButtonClassName}
             >
-              <LogOut className="h-4 w-4" />
+              <LogOut className="h-3.5 w-3.5" />
               {isSigningOut ? t("signingOut") : t("signOut")}
             </button>
 

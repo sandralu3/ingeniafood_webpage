@@ -133,19 +133,19 @@ export function PremiumBillingActions() {
   };
 
   return (
-    <section className="space-y-3 rounded-2xl border border-[#4C6B3F]/15 bg-gradient-to-br from-[#F0F4ED] to-white p-4 shadow-sm">
-      <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#4C6B3F]/80">
+    <section className="space-y-2 rounded-xl border border-[#4C6B3F]/15 bg-gradient-to-br from-[#F0F4ED] to-white p-3">
+      <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-[#4C6B3F]/80">
         {t("billingEyebrow")}
       </p>
-      <h2 className="text-sm font-semibold text-stone-900">
+      <h2 className="text-[13px] font-bold text-stone-800">
         <PremiumRichText text={t("billingTitle")} />
       </h2>
-      <p className="text-xs leading-relaxed text-stone-500">{t("billingSubtitle")}</p>
+      <p className="text-[10px] leading-snug text-stone-500">{t("billingSubtitle")}</p>
 
       {isPaidPremium && billing.hasActiveSubscription ? (
         <div
           className={cn(
-            "rounded-xl border px-3 py-2.5 text-xs leading-snug",
+            "rounded-lg border px-2.5 py-2 text-[10px] leading-snug",
             openaiPhotoCredits > 0
               ? "border-[#556B2F]/20 bg-[#F0F4ED] text-[#3e5219]"
               : "border-stone-200 bg-stone-50 text-stone-500"
@@ -164,14 +164,14 @@ export function PremiumBillingActions() {
           onClick={() => void handleUpgrade()}
           disabled={isCheckoutLoading}
           className={cn(
-            "inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#4C6B3F] px-4 py-3 text-sm font-semibold text-white shadow-md transition hover:brightness-105",
+            "inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-full bg-[#4C6B3F] px-3.5 text-[12px] font-semibold text-white shadow-sm transition hover:brightness-105",
             "disabled:cursor-not-allowed disabled:opacity-60"
           )}
         >
           {isCheckoutLoading ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
           ) : (
-            <Crown className="h-4 w-4" />
+            <Crown className="h-3.5 w-3.5" />
           )}
           {isCheckoutLoading ? t("billingRedirecting") : t("billingUpgrade")}
         </button>
@@ -183,21 +183,21 @@ export function PremiumBillingActions() {
           onClick={() => void handleManage()}
           disabled={isPortalLoading}
           className={cn(
-            "inline-flex w-full items-center justify-center gap-2 rounded-full border border-[#4C6B3F]/25 bg-white px-4 py-3 text-sm font-semibold text-[#4C6B3F] transition hover:bg-[#F0F4ED]",
+            "inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-full border border-[#4C6B3F]/25 bg-white px-3.5 text-[12px] font-semibold text-[#4C6B3F] transition hover:bg-[#F0F4ED]",
             "disabled:cursor-not-allowed disabled:opacity-60"
           )}
         >
           {isPortalLoading ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
           ) : (
-            <Settings2 className="h-4 w-4" />
+            <Settings2 className="h-3.5 w-3.5" />
           )}
           {isPortalLoading ? t("billingOpeningPortal") : t("billingManage")}
         </button>
       ) : null}
 
       {errorMessage ? (
-        <p role="alert" className="rounded-xl border border-red-100 bg-red-50/80 px-3 py-2 text-xs text-red-700">
+        <p role="alert" className="rounded-lg border border-red-100 bg-red-50/80 px-2.5 py-1.5 text-[10px] text-red-700">
           {errorMessage}
         </p>
       ) : null}

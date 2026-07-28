@@ -20,6 +20,7 @@ export type Database = {
           can_self_toggle_premium: boolean;
           is_tester: boolean;
           openai_photo_credits: number;
+          referral_code: string;
           generations_left: number;
           daily_scan_limit: number;
           scans_used_today: number;
@@ -27,6 +28,20 @@ export type Database = {
           health_score: number;
           premium_trial_remaining: number;
           premium_trial_claimed_at: string | null;
+          weight_kg: number | null;
+          height_cm: number | null;
+          age_years: number | null;
+          biological_sex: "female" | "male" | null;
+          activity_level:
+            | "sedentary"
+            | "light"
+            | "moderate"
+            | "active"
+            | "very_active"
+            | null;
+          nutrition_goal: "deficit" | "maintenance" | "surplus" | null;
+          calorie_goal_override: number | null;
+          protein_goal_override: number | null;
           created_at: string;
           updated_at: string;
         };
@@ -40,6 +55,7 @@ export type Database = {
           can_self_toggle_premium?: boolean;
           is_tester?: boolean;
           openai_photo_credits?: number;
+          referral_code?: string;
           generations_left?: number;
           daily_scan_limit?: number;
           scans_used_today?: number;
@@ -47,6 +63,20 @@ export type Database = {
           health_score?: number;
           premium_trial_remaining?: number;
           premium_trial_claimed_at?: string | null;
+          weight_kg?: number | null;
+          height_cm?: number | null;
+          age_years?: number | null;
+          biological_sex?: "female" | "male" | null;
+          activity_level?:
+            | "sedentary"
+            | "light"
+            | "moderate"
+            | "active"
+            | "very_active"
+            | null;
+          nutrition_goal?: "deficit" | "maintenance" | "surplus" | null;
+          calorie_goal_override?: number | null;
+          protein_goal_override?: number | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -60,6 +90,7 @@ export type Database = {
           can_self_toggle_premium?: boolean;
           is_tester?: boolean;
           openai_photo_credits?: number;
+          referral_code?: string;
           generations_left?: number;
           daily_scan_limit?: number;
           scans_used_today?: number;
@@ -67,6 +98,20 @@ export type Database = {
           health_score?: number;
           premium_trial_remaining?: number;
           premium_trial_claimed_at?: string | null;
+          weight_kg?: number | null;
+          height_cm?: number | null;
+          age_years?: number | null;
+          biological_sex?: "female" | "male" | null;
+          activity_level?:
+            | "sedentary"
+            | "light"
+            | "moderate"
+            | "active"
+            | "very_active"
+            | null;
+          nutrition_goal?: "deficit" | "maintenance" | "surplus" | null;
+          calorie_goal_override?: number | null;
+          protein_goal_override?: number | null;
           created_at?: string;
           updated_at?: string;
         };

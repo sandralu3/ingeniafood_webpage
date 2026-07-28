@@ -5,7 +5,9 @@ import { createPortal } from "react-dom";
 import Script from "next/script";
 import { useLocale, useTranslations } from "next-intl";
 import { MarketingLanguageSelector } from "@/components/marketing/marketing-language-selector";
+import { LandingMobileMenu } from "@/components/marketing/landing-mobile-menu";
 import { applyLandingI18n } from "@/lib/marketing/apply-landing-i18n";
+import { stashReferralCodeFromUrl } from "@/lib/referral/referral";
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -80,6 +82,17 @@ export default function LandingPage() {
       }),
     [locale, t]
   );
+
+  useEffect(() => {
+    stashReferralCodeFromUrl(window.location.search);
+  }, []);
+
+  useEffect(() => {
+    // Si el CDN ya estaba en caché, onLoad puede no dispararse otra vez.
+    applyLandingTailwindConfig();
+    const timer = window.setTimeout(applyLandingTailwindConfig, 50);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     setLangSlot(null);
@@ -168,8 +181,12 @@ export default function LandingPage() {
     window.addEventListener("resize", onScrollOrResize);
 
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    // Nunca dejar secciones ocultas: marca visible de inmediato (CSS ya fuerza opacity:1).
+    revealEls.forEach((el) => el.classList.add("is-visible"));
+
+    let revealObserver: IntersectionObserver | null = null;
     if (!reduceMotion && "IntersectionObserver" in window) {
-      const io = new IntersectionObserver(
+      revealObserver = new IntersectionObserver(
         (entries) => {
           entries.forEach((e) => {
             if (e.isIntersecting) e.target.classList.add("is-visible");
@@ -177,9 +194,7 @@ export default function LandingPage() {
         },
         { rootMargin: "0px 0px -6% 0px", threshold: 0.08 }
       );
-      revealEls.forEach((el) => io.observe(el));
-    } else {
-      revealEls.forEach((el) => el.classList.add("is-visible"));
+      revealEls.forEach((el) => revealObserver?.observe(el));
     }
 
     // Asegura visibilidad al navegar por anclas (#app-beta, #beneficios, …).
@@ -192,47 +207,6 @@ export default function LandingPage() {
 
     revealHashTarget();
     window.addEventListener("hashchange", revealHashTarget);
-
-    const toggleBtn = document.getElementById("mobile-menu-toggle");
-    const closeBtn = document.getElementById("mobile-menu-close");
-    const drawer = document.getElementById("mobile-drawer");
-    const backdrop = document.getElementById("mobile-drawer-backdrop");
-    const links = document.querySelectorAll(".mobile-nav-link");
-
-    const openDrawer = () => {
-      if (!drawer || !backdrop || !toggleBtn) return;
-      drawer.classList.remove("translate-x-full");
-      backdrop.classList.remove("opacity-0", "pointer-events-none");
-      backdrop.setAttribute("aria-hidden", "false");
-      toggleBtn.setAttribute("aria-expanded", "true");
-      document.body.classList.add("overflow-hidden");
-    };
-
-    const closeDrawer = () => {
-      if (!drawer || !backdrop || !toggleBtn) return;
-      drawer.classList.add("translate-x-full");
-      backdrop.classList.add("opacity-0", "pointer-events-none");
-      backdrop.setAttribute("aria-hidden", "true");
-      toggleBtn.setAttribute("aria-expanded", "false");
-      document.body.classList.remove("overflow-hidden");
-    };
-
-    const onToggle = () => {
-      if (!toggleBtn) return;
-      const isOpen = toggleBtn.getAttribute("aria-expanded") === "true";
-      if (isOpen) closeDrawer();
-      else openDrawer();
-    };
-
-    if (toggleBtn && drawer && backdrop) {
-      toggleBtn.addEventListener("click", onToggle);
-      if (closeBtn) closeBtn.addEventListener("click", closeDrawer);
-      backdrop.addEventListener("click", closeDrawer);
-      links.forEach((link) => link.addEventListener("click", closeDrawer));
-      window.addEventListener("resize", () => {
-        if (window.innerWidth >= 768) closeDrawer();
-      });
-    }
 
     if (window.location.hash) {
       setTimeout(() => {
@@ -250,85 +224,89 @@ export default function LandingPage() {
       document.body.classList.remove("overflow-hidden");
       window.removeEventListener("scroll", onScrollOrResize);
       window.removeEventListener("resize", onScrollOrResize);
-      if (toggleBtn) toggleBtn.removeEventListener("click", onToggle);
-      if (closeBtn) closeBtn.removeEventListener("click", closeDrawer);
-      if (backdrop) backdrop.removeEventListener("click", closeDrawer);
-      links.forEach((link) => link.removeEventListener("click", closeDrawer));
+      revealObserver?.disconnect();
     };
   }, [landingHtml]);
 
-  return (
-    <>
-      <Script src="https://cdn.tailwindcss.com?plugins=forms,container-queries" strategy="beforeInteractive" />
-      <Script id="landing-tailwind-config" strategy="beforeInteractive">{`
-      tailwind.config = {
-        darkMode: "class",
-        theme: {
-          extend: {
-            colors: {
-              "on-primary": "#ffffff",
-              "inverse-on-surface": "#f2f1ec",
-              "inverse-surface": "#30312e",
-              "tertiary": "#635f40",
-              "on-secondary-fixed": "#2e150c",
-              "inverse-primary": "#ffb59c",
-              "secondary-fixed": "#ffdbd0",
-              "on-error": "#ffffff",
-              "surface-bright": "#fbf9f4",
-              "surface-variant": "#e4e2dd",
-              "on-surface-variant": "#53433e",
-              "on-primary-fixed-variant": "#723520",
-              "tertiary-fixed": "#eae3bc",
-              "primary-fixed": "#ffdbd0",
-              "surface": "#fbf9f4",
-              "secondary": "#7a564a",
-              "surface-container": "#f0eee9",
-              "on-background": "#1b1c19",
-              "error-container": "#ffdad6",
-              "on-tertiary": "#ffffff",
-              "on-secondary": "#ffffff",
-              "background": "#fbf9f4",
-              "surface-container-low": "#f5f3ee",
-              "surface-dim": "#dbdad5",
-              "primary-container": "#e9967a",
-              "on-surface": "#1b1c19",
-              "on-tertiary-container": "#444024",
-              "surface-container-lowest": "#ffffff",
-              "on-secondary-container": "#7a574b",
-              "tertiary-fixed-dim": "#cec7a2",
-              "tertiary-container": "#b2ac88",
-              "error": "#ba1a1a",
-              "on-primary-container": "#682e19",
-              "on-tertiary-fixed": "#1f1c04",
-              "on-secondary-fixed-variant": "#5f3f34",
-              "secondary-fixed-dim": "#eabcae",
-              "outline-variant": "#d9c2bb",
-              "surface-container-high": "#eae8e3",
-              "on-error-container": "#93000a",
-              "surface-container-highest": "#e4e2dd",
-              "primary-fixed-dim": "#ffb59c",
-              outline: "#86736d",
-              "on-primary-fixed": "#390c00",
-              "secondary-container": "#ffd0c1",
-              "on-tertiary-fixed-variant": "#4b472b",
-              primary: "#8f4c35",
-              "surface-tint": "#8f4c35"
-            },
-            borderRadius: {
-              DEFAULT: "0.25rem",
-              lg: "0.5rem",
-              xl: "0.75rem",
-              full: "9999px"
-            },
-            fontFamily: {
-              headline: ["Noto Serif"],
-              body: ["Manrope"],
-              label: ["Manrope"]
-            }
+  const applyLandingTailwindConfig = () => {
+    const tw = (window as Window & { tailwind?: { config: Record<string, unknown> } }).tailwind;
+    if (!tw) return;
+    tw.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "on-primary": "#ffffff",
+            "inverse-on-surface": "#f2f1ec",
+            "inverse-surface": "#30312e",
+            tertiary: "#635f40",
+            "on-secondary-fixed": "#2e150c",
+            "inverse-primary": "#ffb59c",
+            "secondary-fixed": "#ffdbd0",
+            "on-error": "#ffffff",
+            "surface-bright": "#fbf9f4",
+            "surface-variant": "#e4e2dd",
+            "on-surface-variant": "#53433e",
+            "on-primary-fixed-variant": "#723520",
+            "tertiary-fixed": "#eae3bc",
+            "primary-fixed": "#ffdbd0",
+            surface: "#fbf9f4",
+            secondary: "#7a564a",
+            "surface-container": "#f0eee9",
+            "on-background": "#1b1c19",
+            "error-container": "#ffdad6",
+            "on-tertiary": "#ffffff",
+            "on-secondary": "#ffffff",
+            background: "#fbf9f4",
+            "surface-container-low": "#f5f3ee",
+            "surface-dim": "#dbdad5",
+            "primary-container": "#e9967a",
+            "on-surface": "#1b1c19",
+            "on-tertiary-container": "#444024",
+            "surface-container-lowest": "#ffffff",
+            "on-secondary-container": "#7a574b",
+            "tertiary-fixed-dim": "#cec7a2",
+            "tertiary-container": "#b2ac88",
+            error: "#ba1a1a",
+            "on-primary-container": "#682e19",
+            "on-tertiary-fixed": "#1f1c04",
+            "on-secondary-fixed-variant": "#5f3f34",
+            "secondary-fixed-dim": "#eabcae",
+            "outline-variant": "#d9c2bb",
+            "surface-container-high": "#eae8e3",
+            "on-error-container": "#93000a",
+            "surface-container-highest": "#e4e2dd",
+            "primary-fixed-dim": "#ffb59c",
+            outline: "#86736d",
+            "on-primary-fixed": "#390c00",
+            "secondary-container": "#ffd0c1",
+            "on-tertiary-fixed-variant": "#4b472b",
+            primary: "#8f4c35",
+            "surface-tint": "#8f4c35"
+          },
+          borderRadius: {
+            DEFAULT: "0.25rem",
+            lg: "0.5rem",
+            xl: "0.75rem",
+            full: "9999px"
+          },
+          fontFamily: {
+            headline: ["Noto Serif"],
+            body: ["Manrope"],
+            label: ["Manrope"]
           }
         }
       }
-      `}</Script>
+    };
+  };
+
+  return (
+    <>
+      <Script
+        src="https://cdn.tailwindcss.com?plugins=forms,container-queries"
+        strategy="afterInteractive"
+        onLoad={applyLandingTailwindConfig}
+      />
       <link
         href="https://fonts.googleapis.com/css2?family=Noto+Serif:ital,wght@0,400;0,700;1,400&family=Manrope:wght@400;500;700&display=swap"
         rel="stylesheet"
@@ -337,13 +315,15 @@ export default function LandingPage() {
         href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
         rel="stylesheet"
       />
-      <link href="/css/base.css" rel="stylesheet" />
-      <link href="/css/components.css" rel="stylesheet" />
+      <link href="/css/base.css?v=20260729c" rel="stylesheet" />
+      <link href="/css/components.css?v=20260729c" rel="stylesheet" />
       <div
+        id="landing-root"
         className="min-h-screen selection:bg-[#e9967a] selection:text-[#682e19]"
         style={{ backgroundColor: "#fbf9f4", color: "#1b1c19" }}
         dangerouslySetInnerHTML={{ __html: landingHtml }}
       />
+      <LandingMobileMenu />
       {langSlot ? createPortal(<MarketingLanguageSelector />, langSlot) : null}
     </>
   );

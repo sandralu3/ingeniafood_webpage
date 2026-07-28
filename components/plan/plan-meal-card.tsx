@@ -27,6 +27,10 @@ export type PlanMeal = {
   calories?: number;
   /** Calorías estimadas de la receta */
   kcal?: number;
+  proteinGrams?: number;
+  carbsGrams?: number;
+  fatGrams?: number;
+  ingredientNames?: string[];
   hasVegetables?: boolean;
   hasProtein?: boolean;
   isAirfryer?: boolean;

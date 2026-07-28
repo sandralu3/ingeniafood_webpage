@@ -21,6 +21,10 @@ import {
 } from "@/lib/auth/pending-email-confirmation-token";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import { translateSupabaseAuthError } from "@/lib/auth/translate-supabase-auth-error";
+import {
+  clearStashedReferralCode,
+  readStashedReferralCode
+} from "@/lib/referral/referral";
 
 const REDIRECT_DELAY_MS = 2000;
 const CONFIRMATION_LINK_EXPIRED_MESSAGE =
@@ -142,6 +146,13 @@ function ConfirmEmailForm() {
       const {
         data: { session }
       } = await supabase.auth.getSession();
+
+      if (session?.user?.id) {
+        const referralCode = readStashedReferralCode();
+        if (referralCode) {
+          clearStashedReferralCode();
+        }
+      }
 
       const nextPath = resolveEmailConfirmationDestination(pendingToken.nextPath);
       setDestinationPath(session ? nextPath : "/login?verified=1");

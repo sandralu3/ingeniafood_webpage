@@ -105,16 +105,12 @@ export function DailyChallenges({
   };
 
   const completedCount = challenges.filter((challenge) => completed[challenge.id]).length;
-  const pointsToday = challenges.reduce(
-    (sum, challenge) => sum + (completed[challenge.id] ? challenge.points : 0),
-    0
-  );
   const showSkeleton = isLoading && challenges.length === 0;
 
   return (
     <HoySection
       className={className}
-      title={t("dailyChallenges")}
+      title={t.has("dailyHabits") ? t("dailyHabits") : t("dailyChallenges")}
       meta={
         !showSkeleton && challenges.length > 0 ? (
           <span className="text-[11px] font-medium normal-case tracking-normal text-stone-500">
@@ -123,19 +119,12 @@ export function DailyChallenges({
         ) : null
       }
       action={
-        <>
-          {challenges.length > 0 ? (
-            <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-900">
-              +{pointsToday} pts
-            </span>
-          ) : null}
-          <Link
-            href={APP_ROUTES.retos}
-            className="text-[10px] font-semibold text-[#556B2F] transition hover:text-[#3e5219]"
-          >
-            {t("edit")}
-          </Link>
-        </>
+        <Link
+          href={APP_ROUTES.retos}
+          className="text-[10px] font-semibold text-[#556B2F] transition hover:text-[#3e5219]"
+        >
+          {t("edit")}
+        </Link>
       }
     >
       {errorMessage ? (
@@ -224,15 +213,6 @@ export function DailyChallenges({
                         </span>
                       ) : null}
                     </span>
-
-                    <span
-                      className={cn(
-                        "shrink-0 text-[10px] font-bold tabular-nums",
-                        isDone ? "text-[#556B2F]/70" : "text-amber-800"
-                      )}
-                    >
-                      +{challenge.points}
-                    </span>
                   </button>
 
                   <button
@@ -257,10 +237,7 @@ export function DailyChallenges({
 
                 {isFocused ? (
                   <p className="mt-1.5 rounded-md bg-white/75 px-2 py-1.5 text-[10px] leading-snug text-stone-600">
-                    {translateChallengeImportance(challenge, tRetos)}{" "}
-                    <span className="font-semibold text-[#556B2F]">
-                      {t("pointsTodaySuffix", { points: challenge.points })}
-                    </span>
+                    {translateChallengeImportance(challenge, tRetos)}
                   </p>
                 ) : null}
               </li>

@@ -49,6 +49,14 @@ export function CustomChallengeModal({
     onSubmit(value);
   };
 
+  const subtitle = isEditMode
+    ? t.has("modalEditSubtitlePremium")
+      ? t("modalEditSubtitlePremium")
+      : t("modalEditSubtitle")
+    : t.has("modalCreateSubtitlePremium")
+      ? t("modalCreateSubtitlePremium")
+      : t("modalCreateSubtitle");
+
   return (
     <div className="fixed inset-0 z-[150] flex items-end justify-center bg-black/40 px-0 backdrop-blur-[2px] sm:items-center sm:px-4">
       <div
@@ -65,9 +73,7 @@ export function CustomChallengeModal({
             <h2 id="custom-challenge-title" className="mt-1 font-serif text-xl font-semibold text-stone-900">
               {isEditMode ? t("modalEditTitle") : t("modalCreateTitle")}
             </h2>
-            <p className="mt-1 text-xs text-stone-500">
-              {isEditMode ? t("modalEditSubtitle") : t("modalCreateSubtitle")}
-            </p>
+            <p className="mt-1 text-xs text-stone-500">{subtitle}</p>
           </div>
           <button
             type="button"

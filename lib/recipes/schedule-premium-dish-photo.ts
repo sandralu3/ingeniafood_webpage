@@ -1,10 +1,6 @@
 import { after } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin";
-import { canGenerateOpenAiDishPhoto } from "@/lib/recipes/can-generate-openai-dish-photo";
-import {
-  refundOpenAiPhotoCredit,
-  tryConsumeOpenAiPhotoCredit
-} from "@/lib/recipes/openai-photo-credits";
+import { resolveDishPhotoAccess } from "@/lib/billing/premium-feature-access";
 import {
   generatePremiumDishPhoto,
   type GenerateRecipeImageInput
@@ -16,34 +12,21 @@ export type SchedulePremiumDishPhotoInput = GenerateRecipeImageInput & {
 };
 
 /**
- * Programa foto OpenAI: 1 crédito por tester. Consume antes de llamar; reembolsa si falla.
+ * Programa foto OpenAI en background (solo Premium / Stripe).
  */
 export function schedulePremiumDishPhoto(input: SchedulePremiumDishPhotoInput): void {
   const { recipeId, userEmail, ...dishInput } = input;
 
   after(async () => {
-    let creditConsumed = false;
     try {
       const admin = getSupabaseAdminClient();
-      const allowed = await canGenerateOpenAiDishPhoto(
-        admin,
-        dishInput.userId,
-        userEmail
-      );
-      if (!allowed) {
+      const access = await resolveDishPhotoAccess(admin, dishInput.userId, userEmail);
+
+      if (!access.allowed) {
         console.info("[dish-photo:after] OpenAI no llamado", {
           recipeId,
           userId: dishInput.userId,
-          reason: "sin permiso, sin créditos o kill-switch"
-        });
-        return;
-      }
-
-      creditConsumed = await tryConsumeOpenAiPhotoCredit(dishInput.userId);
-      if (!creditConsumed) {
-        console.info("[dish-photo:after] Sin créditos OpenAI", {
-          recipeId,
-          userId: dishInput.userId
+          reason: access.reason
         });
         return;
       }
@@ -58,7 +41,6 @@ export function schedulePremiumDishPhoto(input: SchedulePremiumDishPhotoInput): 
           provider: result.provider,
           error: result.error
         });
-        await refundOpenAiPhotoCredit(dishInput.userId);
         return;
       }
 
@@ -70,13 +52,9 @@ export function schedulePremiumDishPhoto(input: SchedulePremiumDishPhotoInput): 
 
       if (error) {
         console.error("[dish-photo:after] No se pudo actualizar image_url:", error.message);
-        await refundOpenAiPhotoCredit(dishInput.userId);
       }
     } catch (error) {
       console.error("[dish-photo:after] Fallo en segundo plano:", error);
-      if (creditConsumed) {
-        await refundOpenAiPhotoCredit(dishInput.userId);
-      }
     }
   });
 }

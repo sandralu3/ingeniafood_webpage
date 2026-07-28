@@ -5,6 +5,9 @@ export type PlanDaySlots = Record<MealType, PlanMeal | null>;
 
 export type PlanDayNutritionSummary = {
   totalKcal: number;
+  totalProteinGrams: number;
+  totalCarbsGrams: number;
+  totalFatGrams: number;
   plannedMealCount: number;
   hasVegetables: boolean;
   hasProtein: boolean;

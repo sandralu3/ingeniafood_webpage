@@ -85,8 +85,10 @@ type GenerateRecipePayload = {
   complexity?: string;
   /** Idioma de interfaz / salida de la receta (es | en). */
   locale?: string;
-  /** Consentimiento explícito del tester para gastar 1 crédito de foto OpenAI. */
+  /** Consentimiento para foto OpenAI (Premium ilimitado o Free con gasto de créditos). */
   useDishPhoto?: boolean;
+  /** Idea orientativa del coach nutricional / usuario (opcional). */
+  recipeIdea?: string;
 };
 
 type GeminiRecipe = {
@@ -490,6 +492,13 @@ export async function POST(request: Request) {
     const selectedList = selectedIngredients.join(", ");
     const configuredModel = process.env.GOOGLE_GENERATIVE_AI_MODEL?.trim();
     const modelCandidates = buildModelCandidates(configuredModel);
+    const recipeIdea =
+      typeof body.recipeIdea === "string" ? body.recipeIdea.trim().slice(0, 160) : "";
+    const recipeIdeaClause = recipeIdea
+      ? `IDEA ORIENTATIVA DEL COACH/USUARIO: "${recipeIdea}". ` +
+        "Genera una receta que encaje con esa idea usando los ingredientes seleccionados como base principal. " +
+        "El título debe reflejar la idea de forma realista y apetitosa, sin inventar ingredientes principales fuera de la lista."
+      : "";
 
     const manualClause = selectedIngredients.length
       ? `Usa como base OBLIGATORIA y PRINCIPAL los ingredientes seleccionados manualmente: [${selectedList}]. La receta debe girar en torno a ellos. Combínalos de forma coherente con lo visible en la imagen (si aplica). NO sustituyas ni añadas ingredientes principales ajenos a esta lista.`
@@ -502,6 +511,7 @@ export async function POST(request: Request) {
       ingredientQuantityRule +
       MACRO_ESTIMATION_RULE +
       `${filtersPromptClause}\n\n${mealTypeCompatibilityClause}\n\n${mealTypePantryClause}\n\n` +
+      (recipeIdeaClause ? `${recipeIdeaClause}\n\n` : "") +
       "Solo JSON valido. Entrega receta saludable y rapida. Formato esperado: { \"titulo\": \"\", \"tiempo_preparacion\": \"X min\", \"ingredientes_detallados\": [], \"ingredientes_estructurados\": [], \"pasos_ordenados\": [], \"tip_sandra\": \"\", \"etiquetas\": [], \"advertencia_ingredientes\": \"\", \"macronutrientes\": {\"proteinas_g\": 0, \"carbohidratos_g\": 0, \"grasas_g\": 0, \"calorias\": 0} }. " +
       "advertencia_ingredientes: opcional; texto breve (en el idioma de salida) si hace falta avisar de complementos no escaneados. Si no aplica, usa \"\". " +
       "ETIQUETAS (campo etiquetas): array de 0 a 3 strings. Valores permitidos SOLO: \"Sin Harinas\", \"Apto para Airfryer\", \"Alto en Proteína\". " +
@@ -790,8 +800,15 @@ export async function POST(request: Request) {
       }
     }
 
-    // Imágenes (banco u OpenAI) solo para Premium de pago. Free/trial: ninguna.
-    const canUseDishImages = premiumAccess.isPaidPremium;
+    // Banco de fotos: Premium de pago. Free solo si va a generar foto OpenAI con créditos.
+    const userWantsDishPhoto = body.useDishPhoto === true;
+    const eligibleForDishPhoto = await canGenerateOpenAiDishPhoto(
+      supabase,
+      user.id,
+      user.email
+    );
+    const canGenerateDishPhoto = userWantsDishPhoto && eligibleForDishPhoto;
+    const canUseDishImages = premiumAccess.isPaidPremium || canGenerateDishPhoto;
 
     let referenceImageUrl: string | null = null;
     if (canUseDishImages) {
@@ -819,15 +836,6 @@ export async function POST(request: Request) {
       tipSandra: safeRecipe.tip_sandra
     };
 
-    // Foto OpenAI solo si el tester confirmó gastar el crédito.
-    const userWantsDishPhoto = body.useDishPhoto === true;
-    const eligibleForDishPhoto = await canGenerateOpenAiDishPhoto(
-      supabase,
-      user.id,
-      user.email
-    );
-    const canGenerateDishPhoto = userWantsDishPhoto && eligibleForDishPhoto;
-
     if (!canGenerateDishPhoto && process.env.NODE_ENV !== "production") {
       const enabled = process.env.OPENAI_DISH_PHOTOS_ENABLED?.trim().toLowerCase();
       console.info("[generate-recipe] Foto OpenAI no programada", {
@@ -840,7 +848,7 @@ export async function POST(request: Request) {
             ? "El usuario no confirmó usar el crédito de foto."
             : enabled !== "true" && enabled !== "1"
               ? "Activa OPENAI_DISH_PHOTOS_ENABLED=true en .env.local y reinicia el servidor."
-              : "Revisa is_tester + créditos + suscripción Stripe (o is_premium)."
+              : "Revisa saldo de créditos (Free) o suscripción Premium."
       });
     }
 
@@ -866,7 +874,7 @@ export async function POST(request: Request) {
         stringsToStructuredIngredients(safeRecipe.ingredientes_detallados)
       );
 
-      // Auto-guardar solo Premium: after() necesita un row para actualizar image_url.
+      // Auto-guardar (Premium ilimitado o Free con gasto de créditos): after() actualiza image_url.
       const saveResult = await saveGeneratedRecipeToLibrary(supabase, {
         userId: user.id,
         title: safeRecipe.titulo,

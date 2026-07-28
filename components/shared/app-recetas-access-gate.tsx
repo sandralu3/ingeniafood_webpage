@@ -13,6 +13,10 @@ import {
 import { prefetchInstagramCatalog } from "@/lib/recipes/prefetch-instagram-catalog";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
 import { createSupabaseClient } from "@/lib/supabaseClient";
+import {
+  clearStashedReferralCode,
+  readStashedReferralCode
+} from "@/lib/referral/referral";
 import { Header } from "@/components/shared/header";
 import { BottomNav } from "@/components/shared/bottom-nav";
 
@@ -215,6 +219,11 @@ export function AppRecetasAccessGate({ children }: { children: React.ReactNode }
 
     void prefetchHoyPageData({ userId: authenticatedUserId });
     void prefetchInstagramCatalog();
+
+    const referralCode = readStashedReferralCode();
+    if (!referralCode) return;
+    // Referral stash cleared without credit awards (subscription model).
+    clearStashedReferralCode();
   }, [authState, authenticatedUserId]);
 
   useEffect(() => {

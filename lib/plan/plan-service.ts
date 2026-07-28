@@ -3,6 +3,7 @@ import {
   formatWeekDateLabel,
   getDateForWeekDay,
   getMondayOfWeek,
+  getWeekDayFromDate,
   isSameCalendarDay,
   toISODateString
 } from "@/lib/plan/week-utils";
@@ -327,6 +328,7 @@ export async function assignRecipeToPlan(params: {
   }
 
   const [enrichedRow] = await enrichPlanRowsWithNutrition([data as PlanRowWithRecipe]);
+
   return toPlanMeal(enrichedRow);
 }
 
@@ -387,4 +389,78 @@ export async function removePlanMeal(params: {
   }
 
   return true;
+}
+
+/**
+ * Rellena los 3 slots del día (desayuno/almuerzo/cena) con recetas sugeridas.
+ * Solo escribe en slots vacíos salvo `forceReplace`.
+ */
+export async function fillTodayPlanWithSuggestions(params: {
+  userId: string;
+  forceReplace?: boolean;
+}): Promise<{ assigned: number; dayLabel: WeekDay }> {
+  const supabase = createSupabaseClient();
+  const today = new Date();
+  today.setHours(12, 0, 0, 0);
+  const dayLabel = getWeekDayFromDate(today);
+  const semanaInicio = toISODateString(getMondayOfWeek(today));
+
+  const { data: existingRows, error: existingError } = await supabase
+    .from("plan_semanal")
+    .select("id, tipo_comida, recipe_id")
+    .eq("user_id", params.userId)
+    .eq("semana_inicio", semanaInicio)
+    .eq("dia_semana", dayLabel);
+
+  if (existingError) {
+    console.error("[plan] Error leyendo plan de hoy:", existingError);
+    throw existingError;
+  }
+
+  const filledTypes = new Set(
+    (existingRows ?? [])
+      .filter((row) => row.recipe_id)
+      .map((row) => mapMealType(row.tipo_comida as string))
+  );
+
+  const slotsToFill = MEAL_TYPES.filter(
+    (mealType) => params.forceReplace || !filledTypes.has(mealType)
+  );
+  if (slotsToFill.length === 0) {
+    return { assigned: 0, dayLabel };
+  }
+
+  const { data: recipes, error: recipesError } = await supabase
+    .from("recipes")
+    .select("id, title, description, instructions, image_url, cooking_time")
+    .or(`user_id.eq.${params.userId},is_public.eq.true`)
+    .limit(80);
+
+  if (recipesError || !recipes?.length) {
+    console.error("[plan] Error buscando recetas para menú del día:", recipesError);
+    throw recipesError ?? new Error("No hay recetas disponibles");
+  }
+
+  const usedIds = new Set<string>(
+    (existingRows ?? []).map((row) => row.recipe_id).filter(Boolean) as string[]
+  );
+  let assigned = 0;
+
+  for (const mealType of slotsToFill) {
+    const available = recipes.filter((recipe) => !usedIds.has(recipe.id));
+    const recipe = pickRandomRecipe(available, mealType, "");
+    if (!recipe) continue;
+
+    usedIds.add(recipe.id);
+    const meal = await assignRecipeToPlan({
+      userId: params.userId,
+      diaSemana: dayLabel,
+      tipoComida: mealType,
+      recipeId: recipe.id,
+      semanaInicioISO: semanaInicio
+    });
+    if (meal) assigned += 1;
+  }
+
+  return { assigned, dayLabel };
 }

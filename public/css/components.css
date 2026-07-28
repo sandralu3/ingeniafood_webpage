@@ -1,3 +1,145 @@
+/* Landing marketing: visible without JS / CDN Tailwind */
+
+/* Scroll reveal: never hide content (cached CSS used to set opacity:0). */
+.reveal-on-scroll,
+.reveal-on-scroll.is-visible {
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .reveal-on-scroll {
+    transition:
+      opacity 0.7s ease,
+      transform 0.7s ease;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal-on-scroll {
+    transition: none;
+  }
+}
+
+/*
+ * Mobile drawer: do NOT rely on Tailwind CDN utilities.
+ * If translate-x-full is missing, the closed drawer used to sit on top of the
+ * hamburger and swallow clicks.
+ */
+#site-nav {
+  z-index: 60;
+}
+
+/* Legacy string-based menu (replaced by React LandingMobileMenu). */
+#mobile-menu-toggle,
+#mobile-drawer,
+#mobile-drawer-backdrop,
+#landing-mobile-menu-root {
+  display: none !important;
+}
+
+.landing-mobile-menu-root {
+  display: contents;
+}
+
+.landing-mobile-menu-toggle {
+  position: fixed;
+  top: 1.25rem;
+  right: 1rem;
+  z-index: 70;
+  display: inline-flex;
+  height: 2.5rem;
+  width: 2.5rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+  border: 1px solid #d6d3d1;
+  background: #ffffff;
+  color: #44403c;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.landing-mobile-menu-toggle.is-open {
+  visibility: hidden;
+  pointer-events: none;
+  opacity: 0;
+}
+
+@media (min-width: 768px) {
+  .landing-mobile-menu-root,
+  .landing-mobile-menu-toggle,
+  .landing-mobile-drawer,
+  .landing-mobile-backdrop {
+    display: none !important;
+  }
+}
+
+.landing-mobile-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 65;
+  border: 0;
+  background: rgba(0, 0, 0, 0.3);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.landing-mobile-backdrop.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.landing-mobile-drawer {
+  position: fixed;
+  inset: 0.75rem 0.75rem 0.75rem auto;
+  z-index: 66;
+  width: min(calc(100vw - 1.5rem), 20rem);
+  max-height: calc(100dvh - 1.5rem);
+  overflow: auto;
+  background: #fdfcfb;
+  border-radius: 1.25rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  transform: translateX(calc(100% + 1rem));
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    transform 0.25s ease,
+    visibility 0.25s ease;
+}
+
+.landing-mobile-drawer.is-open {
+  transform: translateX(0);
+  visibility: visible;
+  pointer-events: auto;
+}
+
+/* Semantic color fallbacks when CDN Tailwind has not hydrated yet */
+.bg-surface {
+  background-color: #fbf9f4;
+}
+.bg-surface-container-low {
+  background-color: #f5f3ee;
+}
+.bg-surface-container-high {
+  background-color: #eae8e3;
+}
+.text-on-background {
+  color: #1b1c19;
+}
+.text-on-surface {
+  color: #1b1c19;
+}
+.text-on-surface-variant {
+  color: #53433e;
+}
+.text-on-tertiary-fixed {
+  color: #1f1c04;
+}
+.text-on-tertiary-container {
+  color: #444024;
+}
+
 .material-symbols-outlined {
   font-variation-settings:
     "FILL" 0,
@@ -13,31 +155,6 @@
 .glass-nav {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-}
-
-/* Scroll reveal: siempre visible (sin depender de JS). Animación opcional al entrar. */
-.reveal-on-scroll {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.reveal-on-scroll.is-visible {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .reveal-on-scroll {
-    transition:
-      opacity 0.7s ease,
-      transform 0.7s ease;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .reveal-on-scroll {
-    transition: none;
-  }
 }
 
 /* Enlace de navegación con spy de sección */

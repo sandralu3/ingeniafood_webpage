@@ -2,10 +2,11 @@ import {
   isRetiredSystemChallenge,
   getTodayDateString
 } from "@/lib/gamification/challenges";
+import { invalidatePremiumInsightsCache } from "@/lib/premium-stories/stories-cache";
 import type { HoyPageData } from "@/lib/gamification/hoy-page-data";
 
 /** Bump when HoyPageData shape changes so soft-nav never hydrates stale payloads. */
-const HOY_CACHE_PREFIX = "ingeniafood_hoy_data_v2";
+const HOY_CACHE_PREFIX = "ingeniafood_hoy_data_v7";
 
 function buildCacheKey(userId: string): string {
   return `${HOY_CACHE_PREFIX}_${userId}_${getTodayDateString()}`;
@@ -24,7 +25,15 @@ function sanitizeHoyPageData(data: HoyPageData): HoyPageData {
       (id) => !isRetiredSystemChallenge(id)
     ),
     weekCompletions: data.weekCompletions ?? [],
-    streakCompletions: data.streakCompletions ?? data.weekCompletions ?? []
+    streakCompletions: data.streakCompletions ?? data.weekCompletions ?? [],
+    todayPlanNutrition: data.todayPlanNutrition ?? {
+      totalKcal: 0,
+      plannedMealCount: 0,
+      hasVegetables: false,
+      hasProtein: false,
+      hasProteinBreakfast: false
+    },
+    todayPlanMeals: data.todayPlanMeals ?? []
   };
 }
 
@@ -66,8 +75,9 @@ export function clearHoyCache(userId?: string): void {
 
   if (userId) {
     sessionStorage.removeItem(buildCacheKey(userId));
-    // Also drop legacy v1 keys from previous soft-nav sessions.
     sessionStorage.removeItem(`ingeniafood_hoy_data_v1_${userId}_${getTodayDateString()}`);
+    sessionStorage.removeItem(`ingeniafood_hoy_data_v6_${userId}_${getTodayDateString()}`);
+    invalidatePremiumInsightsCache(userId);
     return;
   }
 
@@ -75,9 +85,11 @@ export function clearHoyCache(userId?: string): void {
     const key = sessionStorage.key(index);
     if (
       key?.startsWith(HOY_CACHE_PREFIX) ||
-      key?.startsWith("ingeniafood_hoy_data_v1")
+      key?.startsWith("ingeniafood_hoy_data_v1") ||
+      key?.startsWith("ingeniafood_hoy_data_v6")
     ) {
       sessionStorage.removeItem(key);
     }
   }
+  invalidatePremiumInsightsCache();
 }

@@ -42,7 +42,7 @@ export function HoyScanBannerSkeleton({ className }: { className?: string }) {
 
 function ProgressBoardCardSkeleton() {
   return (
-    <div className="relative flex min-h-[5.5rem] w-full flex-col overflow-hidden rounded-2xl border border-stone-100 bg-white/90 p-2 shadow-sm">
+    <div className="relative flex h-full min-h-[9rem] w-full flex-col overflow-hidden rounded-2xl border border-stone-100 bg-white/90 p-3 shadow-sm sm:p-3.5">
       <Skeleton silent className="absolute inset-x-0 top-0 h-1 rounded-none" />
       <div className="mb-1.5 flex items-start justify-between gap-1.5">
         <Skeleton silent className="h-2.5 w-16 rounded" />
@@ -64,8 +64,8 @@ export function HoyProgressBoardSkeleton({
   return (
     <section className={cn("space-y-2", className)} aria-hidden>
       {showSectionLabel ? <Skeleton silent className="mx-0.5 h-2.5 w-32 rounded" /> : null}
-      <div className="grid grid-cols-2 gap-2.5">
-        {Array.from({ length: 4 }).map((_, index) => (
+      <div className="grid grid-cols-2 items-stretch gap-4">
+        {Array.from({ length: 2 }).map((_, index) => (
           <ProgressBoardCardSkeleton key={index} />
         ))}
       </div>

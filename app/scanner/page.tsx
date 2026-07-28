@@ -19,6 +19,7 @@ import {
   readPendingPlanAssignment,
   type PendingPlanAssignment
 } from "@/lib/plan/plan-pending-assignment";
+import { consumeScannerGenerationSeed } from "@/lib/scanner/scanner-generation-seed";
 import {
   FREE_DEFAULT_COMPLEXITY,
   FREE_DEFAULT_CUISINE_STYLE,
@@ -186,6 +187,12 @@ function resolveErrorMessage(
       "Parece que hay algo en tu despensa que no es un alimento válido. ¡Revisa tus ingredientes seleccionados e inténtalo de nuevo!"
     );
   }
+  if (payload.code === "PREMIUM_REQUIRED" || payload.code === "INSUFFICIENT_CREDITS") {
+    return (
+      payload.error ??
+      "Esta función está disponible solo con Premium."
+    );
+  }
   if (payload.code === "MEAL_TYPE_MISMATCH" || payload.error === "tipo_plato_incompatible") {
     return (
       payload.mensaje ??
@@ -217,7 +224,7 @@ export default function ScannerPage() {
   const tPlan = useTranslations("Plan");
   const locale = useLocale();
   const scannerReset = useScannerReset();
-  const { refresh: refreshPremium, isTester, isPaidPremium, openaiPhotoCredits } = usePremium();
+  const { refresh: refreshPremium, isPaidPremium } = usePremium();
   const dishPhotoChoiceRef = useRef(false);
   const [showPhotoCreditConfirm, setShowPhotoCreditConfirm] = useState(false);
   const [selectedIngredients, setSelectedIngredients] = useState<string[]>([]);
@@ -258,6 +265,12 @@ export default function ScannerPage() {
     null
   );
   const [scannerMode, setScannerMode] = useState<ScannerMode>("pantry");
+  const [coachRecipeIdea, setCoachRecipeIdea] = useState<string | null>(null);
+  const recipeIdeaRef = useRef<string | null>(null);
+  const pendingAutoGenerateRef = useRef(false);
+  const generarRecetaRef = useRef<
+    ((options?: { useDishPhoto?: boolean; ingredientsOverride?: string[]; recipeIdea?: string }) => Promise<void>) | null
+  >(null);
 
   useEffect(() => {
     setPendingPlanAssignment(readPendingPlanAssignment());
@@ -266,7 +279,31 @@ export default function ScannerPage() {
     if (initialMode) {
       setScannerMode(initialMode);
     }
+
+    const seed = consumeScannerGenerationSeed();
+    if (!seed) return;
+
+    setSelectedIngredients(seed.ingredients);
+    setMealTypeFilter(seed.recipeMealType);
+    recipeIdeaRef.current = seed.idea;
+    setCoachRecipeIdea(seed.idea);
+    if (seed.autoGenerate && seed.ingredients.length > 0) {
+      pendingAutoGenerateRef.current = true;
+    }
   }, []);
+
+  useEffect(() => {
+    if (!pendingAutoGenerateRef.current) return;
+    if (selectedIngredients.length === 0) return;
+    pendingAutoGenerateRef.current = false;
+    const timer = window.setTimeout(() => {
+      void generarRecetaRef.current?.({
+        ingredientsOverride: selectedIngredients,
+        recipeIdea: recipeIdeaRef.current ?? undefined
+      });
+    }, 120);
+    return () => window.clearTimeout(timer);
+  }, [selectedIngredients]);
 
   useEffect(() => {
     const loadGenerationsLeft = async () => {
@@ -330,6 +367,9 @@ export default function ScannerPage() {
     setShowMealTypeMismatchAlert(false);
     setMealTypeMismatchMessage(null);
     setSaveSuccessMessage(null);
+    setCoachRecipeIdea(null);
+    recipeIdeaRef.current = null;
+    pendingAutoGenerateRef.current = false;
     setSaveErrorMessage(null);
     setIsRecipeSaved(false);
     setSavedRecipeId(null);
@@ -412,13 +452,20 @@ export default function ScannerPage() {
     setRateLimitSecondsLeft(0);
   };
 
-  const generarReceta = async (options?: { useDishPhoto?: boolean }) => {
+  const generarReceta = async (options?: {
+    useDishPhoto?: boolean;
+    ingredientsOverride?: string[];
+    recipeIdea?: string;
+  }) => {
     if (generationsLeft !== null && generationsLeft <= 0) {
       setShowGenerationsModal(true);
       return;
     }
 
-    if (!selectedIngredients.length && !pantryImageFile) {
+    const ingredientsForRequest = options?.ingredientsOverride ?? selectedIngredients;
+    const recipeIdea = (options?.recipeIdea ?? recipeIdeaRef.current)?.trim() || undefined;
+
+    if (!ingredientsForRequest.length && !pantryImageFile) {
       setErrorMessage(
         "Selecciona al menos un ingrediente o añade una foto de tu nevera o despensa."
       );
@@ -487,13 +534,14 @@ export default function ScannerPage() {
             },
             credentials: "include",
             body: JSON.stringify({
-              selectedIngredients,
+              selectedIngredients: ingredientsForRequest,
               mealType: mealTypeFilter,
               cuisineStyle: cuisineStyleFilter,
               servings: servingsFilter,
               complexity: complexityFilter,
               locale,
               useDishPhoto,
+              ...(recipeIdea ? { recipeIdea } : {}),
               ...(imagePayload ?? {})
             }),
             signal: createFetchSignal()
@@ -772,8 +820,9 @@ export default function ScannerPage() {
           } = await supabase.auth.getUser();
           if (!user) return;
           await completeScanPantryChallengeIfConfigured(user.id);
+          void refreshPremium();
         } catch (error) {
-          console.warn("[scanner] No se pudo sincronizar el reto de escanear despensa:", error);
+          console.warn("[scanner] No se pudo sincronizar reto de escaneo:", error);
         }
       })();
     } catch (err) {
@@ -784,12 +833,10 @@ export default function ScannerPage() {
       );
     }
   };
+  generarRecetaRef.current = generarReceta;
 
   const handleFindRecipes = () => {
-    const shouldAskPhotoCredit =
-      isTester && isPaidPremium && openaiPhotoCredits > 0;
-
-    if (shouldAskPhotoCredit) {
+    if (isPaidPremium) {
       setShowPhotoCreditConfirm(true);
       return;
     }
@@ -969,6 +1016,15 @@ export default function ScannerPage() {
           >
             {t("planningWeekCancel")}
           </button>
+        </div>
+      ) : null}
+
+      {coachRecipeIdea && !recipe && !isLoading ? (
+        <div className="mb-3 shrink-0 rounded-2xl border border-amber-200/70 bg-amber-50/70 px-4 py-3">
+          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-amber-800/70">
+            {t.has("coachIdeaEyebrow") ? t("coachIdeaEyebrow") : "Sugerencia del coach"}
+          </p>
+          <p className="mt-1 text-sm font-semibold text-stone-800">{coachRecipeIdea}</p>
         </div>
       ) : null}
 
@@ -1194,7 +1250,7 @@ export default function ScannerPage() {
             open={showPhotoCreditConfirm}
             onOpenChange={setShowPhotoCreditConfirm}
             title={t("photoCreditConfirmTitle")}
-            description={t("photoCreditConfirmDescription")}
+            description={t("photoCreditConfirmDescriptionPremium")}
             confirmLabel={t("photoCreditConfirmYes")}
             cancelLabel={t("photoCreditConfirmNo")}
             onConfirm={() => {

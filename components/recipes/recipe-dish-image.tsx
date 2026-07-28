@@ -82,16 +82,16 @@ export function RecipeDishImage({
     return null;
   }
 
-  // Fotos (OpenAI o banco) solo para Premium de pago. Free/trial: ninguna imagen.
-  if (!isPaidPremium) {
+  // Fotos: Premium de pago (banco + OpenAI) o Free con foto comprada (imageUrl).
+  const showRealImage = Boolean(imageUrl && !realImageFailed);
+  const showGeneratingSkeleton = Boolean(isGeneratingPhoto && !showRealImage);
+
+  if (!isPaidPremium && !showRealImage && !showGeneratingSkeleton) {
     return null;
   }
 
-  const effectiveReferenceUrl = referenceImageUrl ?? null;
+  const effectiveReferenceUrl = isPaidPremium ? referenceImageUrl ?? null : null;
   const effectiveRealUrl = imageUrl ?? null;
-
-  const showRealImage = Boolean(effectiveRealUrl && !realImageFailed);
-  const showGeneratingSkeleton = Boolean(isGeneratingPhoto && !showRealImage);
   const showReferenceImage = Boolean(
     effectiveReferenceUrl &&
       !referenceImageFailed &&

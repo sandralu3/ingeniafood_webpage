@@ -130,7 +130,7 @@ export function TodayAchievementsModal({
                   {displayLabel}
                 </p>
                 <p className="text-[10px] text-stone-400">
-                  {isDone ? t("completed") : t("pending")} · +{challenge.points} pts
+                  {isDone ? t("completed") : t("pending")}
                 </p>
               </div>
             </li>
@@ -199,7 +199,7 @@ export function WeeklyProgressModal({
           {maxPoints > 0 ? (
             <span className="text-base font-semibold text-amber-700/80">/{maxPoints}</span>
           ) : null}
-          <span className="ml-1 text-sm font-semibold text-amber-700/80">PTS</span>
+          <span className="ml-1 text-sm font-semibold text-stone-500">pts</span>
         </p>
         <p className="mt-1 text-xs text-amber-800/80">
           {t("weeklyGoalReached", { percentage })}
@@ -207,7 +207,7 @@ export function WeeklyProgressModal({
       </div>
 
       <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.12em] text-stone-400">
-        {t("pointsHistory")}
+        {t("creditsHistory")}
       </p>
       <ul className="space-y-2">
         {dailyPoints.map((day) => (
@@ -333,7 +333,6 @@ export function StreakCalendarModal({
 type NutritionImpactModalProps = {
   open: boolean;
   onClose: () => void;
-  hydration: number;
   vegetables: number;
   protein: number;
   totalKcal?: number;
@@ -344,7 +343,6 @@ type NutritionImpactModalProps = {
 export function NutritionImpactModal({
   open,
   onClose,
-  hydration,
   vegetables,
   protein,
   totalKcal = 0,
@@ -353,13 +351,6 @@ export function NutritionImpactModal({
 }: NutritionImpactModalProps) {
   const t = useTranslations("Hoy");
   const metrics = [
-    {
-      key: "hydration",
-      label: t("hydrationLabel"),
-      value: hydration,
-      color: "bg-sky-400",
-      tip: t("hydrationTip")
-    },
     {
       key: "vegetables",
       label: t("vegetablesLabel"),

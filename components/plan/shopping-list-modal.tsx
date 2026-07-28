@@ -8,7 +8,6 @@ import {
   groupShoppingListByCategory,
   type ShoppingListItem
 } from "@/lib/plan/shopping-list";
-import { cn } from "@/lib/utils";
 
 type ShoppingListModalProps = {
   open: boolean;
@@ -37,9 +36,7 @@ function ShoppingListItemRow({
         ) : null}
         {!item.quantityLabel && item.usedInRecipes > 1 ? (
           <span
-            className={cn(
-              "mt-0.5 block rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-semibold text-stone-500"
-            )}
+            className="mt-0.5 block rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-semibold text-stone-500"
           >
             {usedInMealsLabel}
           </span>
@@ -71,7 +68,6 @@ export function ShoppingListModal({
     [items, t]
   );
   const groupedItems = useMemo(() => groupShoppingListByCategory(items), [items]);
-  const useCompactScroll = items.length > 18;
 
   const handleCopy = async () => {
     if (isCopying || !text.trim()) return;
@@ -113,29 +109,24 @@ export function ShoppingListModal({
           </button>
         </div>
 
-        <div className="flex min-h-0 flex-1 flex-col space-y-4 px-5 py-4">
+        <div className="flex min-h-0 flex-1 flex-col px-5 py-4">
           {errorMessage ? (
-            <p className="shrink-0 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+            <p className="mb-4 shrink-0 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
               {errorMessage}
             </p>
           ) : null}
 
           {isLoading ? (
-            <div className="flex items-center gap-2 rounded-2xl border border-stone-100 bg-stone-50/70 px-4 py-4 text-sm text-stone-600">
+            <div className="mb-4 flex shrink-0 items-center gap-2 rounded-2xl border border-stone-100 bg-stone-50/70 px-4 py-4 text-sm text-stone-600">
               <Loader2 className="h-4 w-4 animate-spin" />
               {t("generatingShoppingList")}
             </div>
           ) : null}
 
           {!isLoading ? (
-            <div
-              className={cn(
-                "min-h-0 rounded-2xl border border-stone-100 bg-gradient-to-b from-stone-50/80 to-stone-50/40 px-3 py-3",
-                useCompactScroll ? "max-h-[min(68vh,640px)] overflow-y-auto" : "overflow-visible"
-              )}
-            >
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain rounded-2xl border border-stone-100 bg-gradient-to-b from-stone-50/80 to-stone-50/40 px-3 py-3 [-webkit-overflow-scrolling:touch]">
               {items.length ? (
-                <div className="space-y-4">
+                <div className="space-y-4 pb-1">
                   {groupedItems.map((group) => (
                     <section key={group.category.id}>
                       <div className="mb-2 flex items-center gap-2 px-1">
@@ -171,7 +162,7 @@ export function ShoppingListModal({
             type="button"
             onClick={() => void handleCopy()}
             disabled={isLoading || !items.length || isCopying}
-            className="flex w-full shrink-0 items-center justify-center gap-2 rounded-2xl bg-[#4c6633] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#3e5219] disabled:cursor-not-allowed disabled:opacity-60"
+            className="mt-4 flex w-full shrink-0 items-center justify-center gap-2 rounded-2xl bg-[#4c6633] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#3e5219] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isCopying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Copy className="h-4 w-4" />}
             {isCopying ? t("copying") : t("copyList")}

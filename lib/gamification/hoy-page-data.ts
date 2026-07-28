@@ -8,8 +8,11 @@ import {
 import { calculateWeeklyHealthMetrics, type WeeklyHealthMetrics } from "@/lib/gamification/weekly-metrics";
 import {
   EMPTY_DAY_PLAN_NUTRITION,
-  type DayPlanNutritionSummary
+  buildTodayPlanMealSlots,
+  type DayPlanNutritionSummary,
+  type TodayPlanMealSummary
 } from "@/lib/plan/plan-nutrition";
+import type { MealType } from "@/lib/plan/constants";
 import { fetchWeeklyPlan } from "@/lib/plan/plan-service";
 import { getMondayOfWeek, toISODateString } from "@/lib/plan/week-utils";
 
@@ -23,6 +26,7 @@ export type HoyPageData = {
   weekCompletions: Array<{ reto_id: string; completado_at: string }>;
   streakCompletions: Array<{ reto_id: string; completado_at: string }>;
   todayPlanNutrition: DayPlanNutritionSummary;
+  todayPlanMeals: Array<{ mealType: MealType; meal: TodayPlanMealSummary | null }>;
 };
 
 type InflightRequest = {
@@ -81,6 +85,7 @@ async function loadHoyPageData(userId: string): Promise<HoyPageData> {
   const todayPlanDay = weeklyPlan.days.find((day) => day.isToday);
   const todayPlanNutrition: DayPlanNutritionSummary =
     todayPlanDay?.nutrition ?? EMPTY_DAY_PLAN_NUTRITION;
+  const todayPlanMeals = buildTodayPlanMealSlots(todayPlanDay?.slots);
 
   const metrics = calculateWeeklyHealthMetrics({
     activeChallenges,
@@ -100,6 +105,7 @@ async function loadHoyPageData(userId: string): Promise<HoyPageData> {
     todayCompletedIds,
     weekCompletions,
     streakCompletions,
-    todayPlanNutrition
+    todayPlanNutrition,
+    todayPlanMeals
   };
 }

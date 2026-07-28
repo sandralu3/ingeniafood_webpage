@@ -115,8 +115,8 @@ export function LanguageSelector({
   };
 
   return (
-    <div ref={rootRef} className={cn("relative space-y-2", className)}>
-      <label htmlFor="language-trigger" className="text-sm font-medium text-stone-600">
+    <div ref={rootRef} className={cn("relative space-y-1", className)}>
+      <label htmlFor="language-trigger" className="text-[11px] font-medium text-stone-600">
         {t("language")}
       </label>
 
@@ -129,21 +129,21 @@ export function LanguageSelector({
         aria-controls={listboxId}
         onClick={() => setOpen((current) => !current)}
         className={cn(
-          "flex h-11 w-full items-center gap-2.5 rounded-xl border border-stone-200 bg-white px-3 text-left text-sm text-stone-800 shadow-sm shadow-stone-100/40 transition",
+          "flex h-9 w-full items-center gap-2 rounded-lg border border-stone-200 bg-white px-2.5 text-left text-[12px] text-stone-800 shadow-sm shadow-stone-100/40 transition",
           "hover:border-stone-300 focus:border-[#4c6633]/35 focus:outline-none focus:ring-2 focus:ring-[#4c6633]/10",
           "disabled:cursor-not-allowed disabled:opacity-60"
         )}
       >
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#eef4e6] text-[#4c6633]">
-          <Globe2 className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden />
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#eef4e6] text-[#4c6633]">
+          <Globe2 className="h-3 w-3" strokeWidth={1.75} aria-hidden />
         </span>
         <span className="min-w-0 flex-1 truncate font-medium">{selected.nativeLabel}</span>
         {isPending ? (
-          <Loader2 className="h-4 w-4 shrink-0 animate-spin text-stone-400" aria-hidden />
+          <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-stone-400" aria-hidden />
         ) : (
           <ChevronDown
             className={cn(
-              "h-4 w-4 shrink-0 text-stone-400 transition-transform",
+              "h-3.5 w-3.5 shrink-0 text-stone-400 transition-transform",
               open && "rotate-180"
             )}
             strokeWidth={1.75}
@@ -152,7 +152,7 @@ export function LanguageSelector({
         )}
       </button>
 
-      <p className="text-[11px] leading-relaxed text-stone-500">{t("languageHint")}</p>
+      <p className="text-[10px] leading-snug text-stone-500">{t("languageHint")}</p>
 
       {open ? (
         <ul

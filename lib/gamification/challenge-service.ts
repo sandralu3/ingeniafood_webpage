@@ -37,7 +37,7 @@ function mapCustomChallenge(row: CustomChallengeRow): DailyChallenge {
   return {
     id: row.id,
     label: row.titulo,
-    points: row.puntos,
+    points: Math.max(0, row.puntos ?? CUSTOM_CHALLENGE_DEFAULT_POINTS),
     source: "custom"
   };
 }
@@ -243,7 +243,7 @@ export async function createCustomChallenge(params: {
     .insert({
       user_id: params.userId,
       titulo,
-      puntos: params.puntos ?? CUSTOM_CHALLENGE_DEFAULT_POINTS
+      puntos: Math.max(0, params.puntos ?? CUSTOM_CHALLENGE_DEFAULT_POINTS)
     })
     .select("id, titulo, puntos, created_at")
     .single();
@@ -283,7 +283,7 @@ export async function updateCustomChallenge(params: {
 
   const payload: { titulo: string; puntos?: number } = { titulo };
   if (typeof params.puntos === "number") {
-    payload.puntos = params.puntos;
+    payload.puntos = Math.max(0, params.puntos);
   }
 
   const { data, error } = await supabase

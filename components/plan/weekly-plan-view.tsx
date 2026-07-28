@@ -21,6 +21,7 @@ import { buildShoppingListItems, type ShoppingListItem } from "@/lib/plan/shoppi
 import { fetchWeeklyPlanRecipesForShoppingList } from "@/lib/plan/shopping-list-service";
 import { summarizeDayPlanNutrition } from "@/lib/plan/plan-nutrition";
 import { clearHoyCache } from "@/lib/gamification/hoy-cache";
+import { invalidatePremiumInsightsCache } from "@/lib/premium-stories/stories-cache";
 import type { PlanDay, PlanDaySlots } from "@/lib/plan/types";
 import {
   addDays,
@@ -250,6 +251,7 @@ export function WeeklyPlanView() {
       );
 
       clearHoyCache(userId);
+      invalidatePremiumInsightsCache(userId);
 
       setSelectedDay(pickerTarget.dayLabel);
       setSwapNotice(
@@ -280,7 +282,10 @@ export function WeeklyPlanView() {
           : day
       )
     );
-    if (userId) clearHoyCache(userId);
+    if (userId) {
+      clearHoyCache(userId);
+      invalidatePremiumInsightsCache(userId);
+    }
     setSwapNotice(t("recipeSwapped", { title: updatedMeal.title }));
     window.setTimeout(() => setSwapNotice(null), 2800);
   };
@@ -301,7 +306,10 @@ export function WeeklyPlanView() {
           : day
       )
     );
-    if (userId) clearHoyCache(userId);
+    if (userId) {
+      clearHoyCache(userId);
+      invalidatePremiumInsightsCache(userId);
+    }
 
     setSwapNotice(
       t("recipeRemoved", {

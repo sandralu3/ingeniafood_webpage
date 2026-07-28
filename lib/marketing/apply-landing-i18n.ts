@@ -84,7 +84,7 @@ export function applyLandingI18n(rawHtml: string, copy: MarketingCopy): string {
     `<img alt="${copy.logoAlt}" class="h-7 w-auto sm:h-8 shrink-0 object-contain" loading="lazy" src="/icons/icon-96.png"/>`
   );
 
-  // Slot del selector de idioma junto al CTA / menú móvil.
+  // Slot del selector de idioma + root React del menú móvil.
   html = html.replace(
     /<div class="hidden md:flex items-center gap-4">\s*<a class="inline-flex items-center justify-center bg-\[#e9967a\][\s\S]*?<\/a>\s*<\/div>\s*<button aria-controls="mobile-drawer"/,
     `<div class="flex items-center gap-2 sm:gap-3 shrink-0">
@@ -92,7 +92,8 @@ export function applyLandingI18n(rawHtml: string, copy: MarketingCopy): string {
 <div class="hidden md:flex items-center gap-4">
 <a class="inline-flex items-center justify-center bg-[#e9967a] text-[#682e19] px-5 py-2 rounded-lg font-bold text-sm hover:scale-95 transition-transform duration-200 ease-in-out text-center" href="#preview">${copy.ctaGuide}</a>
 </div>
-<button aria-controls="mobile-drawer"`
+<div id="landing-mobile-menu-root" class="md:hidden shrink-0"></div>
+<button aria-controls="mobile-drawer" hidden tabindex="-1" aria-hidden="true" class="hidden"`
   );
 
   // Cierra el wrapper flex añadido (antes de cerrar #site-nav-inner).

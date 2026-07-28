@@ -7,6 +7,7 @@ import {
   isValidCustomIngredientName
 } from "@/lib/pantry/validation";
 import type { MasterIngredient, PantryCategoryDb, PantryFavorite } from "@/lib/pantry/types";
+import { invalidatePremiumStoriesCache } from "@/lib/premium-stories/stories-cache";
 
 type FavoriteRow = {
   id: string;
@@ -181,6 +182,7 @@ export function usePantryData(): UsePantryDataResult {
       };
 
       setFavorites((prev) => [...prev, created]);
+      invalidatePremiumStoriesCache(user.id);
       return created;
     },
     [favorites, masterIngredients]
@@ -263,6 +265,10 @@ export function usePantryData(): UsePantryDataResult {
 
   const removeFavorite = useCallback(async (favoriteId: string): Promise<boolean> => {
     const supabase = createSupabaseClient();
+    const {
+      data: { user }
+    } = await supabase.auth.getUser();
+
     const { error: deleteError } = await supabase
       .from("user_pantry_favorites")
       .delete()
@@ -275,6 +281,7 @@ export function usePantryData(): UsePantryDataResult {
     }
 
     setFavorites((prev) => prev.filter((fav) => fav.favoriteId !== favoriteId));
+    invalidatePremiumStoriesCache(user?.id ?? null);
     return true;
   }, []);
 

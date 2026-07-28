@@ -97,7 +97,11 @@ export function RecipeResultView({
           ) : (
             <Share2 className="h-4 w-4" strokeWidth={2} />
           )}
-          {isGenerating ? t("generatingImage") : t("shareRecipe")}
+          {isGenerating
+            ? t("generatingImage")
+            : t.has("shareRecipe")
+              ? t("shareRecipe")
+              : "Compartir"}
         </button>
 
         {errorMessage ? (

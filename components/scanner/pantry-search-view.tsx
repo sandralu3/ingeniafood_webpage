@@ -124,7 +124,10 @@ export function PantrySearchView({
   onComplexityChange
 }: Props) {
   const t = useTranslations("Scanner");
-  const { isTester, isPaidPremium, openaiPhotoCredits, isLoading: isPremiumLoading } = usePremium();
+  const {
+    isPaidPremium,
+    isLoading: isPremiumLoading
+  } = usePremium();
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const [showSourceModal, setShowSourceModal] = useState(false);
@@ -134,6 +137,8 @@ export function PantrySearchView({
   const scrollBottomPaddingClass = hasBottomNav
     ? "pb-[calc(var(--app-bottom-nav-height)+var(--app-scan-footer-height))]"
     : "pb-28";
+
+  const canUseDishPhoto = isPaidPremium;
 
   useEffect(() => {
     setIsMounted(true);
@@ -621,17 +626,12 @@ export function PantrySearchView({
         )}
       </section>
 
-      {!isPremiumLoading && isTester && isPaidPremium ? (
+      {!isPremiumLoading && canUseDishPhoto ? (
         <div
           role="status"
-          className={cn(
-            "mb-2 rounded-2xl border px-3 py-2.5 text-[11px] leading-snug shadow-sm",
-            openaiPhotoCredits > 0
-              ? "border-[#556B2F]/20 bg-[#F0F4ED] text-[#3e5219]"
-              : "border-stone-200 bg-stone-50 text-stone-500"
-          )}
+          className="mb-2 rounded-2xl border border-[#556B2F]/20 bg-[#F0F4ED] px-3 py-2.5 text-[11px] leading-snug text-[#3e5219] shadow-sm"
         >
-          {openaiPhotoCredits > 0 ? t("photoCreditBanner") : t("photoCreditUsedBanner")}
+          {t("photoCreditBannerPremium")}
         </div>
       ) : null}
 

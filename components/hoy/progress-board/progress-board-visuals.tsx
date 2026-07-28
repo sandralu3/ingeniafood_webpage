@@ -108,16 +108,16 @@ export function ConsistencyDots({ days, className }: ConsistencyDotsProps) {
   return (
     <div className={cn("flex items-center justify-between gap-0.5", className)}>
       {days.map((day) => (
-        <div key={day.isoDate} className="flex flex-col items-center gap-0.5">
+        <div key={day.isoDate} className="flex flex-col items-center gap-px">
           <span
             className={cn(
-              "flex h-4 w-4 items-center justify-center rounded-full border text-[8px] font-bold transition-colors",
+              "flex h-3.5 w-3.5 items-center justify-center rounded-full border text-[7px] font-bold transition-colors",
               day.inCurrentStreak
                 ? "border-orange-300 bg-orange-100 text-orange-700"
                 : day.active
                   ? "border-stone-300 bg-stone-100 text-stone-500"
                   : "border-stone-200 bg-stone-50 text-stone-300",
-              day.isToday && day.inCurrentStreak && "ring-2 ring-orange-200/80 ring-offset-1"
+              day.isToday && day.inCurrentStreak && "ring-1 ring-orange-200/80 ring-offset-0"
             )}
             aria-label={`${day.label}${
               day.inCurrentStreak
@@ -129,7 +129,7 @@ export function ConsistencyDots({ days, className }: ConsistencyDotsProps) {
           >
             {day.active ? <Check className="h-2 w-2" strokeWidth={3} /> : null}
           </span>
-          <span className="text-[8px] font-medium text-stone-400">{day.label}</span>
+          <span className="text-[7px] font-medium leading-none text-stone-400">{day.label}</span>
         </div>
       ))}
     </div>
@@ -175,25 +175,94 @@ export function StreakBadge({
   days,
   activeDaysThisWeek,
   daysLabel,
-  activeThisWeekLabel
+  activeThisWeekLabel,
+  compact = false
 }: {
   days: number;
   activeDaysThisWeek?: number;
   daysLabel: string;
   activeThisWeekLabel?: string;
+  compact?: boolean;
 }) {
   return (
-    <div className="space-y-1">
+    <div className={cn(compact ? "space-y-0.5" : "space-y-1")}>
       <div className="flex items-baseline gap-1">
-        <Flame className="h-3.5 w-3.5 shrink-0 text-orange-500" />
-        <span className={METRIC_NUMBER_CLASS}>{days}</span>
-        <span className="text-[10px] font-medium text-stone-500">{daysLabel}</span>
+        <Flame
+          className={cn("shrink-0 text-orange-500", compact ? "h-3 w-3" : "h-3.5 w-3.5")}
+        />
+        <span className={cn(METRIC_NUMBER_CLASS, compact && "text-xl")}>{days}</span>
+        <span
+          className={cn(
+            "font-medium text-stone-500",
+            compact ? "text-[9px] leading-tight" : "text-[10px]"
+          )}
+        >
+          {daysLabel}
+        </span>
       </div>
       {typeof activeDaysThisWeek === "number" &&
       activeDaysThisWeek > days &&
       activeThisWeekLabel ? (
         <p className="text-[9px] text-stone-400">{activeThisWeekLabel}</p>
       ) : null}
+    </div>
+  );
+}
+
+type StreakCardBodyProps = {
+  days: number;
+  activeDaysThisWeek: number;
+  daysLabel: string;
+  weekDays: WeekConsistencyDay[];
+  motivation: string;
+  weekProgressLabel: string;
+};
+
+/** Contenido denso de la tarjeta Racha: número + motivación + progreso semanal + dots. */
+export function StreakCardBody({
+  days,
+  activeDaysThisWeek,
+  daysLabel,
+  weekDays,
+  motivation,
+  weekProgressLabel
+}: StreakCardBodyProps) {
+  const weekGoal = 7;
+  const progressPct = Math.min(100, Math.round((activeDaysThisWeek / weekGoal) * 100));
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col justify-between gap-1.5">
+      <div className="space-y-1.5">
+        <div className="flex items-baseline gap-1">
+          <Flame className="h-3.5 w-3.5 shrink-0 text-orange-500" />
+          <span className="text-xl font-bold leading-none text-stone-900">{days}</span>
+          <span className="text-[9px] font-medium leading-tight text-stone-500">{daysLabel}</span>
+        </div>
+
+        <p className="line-clamp-2 text-[10px] font-semibold leading-snug text-stone-700">
+          {motivation}
+        </p>
+
+        <div className="space-y-1">
+          <div className="flex items-center justify-between gap-1">
+            <span className="inline-flex items-center rounded-full bg-orange-50 px-1.5 py-0.5 text-[8px] font-semibold text-orange-800 ring-1 ring-orange-100">
+              {weekProgressLabel}
+            </span>
+            <span className="text-[8px] font-semibold tabular-nums text-stone-400">
+              {activeDaysThisWeek}/{weekGoal}
+            </span>
+          </div>
+          <div className="h-1 overflow-hidden rounded-full bg-stone-100">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-orange-300 to-orange-500 transition-[width] duration-500"
+              style={{ width: `${progressPct}%` }}
+              aria-hidden
+            />
+          </div>
+        </div>
+      </div>
+
+      <ConsistencyDots days={weekDays} />
     </div>
   );
 }

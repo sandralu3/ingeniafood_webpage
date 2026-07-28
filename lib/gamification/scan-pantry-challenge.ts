@@ -1,10 +1,6 @@
-import {
-  SCAN_PANTRY_CHALLENGE_ID,
-  SYSTEM_DAILY_CHALLENGES
-} from "@/lib/gamification/challenges";
+import { SCAN_PANTRY_CHALLENGE_ID } from "@/lib/gamification/challenges";
 import {
   completeDailyChallenge,
-  fetchActiveRetoIds,
   fetchTodayCompletedChallengeIds
 } from "@/lib/gamification/challenge-service";
 import { clearHoyCache } from "@/lib/gamification/hoy-cache";
@@ -20,37 +16,23 @@ function isDuplicateCompletionError(error: unknown): boolean {
 }
 
 /**
- * Completa el reto "Escanear tu despensa" si el usuario lo tiene activo
- * en Hoy y aún no lo completó hoy. No-op en cualquier otro caso.
+ * Tras un escaneo exitoso: registra completación oculta para la racha 🔥.
+ * No aparece en hábitos.
  */
 export async function completeScanPantryChallengeIfConfigured(
   userId: string
 ): Promise<boolean> {
   try {
-    const [activeIds, completedIds] = await Promise.all([
-      fetchActiveRetoIds(userId),
-      fetchTodayCompletedChallengeIds(userId)
-    ]);
-
-    if (!activeIds.includes(SCAN_PANTRY_CHALLENGE_ID)) {
-      return false;
-    }
+    const completedIds = await fetchTodayCompletedChallengeIds(userId);
 
     if (completedIds.includes(SCAN_PANTRY_CHALLENGE_ID)) {
       return false;
     }
 
-    const challenge = SYSTEM_DAILY_CHALLENGES.find(
-      (item) => item.id === SCAN_PANTRY_CHALLENGE_ID
-    );
-    if (!challenge) {
-      return false;
-    }
-
     await completeDailyChallenge({
       userId,
-      retoId: challenge.id,
-      points: challenge.points
+      retoId: SCAN_PANTRY_CHALLENGE_ID,
+      points: 0
     });
 
     clearHoyCache(userId);
@@ -63,7 +45,7 @@ export async function completeScanPantryChallengeIfConfigured(
     }
 
     console.warn(
-      "[scan-pantry-challenge] No se pudo completar el reto de escanear despensa:",
+      "[scan-pantry-challenge] No se pudo registrar la racha de escaneo:",
       error
     );
     return false;
