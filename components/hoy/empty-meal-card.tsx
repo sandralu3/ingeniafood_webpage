@@ -179,6 +179,11 @@ export function EmptyMealCard({
   const [paywallOpen, setPaywallOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const seenIdsRef = useRef<string[]>([...excludeRecipeIds]);
+  const remainingMacrosRef = useRef(remainingMacros);
+  const excludeRecipeIdsRef = useRef(excludeRecipeIds);
+
+  remainingMacrosRef.current = remainingMacros;
+  excludeRecipeIdsRef.current = excludeRecipeIds;
 
   const notifyAdded = useCallback(() => {
     const message = t.has("emptyMealAddedToast")
@@ -200,7 +205,7 @@ export function EmptyMealCard({
       try {
         const next = await fetchSuggestion({
           mealType,
-          remainingMacros,
+          remainingMacros: remainingMacrosRef.current,
           excludeRecipeIds: [
             ...seenIdsRef.current,
             ...(opts?.excludeExtra ?? [])
@@ -224,20 +229,53 @@ export function EmptyMealCard({
         setIsRefreshing(false);
       }
     },
-    [mealType, premiumReady, remainingMacros, t, userId]
+    [mealType, premiumReady, t, userId]
   );
 
   useEffect(() => {
-    if (!premiumReady) {
+    if (!premiumReady || !userId) {
       setSuggestion(null);
       setIsLoading(false);
       setIsRefreshing(false);
       return;
     }
-    seenIdsRef.current = [...excludeRecipeIds];
-    setIsLoading(Boolean(userId));
-    void loadSuggestion({ preferAi: false });
-  }, [excludeRecipeIds, loadSuggestion, premiumReady, userId]);
+
+    let cancelled = false;
+    seenIdsRef.current = [...excludeRecipeIdsRef.current];
+    setIsLoading(true);
+    setError(null);
+
+    void (async () => {
+      try {
+        const next = await fetchSuggestion({
+          mealType,
+          remainingMacros: remainingMacrosRef.current,
+          excludeRecipeIds: seenIdsRef.current,
+          preferAi: false
+        });
+        if (cancelled) return;
+        if (next) {
+          seenIdsRef.current = Array.from(
+            new Set([...seenIdsRef.current, next.recipeId])
+          ).slice(-12);
+          setSuggestion(next);
+        }
+      } catch {
+        if (cancelled) return;
+        setError(
+          t.has("emptyMealSuggestError")
+            ? t("emptyMealSuggestError")
+            : "No encontramos una sugerencia ahora."
+        );
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mealType, premiumReady, t, userId]);
 
   const handleRefresh = async (event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();

@@ -295,10 +295,11 @@ function TodayMenuCarousel({
   remainingMacros?: RemainingMacros | null;
   onPlanUpdated?: () => void;
 }) {
-  const ordered = orderSlotsForCarousel(slots);
+  const ordered = useMemo(() => orderSlotsForCarousel(slots), [slots]);
   const t = useTranslations("Hoy");
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [pageCount, setPageCount] = useState(1);
   const [toast, setToast] = useState<{ visible: boolean; message: string }>({
     visible: false,
     message: ""
@@ -325,25 +326,26 @@ function TodayMenuCarousel({
 
     let frame = 0;
 
+    const measurePages = () => {
+      const maxScroll = Math.max(0, node.scrollWidth - node.clientWidth);
+      // Páginas reales de scroll (no 1 dot por tarjeta): evita 3 dots cuando solo hay ~2 vistas.
+      const pages =
+        maxScroll <= 8
+          ? 1
+          : Math.min(ordered.length, Math.max(2, Math.round(maxScroll / Math.max(node.clientWidth * 0.72, 1)) + 1));
+      setPageCount(pages);
+      return { maxScroll, pages };
+    };
+
     const updateActiveIndex = () => {
-      const children = Array.from(node.children) as HTMLElement[];
-      if (children.length === 0) return;
-
-      // El slide activo es el más cercano al centro visible del carrusel.
-      const viewportCenter = node.scrollLeft + node.clientWidth / 2;
-      let nearest = 0;
-      let nearestDistance = Number.POSITIVE_INFINITY;
-
-      children.forEach((child, index) => {
-        const childCenter = child.offsetLeft + child.offsetWidth / 2;
-        const distance = Math.abs(childCenter - viewportCenter);
-        if (distance < nearestDistance) {
-          nearestDistance = distance;
-          nearest = index;
-        }
-      });
-
-      setActiveIndex((prev) => (prev === nearest ? prev : nearest));
+      const { maxScroll, pages } = measurePages();
+      if (pages <= 1 || maxScroll <= 0) {
+        setActiveIndex(0);
+        return;
+      }
+      const progress = Math.min(1, Math.max(0, node.scrollLeft / maxScroll));
+      const next = Math.min(pages - 1, Math.round(progress * (pages - 1)));
+      setActiveIndex((prev) => (prev === next ? prev : next));
     };
 
     const onScroll = () => {
@@ -367,9 +369,14 @@ function TodayMenuCarousel({
   const scrollToIndex = (index: number) => {
     const node = scrollerRef.current;
     if (!node) return;
-    const child = node.children[index] as HTMLElement | undefined;
-    if (!child) return;
-    node.scrollTo({ left: child.offsetLeft, behavior: "smooth" });
+    const maxScroll = Math.max(0, node.scrollWidth - node.clientWidth);
+    if (pageCount <= 1 || maxScroll <= 0) {
+      node.scrollTo({ left: 0, behavior: "smooth" });
+      setActiveIndex(0);
+      return;
+    }
+    const left = (index / Math.max(1, pageCount - 1)) * maxScroll;
+    node.scrollTo({ left, behavior: "smooth" });
     setActiveIndex(index);
   };
 
@@ -407,7 +414,7 @@ function TodayMenuCarousel({
       </div>
 
       <CarouselDots
-        count={ordered.length}
+        count={pageCount}
         activeIndex={activeIndex}
         onSelect={scrollToIndex}
       />
