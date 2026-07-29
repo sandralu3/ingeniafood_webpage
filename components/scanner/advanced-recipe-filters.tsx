@@ -21,9 +21,7 @@ import {
 import {
   translateComplexity,
   translateCuisineStyleShort,
-  translateMealType,
-  translateServingsPeople,
-  translateServingsShort
+  translateMealType
 } from "@/lib/i18n/filter-labels";
 import { cn } from "@/lib/utils";
 
@@ -42,18 +40,27 @@ type Props = {
   disabled?: boolean;
 };
 
+const COMPACT_SERVINGS: Array<{ value: RecipeServings; label: string }> = [
+  { value: 1, label: "1" },
+  { value: 2, label: "2 p." },
+  { value: 3, label: "3" },
+  { value: 4, label: "4+" }
+];
+
 function FilterChip({
   label,
   selected,
   locked,
   disabled,
-  onClick
+  onClick,
+  className
 }: {
   label: string;
   selected: boolean;
   locked: boolean;
   disabled?: boolean;
   onClick: () => void;
+  className?: string;
 }) {
   return (
     <button
@@ -62,12 +69,13 @@ function FilterChip({
       disabled={disabled}
       aria-pressed={selected}
       className={cn(
-        "inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-50",
+        "inline-flex shrink-0 items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-50",
         selected
           ? "border-[#556B2F]/45 bg-[#eef4e6] text-[#3e5219] shadow-sm shadow-[#556B2F]/5"
           : locked
             ? "border-stone-200 bg-stone-50/60 text-stone-400"
-            : "border-stone-200 bg-white text-stone-600 hover:border-stone-300 hover:bg-stone-50"
+            : "border-stone-200 bg-white text-stone-600 hover:border-stone-300 hover:bg-stone-50",
+        className
       )}
     >
       {locked ? <Lock className="h-3 w-3 shrink-0 opacity-70" aria-hidden /> : null}
@@ -76,13 +84,29 @@ function FilterChip({
   );
 }
 
-function FilterGroup({ label, children }: { label: string; children: ReactNode }) {
+function FilterGroup({
+  label,
+  children,
+  scrollX = false
+}: {
+  label: string;
+  children: ReactNode;
+  scrollX?: boolean;
+}) {
   return (
-    <div className="space-y-2">
-      <p className="px-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-stone-400">
+    <div className="space-y-1">
+      <p className="mb-1 px-0.5 text-[10px] font-bold uppercase tracking-wider text-gray-400">
         {label}
       </p>
-      <div className="flex flex-wrap gap-2">{children}</div>
+      <div
+        className={cn(
+          scrollX
+            ? "flex flex-row gap-2 overflow-x-auto py-1 no-scrollbar"
+            : "flex flex-wrap gap-2"
+        )}
+      >
+        {children}
+      </div>
     </div>
   );
 }
@@ -106,9 +130,9 @@ export function AdvancedRecipeFilters({
 
   const mealLabel = translateMealType(t, mealType);
   const cuisineLabel = translateCuisineStyleShort(t, cuisineStyle);
-  const servingsLabel = translateServingsShort(t, servings);
-  const complexityLabel = translateComplexity(t, complexity);
-  const summaryLabel = `${mealLabel} · ${cuisineLabel} · ${servingsLabel} · ${complexityLabel}`;
+  const servingsCompact =
+    servings >= 4 ? "4+" : servings === 2 ? "2p" : `${servings}`;
+  const headerSummary = `${mealLabel}, ${cuisineLabel}, ${servingsCompact}`;
 
   const handleMealTypeClick = (option: (typeof RECIPE_MEAL_TYPES)[number]) => {
     if (disabled || isLoading) return;
@@ -128,13 +152,14 @@ export function AdvancedRecipeFilters({
     onCuisineStyleChange(option.id);
   };
 
-  const handleServingsClick = (option: (typeof RECIPE_SERVINGS_OPTIONS)[number]) => {
+  const handleServingsClick = (value: RecipeServings) => {
     if (disabled || isLoading) return;
-    if (option.premium && !isPremium) {
+    const option = RECIPE_SERVINGS_OPTIONS.find((item) => item.value === value);
+    if (option?.premium && !isPremium) {
       if (isTester) setShowUpgradeDialog(true);
       return;
     }
-    onServingsChange(option.value);
+    onServingsChange(value);
   };
 
   const handleComplexityClick = (option: (typeof RECIPE_COMPLEXITY_LEVELS)[number]) => {
@@ -179,26 +204,27 @@ export function AdvancedRecipeFilters({
               </div>
             }
           />
+          <p className="truncate px-0.5 text-[10px] font-medium leading-tight text-stone-500">
+            {headerSummary}
+            {isPaidPremium || isPremium ? " 👑" : ""}
+          </p>
 
           {!expanded ? (
-            <div className="px-0.5">
-              <p className="text-[11px] text-stone-500">{summaryLabel}</p>
-              <p className="text-[11px] text-stone-500">
-                {isTester
-                  ? isPremium
-                    ? isPaidPremium
-                      ? t("customizeFilters")
-                      : t("trialActiveHint")
-                    : t("freePlanHint")
-                  : t("customizeFilters")}
-              </p>
-            </div>
+            <p className="mt-0.5 px-0.5 text-[10px] text-stone-400">
+              {isTester
+                ? isPremium
+                  ? isPaidPremium
+                    ? t("customizeFilters")
+                    : t("trialActiveHint")
+                  : t("freePlanHint")
+                : t("customizeFilters")}
+            </p>
           ) : null}
         </button>
 
         {expanded ? (
-          <div className="mt-2 space-y-4 border-t border-stone-100 px-0.5 pt-3">
-            <FilterGroup label={t("filterMeal")}>
+          <div className="mt-2 space-y-2 border-t border-stone-100 px-0.5 pt-2">
+            <FilterGroup label={t("filterMeal")} scrollX>
               {RECIPE_MEAL_TYPES.filter((option) => isTester || !option.premium).map((option) => (
                 <FilterChip
                   key={option.id}
@@ -211,7 +237,7 @@ export function AdvancedRecipeFilters({
               ))}
             </FilterGroup>
 
-            <FilterGroup label={t("filterStyle")}>
+            <FilterGroup label={t("filterStyle")} scrollX>
               {RECIPE_CUISINE_STYLES.filter((option) => isTester || !option.premium).map(
                 (option) => (
                   <FilterChip
@@ -226,22 +252,40 @@ export function AdvancedRecipeFilters({
               )}
             </FilterGroup>
 
-            <FilterGroup label={t("filterServings")}>
-              {RECIPE_SERVINGS_OPTIONS.filter((option) => isTester || !option.premium).map(
-                (option) => (
-                  <FilterChip
-                    key={option.value}
-                    label={translateServingsPeople(t, option.value)}
-                    selected={servings === option.value}
-                    locked={Boolean(isTester && option.premium && !isPremium)}
-                    disabled={disabled || isLoading}
-                    onClick={() => handleServingsClick(option)}
-                  />
-                )
-              )}
-            </FilterGroup>
+            <div className="space-y-1">
+              <p className="mb-1 px-0.5 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                {t("filterServings")}
+              </p>
+              <div className="flex gap-1 rounded-xl bg-gray-100 p-1">
+                {COMPACT_SERVINGS.map((option) => {
+                  const meta = RECIPE_SERVINGS_OPTIONS.find((item) => item.value === option.value);
+                  const locked = Boolean(isTester && meta?.premium && !isPremium);
+                  const selected = servings === option.value || (option.value === 4 && servings >= 4);
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      disabled={disabled || isLoading}
+                      aria-pressed={selected}
+                      onClick={() => handleServingsClick(option.value)}
+                      className={cn(
+                        "flex flex-1 items-center justify-center gap-0.5 rounded-lg py-1.5 text-xs font-semibold transition disabled:opacity-50",
+                        selected
+                          ? "bg-white text-[#3e5219] shadow-sm"
+                          : locked
+                            ? "text-stone-400"
+                            : "text-stone-600 hover:text-stone-800"
+                      )}
+                    >
+                      {locked ? <Lock className="h-3 w-3 opacity-70" aria-hidden /> : null}
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
 
-            <FilterGroup label={t("filterComplexity")}>
+            <FilterGroup label={t("filterComplexity")} scrollX>
               {RECIPE_COMPLEXITY_LEVELS.filter((option) => isTester || !option.premium).map(
                 (option) => (
                   <FilterChip

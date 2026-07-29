@@ -3,12 +3,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { PantrySearchView } from "@/components/scanner/pantry-search-view";
+import { ConfirmIngredientsView } from "@/components/scanner/confirm-ingredients-view";
 import { GenerationsLimitModal } from "@/components/scanner/generations-limit-modal";
 import { InstagramCuratedCatalog } from "@/components/scanner/instagram-curated-catalog";
 import { RecipeGenerationState } from "@/components/scanner/recipe-generation-state";
 import { RecipeResultView } from "@/components/scanner/recipe-result-view";
 import { ScannerModeTabs, type ScannerMode } from "@/components/scanner/scanner-mode-tabs";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import {
+  createDetectedIngredient,
+  selectedIngredientNames,
+  type DetectedIngredient
+} from "@/lib/scanner/detected-ingredient";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
 import { UNLIMITED_GENERATIONS_SENTINEL } from "@/lib/generations/constants";
 import { hasUnlimitedGenerations } from "@/lib/generations/admin-unlimited";
@@ -23,8 +29,8 @@ import { consumeScannerGenerationSeed } from "@/lib/scanner/scanner-generation-s
 import {
   FREE_DEFAULT_COMPLEXITY,
   FREE_DEFAULT_CUISINE_STYLE,
-  FREE_DEFAULT_MEAL_TYPE,
   FREE_DEFAULT_SERVINGS,
+  suggestMealTypeForNow,
   type AppliedRecipeFilters,
   type RecipeComplexity,
   type RecipeCuisineStyle,
@@ -233,6 +239,11 @@ export default function ScannerPage() {
   const [retryMessage, setRetryMessage] = useState<string | null>(null);
   const [recipe, setRecipe] = useState<GeneratedRecipe | null>(null);
   const [pantryImageFile, setPantryImageFile] = useState<File | null>(null);
+  const [scannedIngredients, setScannedIngredients] = useState<DetectedIngredient[]>([]);
+  const [confirmPreviewUrl, setConfirmPreviewUrl] = useState<string | null>(null);
+  const [showConfirmStep, setShowConfirmStep] = useState(false);
+  const [isDetecting, setIsDetecting] = useState(false);
+  const [detectError, setDetectError] = useState<string | null>(null);
   const [recipeFromPhoto, setRecipeFromPhoto] = useState(false);
   const [securityWarning, setSecurityWarning] = useState<string | null>(null);
   const [showNotFoodGuidance, setShowNotFoodGuidance] = useState(false);
@@ -248,7 +259,9 @@ export default function ScannerPage() {
   const [rateLimitSecondsLeft, setRateLimitSecondsLeft] = useState(0);
   const [generationsLeft, setGenerationsLeft] = useState<number | null>(null);
   const [showGenerationsModal, setShowGenerationsModal] = useState(false);
-  const [mealTypeFilter, setMealTypeFilter] = useState<RecipeMealType>(FREE_DEFAULT_MEAL_TYPE);
+  const [mealTypeFilter, setMealTypeFilter] = useState<RecipeMealType>(() =>
+    suggestMealTypeForNow(false)
+  );
   const [cuisineStyleFilter, setCuisineStyleFilter] = useState<RecipeCuisineStyle>(
     FREE_DEFAULT_CUISINE_STYLE
   );
@@ -268,6 +281,8 @@ export default function ScannerPage() {
   const [coachRecipeIdea, setCoachRecipeIdea] = useState<string | null>(null);
   const recipeIdeaRef = useRef<string | null>(null);
   const pendingAutoGenerateRef = useRef(false);
+  const detectAbortRef = useRef<AbortController | null>(null);
+  const pendingIngredientsOverrideRef = useRef<string[] | null>(null);
   const generarRecetaRef = useRef<
     ((options?: { useDishPhoto?: boolean; ingredientsOverride?: string[]; recipeIdea?: string }) => Promise<void>) | null
   >(null);
@@ -354,9 +369,19 @@ export default function ScannerPage() {
   }, [rateLimitSecondsLeft]);
 
   const resetScannerState = useCallback(() => {
+    detectAbortRef.current?.abort();
+    detectAbortRef.current = null;
     setSelectedIngredients([]);
     setRecipe(null);
     setPantryImageFile(null);
+    setScannedIngredients([]);
+    setConfirmPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+    setShowConfirmStep(false);
+    setIsDetecting(false);
+    setDetectError(null);
     setRecipeFromPhoto(false);
     setErrorMessage(null);
     setRetryMessage(null);
@@ -370,6 +395,7 @@ export default function ScannerPage() {
     setCoachRecipeIdea(null);
     recipeIdeaRef.current = null;
     pendingAutoGenerateRef.current = false;
+    pendingIngredientsOverrideRef.current = null;
     setSaveErrorMessage(null);
     setIsRecipeSaved(false);
     setSavedRecipeId(null);
@@ -402,8 +428,93 @@ export default function ScannerPage() {
     }
   }, []);
 
+  const clearConfirmPreview = useCallback(() => {
+    setConfirmPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+  }, []);
+
+  const exitConfirmStep = useCallback(() => {
+    detectAbortRef.current?.abort();
+    detectAbortRef.current = null;
+    setShowConfirmStep(false);
+    setScannedIngredients([]);
+    setIsDetecting(false);
+    setDetectError(null);
+    clearConfirmPreview();
+    setPantryImageFile(null);
+  }, [clearConfirmPreview]);
+
+  const runIngredientDetection = useCallback(
+    async (file: File) => {
+      detectAbortRef.current?.abort();
+      const controller = new AbortController();
+      detectAbortRef.current = controller;
+
+      setIsDetecting(true);
+      setDetectError(null);
+      setScannedIngredients([]);
+
+      try {
+        const { base64, mimeType } = await compressImageForUpload(file);
+        if (controller.signal.aborted) return;
+
+        const response = await fetch("/api/detect-ingredients", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ imageBase64: base64, mimeType, locale }),
+          signal: controller.signal
+        });
+
+        let payload: {
+          ingredients?: DetectedIngredient[];
+          error?: string;
+          code?: string;
+        } = {};
+        try {
+          payload = (await response.json()) as typeof payload;
+        } catch {
+          payload = {};
+        }
+        if (controller.signal.aborted) return;
+
+        if (payload.code === "NOT_FOOD" || payload.error === "NOT_FOOD") {
+          exitConfirmStep();
+          setShowNotFoodGuidance(true);
+          return;
+        }
+
+        if (!response.ok) {
+          setDetectError(
+            payload.error ??
+              "No pudimos detectar ingredientes. Prueba con otra foto más clara."
+          );
+          setScannedIngredients([]);
+          return;
+        }
+
+        const next = Array.isArray(payload.ingredients) ? payload.ingredients : [];
+        setScannedIngredients(next);
+        if (next.length === 0) {
+          setDetectError("No encontramos ingredientes comestibles en la foto.");
+        }
+      } catch (err) {
+        if (controller.signal.aborted) return;
+        const message =
+          err instanceof Error && err.name === "AbortError"
+            ? null
+            : "No pudimos detectar ingredientes. Prueba de nuevo.";
+        if (message) setDetectError(message);
+      } finally {
+        if (!controller.signal.aborted) setIsDetecting(false);
+      }
+    },
+    [exitConfirmStep, locale]
+  );
+
   const handlePantryImageChange = (file: File | null) => {
-    setPantryImageFile(file);
     setRecipe(null);
     setRecipeFromPhoto(false);
     setErrorMessage(null);
@@ -412,6 +523,64 @@ export default function ScannerPage() {
     setSavedRecipeId(null);
     setSaveErrorMessage(null);
     setRateLimitSecondsLeft(0);
+
+    if (!file) {
+      exitConfirmStep();
+      return;
+    }
+
+    detectAbortRef.current?.abort();
+    clearConfirmPreview();
+    setPantryImageFile(file);
+    setConfirmPreviewUrl(URL.createObjectURL(file));
+    setShowConfirmStep(true);
+    setDetectError(null);
+    void runIngredientDetection(file);
+  };
+
+  const handleToggleScannedIngredient = (id: string) => {
+    setScannedIngredients((prev) =>
+      prev.map((item) =>
+        item.id === id ? { ...item, isSelected: !item.isSelected } : item
+      )
+    );
+  };
+
+  const handleAddScannedIngredient = (name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    setScannedIngredients((prev) => {
+      const key = trimmed.toLowerCase();
+      const existing = prev.find((item) => item.name.trim().toLowerCase() === key);
+      if (existing) {
+        return prev.map((item) =>
+          item.id === existing.id ? { ...item, isSelected: true } : item
+        );
+      }
+      return [...prev, createDetectedIngredient(trimmed)];
+    });
+  };
+
+  const handleConfirmIngredients = () => {
+    const names = selectedIngredientNames(scannedIngredients);
+    if (!names.length) return;
+
+    setSelectedIngredients(names);
+    setRecipeFromPhoto(true);
+    setPantryImageFile(null);
+    clearConfirmPreview();
+    setShowConfirmStep(false);
+    setScannedIngredients([]);
+    setDetectError(null);
+
+    if (isPaidPremium) {
+      pendingIngredientsOverrideRef.current = names;
+      setShowPhotoCreditConfirm(true);
+      return;
+    }
+
+    pendingIngredientsOverrideRef.current = null;
+    void generarRecetaRef.current?.({ useDishPhoto: false, ingredientsOverride: names });
   };
 
   const handleToggleFromCategory = (name: string) => {
@@ -1183,7 +1352,11 @@ export default function ScannerPage() {
           )}
         >
           <div className="shrink-0">
-            <ScannerModeTabs mode={scannerMode} onChange={setScannerMode} disabled={isLoading} />
+            <ScannerModeTabs
+              mode={scannerMode}
+              onChange={setScannerMode}
+              disabled={isLoading || isDetecting || showConfirmStep}
+            />
           </div>
 
           {scannerMode === "instagram" ? (
@@ -1204,7 +1377,7 @@ export default function ScannerPage() {
               <button
                 type="button"
                 onClick={() => {
-                  setPantryImageFile(null);
+                  exitConfirmStep();
                   setRecipe(null);
                   setRecipeFromPhoto(false);
                   setErrorMessage(null);
@@ -1218,6 +1391,32 @@ export default function ScannerPage() {
             </div>
           ) : null}
           <div className="min-h-0 flex-1 overflow-hidden">
+          {showConfirmStep && confirmPreviewUrl ? (
+            <ConfirmIngredientsView
+              imageUrl={confirmPreviewUrl}
+              ingredients={scannedIngredients}
+              isDetecting={isDetecting}
+              isBusy={isLoading || rateLimitSecondsLeft > 0}
+              errorMessage={detectError}
+              mealType={mealTypeFilter}
+              cuisineStyle={cuisineStyleFilter}
+              servings={servingsFilter}
+              complexity={complexityFilter}
+              onMealTypeChange={setMealTypeFilter}
+              onCuisineStyleChange={setCuisineStyleFilter}
+              onServingsChange={setServingsFilter}
+              onComplexityChange={setComplexityFilter}
+              onToggle={handleToggleScannedIngredient}
+              onAddIngredient={handleAddScannedIngredient}
+              onConfirm={handleConfirmIngredients}
+              onRetake={() => {
+                exitConfirmStep();
+              }}
+              onBack={() => {
+                exitConfirmStep();
+              }}
+            />
+          ) : (
           <PantrySearchView
             selectedIngredients={selectedIngredients}
             pantryImageFile={pantryImageFile}
@@ -1241,6 +1440,7 @@ export default function ScannerPage() {
             onServingsChange={setServingsFilter}
             onComplexityChange={setComplexityFilter}
           />
+          )}
           </div>
           <GenerationsLimitModal
             open={showGenerationsModal}
@@ -1255,11 +1455,15 @@ export default function ScannerPage() {
             cancelLabel={t("photoCreditConfirmNo")}
             onConfirm={() => {
               setShowPhotoCreditConfirm(false);
-              void generarReceta({ useDishPhoto: true });
+              const override = pendingIngredientsOverrideRef.current ?? undefined;
+              pendingIngredientsOverrideRef.current = null;
+              void generarReceta({ useDishPhoto: true, ingredientsOverride: override });
             }}
             onCancel={() => {
               setShowPhotoCreditConfirm(false);
-              void generarReceta({ useDishPhoto: false });
+              const override = pendingIngredientsOverrideRef.current ?? undefined;
+              pendingIngredientsOverrideRef.current = null;
+              void generarReceta({ useDishPhoto: false, ingredientsOverride: override });
             }}
           />
             </div>

@@ -19,6 +19,24 @@ export type RecipeCuisineStyle = (typeof RECIPE_CUISINE_STYLES)[number]["id"];
 export const FREE_DEFAULT_MEAL_TYPE: RecipeMealType = "almuerzo";
 export const FREE_DEFAULT_CUISINE_STYLE: RecipeCuisineStyle = "estandar";
 
+/**
+ * Sugiere tipo de plato según la hora local:
+ * mañana → desayuno, tarde → almuerzo, noche → cena.
+ */
+export function mealTypeFromLocalHour(hour = new Date().getHours()): RecipeMealType {
+  if (hour >= 5 && hour < 11) return "desayuno";
+  if (hour >= 11 && hour < 17) return "almuerzo";
+  return "cena";
+}
+
+/** Versión free-safe: si el sugerido es premium, cae a almuerzo. */
+export function suggestMealTypeForNow(allowPremium: boolean): RecipeMealType {
+  const suggested = mealTypeFromLocalHour();
+  if (allowPremium) return suggested;
+  const meta = RECIPE_MEAL_TYPES.find((item) => item.id === suggested);
+  return meta?.premium ? FREE_DEFAULT_MEAL_TYPE : suggested;
+}
+
 export const RECIPE_COMPLEXITY_LEVELS = [
   { id: "facil", label: "Fácil", shortLabel: "Fácil", premium: false },
   { id: "intermedio", label: "Intermedio", shortLabel: "Intermedio", premium: true },
