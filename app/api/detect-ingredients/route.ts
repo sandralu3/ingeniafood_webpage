@@ -1,6 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from "next/server";
 import { createSupabaseRouteClient } from "@/lib/supabaseRoute";
+import { getRouteUser } from "@/lib/auth/get-route-user";
 import {
   createDetectedIngredient,
   type DetectedIngredient
@@ -103,12 +104,15 @@ export async function POST(request: Request) {
     if (!supabase) {
       return jsonResponse({ error: "No se pudo inicializar la sesión." }, 500);
     }
-    const {
-      data: { user }
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return jsonResponse({ error: "No autenticado." }, 401);
+    const auth = await getRouteUser(supabase);
+    if (auth.status === "unavailable") {
+      return jsonResponse(
+        { error: auth.message, code: "AUTH_UNAVAILABLE" },
+        503
+      );
+    }
+    if (auth.status !== "ok") {
+      return jsonResponse({ error: "No autenticado.", code: "UNAUTHORIZED" }, 401);
     }
 
     const body = (await request.json()) as DetectPayload;

@@ -238,6 +238,30 @@ export function AppRecetasAccessGate({ children }: { children: React.ReactNode }
     return () => window.removeEventListener("focus", onFocus);
   }, [authState, authenticatedUserId]);
 
+  // El scroll debe vivir solo en <main>; si el documento hace scroll, el header se va.
+  useEffect(() => {
+    if (authState !== "authenticated") return;
+
+    const html = document.documentElement;
+    const { body } = document;
+    const prevHtmlOverflow = html.style.overflow;
+    const prevBodyOverflow = body.style.overflow;
+    const prevHtmlOverscroll = html.style.overscrollBehavior;
+    const prevBodyOverscroll = body.style.overscrollBehavior;
+
+    html.style.overflow = "hidden";
+    body.style.overflow = "hidden";
+    html.style.overscrollBehavior = "none";
+    body.style.overscrollBehavior = "none";
+
+    return () => {
+      html.style.overflow = prevHtmlOverflow;
+      body.style.overflow = prevBodyOverflow;
+      html.style.overscrollBehavior = prevHtmlOverscroll;
+      body.style.overscrollBehavior = prevBodyOverscroll;
+    };
+  }, [authState]);
+
   const handleInstallClick = async () => {
     if (isIos) {
       setShowIosModal(true);
@@ -292,15 +316,15 @@ export function AppRecetasAccessGate({ children }: { children: React.ReactNode }
   }
 
   return (
-    <div className="min-h-screen bg-sv-surface text-sv-on-surface">
-      <div className="mx-auto flex h-[100dvh] max-h-[100dvh] w-full max-w-md flex-col overflow-hidden pb-[var(--app-bottom-nav-height)]">
+    <div className="h-[100dvh] max-h-[100dvh] overflow-hidden bg-sv-surface text-sv-on-surface overscroll-none">
+      <div className="mx-auto flex h-full w-full max-w-md flex-col overflow-hidden pb-[var(--app-bottom-nav-height)]">
         <Header />
         <main
           key={pathname}
           className={
             isScannerRoute
-              ? "flex min-h-0 flex-1 flex-col overflow-hidden px-4 pt-3 pb-2"
-              : "flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pt-3 pb-2"
+              ? "flex min-h-0 flex-1 flex-col overflow-hidden overscroll-y-contain px-4 pt-3 pb-2"
+              : "flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain px-4 pt-3 pb-2 touch-pan-y [-webkit-overflow-scrolling:touch]"
           }
         >
           {children}

@@ -239,7 +239,11 @@ export function buildMealTypePromptClause(mealType: RecipeMealType): string {
 
   switch (mealType) {
     case "desayuno":
-      return `TIPO DE PLATO: genera una receta ideal para ${label}. Busca la mejor opción de mañana/brunch con los ingredientes disponibles (creativo pero realista).`;
+      return (
+        `TIPO DE PLATO: genera una receta ideal para ${label}. Desayuno fit/salado permitido. ` +
+        "Adapta los ingredientes del usuario (incluido pollo, carne, atún o granos) a un formato mañanero. " +
+        "Prioridad absoluta: usar lo que el usuario tiene; no inventes un desayuno de huevos si solo envió pollo."
+      );
     case "cena":
       return `TIPO DE PLATO: genera una receta ideal para ${label}. Equilibrada, reconfortante y apropiada para la noche.`;
     case "postre":

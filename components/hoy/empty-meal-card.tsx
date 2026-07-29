@@ -11,6 +11,11 @@ import type { MealType } from "@/lib/plan/constants";
 import { assignRecipeToPlan } from "@/lib/plan/plan-service";
 import type { MealSuggestion, RemainingMacros } from "@/lib/plan/meal-suggestion";
 import {
+  clearDailySlotSuggestion,
+  readDailySlotSuggestion,
+  writeDailySlotSuggestion
+} from "@/lib/plan/daily-slot-suggestion-cache";
+import {
   getMondayOfWeek,
   getWeekDayFromDate,
   toISODateString
@@ -193,12 +198,25 @@ export function EmptyMealCard({
   }, [onAddSuccess, slotLabel, t]);
 
   const loadSuggestion = useCallback(
-    async (opts?: { preferAi?: boolean; excludeExtra?: string[] }) => {
+    async (opts?: { preferAi?: boolean; excludeExtra?: string[]; forceRefresh?: boolean }) => {
       if (!userId || !premiumReady) {
         setSuggestion(null);
         setIsLoading(false);
         setIsRefreshing(false);
         return;
+      }
+
+      if (!opts?.forceRefresh) {
+        const cached = readDailySlotSuggestion(userId, mealType);
+        if (cached && !excludeRecipeIdsRef.current.includes(cached.recipeId)) {
+          setSuggestion(cached);
+          seenIdsRef.current = Array.from(
+            new Set([...seenIdsRef.current, cached.recipeId])
+          ).slice(-12);
+          setIsLoading(false);
+          setIsRefreshing(false);
+          return;
+        }
       }
 
       setError(null);
@@ -216,6 +234,7 @@ export function EmptyMealCard({
           seenIdsRef.current = Array.from(
             new Set([...seenIdsRef.current, next.recipeId])
           ).slice(-12);
+          writeDailySlotSuggestion(userId, mealType, next);
           setSuggestion(next);
         }
       } catch {
@@ -242,6 +261,18 @@ export function EmptyMealCard({
 
     let cancelled = false;
     seenIdsRef.current = [...excludeRecipeIdsRef.current];
+
+    const cached = readDailySlotSuggestion(userId, mealType);
+    if (cached && !excludeRecipeIdsRef.current.includes(cached.recipeId)) {
+      setSuggestion(cached);
+      seenIdsRef.current = Array.from(
+        new Set([...seenIdsRef.current, cached.recipeId])
+      ).slice(-12);
+      setIsLoading(false);
+      setError(null);
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
 
@@ -258,6 +289,7 @@ export function EmptyMealCard({
           seenIdsRef.current = Array.from(
             new Set([...seenIdsRef.current, next.recipeId])
           ).slice(-12);
+          writeDailySlotSuggestion(userId, mealType, next);
           setSuggestion(next);
         }
       } catch {
@@ -284,6 +316,7 @@ export function EmptyMealCard({
     setIsRefreshing(true);
     await loadSuggestion({
       preferAi: true,
+      forceRefresh: true,
       excludeExtra: suggestion ? [suggestion.recipeId] : []
     });
   };
@@ -313,6 +346,7 @@ export function EmptyMealCard({
         );
         return;
       }
+      clearDailySlotSuggestion(userId, mealType);
       notifyAdded();
       onAssigned?.();
     } catch {

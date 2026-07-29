@@ -37,21 +37,22 @@ function RecipeCardThumbnail({
   title,
   imageUrl,
   referenceImageUrl,
-  isSocialVideo
+  isSocialVideo,
+  allowStockFallback = true
 }: {
   title: string;
   imageUrl?: string | null;
   referenceImageUrl?: string | null;
   isSocialVideo?: boolean;
+  allowStockFallback?: boolean;
 }) {
-  const resolvedUrl =
-    pickStoredRecipeImageUrl({ imageUrl, referenceImageUrl, title }) ||
-    getRecipeImageFallback({ title, imageUrl, referenceImageUrl });
+  const stored = pickStoredRecipeImageUrl({ imageUrl, referenceImageUrl, title });
+  const resolvedUrl = stored || (allowStockFallback ? getRecipeImageFallback({ title, imageUrl, referenceImageUrl }) : null);
   const [failed, setFailed] = useState(false);
   const [fallbackFailed, setFallbackFailed] = useState(false);
   const displayUrl = !failed
     ? resolvedUrl
-    : !fallbackFailed
+    : allowStockFallback && !fallbackFailed
       ? getRecipeImageFallback({ title })
       : null;
 

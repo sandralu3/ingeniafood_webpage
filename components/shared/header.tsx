@@ -71,7 +71,7 @@ export function Header() {
 
   return (
     <>
-      <header className="sticky top-0 z-40 flex w-full items-center justify-between border-b border-sv-outline-variant/30 bg-sv-surface/80 px-4 py-2.5 backdrop-blur-xl sm:px-6">
+      <header className="relative z-40 flex w-full shrink-0 items-center justify-between border-b border-sv-outline-variant/30 bg-sv-surface/95 px-4 py-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] backdrop-blur-xl sm:px-6">
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <button
             type="button"

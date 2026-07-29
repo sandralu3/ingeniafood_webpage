@@ -16,6 +16,7 @@ import {
   SAVED_RECIPE_FILTERS,
   type SavedRecipeFilter
 } from "@/lib/recipes/saved-recipes-filter";
+import { isExternalMeal } from "@/lib/plan/external-meal";
 import {
   translateSavedCardLabel,
   translateSavedFilterChip
@@ -136,7 +137,7 @@ export default function RecipesPage() {
       const primaryQuery = await supabase
         .from("recipes")
         .select(
-          "id,title,description,cooking_time,is_airfryer,is_flourless,is_public,created_at,user_id,ingredients,steps,instructions,image_url,reference_image_url,tip_sandra,instagram_url"
+          "id,title,description,cooking_time,is_airfryer,is_flourless,is_public,created_at,user_id,ingredients,steps,instructions,image_url,reference_image_url,tip_sandra,instagram_url,meal_type,tags"
         )
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
@@ -146,7 +147,9 @@ export default function RecipesPage() {
 
       if (
         isMissingOptionalRecipesColumnError(recipesError, "tip_sandra") ||
-        isMissingOptionalRecipesColumnError(recipesError, "reference_image_url")
+        isMissingOptionalRecipesColumnError(recipesError, "reference_image_url") ||
+        isMissingOptionalRecipesColumnError(recipesError, "meal_type") ||
+        isMissingOptionalRecipesColumnError(recipesError, "tags")
       ) {
         const fallbackQuery = await supabase
           .from("recipes")
@@ -160,7 +163,9 @@ export default function RecipesPage() {
         recipesData = (fallbackQuery.data as RecipeRow[] | null)?.map((recipe) => ({
           ...recipe,
           tip_sandra: null,
-          reference_image_url: null
+          reference_image_url: null,
+          meal_type: null,
+          tags: null
         })) ?? null;
       }
 
@@ -171,7 +176,8 @@ export default function RecipesPage() {
         return;
       }
 
-      setRecipes(recipesData ?? []);
+      // Comidas fuera viven en el plan, no en la biblioteca de recetas.
+      setRecipes((recipesData ?? []).filter((recipe) => !isExternalMeal(recipe.tags)));
       setIsLoading(false);
     };
 

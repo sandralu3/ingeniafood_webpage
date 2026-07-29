@@ -10,6 +10,10 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { removePlanMeal, swapPlanMeal } from "@/lib/plan/plan-service";
 import type { MealType } from "@/lib/plan/constants";
 import { getMealTypeIcon, getMealTypeSubtleAccent } from "@/lib/plan/meal-type-accent";
+import {
+  externalMealBadgeLabel,
+  type ExternalMealBadge
+} from "@/lib/plan/external-meal";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import { cn } from "@/lib/utils";
 
@@ -35,6 +39,8 @@ export type PlanMeal = {
   hasProtein?: boolean;
   isAirfryer?: boolean;
   isFlourless?: boolean;
+  /** Comida registrada fuera / escaneada (no cocinada del recetario). */
+  externalBadge?: ExternalMealBadge | null;
 };
 
 type PlanMealCardProps = {
@@ -46,6 +52,21 @@ type PlanMealCardProps = {
   variant?: "default" | "slot" | "panel";
   className?: string;
 };
+
+function ExternalMealBadgePill({ badge }: { badge: ExternalMealBadge }) {
+  return (
+    <span
+      className={cn(
+        "mt-1 inline-flex w-fit items-center rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide",
+        badge === "escaneado"
+          ? "bg-sky-50 text-sky-800 ring-1 ring-sky-200/70"
+          : "bg-violet-50 text-violet-800 ring-1 ring-violet-200/70"
+      )}
+    >
+      {externalMealBadgeLabel(badge)}
+    </span>
+  );
+}
 
 function getPrepMinutes(meal: PlanMeal): number | undefined {
   return meal.prepMinutes ?? meal.calories;
@@ -341,6 +362,8 @@ function HorizontalMealCard({
             {meal.title}
           </h3>
 
+          {meal.externalBadge ? <ExternalMealBadgePill badge={meal.externalBadge} /> : null}
+
           {!compact && (getPrepMinutes(meal) || meal.kcal || nutritionPills.length > 0) ? (
             <div className="mt-2 flex flex-wrap items-center gap-2">
               {getPrepMinutes(meal) ? (
@@ -629,6 +652,11 @@ export function PlanMealCard({
             <h3 className="line-clamp-2 text-sm font-bold leading-snug text-white drop-shadow-md">
               {meal.title}
             </h3>
+            {meal.externalBadge ? (
+              <span className="mt-1 inline-flex rounded-md bg-black/35 px-1.5 py-0.5 text-[9px] font-bold text-white backdrop-blur-sm">
+                {externalMealBadgeLabel(meal.externalBadge)}
+              </span>
+            ) : null}
             {getPrepMinutes(meal) || meal.kcal ? (
               <p className="mt-1 inline-flex flex-wrap items-center gap-2 text-[11px] font-medium text-white/80">
                 {getPrepMinutes(meal) ? (

@@ -19,9 +19,13 @@ export async function createSupabaseRouteClient() {
         return cookieStore.getAll();
       },
       setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value, options }) => {
-          cookieStore.set(name, value, options);
-        });
+        try {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            cookieStore.set(name, value, options);
+          });
+        } catch {
+          // En algunos contextos de Next las cookies no se pueden mutar; el proxy ya refresca la sesión.
+        }
       }
     }
   });

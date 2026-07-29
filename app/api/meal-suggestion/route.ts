@@ -68,6 +68,12 @@ async function rankWithGemini(
     }));
 
     const prompt = `Eres coach de nutrición de IngeniaFood. Elige UNA receta del catálogo para ${mealType}.
+Reglas de coherencia (obligatorias):
+- Desayuno: SOLO platos de desayuno.
+- Almuerzo: platos de almuerzo o cena (intercambiables).
+- Cena: platos de cena o almuerzo (intercambiables).
+- Nunca elijas postre.
+El catálogo YA está filtrado por esas reglas: elige solo entre estos IDs.
 Macros restantes del día (aprox): ${remaining.calories} kcal, ${remaining.protein}g proteína, ${remaining.carbs}g carbs, ${remaining.fat}g grasas.
 Catálogo:
 ${JSON.stringify(catalog, null, 2)}
@@ -162,7 +168,16 @@ export async function POST(request: Request) {
 
     const ranked = rankMealCandidates(candidates, mealType, remaining, excludeRecipeIds);
     if (ranked.length === 0) {
-      return jsonResponse({ error: "Sin alternativas.", code: "NO_ALTERNATIVE" }, 404);
+      return jsonResponse(
+        {
+          error:
+            mealType === "Desayuno"
+              ? "No hay recetas de desayuno disponibles para sugerir."
+              : "No hay recetas coherentes con esta comida para sugerir.",
+          code: "NO_COMPATIBLE"
+        },
+        404
+      );
     }
 
     let suggestion: MealSuggestion | null = null;
@@ -177,8 +192,9 @@ export async function POST(request: Request) {
     }
 
     if (!suggestion) {
+      // Solo sobre candidatos ya filtrados por tipo de comida.
       suggestion = pickMealSuggestionFromCatalog(
-        candidates,
+        ranked,
         mealType,
         remaining,
         excludeRecipeIds

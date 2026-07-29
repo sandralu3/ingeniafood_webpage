@@ -578,6 +578,62 @@ export type Database = {
           }
         ];
       };
+      plan_snacks: {
+        Row: {
+          id: string;
+          user_id: string;
+          semana_inicio: string;
+          dia_semana: string;
+          title: string;
+          kcal: number;
+          proteinas_g: number;
+          carbohidratos_g: number;
+          grasas_g: number;
+          image_url: string | null;
+          source: string;
+          emoji: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          semana_inicio: string;
+          dia_semana: string;
+          title: string;
+          kcal?: number;
+          proteinas_g?: number;
+          carbohidratos_g?: number;
+          grasas_g?: number;
+          image_url?: string | null;
+          source?: string;
+          emoji?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          semana_inicio?: string;
+          dia_semana?: string;
+          title?: string;
+          kcal?: number;
+          proteinas_g?: number;
+          carbohidratos_g?: number;
+          grasas_g?: number;
+          image_url?: string | null;
+          source?: string;
+          emoji?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "plan_snacks_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

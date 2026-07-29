@@ -1,6 +1,7 @@
 import type { PlanDay } from "@/lib/plan/types";
 import { MEAL_TYPES, type WeekDay } from "@/lib/plan/constants";
 import { isLikelyLiquidMealTitle } from "@/lib/plan/plan-nutrition";
+import type { PlanSnack } from "@/lib/plan/snack-presets";
 import type { DoseSuggestedRecipe } from "@/lib/premium-stories/dose-suggested-recipe";
 import {
   getMondayOfWeek,
@@ -14,6 +15,8 @@ export const LOW_CALORIE_DAY_THRESHOLD = 800;
 export const SIGNIFICANT_DAY_PROTEIN_G = 20;
 /** Proteína por plato considerada significativa (gramos). */
 export const SIGNIFICANT_MEAL_PROTEIN_G = 12;
+
+export const SNACK_MEAL_TYPE_LABEL = "Snack";
 
 export type IntelligentDoseDish = {
   mealType: string;
@@ -137,6 +140,21 @@ function buildDishFromMeal(
   };
 }
 
+function buildDishFromSnack(snack: PlanSnack): IntelligentDoseDish {
+  const title = snack.title?.trim() || "Snack";
+  const displayTitle = snack.emoji?.trim() ? `${snack.emoji.trim()} ${title}` : title;
+  return {
+    mealType: SNACK_MEAL_TYPE_LABEL,
+    title: displayTitle,
+    kcal: Math.max(0, Math.round(snack.kcal ?? 0)),
+    proteinGrams: Math.max(0, Math.round(snack.proteinGrams ?? 0)),
+    carbsGrams: Math.max(0, Math.round(snack.carbsGrams ?? 0)),
+    fatGrams: Math.max(0, Math.round(snack.fatGrams ?? 0)),
+    ingredientNames: [],
+    isLikelyLiquidOnly: isLikelyLiquidMealTitle(title)
+  };
+}
+
 function resolveLowCalorieThreshold(calorieTarget?: number | null): number {
   if (typeof calorieTarget === "number" && calorieTarget > 0) {
     // <60% de la meta personalizada (con suelo absoluto de seguridad).
@@ -151,11 +169,12 @@ function finalizeSnapshot(
     mealTypesFilled: string[];
     hasVegetables: boolean;
     hasProtein: boolean;
+    /** Solo Desayuno/Almuerzo/Cena; los snacks no completan el menú principal. */
+    mainMealCount: number;
   },
   calorieTarget?: number | null
 ): IntelligentDoseMealSnapshot {
-  const { dishes, mealTypesFilled, hasVegetables, hasProtein } = partial;
-  const mealCount = dishes.length;
+  const { dishes, mealTypesFilled, hasVegetables, hasProtein, mainMealCount } = partial;
   const totalCalories = dishes.reduce((sum, d) => sum + d.kcal, 0);
   const totalProtein = dishes.reduce((sum, d) => sum + d.proteinGrams, 0);
   const totalCarbs = dishes.reduce((sum, d) => sum + d.carbsGrams, 0);
@@ -170,7 +189,7 @@ function finalizeSnapshot(
   ).slice(0, 40);
 
   const solidDishes = dishes.filter((d) => !d.isLikelyLiquidOnly);
-  const isLikelyLiquidOnly = mealCount > 0 && solidDishes.length === 0;
+  const isLikelyLiquidOnly = dishes.length > 0 && solidDishes.length === 0;
   const isLowCalorieDay =
     totalCalories < resolveLowCalorieThreshold(calorieTarget);
 
@@ -183,7 +202,7 @@ function finalizeSnapshot(
   const significantVegetables = !isLikelyLiquidOnly && hasVegetables;
 
   return {
-    mealCount,
+    mealCount: mainMealCount,
     totalKcal: totalCalories,
     totalCalories,
     totalProtein,
@@ -191,14 +210,17 @@ function finalizeSnapshot(
     totalFat,
     hasVegetables: significantVegetables,
     hasProtein: significantProtein,
-    mealTitles: dishes.map((d) => d.title).slice(0, 6),
+    mealTitles: dishes.map((d) => d.title).slice(0, 8),
     mealTypesFilled,
     dishes,
     ingredientNames,
     isLowCalorieDay,
     isLikelyLiquidOnly,
     isIncompleteMenu:
-      mealCount === 0 || mealCount < 3 || isLowCalorieDay || isLikelyLiquidOnly
+      mainMealCount === 0 ||
+      mainMealCount < 3 ||
+      isLowCalorieDay ||
+      isLikelyLiquidOnly
   };
 }
 
@@ -227,12 +249,19 @@ function snapshotFromPlanDay(
     }
   }
 
+  const mainMealCount = dishes.length;
+
+  for (const snack of day.snacks ?? []) {
+    dishes.push(buildDishFromSnack(snack));
+  }
+
   return finalizeSnapshot(
     {
       dishes,
       mealTypesFilled: filled,
       hasVegetables: hasVegetablesFromMeals,
-      hasProtein: hasProteinFromMeals
+      hasProtein: hasProteinFromMeals,
+      mainMealCount
     },
     calorieTarget
   );
@@ -269,14 +298,15 @@ export function buildNutritionFactsForPrompt(context: IntelligentDoseUserContext
 - totalProtein: ${today.totalProtein} g
 - totalCarbs: ${today.totalCarbs} g
 - totalFat: ${today.totalFat} g
-- mealCount: ${today.mealCount}
+- mealCount (comidas principales): ${today.mealCount}
+- snackCount: ${today.dishes.filter((d) => d.mealType === SNACK_MEAL_TYPE_LABEL).length}
 - hasSignificantProtein: ${today.hasProtein}
 - hasSignificantVegetables: ${today.hasVegetables}
 - isLowCalorieDay: ${today.isLowCalorieDay}
 - isLikelyLiquidOnly (infusiones/bebidas): ${today.isLikelyLiquidOnly}
 - isIncompleteMenu: ${today.isIncompleteMenu}
 ${targetBlock}
-PLATILLOS DE HOY:
+PLATILLOS DE HOY (incluye snacks si los hay; suman a totalCalories/totalProtein):
 ${dishesBlock}`;
 }
 
@@ -376,7 +406,7 @@ export function buildIntelligentDoseUserContext(params: {
     const snap = snapshotFromPlanDay(day, calorieTarget);
     const weekDay = getWeekDayFromDate(d);
 
-    if (snap.mealCount > 0) {
+    if (snap.mealCount > 0 || snap.totalCalories > 0) {
       daysWithAnyMeal += 1;
       totalMealsPlanned += snap.mealCount;
       kcalSum += snap.totalCalories;

@@ -10,11 +10,13 @@ import { ShoppingListModal } from "@/components/plan/shopping-list-modal";
 import { WeeklyPlanSkeleton } from "@/components/skeletons/weekly-plan-skeleton";
 import type { PlanMeal } from "@/components/plan/plan-meal-card";
 import type { MealType, WeekDay } from "@/lib/plan/constants";
+import { MEAL_TYPES } from "@/lib/plan/constants";
 import {
   assignRecipeToPlan,
   buildEmptyWeekDays,
   fetchRecipesForPicker,
   fetchWeeklyPlan,
+  fillDayPlanWithSuggestions,
   type RecipePickerItem
 } from "@/lib/plan/plan-service";
 import { buildShoppingListItems, type ShoppingListItem } from "@/lib/plan/shopping-list";
@@ -37,6 +39,9 @@ import {
   readLastPlanWeekStartISO,
   saveLastPlanWeekStartISO
 } from "@/lib/plan/plan-pending-assignment";
+import { PremiumUpgradeDialog } from "@/components/premium/premium-upgrade-dialog";
+import { Toast } from "@/components/ui/toast";
+import { usePremium } from "@/hooks/use-premium";
 
 type PickerTarget = {
   dayLabel: WeekDay;
@@ -51,7 +56,15 @@ function patchDaySlots(day: PlanDay, slots: PlanDaySlots): PlanDay {
   return {
     ...day,
     slots,
-    nutrition: summarizeDayPlanNutrition(slots)
+    nutrition: summarizeDayPlanNutrition(slots, day.snacks ?? [])
+  };
+}
+
+function patchDaySnacks(day: PlanDay, snacks: PlanDay["snacks"]): PlanDay {
+  return {
+    ...day,
+    snacks,
+    nutrition: summarizeDayPlanNutrition(day.slots, snacks)
   };
 }
 
@@ -86,6 +99,14 @@ export function WeeklyPlanView() {
   const [isCloningWeek, setIsCloningWeek] = useState(false);
   const [isCheckingCloneAvailability, setIsCheckingCloneAvailability] = useState(false);
   const [canClonePreviousWeek, setCanClonePreviousWeek] = useState<boolean | null>(null);
+  const [isProposingDayMenu, setIsProposingDayMenu] = useState(false);
+  const [showPremiumPaywall, setShowPremiumPaywall] = useState(false);
+  const [menuToast, setMenuToast] = useState<{ visible: boolean; message: string }>({
+    visible: false,
+    message: ""
+  });
+
+  const { isPremium, isLoading: isPremiumLoading, refresh: refreshPremium } = usePremium();
 
   const selectedDayData = useMemo(
     () => days.find((day) => day.label === selectedDay) ?? days[0],
@@ -320,6 +341,67 @@ export function WeeklyPlanView() {
     window.setTimeout(() => setSwapNotice(null), 3200);
   };
 
+  const handleProposeDayMenu = async () => {
+    if (!userId || !selectedDayData || isProposingDayMenu || isPremiumLoading) return;
+
+    if (!isPremium) {
+      setShowPremiumPaywall(true);
+      return;
+    }
+
+    const emptyCount = MEAL_TYPES.filter((mealType) => !selectedDayData.slots[mealType]).length;
+    if (emptyCount === 0) {
+      setSwapNotice(
+        t.has("dayMenuAlreadyFull")
+          ? t("dayMenuAlreadyFull")
+          : "Este día ya tiene todas las comidas asignadas."
+      );
+      window.setTimeout(() => setSwapNotice(null), 2800);
+      return;
+    }
+
+    setIsProposingDayMenu(true);
+    try {
+      const result = await fillDayPlanWithSuggestions({
+        userId,
+        dayLabel: selectedDayData.label,
+        semanaInicioISO: toISODateString(weekStartDate),
+        forceReplace: false
+      });
+
+      if (result.assigned === 0) {
+        setSwapNotice(
+          t.has("dayMenuGenerateEmpty")
+            ? t("dayMenuGenerateEmpty")
+            : "No encontramos recetas para completar el menú."
+        );
+        window.setTimeout(() => setSwapNotice(null), 3200);
+        return;
+      }
+
+      clearHoyCache(userId);
+      invalidatePremiumInsightsCache(userId);
+      await loadWeeklyPlan(weekStartDate);
+      setMenuToast({
+        visible: true,
+        message: t.has("dayMenuSuggestedSuccess")
+          ? t("dayMenuSuggestedSuccess")
+          : "✨ Menú del día sugerido con éxito"
+      });
+      window.setTimeout(() => setMenuToast({ visible: false, message: "" }), 3200);
+    } catch (error) {
+      console.error("[weekly-plan] Error proponiendo menú del día:", error);
+      setSwapNotice(
+        t.has("dayMenuGenerateError")
+          ? t("dayMenuGenerateError")
+          : "No pudimos generar el menú. Inténtalo de nuevo."
+      );
+      window.setTimeout(() => setSwapNotice(null), 3200);
+    } finally {
+      setIsProposingDayMenu(false);
+    }
+  };
+
   const openShoppingList = async () => {
     setShoppingListOpen(true);
     setIsShoppingListLoading(true);
@@ -540,11 +622,49 @@ export function WeeklyPlanView() {
             {selectedDayData ? (
               <PlanDayMealsPanel
                 day={selectedDayData}
+                weekStartISO={toISODateString(weekStartDate)}
                 onAddMeal={(dayLabel, mealType) => void openPicker(dayLabel, mealType)}
                 onMealSwapped={handleMealSwapped}
                 onSwapError={handleSwapError}
                 onMealRemoved={handleMealRemoved}
                 onRemoveError={handleSwapError}
+                onSnackAdded={(dayLabel, snack) => {
+                  setDays((prev) =>
+                    prev.map((day) =>
+                      day.label === dayLabel
+                        ? patchDaySnacks(day, [...(day.snacks ?? []), snack])
+                        : day
+                    )
+                  );
+                  if (userId) {
+                    clearHoyCache(userId);
+                    invalidatePremiumInsightsCache(userId);
+                  }
+                  setSwapNotice(
+                    t.has("snackRegistered")
+                      ? t("snackRegistered", { title: snack.title })
+                      : `Snack «${snack.title}» añadido.`
+                  );
+                }}
+                onSnackRemoved={(dayLabel, snackId) => {
+                  setDays((prev) =>
+                    prev.map((day) =>
+                      day.label === dayLabel
+                        ? patchDaySnacks(
+                            day,
+                            (day.snacks ?? []).filter((snack) => snack.id !== snackId)
+                          )
+                        : day
+                    )
+                  );
+                  if (userId) {
+                    clearHoyCache(userId);
+                    invalidatePremiumInsightsCache(userId);
+                  }
+                }}
+                onProposeDayMenu={() => void handleProposeDayMenu()}
+                isProposingDayMenu={isProposingDayMenu}
+                isPremium={isPremium && !isPremiumLoading}
               />
             ) : null}
           </>
@@ -562,6 +682,32 @@ export function WeeklyPlanView() {
         errorMessage={pickerError}
         onClose={closePicker}
         onSelectRecipe={(recipeId) => void handleSelectRecipe(recipeId)}
+        onExternalMealRegistered={(meal) => {
+          const targetDay = pickerTarget?.dayLabel ?? null;
+          if (targetDay) {
+            setDays((prev) =>
+              prev.map((day) =>
+                day.label === targetDay
+                  ? patchDaySlots(day, {
+                      ...day.slots,
+                      [meal.mealType]: meal
+                    })
+                  : day
+              )
+            );
+          }
+          if (userId) {
+            clearHoyCache(userId);
+            invalidatePremiumInsightsCache(userId);
+          }
+          setSwapNotice(
+            t.has("externalMealRegistered")
+              ? t("externalMealRegistered", { title: meal.title })
+              : `«${meal.title}» registrada en el plan.`
+          );
+          window.setTimeout(() => setSwapNotice(null), 3200);
+          closePicker();
+        }}
       />
 
       <ShoppingListModal
@@ -572,6 +718,19 @@ export function WeeklyPlanView() {
         errorMessage={shoppingListError}
         onClose={() => setShoppingListOpen(false)}
       />
+
+      <PremiumUpgradeDialog
+        open={showPremiumPaywall}
+        onClose={() => setShowPremiumPaywall(false)}
+        onUpgraded={() => void refreshPremium()}
+        featureLabel={
+          t.has("proposeDayMenuFeature")
+            ? t("proposeDayMenuFeature")
+            : "Proponer menú del día con IA"
+        }
+      />
+
+      <Toast message={menuToast.message} visible={menuToast.visible} variant="success" />
 
       <style jsx global>{`
         @keyframes fade-in {

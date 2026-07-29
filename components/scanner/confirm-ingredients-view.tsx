@@ -504,6 +504,7 @@ export function ConfirmIngredientsView({
                   onServingsChange={onServingsChange}
                   onComplexityChange={onComplexityChange}
                   disabled={isDetecting || isBusy}
+                  selectedIngredientNames={selectedIngredientNames(ingredients)}
                 />
               </div>
             ) : null}

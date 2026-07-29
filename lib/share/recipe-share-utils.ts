@@ -4,6 +4,8 @@ import { resolveRecipeTags } from "@/lib/recipes/recipe-tags";
 import { ingredientsJsonToDisplayStrings } from "@/lib/recipes/structured-ingredients";
 import { buildMacroDisplay, parseMacrosFromJson } from "@/lib/recipes/recipe-macros";
 import { getRecipeImageFallback } from "@/lib/recipes/dish-image-fallback";
+import { isExternalMeal } from "@/lib/plan/external-meal";
+
 export function inferDifficulty(pasosCount: number): string {
   if (pasosCount <= 3) return "FÁCIL";
   if (pasosCount <= 5) return "INTERMEDIO";
@@ -62,34 +64,42 @@ type SavedRecipeSource = {
   image_url?: string | null;
   reference_image_url?: string | null;
 };
+
 export function savedRecipeToShareable(recipe: SavedRecipeSource): ShareableRecipe {
-  const ingredientes = jsonToStringList(recipe.ingredients);
-  let pasos = recipe.steps ? jsonToStringList(recipe.steps) : [];
-  if (pasos.length === 0) {
+  const tags = resolveRecipeTags({
+    tags: recipe.tags,
+    is_airfryer: recipe.is_airfryer,
+    is_flourless: recipe.is_flourless
+  });
+  const external = isExternalMeal(tags);
+
+  const ingredientes = external ? [] : jsonToStringList(recipe.ingredients);
+  let pasos = external ? [] : recipe.steps ? jsonToStringList(recipe.steps) : [];
+  if (!external && pasos.length === 0) {
     pasos = parseInstructionsToSteps(recipe.instructions);
   }
 
   const tiempo =
     recipe.cooking_time && recipe.cooking_time > 0
       ? `${recipe.cooking_time} min`
-      : "25 min";
+      : external
+        ? ""
+        : "25 min";
 
   const storedImage = recipe.image_url?.trim() || null;
   const storedReference = recipe.reference_image_url?.trim() || null;
-  const resolvedImage =
-    storedImage ||
-    storedReference ||
-    getRecipeImageFallback({
-      title: recipe.title,
-      image_url: storedImage,
-      reference_image_url: storedReference,
-      ingredients: jsonToStringList(recipe.ingredients),
-      tags: resolveRecipeTags({
-        tags: recipe.tags,
-        is_airfryer: recipe.is_airfryer,
-        is_flourless: recipe.is_flourless
-      })
-    });
+  // Comida fuera: solo foto del plato (o ninguna). Nunca banco/stock.
+  const resolvedImage = external
+    ? storedImage
+    : storedImage ||
+      storedReference ||
+      getRecipeImageFallback({
+        title: recipe.title,
+        image_url: storedImage,
+        reference_image_url: storedReference,
+        ingredients: jsonToStringList(recipe.ingredients),
+        tags
+      });
 
   return {
     titulo: recipe.title,
@@ -97,14 +107,10 @@ export function savedRecipeToShareable(recipe: SavedRecipeSource): ShareableReci
     ingredientes_detallados: ingredientes,
     pasos_ordenados: pasos,
     tip_sandra: recipe.tip_sandra ?? "",
-    tags: resolveRecipeTags({
-      tags: recipe.tags,
-      is_airfryer: recipe.is_airfryer,
-      is_flourless: recipe.is_flourless
-    }),
+    tags,
     macronutrientes: parseMacrosFromJson(recipe.macros),
     imageUrl: resolvedImage,
     referenceImageUrl:
-      storedReference && storedReference !== resolvedImage ? storedReference : null
+      !external && storedReference && storedReference !== resolvedImage ? storedReference : null
   };
 }

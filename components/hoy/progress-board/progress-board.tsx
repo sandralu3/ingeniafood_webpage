@@ -173,7 +173,13 @@ export function ProgressBoard({
     });
   }, [doseContext]);
 
-  const showSkeleton = isLoading && !data;
+  // Evita flash del tip free: skeleton hasta saber el plan y, si es Premium, hasta la dosis.
+  const awaitingPremiumStatus = isPremiumLoading;
+  const awaitingPremiumDose =
+    Boolean(isPremium && !isPremiumLoading) && isDoseLoading && !doseReport;
+  const showSkeleton =
+    (isLoading && !data) || awaitingPremiumStatus || awaitingPremiumDose;
+
   const { streakDays, activeDaysThisWeek } = metrics;
 
   const streakTitle = `${t("streak")} 🔥`;
@@ -292,35 +298,27 @@ export function ProgressBoard({
             >
               {premiumReady ? (
                 <div className="flex min-h-0 flex-1 flex-col justify-between gap-2">
-                  {isDoseLoading && !doseReport ? (
-                    <p className="text-[10px] leading-snug text-stone-400">
-                      {t.has("smartDoseLoading")
-                        ? t("smartDoseLoading")
-                        : "Preparando tu dosis…"}
+                  <div className="space-y-1.5">
+                    <p className="line-clamp-2 text-[10px] font-bold leading-snug text-stone-800">
+                      {previewHeadline}
                     </p>
-                  ) : (
-                    <div className="space-y-1.5">
-                      <p className="line-clamp-2 text-[10px] font-bold leading-snug text-stone-800">
-                        {previewHeadline}
-                      </p>
-                      {hasPlanData && todaySnapshot ? (
-                        <DoseConceptChips
-                          hasProtein={todaySnapshot.hasProtein}
-                          hasVegetables={todaySnapshot.hasVegetables}
-                          proteinLabel={
-                            t.has("intelligentDoseChipProtein")
-                              ? t("intelligentDoseChipProtein")
-                              : "Proteína"
-                          }
-                          fiberLabel={
-                            t.has("intelligentDoseChipFiber")
-                              ? t("intelligentDoseChipFiber")
-                              : "Fibra"
-                          }
-                        />
-                      ) : null}
-                    </div>
-                  )}
+                    {hasPlanData && todaySnapshot ? (
+                      <DoseConceptChips
+                        hasProtein={todaySnapshot.hasProtein}
+                        hasVegetables={todaySnapshot.hasVegetables}
+                        proteinLabel={
+                          t.has("intelligentDoseChipProtein")
+                            ? t("intelligentDoseChipProtein")
+                            : "Proteína"
+                        }
+                        fiberLabel={
+                          t.has("intelligentDoseChipFiber")
+                            ? t("intelligentDoseChipFiber")
+                            : "Fibra"
+                        }
+                      />
+                    ) : null}
+                  </div>
                   <span
                     className={cn(
                       "mt-auto inline-flex w-fit max-w-full items-center rounded-full px-2 py-0.5 text-[9px] font-semibold leading-none transition",

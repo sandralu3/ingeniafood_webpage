@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Instagram, Loader2, Plus } from "lucide-react";
+import { InstagramCatalogRecipeModal } from "@/components/scanner/instagram-catalog-recipe-modal";
 import { RecipeCatalogThumbnail } from "@/components/recipes/recipe-catalog-thumbnail";
 import { MEAL_TYPES, type MealType } from "@/lib/plan/constants";
 import { completePendingPlanAssignment } from "@/lib/plan/complete-pending-assignment";
@@ -45,6 +46,7 @@ export function InstagramCuratedCatalog({
   const [planPickerRecipeId, setPlanPickerRecipeId] = useState<string | null>(null);
   const [assigningMealType, setAssigningMealType] = useState<MealType | null>(null);
   const [assigningRecipeId, setAssigningRecipeId] = useState<string | null>(null);
+  const [selectedRecipe, setSelectedRecipe] = useState<InstagramCatalogRecipe | null>(null);
 
   const pendingAssignmentLabel = pendingPlanAssignment
     ? formatPendingPlanSlot(pendingPlanAssignment, tPlan, t)
@@ -81,6 +83,14 @@ export function InstagramCuratedCatalog({
   useEffect(() => {
     void loadCatalog();
   }, [loadCatalog]);
+
+  const openRecipeDetail = (recipe: InstagramCatalogRecipe) => {
+    setSelectedRecipe(recipe);
+  };
+
+  const closeRecipeDetail = () => {
+    setSelectedRecipe(null);
+  };
 
   const togglePlanPicker = (recipeId: string) => {
     if (pendingPlanAssignment) return;
@@ -194,54 +204,80 @@ export function InstagramCuratedCatalog({
     }
   };
 
+  const handleModalAddToPlan = (recipe: InstagramCatalogRecipe) => {
+    if (pendingPlanAssignment) {
+      void handleAssignToPendingPlan(recipe);
+      return;
+    }
+    togglePlanPicker(recipe.id);
+  };
+
   if (isLoading && recipes.length === 0) {
     return (
-      <div className={cn("mt-4 flex items-center justify-center gap-1.5 py-10 text-xs text-stone-500", className)}>
-        <Loader2 className="h-3.5 w-3.5 animate-spin text-[#4C6B3F]" />
+      <div
+        className={cn(
+          "mt-3 flex items-center justify-center gap-1.5 py-10 text-xs text-stone-500",
+          className
+        )}
+      >
+        <Loader2 className="h-3.5 w-3.5 animate-spin text-[#4D6638]" />
         Cargando catálogo de Instagram...
       </div>
     );
   }
 
   return (
-    <section className={cn("mt-4 space-y-2.5", className)}>
-      <div className="flex items-start gap-2 rounded-xl border border-[#C13584]/15 bg-gradient-to-br from-[#fdf2f8] via-white to-[#F0F4ED] p-2">
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white text-[#C13584] shadow-sm">
-          <Instagram className="h-3.5 w-3.5" strokeWidth={1.75} />
+    <section className={cn("mt-3 space-y-3", className)}>
+      <div className="flex items-start gap-3 rounded-2xl border border-pink-200/60 bg-gradient-to-r from-pink-500/10 via-rose-500/5 to-slate-50 p-4">
+        <span
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600 text-white shadow-sm"
+          aria-hidden
+        >
+          <Instagram className="h-4 w-4" strokeWidth={2} />
         </span>
         <div className="min-w-0">
-          <h2 className="text-base font-semibold leading-tight text-stone-900">
-            Catálogo IngeniaFood
+          <h2 className="text-sm font-bold leading-tight text-slate-800">
+            {t.has("instagramCatalogTitle")
+              ? t("instagramCatalogTitle")
+              : "Catálogo & Instagram"}
           </h2>
-          <p className="mt-0.5 text-[11px] leading-snug text-stone-500">
+          <p className="mt-1 text-xs leading-snug text-slate-500">
             {pendingAssignmentLabel
               ? `Elige una receta y asígnala al ${pendingAssignmentLabel}.`
-              : "Explora nuestras ideas saludables favoritas y añádelas a tu plan semanal."}
+              : t.has("instagramCatalogSubtitle")
+                ? t("instagramCatalogSubtitle")
+                : "Recetas virales de la comunidad listas para agregar a tu menú semanal"}
           </p>
         </div>
       </div>
 
       {errorMessage ? (
-        <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+        <p
+          role="alert"
+          className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700"
+        >
           {errorMessage}
         </p>
       ) : null}
 
       {statusMessage ? (
-        <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+        <p
+          role="status"
+          className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800"
+        >
           {statusMessage}
         </p>
       ) : null}
 
       {recipes.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-stone-200 bg-white px-3 py-6 text-center">
-          <p className="text-xs font-medium text-stone-700">Aún no hay recetas en el catálogo.</p>
-          <p className="mt-0.5 text-[11px] text-stone-500">
+        <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-3 py-6 text-center">
+          <p className="text-xs font-medium text-slate-700">Aún no hay recetas en el catálogo.</p>
+          <p className="mt-0.5 text-[11px] text-slate-500">
             Sandra publicará aquí las recetas importadas desde Instagram.
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-2.5">
+        <div className="grid grid-cols-2 gap-3">
           {recipes.map((recipe) => {
             const isAssigningPending = assigningRecipeId === recipe.id;
             const showPlanPicker = !pendingPlanAssignment && planPickerRecipeId === recipe.id;
@@ -250,46 +286,50 @@ export function InstagramCuratedCatalog({
             return (
               <article
                 key={recipe.id}
-                className="overflow-hidden rounded-xl border border-stone-100 bg-white shadow-sm transition hover:shadow-md"
+                role="button"
+                tabIndex={0}
+                onClick={() => openRecipeDetail(recipe)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    openRecipeDetail(recipe);
+                  }
+                }}
+                className="cursor-pointer overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm transition-all hover:shadow-md"
               >
-                <button
-                  type="button"
-                  onClick={() => togglePlanPicker(recipe.id)}
-                  disabled={Boolean(pendingPlanAssignment) || isBusy}
-                  className="block w-full text-left disabled:cursor-default"
-                >
-                  <div className="relative aspect-[3/2] overflow-hidden bg-stone-50">
-                    <RecipeCatalogThumbnail
-                      title={recipe.title}
-                      imageUrl={recipe.image_url}
-                      isAirfryer={recipe.is_airfryer}
-                      isFlourless={recipe.is_flourless}
-                      className="[&_svg]:h-5 [&_svg]:w-5"
-                    />
-                  </div>
-                </button>
+                <div className="relative aspect-[4/3] overflow-hidden bg-slate-50">
+                  <RecipeCatalogThumbnail
+                    title={recipe.title}
+                    imageUrl={recipe.image_url}
+                    isAirfryer={recipe.is_airfryer}
+                    isFlourless={recipe.is_flourless}
+                    className="[&_svg]:h-5 [&_svg]:w-5"
+                  />
+                  <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-black/40 px-2 py-1 text-[10px] font-medium text-white backdrop-blur-md">
+                    <Instagram className="h-3 w-3" strokeWidth={2} />
+                    Reel
+                  </span>
+                </div>
 
-                <div className="space-y-1.5 p-2">
-                  <button
-                    type="button"
-                    onClick={() => togglePlanPicker(recipe.id)}
-                    disabled={Boolean(pendingPlanAssignment) || isBusy}
-                    className="w-full text-left disabled:cursor-default"
-                  >
-                    <h3 className="line-clamp-2 text-xs font-semibold leading-snug text-stone-800">
-                      {recipe.title}
-                    </h3>
-                  </button>
+                <div className="space-y-2 px-3 pb-3 pt-2.5">
+                  <h3 className="line-clamp-2 text-xs font-bold leading-snug text-slate-800">
+                    {recipe.title}
+                  </h3>
 
                   {pendingPlanAssignment ? (
                     <button
                       type="button"
-                      onClick={() => void handleAssignToPendingPlan(recipe)}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        void handleAssignToPendingPlan(recipe);
+                      }}
                       disabled={isBusy}
                       aria-label={t("assignToPlanAria", {
-                        slot: pendingAssignmentLabel ?? formatPendingPlanSlot(pendingPlanAssignment, tPlan, t)
+                        slot:
+                          pendingAssignmentLabel ??
+                          formatPendingPlanSlot(pendingPlanAssignment, tPlan, t)
                       })}
-                      className="inline-flex w-full items-center justify-center gap-1 rounded-full border border-[#4C6B3F]/25 bg-[#4C6B3F] px-2.5 py-1.5 text-[10px] font-semibold leading-tight text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-[#4D6638]/25 bg-[#4D6638] py-2 text-[11px] font-semibold text-white transition hover:bg-[#42572f] disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {isAssigningPending ? (
                         <>
@@ -297,17 +337,20 @@ export function InstagramCuratedCatalog({
                           {t("assigning")}
                         </>
                       ) : (
-                        <>{t("assignToPlan")}</>
+                        t("assignToPlan")
                       )}
                     </button>
                   ) : (
                     <button
                       type="button"
-                      onClick={() => togglePlanPicker(recipe.id)}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        togglePlanPicker(recipe.id);
+                      }}
                       disabled={isBusy}
                       aria-label={t("addToPlanAria")}
                       aria-expanded={showPlanPicker}
-                      className="inline-flex w-full items-center justify-center gap-1 rounded-full border border-[#4C6B3F]/20 bg-[#F0F4ED] px-2.5 py-1.5 text-[10px] font-semibold leading-tight text-[#4C6B3F] transition hover:bg-[#dce7c3] disabled:cursor-not-allowed disabled:opacity-60"
+                      className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200/60 bg-slate-50 py-2 text-[11px] font-semibold text-[#4D6638] transition-colors hover:bg-[#4D6638] hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       <Plus className="h-3 w-3 shrink-0" strokeWidth={2} />
                       {t("addToPlan")}
@@ -315,8 +358,11 @@ export function InstagramCuratedCatalog({
                   )}
 
                   {showPlanPicker ? (
-                    <div className="space-y-1.5 rounded-lg border border-stone-100 bg-stone-50/80 p-1.5">
-                      <p className="text-[9px] font-semibold uppercase tracking-wide text-stone-500">
+                    <div
+                      className="space-y-1.5 rounded-xl border border-slate-100 bg-slate-50/80 p-1.5"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      <p className="px-1 text-[9px] font-semibold uppercase tracking-wide text-slate-500">
                         {t("addToday")}
                       </p>
                       <div className="grid grid-cols-1 gap-1">
@@ -324,9 +370,12 @@ export function InstagramCuratedCatalog({
                           <button
                             key={mealType}
                             type="button"
-                            onClick={() => void handleAssignToPlan(recipe, mealType)}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              void handleAssignToPlan(recipe, mealType);
+                            }}
                             disabled={Boolean(assigningMealType)}
-                            className="rounded-md bg-white px-2 py-1.5 text-[11px] font-semibold text-stone-700 transition hover:bg-[#F0F4ED] disabled:opacity-60"
+                            className="rounded-lg bg-white px-2 py-1.5 text-[11px] font-semibold text-slate-700 transition hover:bg-[#F0F4ED] disabled:opacity-60"
                           >
                             {assigningMealType === mealType ? (
                               <span className="inline-flex items-center gap-1">
@@ -347,6 +396,13 @@ export function InstagramCuratedCatalog({
           })}
         </div>
       )}
+
+      <InstagramCatalogRecipeModal
+        open={Boolean(selectedRecipe)}
+        recipe={selectedRecipe}
+        onClose={closeRecipeDetail}
+        onAddToPlan={handleModalAddToPlan}
+      />
     </section>
   );
 }

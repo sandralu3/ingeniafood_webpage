@@ -21,6 +21,7 @@ import {
   translateCuisineStyleShort,
   translateMealType
 } from "@/lib/i18n/filter-labels";
+import { shouldShowBreakfastPantryTip } from "@/lib/recipes/meal-type-ingredient-compatibility";
 import { cn } from "@/lib/utils";
 
 export const SCANNER_SECTION_CLASS =
@@ -36,6 +37,8 @@ type Props = {
   onServingsChange: (value: RecipeServings) => void;
   onComplexityChange: (value: RecipeComplexity) => void;
   disabled?: boolean;
+  /** Nombres de ingredientes seleccionados (para tip de coherencia Desayuno). */
+  selectedIngredientNames?: string[];
 };
 
 const COMPACT_SERVINGS: Array<{ value: RecipeServings; label: string }> = [
@@ -118,13 +121,17 @@ export function AdvancedRecipeFilters({
   onCuisineStyleChange,
   onServingsChange,
   onComplexityChange,
-  disabled = false
+  disabled = false,
+  selectedIngredientNames = []
 }: Props) {
   const t = useTranslations("Scanner");
   const { isPremium, isLoading, isPaidPremium, isTester, premiumTrialRemaining, refresh } =
     usePremium();
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
   const [expanded, setExpanded] = useState(false);
+
+  const showBreakfastHeavyTip =
+    mealType === "desayuno" && shouldShowBreakfastPantryTip(selectedIngredientNames);
 
   const mealLabel = translateMealType(t, mealType);
   const cuisineLabel = translateCuisineStyleShort(t, cuisineStyle);
@@ -296,7 +303,19 @@ export function AdvancedRecipeFilters({
                 )
               )}
             </FilterGroup>
+
+            {showBreakfastHeavyTip ? (
+              <p className="mt-1.5 text-[11px] italic text-slate-500">
+                {t("breakfastHeavyTip")}
+              </p>
+            ) : null}
           </div>
+        ) : null}
+
+        {!expanded && showBreakfastHeavyTip ? (
+          <p className="mt-1.5 px-1 text-[11px] italic text-slate-500">
+            {t("breakfastHeavyTip")}
+          </p>
         ) : null}
       </section>
 

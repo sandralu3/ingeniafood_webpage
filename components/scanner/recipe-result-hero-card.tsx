@@ -7,7 +7,9 @@ import { formatTimeLabel } from "@/lib/share/recipe-share-utils";
 import { normalizeRecipeSteps } from "@/lib/recipes/sentence-case";
 import { partitionIngredientsByPantry } from "@/lib/recipes/recipe-options";
 import { DEFAULT_DISH_HERO_FALLBACK } from "@/lib/recipes/dish-image-fallback";
+import type { AppliedRecipeFilters } from "@/lib/recipes/premium-recipe-filters";
 import { cn } from "@/lib/utils";
+import { translateMealType } from "@/lib/i18n/filter-labels";
 
 type DetailTab = "ingredients" | "preparation";
 
@@ -16,13 +18,15 @@ type Props = {
   pantryIngredients?: string[];
   mealTypeAdvisory?: string | null;
   isGeneratingPhoto?: boolean;
+  appliedFilters?: AppliedRecipeFilters | null;
 };
 
 export function RecipeResultHeroCard({
   recipe,
   pantryIngredients = [],
   mealTypeAdvisory = null,
-  isGeneratingPhoto = false
+  isGeneratingPhoto = false,
+  appliedFilters = null
 }: Props) {
   const t = useTranslations("Scanner");
   const tDetail = useTranslations("RecipeDetail");
@@ -54,6 +58,14 @@ export function RecipeResultHeroCard({
 
   const macros = recipe.macronutrientes;
   const timeLabel = formatTimeLabel(recipe.tiempo_preparacion);
+  const servingsCount = appliedFilters?.servings ?? null;
+  const servingsLabel =
+    servingsCount != null
+      ? tDetail("servings", { count: servingsCount })
+      : null;
+  const mealTypeLabel = appliedFilters?.mealType
+    ? translateMealType(t, appliedFilters.mealType)
+    : null;
   const primaryUrl = recipe.imageUrl || recipe.referenceImageUrl || null;
   const heroImageUrl =
     primaryUrl && !imageFailed
@@ -100,6 +112,8 @@ export function RecipeResultHeroCard({
           </h1>
           <HeroBadges
             timeLabel={timeLabel}
+            mealTypeLabel={mealTypeLabel}
+            servingsLabel={servingsLabel}
             kcal={macros ? Math.round(macros.calorias) : null}
             protein={macros ? Math.round(macros.proteinas_g) : null}
             onDark
@@ -108,12 +122,6 @@ export function RecipeResultHeroCard({
           />
         </div>
       </div>
-
-      {mealTypeAdvisory ? (
-        <p className="border-b border-stone-100 px-4 py-2 text-[11px] leading-relaxed text-stone-500">
-          {mealTypeAdvisory}
-        </p>
-      ) : null}
 
       <div className="border-b border-stone-100 px-2 pt-2" role="tablist" aria-label={t("recipeDetailTabs")}>
         <div className="grid grid-cols-2 gap-1">
@@ -132,7 +140,19 @@ export function RecipeResultHeroCard({
 
       <div className="px-4 py-3">
         {tab === "ingredients" ? (
-          <div className="grid grid-cols-2 gap-4">
+          <>
+            {mealTypeAdvisory ? (
+              <div
+                role="status"
+                className="mb-3 flex items-start gap-2 rounded-xl border border-emerald-200/80 bg-emerald-50 p-3 text-xs text-emerald-900 shadow-xs"
+              >
+                <span className="shrink-0 text-sm leading-none" aria-hidden>
+                  ✨
+                </span>
+                <p className="leading-relaxed">{mealTypeAdvisory}</p>
+              </div>
+            ) : null}
+            <div className="grid grid-cols-2 gap-4">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-wide text-[#3e5219]">
                 {t("ingredientsYouHave")} ({pantrySplit.available.length})
@@ -178,6 +198,7 @@ export function RecipeResultHeroCard({
               </ul>
             </div>
           </div>
+          </>
         ) : (
           <div className="space-y-3">
             {steps.length > 0 ? (
@@ -213,6 +234,8 @@ export function RecipeResultHeroCard({
 
 function HeroBadges({
   timeLabel,
+  mealTypeLabel,
+  servingsLabel,
   kcal,
   protein,
   onDark = false,
@@ -220,6 +243,8 @@ function HeroBadges({
   proteinLabel
 }: {
   timeLabel: string;
+  mealTypeLabel?: string | null;
+  servingsLabel?: string | null;
   kcal: number | null;
   protein: number | null;
   onDark?: boolean;
@@ -232,7 +257,9 @@ function HeroBadges({
 
   return (
     <div className="flex flex-wrap gap-1.5">
+      {mealTypeLabel ? <span className={chip}>☀️ {mealTypeLabel}</span> : null}
       <span className={chip}>⚡ {timeLabel}</span>
+      {servingsLabel ? <span className={chip}>🍽️ {servingsLabel}</span> : null}
       {kcal != null ? (
         <span className={chip}>
           🥗 {kcal} {kcalLabel}

@@ -2,9 +2,11 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, MoreVertical, ScanLine, Search, Instagram, X } from "lucide-react";
+import { Camera, Loader2, MoreVertical, PenLine, ScanLine, Search, Instagram, X } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { ExternalMealRegisterModal } from "@/components/plan/external-meal-register-modal";
 import { PlanRecipePickerRow } from "@/components/plan/plan-recipe-picker-row";
+import type { PlanMeal } from "@/components/plan/plan-meal-card";
 import type { ScannerMode } from "@/components/scanner/scanner-mode-tabs";
 import type { RecipePickerItem } from "@/lib/plan/plan-service";
 import { WEEK_DAYS, type MealType, type WeekDay } from "@/lib/plan/constants";
@@ -18,6 +20,7 @@ import {
   SAVED_RECIPE_FILTERS,
   type SavedRecipeFilter
 } from "@/lib/recipes/saved-recipes-filter";
+import { canRegisterExternalMealForPlanDay } from "@/lib/plan/week-utils";
 import { cn } from "@/lib/utils";
 
 type PlanRecipePickerModalProps = {
@@ -31,6 +34,7 @@ type PlanRecipePickerModalProps = {
   errorMessage?: string | null;
   onClose: () => void;
   onSelectRecipe: (recipeId: string) => void;
+  onExternalMealRegistered?: (meal: PlanMeal) => void;
 };
 
 const FILTER_LABEL_KEYS: Record<SavedRecipeFilter, string> = {
@@ -51,7 +55,8 @@ export function PlanRecipePickerModal({
   isAssigning,
   errorMessage,
   onClose,
-  onSelectRecipe
+  onSelectRecipe,
+  onExternalMealRegistered
 }: PlanRecipePickerModalProps) {
   const t = useTranslations("Plan");
   const tCommon = useTranslations("Common");
@@ -59,6 +64,7 @@ export function PlanRecipePickerModal({
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilter, setActiveFilter] = useState<SavedRecipeFilter>("Todas");
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
+  const [externalMode, setExternalMode] = useState<"photo" | "text" | null>(null);
   const filterMenuRef = useRef<HTMLDivElement>(null);
 
   const dayDisplay =
@@ -72,6 +78,7 @@ export function PlanRecipePickerModal({
       setSearchTerm("");
       setActiveFilter("Todas");
       setIsFilterMenuOpen(false);
+      setExternalMode(null);
     }
   }, [open]);
 
@@ -96,6 +103,13 @@ export function PlanRecipePickerModal({
       }),
     [activeFilter, recipes, searchTerm]
   );
+
+  const canRegisterExternal = useMemo(() => {
+    if (!weekStartISO || !(WEEK_DAYS as readonly string[]).includes(dayLabel)) {
+      return false;
+    }
+    return canRegisterExternalMealForPlanDay(weekStartISO, dayLabel as WeekDay);
+  }, [dayLabel, weekStartISO]);
 
   const goToScannerForPlan = (mode: ScannerMode = "pantry") => {
     savePendingPlanAssignment({
@@ -140,6 +154,52 @@ export function PlanRecipePickerModal({
         </div>
 
         <div className="relative z-20 border-b border-stone-100 bg-white px-5 py-3">
+          {canRegisterExternal ? (
+            <div className="mb-3 rounded-2xl border border-violet-100/80 bg-gradient-to-br from-violet-50/80 to-sky-50/50 p-3">
+              <p className="mb-2 text-center text-[11px] font-bold uppercase tracking-wide text-stone-500">
+                {t.has("externalMealOptionsLabel")
+                  ? t("externalMealOptionsLabel")
+                  : "¿Comiste fuera?"}
+              </p>
+              <div className="grid grid-cols-1 gap-2">
+                <button
+                  type="button"
+                  disabled={isAssigning}
+                  onClick={() => setExternalMode("photo")}
+                  className={cn(
+                    "inline-flex items-center justify-center gap-1.5 rounded-xl border border-sky-200/80 bg-white px-3 py-2.5 text-xs font-semibold text-sky-900 shadow-sm transition",
+                    "hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  )}
+                >
+                  <Camera className="h-4 w-4 shrink-0" />
+                  {t.has("externalMealScanCta")
+                    ? t("externalMealScanCta")
+                    : "📸 Escanear plato servido (IA)"}
+                </button>
+                <button
+                  type="button"
+                  disabled={isAssigning}
+                  onClick={() => setExternalMode("text")}
+                  className={cn(
+                    "inline-flex items-center justify-center gap-1.5 rounded-xl border border-violet-200/80 bg-white px-3 py-2.5 text-xs font-semibold text-violet-900 shadow-sm transition",
+                    "hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  )}
+                >
+                  <PenLine className="h-4 w-4 shrink-0" />
+                  {t.has("externalMealQuickCta")
+                    ? t("externalMealQuickCta")
+                    : "✍️ Registrar comida rápida"}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p className="mb-3 rounded-2xl border border-stone-100 bg-stone-50 px-3 py-2.5 text-center text-[11px] leading-relaxed text-stone-500">
+              {t.has("externalMealFutureDayHint")
+                ? t("externalMealFutureDayHint")
+                : "Solo puedes registrar comidas fuera en hoy o días pasados."}
+            </p>
+          )}
+
           <div className="flex w-full items-center gap-2">
             <label className="relative flex-1">
               <Search
@@ -271,6 +331,24 @@ export function PlanRecipePickerModal({
           </div>
         ) : null}
       </div>
+
+      <ExternalMealRegisterModal
+        open={externalMode !== null && canRegisterExternal}
+        mode={externalMode ?? "text"}
+        dayLabel={
+          (WEEK_DAYS as readonly string[]).includes(dayLabel)
+            ? (dayLabel as WeekDay)
+            : "Lunes"
+        }
+        mealType={mealType}
+        weekStartISO={weekStartISO}
+        onClose={() => setExternalMode(null)}
+        onRegistered={(meal) => {
+          setExternalMode(null);
+          onExternalMealRegistered?.(meal);
+          onClose();
+        }}
+      />
     </div>
   );
 }

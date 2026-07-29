@@ -5,15 +5,19 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Heart, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { ExternalMealDetailCard } from "@/components/plan/external-meal-detail-card";
 import { RecipeAppliedFiltersBadges } from "@/components/recipes/recipe-applied-filters-badges";
 import { RecipeInstagramAdminForm } from "@/components/recipes/recipe-instagram-admin-form";
 import { RecipeInstagramLink } from "@/components/recipes/recipe-instagram-link";
 import { RecipeResultHeroCard } from "@/components/scanner/recipe-result-hero-card";
 import { isSandraAdmin } from "@/lib/auth/sandra-admin";
+import { translateMealType } from "@/lib/i18n/filter-labels";
+import { resolveExternalMealBadge } from "@/lib/plan/external-meal";
 import { handleRemoveFromFavorites } from "@/lib/recipes/remove-from-favorites";
 import {
   parseStoredAppliedFilters
 } from "@/lib/recipes/save-generated-recipe";
+import { parseRecipeMealType } from "@/lib/recipes/premium-recipe-filters";
 import { savedRecipeToShareable } from "@/lib/share/recipe-share-utils";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import { cn } from "@/lib/utils";
@@ -46,6 +50,7 @@ type RecipeDetailPageProps = {
 
 export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
   const t = useTranslations("RecipeDetail");
+  const tScanner = useTranslations("Scanner");
   const router = useRouter();
   const [recipeId, setRecipeId] = useState<string>("");
   const [recipe, setRecipe] = useState<RecipeRow | null>(null);
@@ -223,6 +228,18 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
     [recipe]
   );
 
+  const externalBadge = useMemo(
+    () => (recipe ? resolveExternalMealBadge(recipe.tags) : null),
+    [recipe]
+  );
+
+  const mealTypeLabel = useMemo(() => {
+    const mealType =
+      appliedFilters?.mealType ??
+      (recipe?.meal_type ? parseRecipeMealType(recipe.meal_type) : null);
+    return mealType ? translateMealType(tScanner, mealType) : null;
+  }, [appliedFilters?.mealType, recipe?.meal_type, tScanner]);
+
   const handleRemoveFavorite = useCallback(async () => {
     if (!recipe || isRemoving || !isFavorite) return;
 
@@ -245,14 +262,14 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
     <section className="space-y-5 pb-8">
       <div className="flex items-center justify-between gap-3">
         <Link
-          href="/app-recetas/recipes"
+          href={externalBadge ? "/app-recetas/plan" : "/app-recetas/recipes"}
           className="inline-flex items-center gap-2 text-xs font-medium text-[#4c6633]/80 transition hover:text-[#4c6633]"
         >
           <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.5} />
-          {t("backToRecipes")}
+          {externalBadge ? "Volver al plan" : t("backToRecipes")}
         </Link>
 
-        {!isLoading && recipe ? (
+        {!isLoading && recipe && !externalBadge ? (
           <button
             type="button"
             onClick={() => void handleRemoveFavorite()}
@@ -298,20 +315,38 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
         </p>
       ) : null}
 
-      {!isLoading && shareableRecipe && recipe ? (
+      {!isLoading && shareableRecipe && recipe && externalBadge ? (
+        <div className="animate-detail-enter">
+          <ExternalMealDetailCard
+            title={recipe.title}
+            badge={externalBadge}
+            imageUrl={recipe.image_url}
+            calories={shareableRecipe.macronutrientes?.calorias ?? null}
+            proteinGrams={shareableRecipe.macronutrientes?.proteinas_g ?? null}
+            mealTypeLabel={mealTypeLabel}
+            tipSandra={recipe.tip_sandra}
+          />
+        </div>
+      ) : null}
+
+      {!isLoading && shareableRecipe && recipe && !externalBadge ? (
         <article className="animate-detail-enter space-y-4">
           {recipe.instagram_url ? (
             <RecipeInstagramLink url={recipe.instagram_url} />
           ) : null}
           {appliedFilters ? (
             <div className="flex flex-wrap gap-1.5 px-0.5">
-              <RecipeAppliedFiltersBadges filters={appliedFilters} />
+              <RecipeAppliedFiltersBadges
+                filters={appliedFilters}
+                omit={["mealType", "servings"]}
+              />
             </div>
           ) : null}
           <RecipeResultHeroCard
             recipe={shareableRecipe}
             pantryIngredients={[]}
             mealTypeAdvisory={recipe.meal_type_advisory}
+            appliedFilters={appliedFilters}
           />
           {isAdmin ? (
             <RecipeInstagramAdminForm

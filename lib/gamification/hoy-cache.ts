@@ -6,7 +6,7 @@ import { invalidatePremiumInsightsCache } from "@/lib/premium-stories/stories-ca
 import type { HoyPageData } from "@/lib/gamification/hoy-page-data";
 
 /** Bump when HoyPageData shape changes so soft-nav never hydrates stale payloads. */
-const HOY_CACHE_PREFIX = "ingeniafood_hoy_data_v7";
+const HOY_CACHE_PREFIX = "ingeniafood_hoy_data_v8";
 
 function buildCacheKey(userId: string): string {
   return `${HOY_CACHE_PREFIX}_${userId}_${getTodayDateString()}`;
@@ -28,12 +28,17 @@ function sanitizeHoyPageData(data: HoyPageData): HoyPageData {
     streakCompletions: data.streakCompletions ?? data.weekCompletions ?? [],
     todayPlanNutrition: data.todayPlanNutrition ?? {
       totalKcal: 0,
+      totalProteinGrams: 0,
+      totalCarbsGrams: 0,
+      totalFatGrams: 0,
       plannedMealCount: 0,
       hasVegetables: false,
       hasProtein: false,
       hasProteinBreakfast: false
     },
-    todayPlanMeals: data.todayPlanMeals ?? []
+    todayPlanMeals: data.todayPlanMeals ?? [],
+    todayPlanSnacks: data.todayPlanSnacks ?? [],
+    weekStartISO: data.weekStartISO ?? ""
   };
 }
 

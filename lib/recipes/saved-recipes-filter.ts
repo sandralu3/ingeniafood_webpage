@@ -1,5 +1,10 @@
 import type { Database, Json } from "@/types/database.types";
 import { ingredientsJsonToDisplayStrings } from "@/lib/recipes/structured-ingredients";
+import {
+  getRecipeMealTypeLabel,
+  parseRecipeMealType,
+  type RecipeMealType
+} from "@/lib/recipes/premium-recipe-filters";
 
 export type SavedRecipeFilter = "Todas" | "Airfryer" | "Desayunos" | "Cenas" | "Sin Harinas";
 
@@ -66,6 +71,13 @@ const LUNCH_KEYWORDS = [
   "quinoa"
 ];
 
+const MEAL_TYPE_CARD_LABEL: Record<RecipeMealType, string> = {
+  desayuno: "Desayuno",
+  almuerzo: "Almuerzo",
+  cena: "Cena",
+  postre: "Postre"
+};
+
 export function normalizeSearchText(value: string): string {
   return value
     .trim()
@@ -107,9 +119,14 @@ function includesAnyKeyword(blob: string, keywords: string[]): boolean {
   return keywords.some((keyword) => blob.includes(normalizeSearchText(keyword)));
 }
 
+function storedMealType(recipe: Pick<RecipeRow, "meal_type">): RecipeMealType | null {
+  return parseRecipeMealType(recipe.meal_type ?? null);
+}
+
 export function matchesSavedRecipeCategory(recipe: RecipeRow, filter: SavedRecipeFilter): boolean {
   if (filter === "Todas") return true;
 
+  const mealType = storedMealType(recipe);
   const blob = buildRecipeSearchBlob(recipe);
 
   switch (filter) {
@@ -118,8 +135,10 @@ export function matchesSavedRecipeCategory(recipe: RecipeRow, filter: SavedRecip
     case "Sin Harinas":
       return recipe.is_flourless || blob.includes("sin harinas") || blob.includes("sin harina");
     case "Desayunos":
+      if (mealType) return mealType === "desayuno";
       return includesAnyKeyword(blob, BREAKFAST_KEYWORDS);
     case "Cenas":
+      if (mealType) return mealType === "cena";
       return includesAnyKeyword(blob, DINNER_KEYWORDS);
     default:
       return true;
@@ -153,7 +172,7 @@ export function countSavedRecipesByCategory(
   return recipes.filter((recipe) => matchesSavedRecipeCategory(recipe, filter)).length;
 }
 
-function resolveRecipeCardLabel(
+function resolveRecipeCardLabelFromKeywords(
   blob: string,
   flags: { is_airfryer?: boolean; is_flourless?: boolean }
 ): string | null {
@@ -173,10 +192,13 @@ export type RecipeLabelSource = {
   title: string;
   is_airfryer?: boolean;
   is_flourless?: boolean;
+  meal_type?: string | null;
 };
 
 export function getRecipePickerCardLabel(source: RecipeLabelSource): string | null {
-  return resolveRecipeCardLabel(normalizeSearchText(source.title), source);
+  const mealType = parseRecipeMealType(source.meal_type ?? null);
+  if (mealType) return MEAL_TYPE_CARD_LABEL[mealType];
+  return resolveRecipeCardLabelFromKeywords(normalizeSearchText(source.title), source);
 }
 
 export function matchesPickerRecipeCategory(
@@ -185,6 +207,7 @@ export function matchesPickerRecipeCategory(
 ): boolean {
   if (filter === "Todas") return true;
 
+  const mealType = parseRecipeMealType(source.meal_type ?? null);
   const blob = normalizeSearchText(source.title);
 
   switch (filter) {
@@ -193,8 +216,10 @@ export function matchesPickerRecipeCategory(
     case "Sin Harinas":
       return Boolean(source.is_flourless) || blob.includes("sin harinas") || blob.includes("sin harina");
     case "Desayunos":
+      if (mealType) return mealType === "desayuno";
       return includesAnyKeyword(blob, BREAKFAST_KEYWORDS);
     case "Cenas":
+      if (mealType) return mealType === "cena";
       return includesAnyKeyword(blob, DINNER_KEYWORDS);
     default:
       return true;
@@ -217,6 +242,14 @@ export function filterPickerRecipes<T extends RecipeLabelSource>(
   });
 }
 
+/**
+ * Etiqueta de categoría en la lista: prioriza `meal_type` persistido al generar/guardar.
+ * Solo usa heurística por palabras del título/ingredientes en recetas legacy sin ese campo.
+ */
 export function getRecipeCardLabel(recipe: RecipeRow): string | null {
-  return resolveRecipeCardLabel(buildRecipeSearchBlob(recipe), recipe);
+  const mealType = storedMealType(recipe);
+  if (mealType) {
+    return MEAL_TYPE_CARD_LABEL[mealType] ?? getRecipeMealTypeLabel(mealType);
+  }
+  return resolveRecipeCardLabelFromKeywords(buildRecipeSearchBlob(recipe), recipe);
 }

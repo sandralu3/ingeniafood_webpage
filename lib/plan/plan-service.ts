@@ -17,6 +17,12 @@ import {
   EMPTY_DAY_PLAN_NUTRITION,
   summarizeDayPlanNutrition
 } from "@/lib/plan/plan-nutrition";
+import { resolveExternalMealBadge } from "@/lib/plan/external-meal";
+import {
+  fetchSnacksForWeek,
+  groupSnacksByDay
+} from "@/lib/plan/snack-service";
+import type { PlanSnack } from "@/lib/plan/snack-presets";
 
 type PlanRow = Database["public"]["Tables"]["plan_semanal"]["Row"];
 type RecipeRow = Database["public"]["Tables"]["recipes"]["Row"];
@@ -179,7 +185,7 @@ function toPlanMeal(row: PlanRowWithRecipe): PlanMeal {
   if (!recipe) return baseMeal;
 
   try {
-    return enrichPlanMealWithNutrition(baseMeal, {
+    const enriched = enrichPlanMealWithNutrition(baseMeal, {
       ingredients: recipe.ingredients,
       macros: recipe.macros,
       tags: recipe.tags,
@@ -187,9 +193,16 @@ function toPlanMeal(row: PlanRowWithRecipe): PlanMeal {
       is_flourless: recipe.is_flourless,
       title: recipe.title
     });
+    return {
+      ...enriched,
+      externalBadge: resolveExternalMealBadge(recipe.tags)
+    };
   } catch (error) {
     console.warn("[plan] Error analizando nutrición de receta:", recipe.id, error);
-    return baseMeal;
+    return {
+      ...baseMeal,
+      externalBadge: resolveExternalMealBadge(recipe.tags)
+    };
   }
 }
 
@@ -203,17 +216,23 @@ export function buildEmptyWeekDays(weekStart: Date): PlanDay[] {
       dateLabel: formatWeekDateLabel(date),
       isToday: isSameCalendarDay(date, today),
       slots: emptySlots(),
+      snacks: [],
       nutrition: EMPTY_DAY_PLAN_NUTRITION
     };
   });
 }
 
-export function groupPlanRowsIntoDays(rows: PlanRowWithRecipe[], weekStart: Date): PlanDay[] {
+export function groupPlanRowsIntoDays(
+  rows: PlanRowWithRecipe[],
+  weekStart: Date,
+  snacksByDay?: Record<string, PlanSnack[]>
+): PlanDay[] {
   const today = new Date();
 
   return WEEK_DAYS.map((label, index) => {
     const date = getDateForWeekDay(weekStart, index);
     const slots = emptySlots();
+    const snacks = snacksByDay?.[label] ?? [];
 
     rows
       .filter((row) => row.dia_semana === label)
@@ -228,7 +247,8 @@ export function groupPlanRowsIntoDays(rows: PlanRowWithRecipe[], weekStart: Date
       dateLabel: formatWeekDateLabel(date),
       isToday: isSameCalendarDay(date, today),
       slots,
-      nutrition: summarizeDayPlanNutrition(slots)
+      snacks,
+      nutrition: summarizeDayPlanNutrition(slots, snacks)
     };
   });
 }
@@ -244,25 +264,46 @@ export async function fetchWeeklyPlan(
   const weekStart = weekStartDate;
   const semanaInicio = toISODateString(weekStart);
 
-  const { data, error } = await supabase
-    .from("plan_semanal")
-    .select(PLAN_SELECT)
-    .eq("user_id", userId)
-    .eq("semana_inicio", semanaInicio);
+  const [{ data, error }, snacks] = await Promise.all([
+    supabase
+      .from("plan_semanal")
+      .select(PLAN_SELECT)
+      .eq("user_id", userId)
+      .eq("semana_inicio", semanaInicio),
+    fetchSnacksForWeek(userId, semanaInicio).catch((snackError) => {
+      console.warn("[plan] snacks omitidos:", snackError);
+      return [] as PlanSnack[];
+    })
+  ]);
 
   if (error) {
     throw error;
   }
 
   const rows = await enrichPlanRowsWithNutrition((data ?? []) as PlanRowWithRecipe[]);
+  const snacksByDay = groupSnacksByDay(snacks);
   return {
     weekStart: semanaInicio,
-    days: groupPlanRowsIntoDays(rows, weekStart)
+    days: groupPlanRowsIntoDays(rows, weekStart, snacksByDay)
   };
 }
 
 export async function fetchRecipesForPicker(userId: string): Promise<RecipePickerItem[]> {
   const supabase = createSupabaseClient();
+
+  const withTags = await supabase
+    .from("recipes")
+    .select(
+      "id, title, image_url, instagram_url, cooking_time, is_airfryer, is_flourless, created_at, tags"
+    )
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+
+  if (!withTags.error) {
+    return ((withTags.data ?? []) as Array<RecipePickerItem & { tags?: unknown }>).filter(
+      (recipe) => resolveExternalMealBadge(recipe.tags) == null
+    );
+  }
 
   const { data, error } = await supabase
     .from("recipes")
@@ -342,7 +383,7 @@ export async function swapPlanMeal(params: {
 
   const { data: recipes, error: recipesError } = await supabase
     .from("recipes")
-    .select("id, title, description, instructions, image_url, cooking_time")
+    .select("id, title, description, instructions, image_url, cooking_time, meal_type")
     .or(`user_id.eq.${params.userId},is_public.eq.true`)
     .neq("id", params.currentRecipeId);
 
@@ -392,28 +433,27 @@ export async function removePlanMeal(params: {
 }
 
 /**
- * Rellena los 3 slots del día (desayuno/almuerzo/cena) con recetas sugeridas.
+ * Rellena slots vacíos (desayuno/almuerzo/cena) de un día concreto con recetas sugeridas.
  * Solo escribe en slots vacíos salvo `forceReplace`.
  */
-export async function fillTodayPlanWithSuggestions(params: {
+export async function fillDayPlanWithSuggestions(params: {
   userId: string;
+  dayLabel: WeekDay;
+  semanaInicioISO: string;
   forceReplace?: boolean;
 }): Promise<{ assigned: number; dayLabel: WeekDay }> {
   const supabase = createSupabaseClient();
-  const today = new Date();
-  today.setHours(12, 0, 0, 0);
-  const dayLabel = getWeekDayFromDate(today);
-  const semanaInicio = toISODateString(getMondayOfWeek(today));
+  const { dayLabel, semanaInicioISO } = params;
 
   const { data: existingRows, error: existingError } = await supabase
     .from("plan_semanal")
     .select("id, tipo_comida, recipe_id")
     .eq("user_id", params.userId)
-    .eq("semana_inicio", semanaInicio)
+    .eq("semana_inicio", semanaInicioISO)
     .eq("dia_semana", dayLabel);
 
   if (existingError) {
-    console.error("[plan] Error leyendo plan de hoy:", existingError);
+    console.error("[plan] Error leyendo plan del día:", existingError);
     throw existingError;
   }
 
@@ -432,7 +472,7 @@ export async function fillTodayPlanWithSuggestions(params: {
 
   const { data: recipes, error: recipesError } = await supabase
     .from("recipes")
-    .select("id, title, description, instructions, image_url, cooking_time")
+    .select("id, title, description, instructions, image_url, cooking_time, meal_type")
     .or(`user_id.eq.${params.userId},is_public.eq.true`)
     .limit(80);
 
@@ -457,10 +497,28 @@ export async function fillTodayPlanWithSuggestions(params: {
       diaSemana: dayLabel,
       tipoComida: mealType,
       recipeId: recipe.id,
-      semanaInicioISO: semanaInicio
+      semanaInicioISO
     });
     if (meal) assigned += 1;
   }
 
   return { assigned, dayLabel };
+}
+
+/**
+ * Rellena los 3 slots del día de hoy con recetas sugeridas.
+ * Solo escribe en slots vacíos salvo `forceReplace`.
+ */
+export async function fillTodayPlanWithSuggestions(params: {
+  userId: string;
+  forceReplace?: boolean;
+}): Promise<{ assigned: number; dayLabel: WeekDay }> {
+  const today = new Date();
+  today.setHours(12, 0, 0, 0);
+  return fillDayPlanWithSuggestions({
+    userId: params.userId,
+    dayLabel: getWeekDayFromDate(today),
+    semanaInicioISO: toISODateString(getMondayOfWeek(today)),
+    forceReplace: params.forceReplace
+  });
 }

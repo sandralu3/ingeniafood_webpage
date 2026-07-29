@@ -43,6 +43,7 @@ import {
   type RecipeOptionVariant
 } from "@/lib/recipes/recipe-options";
 import { createSupabaseRouteClient } from "@/lib/supabaseRoute";
+import { getRouteUser } from "@/lib/auth/get-route-user";
 import { LOCALE_COOKIE_NAME } from "@/i18n/config";
 import { cookies } from "next/headers";
 
@@ -52,10 +53,12 @@ export const runtime = "nodejs";
 
 const PANTRY_PRIORITY_RULE =
   "REGLA ABSOLUTA DE INGREDIENTES PRINCIPALES: La receta DEBE construirse PRINCIPALMENTE con los ingredientes que el usuario proporcionó (selección manual y/o detección en imagen). " +
-  "PROHIBIDO introducir ingredientes principales que no estén en esa lista. Ejemplo: si el usuario tiene arroz y tomates, NO sugieras fresas, yogur griego, salmón ni pollo. " +
-  "Solo puedes añadir condimentos básicos universales: sal, pimienta, aceite de oliva, agua, ajo en polvo. " +
-  "Al menos el 80% de los ingredientes_detallados deben provenir de la lista del usuario o de la imagen. " +
-  "Si no hay suficientes ingredientes para una receta coherente, simplifica el plato en lugar de inventar productos nuevos.\n\n";
+  "PROHIBIDO generar un plato donde el usuario no use casi ninguno de sus ingredientes activos (\"YA TIENES\" no puede quedar en 0 si envió ingredientes). " +
+  "PROHIBIDO sustituir el protagonista (ej. pollo) por otros ingredientes inventados (ej. solo huevos) solo porque el tipo de plato sea Desayuno. " +
+  "PROHIBIDO introducir ingredientes principales que no estén en esa lista. " +
+  "Puedes añadir condimentos básicos (sal, pimienta, aceite, agua, ajo) y, si el tipo de plato lo requiere, un soporte mínimo de despensa (pan, huevo, especias) SOLO como acompañamiento del ingrediente del usuario. " +
+  "Al menos el 80% del protagonismo del plato debe venir de la lista del usuario o de la imagen. " +
+  "Si no hay suficientes ingredientes para una receta coherente, simplifica el plato adaptando lo que SÍ tienen al momento del día, en lugar de inventar un menú distinto.\n\n";
 
 const HEALTHY_NUTRITION_RULE =
   "PRIORIDAD NUTRICIONAL INGENIAFOOD: Todas las recetas deben ser saludables, equilibradas y con ingredientes reales de alto valor nutricional. " +
@@ -248,6 +251,7 @@ function parseJsonResponse(rawText: string): ParseOutcome {
       error?: string;
       mensaje?: string;
       advertencia_ingredientes?: string;
+      ingredientes_omitidos_nota?: string;
       recipes?: LooseGeminiRecipe[];
       recetas?: LooseGeminiRecipe[];
       opciones?: LooseGeminiRecipe[];
@@ -270,11 +274,18 @@ function parseJsonResponse(rawText: string): ParseOutcome {
       return { status: "meal_type_mismatch", message };
     }
 
-    const mealTypeAdvisory =
+    const omitidosNota =
+      typeof parsed.ingredientes_omitidos_nota === "string" &&
+      parsed.ingredientes_omitidos_nota.trim().length > 0
+        ? parsed.ingredientes_omitidos_nota.trim()
+        : undefined;
+    const advertencia =
       typeof parsed.advertencia_ingredientes === "string" &&
       parsed.advertencia_ingredientes.trim().length > 0
         ? parsed.advertencia_ingredientes.trim()
         : undefined;
+    // Prefer transparency note when ingredients were reserved among multiple options.
+    const mealTypeAdvisory = omitidosNota ?? advertencia;
 
     const looseList = Array.isArray(parsed.recipes)
       ? parsed.recipes
@@ -392,20 +403,26 @@ export async function POST(request: Request) {
       );
     }
 
-    const {
-      data: { user },
-      error: authError
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
+    const auth = await getRouteUser(supabase);
+    if (auth.status === "unavailable") {
       return jsonResponse(
         {
-          error: "Debes iniciar sesión para generar recetas.",
+          error: auth.message,
+          code: "AUTH_UNAVAILABLE"
+        },
+        503
+      );
+    }
+    if (auth.status === "unauthorized") {
+      return jsonResponse(
+        {
+          error: auth.message,
           code: "UNAUTHORIZED"
         },
         401
       );
     }
+    const user = auth.user;
 
     const generationsLeft = await getGenerationsLeft(user.id, user.email);
     if (generationsLeft === null) {
@@ -602,11 +619,12 @@ export async function POST(request: Request) {
       MACRO_ESTIMATION_RULE +
       `${filtersPromptClause}\n\n${mealTypeCompatibilityClause}\n\n${mealTypePantryClause}\n\n` +
       (recipeIdeaClause ? `${recipeIdeaClause}\n\n` : "") +
-      "Solo JSON valido. Formato esperado: { \"advertencia_ingredientes\": \"\", \"recipes\": [ " +
+      "Solo JSON valido. Formato esperado: { \"advertencia_ingredientes\": \"\", \"ingredientes_omitidos_nota\": \"\", \"recipes\": [ " +
       recipeJsonShape +
       ", ...exactamente 3 ] }. " +
       multiRecipeRules +
       "advertencia_ingredientes: opcional; texto breve (en el idioma de salida) si hace falta avisar de complementos no escaneados. Si no aplica, usa \"\". " +
+      "ingredientes_omitidos_nota: SOLO si el usuario envió VARIOS ingredientes y omitiste alguno porque usaste otros de su lista en la receta; explica qué reservaste y qué usaste. Si el usuario tiene un solo ingrediente (o pocos) y lo usas, DEBE ser \"\". NUNCA omitas el único ingrediente disponible ni inventes un plato sin él. " +
       "ETIQUETAS (campo etiquetas): array de 0 a 3 strings. Valores permitidos SOLO: \"Sin Harinas\", \"Apto para Airfryer\", \"Alto en Proteína\". " +
       "NO incluyas Desayuno, Cena, Snack, Almuerzo ni Postre en etiquetas (el momento del plato ya se define por filtros del usuario). " +
       "Reglas estrictas: incluye \"Sin Harinas\" solo si la receta no usa harinas ni cereales refinados; incluye \"Apto para Airfryer\" solo si la cocción principal es en airfryer; incluye \"Alto en Proteína\" solo si aplica de verdad. Si ninguna aplica, devuelve etiquetas: []. " +
@@ -620,7 +638,7 @@ export async function POST(request: Request) {
 
     const systemInstruction = hasImage
       ? `${INGREDIENT_VALIDATION_RULE}${ingredientQuantityRule}${VISION_SYSTEM_PREFIX}${jsonRules} ${manualClause}`
-      : `${INGREDIENT_VALIDATION_RULE}${ingredientQuantityRule}Solo JSON valido. Usa ingredientes: [${selectedList}]. ${multiRecipeRules} Formato { "advertencia_ingredientes": "", "recipes": [${recipeJsonShape}, ...] }. ${jsonRules}`;
+      : `${INGREDIENT_VALIDATION_RULE}${ingredientQuantityRule}Solo JSON valido. Usa ingredientes: [${selectedList}]. ${multiRecipeRules} Formato { "advertencia_ingredientes": "", "ingredientes_omitidos_nota": "", "recipes": [${recipeJsonShape}, ...] }. ${jsonRules}`;
 
     const promptTail =
       selectedIngredients.length && hasImage
@@ -632,7 +650,7 @@ export async function POST(request: Request) {
     const prompt =
       "Primero valida si hay comida visible. Si NO hay comida, responde solo {\"error\":\"NOT_FOOD\"} y termina sin texto adicional. " +
       "Si sí hay comida, responde exclusivamente con JSON valido (sin markdown, sin bloques de codigo) usando esta estructura exacta: " +
-      `{ "advertencia_ingredientes": string, "recipes": [${recipeJsonShape}, ${recipeJsonShape}, ${recipeJsonShape}] }. ` +
+      `{ "advertencia_ingredientes": string, "ingredientes_omitidos_nota": string, "recipes": [${recipeJsonShape}, ${recipeJsonShape}, ${recipeJsonShape}] }. ` +
       `${multiRecipeRules}${promptTail} No inventes ingredientes principales imposibles; prioriza exclusivamente lo visible y lo indicado arriba. El titulo debe reflejar los ingredientes reales del usuario, no sabores inventados.`;
 
     let rawResponse = "";

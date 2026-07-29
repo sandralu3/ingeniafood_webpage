@@ -7,15 +7,20 @@ import { useTranslations } from "next-intl";
 import type { HoyPageData } from "@/lib/gamification/hoy-page-data";
 import { EmptyMealCard } from "@/components/hoy/empty-meal-card";
 import { HoySection } from "@/components/hoy/hoy-section-header";
+import { PlanSnacksSection } from "@/components/plan/plan-snacks-section";
 import { Toast } from "@/components/ui/toast";
 import type { MealType } from "@/lib/plan/constants";
 import { MEAL_TYPES } from "@/lib/plan/constants";
 import { computeRemainingMacros, type RemainingMacros } from "@/lib/plan/meal-suggestion";
 import { fetchUserNutritionGoals } from "@/lib/nutrition/nutrition-profile";
 import type { TodayPlanMealSummary } from "@/lib/plan/plan-nutrition";
+import type { PlanSnack } from "@/lib/plan/snack-presets";
 import { fillTodayPlanWithSuggestions } from "@/lib/plan/plan-service";
+import { getTodayWeekDay } from "@/lib/plan/week-utils";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
 import { cn } from "@/lib/utils";
+import { PremiumUpgradeDialog } from "@/components/premium/premium-upgrade-dialog";
+import { usePremium } from "@/hooks/use-premium";
 
 type TodayPlanNutritionProps = {
   data: HoyPageData | null;
@@ -82,39 +87,29 @@ function CarouselDots({
 
 function GenerateFullDayBanner({
   userId,
-  onDone
+  isPremium,
+  isPremiumLoading,
+  isGenerating,
+  onGenerate,
+  onUnlockPremium
 }: {
   userId: string | null | undefined;
-  onDone?: () => void;
+  isPremium: boolean;
+  isPremiumLoading: boolean;
+  isGenerating: boolean;
+  onGenerate: () => void;
+  onUnlockPremium: () => void;
 }) {
   const t = useTranslations("Hoy");
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const premiumReady = Boolean(isPremium && !isPremiumLoading);
 
-  const handleGenerate = async () => {
-    if (!userId || isGenerating) return;
-    setIsGenerating(true);
-    setError(null);
-    try {
-      const result = await fillTodayPlanWithSuggestions({ userId, forceReplace: false });
-      if (result.assigned === 0) {
-        setError(
-          t.has("todayMenuGenerateEmpty")
-            ? t("todayMenuGenerateEmpty")
-            : "No encontramos recetas para completar el menú."
-        );
-        return;
-      }
-      onDone?.();
-    } catch {
-      setError(
-        t.has("todayMenuGenerateError")
-          ? t("todayMenuGenerateError")
-          : "No pudimos generar el menú. Inténtalo de nuevo."
-      );
-    } finally {
-      setIsGenerating(false);
+  const handleClick = () => {
+    if (!userId) return;
+    if (!premiumReady) {
+      onUnlockPremium();
+      return;
     }
+    onGenerate();
   };
 
   if (!userId) {
@@ -135,24 +130,48 @@ function GenerateFullDayBanner({
     <div className="mb-3 space-y-1.5">
       <button
         type="button"
-        onClick={() => void handleGenerate()}
-        disabled={isGenerating}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#556B2F] px-3 py-2.5 text-[12px] font-semibold text-white shadow-sm transition hover:bg-[#3e5219] disabled:cursor-wait disabled:opacity-70"
+        onClick={handleClick}
+        disabled={isGenerating || isPremiumLoading}
+        className={cn(
+          "flex w-full items-center justify-center gap-2 rounded-xl border px-3 py-2 text-[12px] font-semibold transition-all disabled:cursor-wait disabled:opacity-70",
+          premiumReady
+            ? "border-[#4D6638]/30 bg-[#4D6638]/10 text-[#4D6638] hover:bg-[#4D6638]/20"
+            : "border-amber-300/60 bg-amber-500/10 text-amber-900 hover:bg-amber-500/20"
+        )}
       >
         {isGenerating ? (
           <Loader2 className="h-3.5 w-3.5 animate-spin" />
         ) : (
           <Sparkles className="h-3.5 w-3.5" />
         )}
-        {isGenerating
-          ? t.has("todayMenuGenerating")
-            ? t("todayMenuGenerating")
-            : "Generando tu menú…"
-          : t.has("todayMenuGenerateCta")
-            ? t("todayMenuGenerateCta")
-            : "✨ Generar menú completo para hoy"}
+        <span>
+          {isGenerating
+            ? t.has("todayMenuGenerating")
+              ? t("todayMenuGenerating")
+              : "Generando tu menú…"
+            : t.has("proposeDayMenu")
+              ? t("proposeDayMenu")
+              : "✨ Proponer menú del día"}
+        </span>
+        {!premiumReady && !isGenerating ? (
+          <span className="text-[10px] font-bold tracking-wide">👑 PRO</span>
+        ) : null}
       </button>
-      {error ? <p className="text-center text-[10px] text-rose-600">{error}</p> : null}
+    </div>
+  );
+}
+
+function GeneratingMealPlaceholder({ slotLabel }: { slotLabel: string }) {
+  return (
+    <div
+      className="flex h-full min-h-[7.5rem] flex-col items-center justify-center gap-1.5 rounded-xl border border-emerald-100/80 bg-emerald-50/40 px-2 py-3 text-center"
+      aria-busy="true"
+    >
+      <Loader2 className="h-4 w-4 animate-spin text-[#4D6638]" />
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-stone-500">{slotLabel}</p>
+      <p className="text-[11px] font-medium leading-snug text-[#4D6638]">
+        ✨ Generando propuesta con IA...
+      </p>
     </div>
   );
 }
@@ -288,12 +307,14 @@ function TodayMenuCarousel({
   slots,
   userId,
   remainingMacros,
-  onPlanUpdated
+  onPlanUpdated,
+  isGeneratingFullDay = false
 }: {
   slots: MealSlot[];
   userId?: string | null;
   remainingMacros?: RemainingMacros | null;
   onPlanUpdated?: () => void;
+  isGeneratingFullDay?: boolean;
 }) {
   const ordered = useMemo(() => orderSlotsForCarousel(slots), [slots]);
   const t = useTranslations("Hoy");
@@ -397,6 +418,8 @@ function TodayMenuCarousel({
             <div key={mealType} role="listitem" className={MEAL_CARD_FRAME}>
               {meal ? (
                 <MealStoryCard mealType={mealType} meal={meal} />
+              ) : isGeneratingFullDay ? (
+                <GeneratingMealPlaceholder slotLabel={slotLabel} />
               ) : (
                 <EmptyMealCard
                   mealType={mealType}
@@ -426,6 +449,8 @@ function TodayMenuCarousel({
 
 function TodayMenuSection({
   slots,
+  snacks,
+  weekStartISO,
   totalKcal,
   totalProtein,
   totalCarbs,
@@ -438,6 +463,8 @@ function TodayMenuSection({
   className
 }: {
   slots: MealSlot[];
+  snacks: PlanSnack[];
+  weekStartISO: string;
   totalKcal: number;
   totalProtein: number;
   totalCarbs: number;
@@ -450,8 +477,23 @@ function TodayMenuSection({
   className?: string;
 }) {
   const t = useTranslations("Hoy");
+  const { isPremium, isLoading: isPremiumLoading, refresh: refreshPremium } = usePremium();
+  const [isGeneratingFullDay, setIsGeneratingFullDay] = useState(false);
+  const [showPremiumPaywall, setShowPremiumPaywall] = useState(false);
+  const [menuError, setMenuError] = useState<string | null>(null);
+  const [menuToast, setMenuToast] = useState<{ visible: boolean; message: string }>({
+    visible: false,
+    message: ""
+  });
+  const [localSnacks, setLocalSnacks] = useState<PlanSnack[]>(snacks);
+
+  useEffect(() => {
+    setLocalSnacks(snacks);
+  }, [snacks]);
+
   const title = t.has("todayMenuTitle") ? t("todayMenuTitle") : t("todayPlan");
-  const isEmptyDay = plannedCount === 0;
+  const isEmptyDay = plannedCount === 0 && localSnacks.length === 0;
+  const hasEmptySlots = plannedCount < MEAL_TYPES.length;
   const subtitle = isEmptyDay
     ? t.has("todayMenuEmptySubtitle")
       ? t("todayMenuEmptySubtitle")
@@ -482,19 +524,73 @@ function TodayMenuSection({
     };
   }, [userId]);
 
+  useEffect(() => {
+    if (!menuToast.visible) return;
+    const timer = window.setTimeout(() => {
+      setMenuToast((prev) => ({ ...prev, visible: false }));
+    }, 3200);
+    return () => window.clearTimeout(timer);
+  }, [menuToast.visible]);
+
+  const baseSnackKcal = snacks.reduce((sum, snack) => sum + snack.kcal, 0);
+  const baseSnackProtein = snacks.reduce((sum, snack) => sum + snack.proteinGrams, 0);
+  const baseSnackCarbs = snacks.reduce((sum, snack) => sum + snack.carbsGrams, 0);
+  const baseSnackFat = snacks.reduce((sum, snack) => sum + snack.fatGrams, 0);
+  const localSnackKcal = localSnacks.reduce((sum, snack) => sum + snack.kcal, 0);
+  const localSnackProtein = localSnacks.reduce((sum, snack) => sum + snack.proteinGrams, 0);
+  const localSnackCarbs = localSnacks.reduce((sum, snack) => sum + snack.carbsGrams, 0);
+  const localSnackFat = localSnacks.reduce((sum, snack) => sum + snack.fatGrams, 0);
+
+  const displayKcal = totalKcal - baseSnackKcal + localSnackKcal;
+  const displayProtein = totalProtein - baseSnackProtein + localSnackProtein;
+  const displayCarbs = totalCarbs - baseSnackCarbs + localSnackCarbs;
+  const displayFat = totalFat - baseSnackFat + localSnackFat;
+
   const remainingMacros = useMemo(
     () =>
       computeRemainingMacros(
         {
-          calories: totalKcal,
-          protein: totalProtein,
-          carbs: totalCarbs,
-          fat: totalFat
+          calories: displayKcal,
+          protein: displayProtein,
+          carbs: displayCarbs,
+          fat: displayFat
         },
         dayBudget
       ),
-    [dayBudget, totalCarbs, totalFat, totalKcal, totalProtein]
+    [dayBudget, displayCarbs, displayFat, displayKcal, displayProtein]
   );
+
+  const handleGenerateFullDay = async () => {
+    if (!userId || isGeneratingFullDay) return;
+    setIsGeneratingFullDay(true);
+    setMenuError(null);
+    try {
+      const result = await fillTodayPlanWithSuggestions({ userId, forceReplace: false });
+      if (result.assigned === 0) {
+        setMenuError(
+          t.has("todayMenuGenerateEmpty")
+            ? t("todayMenuGenerateEmpty")
+            : "No encontramos recetas para completar el menú."
+        );
+        return;
+      }
+      setMenuToast({
+        visible: true,
+        message: t.has("dayMenuSuggestedSuccess")
+          ? t("dayMenuSuggestedSuccess")
+          : "✨ Menú del día sugerido con éxito"
+      });
+      onPlanUpdated?.();
+    } catch {
+      setMenuError(
+        t.has("todayMenuGenerateError")
+          ? t("todayMenuGenerateError")
+          : "No pudimos generar el menú. Inténtalo de nuevo."
+      );
+    } finally {
+      setIsGeneratingFullDay(false);
+    }
+  };
 
   return (
     <HoySection
@@ -516,22 +612,59 @@ function TodayMenuSection({
           : "border-emerald-100/40 bg-gradient-to-br from-white via-[#FBFCF8] to-emerald-50/20"
       )}
     >
-      {isEmptyDay ? (
-        <GenerateFullDayBanner userId={userId} onDone={onPlanUpdated} />
-      ) : (
+      {hasEmptySlots ? (
+        <>
+          <GenerateFullDayBanner
+            userId={userId}
+            isPremium={isPremium}
+            isPremiumLoading={isPremiumLoading}
+            isGenerating={isGeneratingFullDay}
+            onGenerate={() => void handleGenerateFullDay()}
+            onUnlockPremium={() => setShowPremiumPaywall(true)}
+          />
+          {menuError ? <p className="mb-2 text-center text-[10px] text-rose-600">{menuError}</p> : null}
+        </>
+      ) : null}
+
+      {!isEmptyDay ? (
         <TodayBalanceBar
-          totalKcal={totalKcal}
+          totalKcal={displayKcal}
           hasVegetables={hasVegetables}
-          hasProtein={hasProtein}
+          hasProtein={hasProtein || displayProtein >= 12}
         />
-      )}
+      ) : null}
 
       <TodayMenuCarousel
         slots={slots}
         userId={userId}
         remainingMacros={remainingMacros}
         onPlanUpdated={onPlanUpdated}
+        isGeneratingFullDay={isGeneratingFullDay}
       />
+
+      {weekStartISO ? (
+        <div className="mt-3">
+          <PlanSnacksSection
+            dayLabel={getTodayWeekDay()}
+            weekStartISO={weekStartISO}
+            snacks={localSnacks}
+            readOnly
+          />
+        </div>
+      ) : null}
+
+      <PremiumUpgradeDialog
+        open={showPremiumPaywall}
+        onClose={() => setShowPremiumPaywall(false)}
+        onUpgraded={() => void refreshPremium()}
+        featureLabel={
+          t.has("proposeDayMenuFeature")
+            ? t("proposeDayMenuFeature")
+            : "Proponer menú del día con IA"
+        }
+      />
+
+      <Toast message={menuToast.message} visible={menuToast.visible} variant="success" />
     </HoySection>
   );
 }
@@ -555,6 +688,8 @@ export function TodayPlanNutrition({
     <TodayMenuSection
       className={className}
       slots={slots}
+      snacks={data?.todayPlanSnacks ?? []}
+      weekStartISO={data?.weekStartISO ?? ""}
       plannedCount={plannedCount}
       totalKcal={nutrition?.totalKcal ?? 0}
       totalProtein={nutrition?.totalProteinGrams ?? 0}

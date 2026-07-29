@@ -90,15 +90,13 @@ export function scoreCandidateForMeal(
 ): number {
   const macros = resolveMacros(candidate.macros);
   const target = targetForMeal(mealType, remaining);
-  const typedBonus = recipeMatchesMealType(candidate, mealType) ? 0 : 35;
-  const mealTypeBonus =
-    candidate.meal_type &&
-    candidate.meal_type.toLowerCase() === mealType.toLowerCase()
-      ? -12
-      : 0;
+  const preferredType =
+    mealType === "Desayuno" ? "desayuno" : mealType === "Cena" ? "cena" : "almuerzo";
+  const resolvedType = (candidate.meal_type ?? "").toLowerCase();
+  const exactSlotBonus = resolvedType === preferredType ? -18 : 0;
 
   if (!macros) {
-    return 80 + typedBonus + mealTypeBonus;
+    return 80 + exactSlotBonus;
   }
 
   const kcalGap = Math.abs(macros.calorias - target.calories) / Math.max(target.calories, 1);
@@ -109,7 +107,7 @@ export function scoreCandidateForMeal(
       ? (macros.calorias - remaining.calories) / 40
       : 0;
 
-  return kcalGap * 40 + proteinGap * 25 + overshoot * 10 + typedBonus + mealTypeBonus;
+  return kcalGap * 40 + proteinGap * 25 + overshoot * 10 + exactSlotBonus;
 }
 
 export function toMealSuggestion(
@@ -131,6 +129,10 @@ export function toMealSuggestion(
   };
 }
 
+/**
+ * Filtra por coherencia de comida (igual que el plan semanal) y ordena por macros.
+ * Desayuno → solo desayunos; Almuerzo/Cena intercambiables; postre fuera.
+ */
 export function rankMealCandidates(
   candidates: MealSuggestionCandidate[],
   mealType: MealType,
@@ -140,6 +142,7 @@ export function rankMealCandidates(
   const excluded = new Set(excludeRecipeIds.filter(Boolean));
   return candidates
     .filter((item) => !excluded.has(item.id))
+    .filter((item) => recipeMatchesMealType(item, mealType))
     .map((item) => ({
       item,
       score: scoreCandidateForMeal(item, mealType, remaining)

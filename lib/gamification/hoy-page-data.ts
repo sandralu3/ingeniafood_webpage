@@ -14,6 +14,7 @@ import {
 } from "@/lib/plan/plan-nutrition";
 import type { MealType } from "@/lib/plan/constants";
 import { fetchWeeklyPlan } from "@/lib/plan/plan-service";
+import type { PlanSnack } from "@/lib/plan/snack-presets";
 import { getMondayOfWeek, toISODateString } from "@/lib/plan/week-utils";
 
 export type HoyPageData = {
@@ -27,6 +28,8 @@ export type HoyPageData = {
   streakCompletions: Array<{ reto_id: string; completado_at: string }>;
   todayPlanNutrition: DayPlanNutritionSummary;
   todayPlanMeals: Array<{ mealType: MealType; meal: TodayPlanMealSummary | null }>;
+  todayPlanSnacks: PlanSnack[];
+  weekStartISO: string;
 };
 
 type InflightRequest = {
@@ -86,6 +89,7 @@ async function loadHoyPageData(userId: string): Promise<HoyPageData> {
   const todayPlanNutrition: DayPlanNutritionSummary =
     todayPlanDay?.nutrition ?? EMPTY_DAY_PLAN_NUTRITION;
   const todayPlanMeals = buildTodayPlanMealSlots(todayPlanDay?.slots);
+  const todayPlanSnacks = todayPlanDay?.snacks ?? [];
 
   const metrics = calculateWeeklyHealthMetrics({
     activeChallenges,
@@ -106,6 +110,8 @@ async function loadHoyPageData(userId: string): Promise<HoyPageData> {
     weekCompletions,
     streakCompletions,
     todayPlanNutrition,
-    todayPlanMeals
+    todayPlanMeals,
+    todayPlanSnacks,
+    weekStartISO: weeklyPlan.weekStart || weekStart
   };
 }

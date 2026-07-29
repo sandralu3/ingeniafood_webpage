@@ -11,6 +11,7 @@ import {
 import { resolveRecipeTags } from "@/lib/recipes/recipe-tags";
 import { normalizeIngredientsJson } from "@/lib/recipes/structured-ingredients";
 import type { Json } from "@/types/database.types";
+import { HAS_VEGETABLES_TAG } from "@/lib/plan/external-meal";
 
 export type PlanRecipeNutritionInput = {
   ingredients?: Json | null;
@@ -108,7 +109,9 @@ export function analyzePlanRecipeNutrition(input: PlanRecipeNutritionInput): Pla
   const liquidOnly = isLikelyLiquidMealTitle(title);
 
   let hasVegetables =
-    !liquidOnly && VEGETABLE_TITLE_PATTERN.test(titleLower);
+    !liquidOnly &&
+    (VEGETABLE_TITLE_PATTERN.test(titleLower) ||
+      tags.some((tag) => tag.toLowerCase() === HAS_VEGETABLES_TAG));
   let hasProtein =
     !liquidOnly &&
     (PROTEIN_TITLE_PATTERN.test(titleLower) ||
@@ -171,20 +174,36 @@ export function enrichPlanMealWithNutrition(
   };
 }
 
-export function summarizeDayPlanNutrition(slots: PlanDaySlots): DayPlanNutritionSummary {
+export function summarizeDayPlanNutrition(
+  slots: PlanDaySlots,
+  snacks: Array<{
+    kcal?: number | null;
+    proteinGrams?: number | null;
+    carbsGrams?: number | null;
+    fatGrams?: number | null;
+  }> = []
+): DayPlanNutritionSummary {
   const meals = MEAL_TYPES.flatMap((mealType) => {
     const meal = slots[mealType];
     return meal ? [{ mealType, meal }] : [];
   });
 
+  const snackKcal = snacks.reduce((sum, snack) => sum + (snack.kcal ?? 0), 0);
+  const snackProtein = snacks.reduce((sum, snack) => sum + (snack.proteinGrams ?? 0), 0);
+  const snackCarbs = snacks.reduce((sum, snack) => sum + (snack.carbsGrams ?? 0), 0);
+  const snackFat = snacks.reduce((sum, snack) => sum + (snack.fatGrams ?? 0), 0);
+
   return {
-    totalKcal: meals.reduce((sum, entry) => sum + (entry.meal.kcal ?? 0), 0),
-    totalProteinGrams: meals.reduce((sum, entry) => sum + (entry.meal.proteinGrams ?? 0), 0),
-    totalCarbsGrams: meals.reduce((sum, entry) => sum + (entry.meal.carbsGrams ?? 0), 0),
-    totalFatGrams: meals.reduce((sum, entry) => sum + (entry.meal.fatGrams ?? 0), 0),
+    totalKcal: meals.reduce((sum, entry) => sum + (entry.meal.kcal ?? 0), 0) + snackKcal,
+    totalProteinGrams:
+      meals.reduce((sum, entry) => sum + (entry.meal.proteinGrams ?? 0), 0) + snackProtein,
+    totalCarbsGrams:
+      meals.reduce((sum, entry) => sum + (entry.meal.carbsGrams ?? 0), 0) + snackCarbs,
+    totalFatGrams: meals.reduce((sum, entry) => sum + (entry.meal.fatGrams ?? 0), 0) + snackFat,
     plannedMealCount: meals.length,
     hasVegetables: meals.some((entry) => entry.meal.hasVegetables),
-    hasProtein: meals.some((entry) => entry.meal.hasProtein),
+    hasProtein:
+      meals.some((entry) => entry.meal.hasProtein) || snackProtein >= 12,
     hasProteinBreakfast: meals.some(
       (entry) => entry.mealType === "Desayuno" && entry.meal.hasProtein
     )

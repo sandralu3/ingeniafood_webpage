@@ -102,6 +102,7 @@ export function RecipeResultView({
           pantryIngredients={pantryIngredients}
           mealTypeAdvisory={mealTypeAdvisory}
           isGeneratingPhoto={isGeneratingPhoto}
+          appliedFilters={appliedFilters}
         />
       </div>
 

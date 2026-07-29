@@ -1,4 +1,5 @@
 import { matchDishImageFromBundledCatalog } from "@/lib/recipes/dish-image-bank-catalog";
+import { isExternalMeal } from "@/lib/plan/external-meal";
 
 /**
  * Fallback de portada (cliente/servidor) sin depender de OpenAI.
@@ -45,8 +46,13 @@ export function pickStoredRecipeImageUrl(recipe: RecipeImageSource): string | nu
 /**
  * Foto de stock del catálogo local según título/ingredientes, o fallback estable.
  * Seguro en cliente y servidor (sin OpenAI).
+ * Comidas fuera: nunca inventa stock — solo aplica si hay foto real guardada.
  */
 export function getRecipeImageFallback(recipe: RecipeImageSource): string {
+  if (isExternalMeal(recipe.tags)) {
+    return pickStoredRecipeImageUrl(recipe) || "";
+  }
+
   const title = (recipe.titulo || recipe.title || "").trim();
   const ingredients = recipe.ingredientes_detallados ?? recipe.ingredients ?? [];
   const tags = recipe.tags ?? [];
@@ -73,7 +79,8 @@ export function getRecipeImageFallback(recipe: RecipeImageSource): string {
 
 /**
  * Normaliza URLs de imagen para persistir / renderizar.
- * Nunca devuelve vacío: siempre hay al menos un fallback de stock.
+ * Recetas normales: siempre hay al menos un fallback de stock.
+ * Comidas fuera: solo foto real (o vacío).
  */
 export function normalizeRecipeImageFields(recipe: RecipeImageSource): {
   image: string;
@@ -81,6 +88,14 @@ export function normalizeRecipeImageFields(recipe: RecipeImageSource): {
   referenceImageUrl: string | null;
 } {
   const stored = pickStoredRecipeImageUrl(recipe);
+  if (isExternalMeal(recipe.tags)) {
+    return {
+      image: stored ?? "",
+      imageUrl: stored ?? "",
+      referenceImageUrl: null
+    };
+  }
+
   const fallback = getRecipeImageFallback(recipe);
   const imageUrl = stored || fallback;
   const reference =

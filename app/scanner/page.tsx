@@ -216,6 +216,12 @@ function resolveErrorMessage(
   if (payload.code === "UNAUTHORIZED") {
     return "Debes iniciar sesión para generar recetas.";
   }
+  if (payload.code === "AUTH_UNAVAILABLE") {
+    return (
+      payload.error ??
+      "No pudimos verificar tu sesión por un problema de conexión. Reinténtalo en unos segundos."
+    );
+  }
   if (payload.code === "INCOMPLETE_RESPONSE") {
     return "Respuesta incompleta del servidor, reintentando...";
   }
@@ -790,7 +796,9 @@ export default function ScannerPage() {
         if (retryableStatus && attempt < maxAttempts - 1) {
           const nextAttempt = attempt + 2;
           setRetryMessage(
-            `Estamos conectando con el chef digital... hay mucha gente en la cocina (Intento ${nextAttempt} de 3)`
+            payload.code === "AUTH_UNAVAILABLE"
+              ? `Verificando tu sesión... (Intento ${nextAttempt} de 3)`
+              : `Estamos conectando con el chef digital... hay mucha gente en la cocina (Intento ${nextAttempt} de 3)`
           );
           const delayMs = baseDelayMs * 2 ** attempt;
           await sleep(delayMs);

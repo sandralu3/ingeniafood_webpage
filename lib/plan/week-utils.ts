@@ -1,4 +1,4 @@
-import type { WeekDay } from "@/lib/plan/constants";
+import { WEEK_DAYS, type WeekDay } from "@/lib/plan/constants";
 
 export function getTodayWeekDay(): WeekDay {
   return getWeekDayFromDate(new Date());
@@ -74,6 +74,37 @@ export function isSameCalendarDay(a: Date, b: Date): boolean {
     a.getMonth() === b.getMonth() &&
     a.getDate() === b.getDate()
   );
+}
+
+/** Fecha de calendario (medianoche local) de un día del plan. */
+export function getPlanDayDate(weekStartISO: string, dayLabel: WeekDay): Date {
+  const monday = parseISODateToLocalDate(weekStartISO);
+  const dayIndex = WEEK_DAYS.indexOf(dayLabel);
+  return getDateForWeekDay(monday, dayIndex >= 0 ? dayIndex : 0);
+}
+
+/**
+ * True si el día del plan es posterior a hoy.
+ * Las comidas fuera solo se registran en hoy o días pasados (ya ocurrieron).
+ */
+export function isPlanDayInTheFuture(
+  weekStartISO: string,
+  dayLabel: WeekDay,
+  now = new Date()
+): boolean {
+  const dayDate = getPlanDayDate(weekStartISO, dayLabel);
+  dayDate.setHours(0, 0, 0, 0);
+  const today = new Date(now);
+  today.setHours(0, 0, 0, 0);
+  return dayDate.getTime() > today.getTime();
+}
+
+export function canRegisterExternalMealForPlanDay(
+  weekStartISO: string,
+  dayLabel: WeekDay,
+  now = new Date()
+): boolean {
+  return !isPlanDayInTheFuture(weekStartISO, dayLabel, now);
 }
 
 export function getDateForWeekDay(monday: Date, dayIndex: number): Date {

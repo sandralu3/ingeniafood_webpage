@@ -604,6 +604,7 @@ export function PantrySearchView({
           onServingsChange={onServingsChange}
           onComplexityChange={onComplexityChange}
           disabled={isBusy}
+          selectedIngredientNames={selectedIngredients}
         />
 
         {!isPremiumLoading && canUseDishPhoto ? (
@@ -613,7 +614,7 @@ export function PantrySearchView({
           >
             {t.has("proBenefitChip")
               ? t("proBenefitChip")
-              : "✨ Beneficio PRO: Fotos fotorreales de tus platos ilimitadas"}
+              : "✨ Beneficio PRO: Fotos reales ilimitadas de tus platos"}
           </p>
         ) : null}
 
