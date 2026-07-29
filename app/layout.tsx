@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import { AppProviders } from "@/components/providers/app-providers";
@@ -35,6 +35,13 @@ export const metadata: Metadata = {
     description: "App de recetas inteligentes con IA. Tu ingeniero culinario personal.",
     images: ["/icons/icon-512.png"]
   }
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#556B2F"
 };
 
 export default async function RootLayout({

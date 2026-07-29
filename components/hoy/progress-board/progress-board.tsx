@@ -18,6 +18,7 @@ import type { HoyPageData } from "@/lib/gamification/hoy-page-data";
 import type { WeeklyHealthMetrics } from "@/lib/gamification/weekly-metrics";
 import { buildWeekConsistencyDays } from "@/lib/gamification/week-consistency";
 import { computeDayBalanceLevel } from "@/lib/premium-stories/dose-suggested-recipe";
+import type { IntelligentDoseMealSnapshot } from "@/lib/premium-stories/intelligent-dose-context";
 import { parseAppLocale } from "@/i18n/config";
 import { toISODateString } from "@/lib/plan/week-utils";
 import { cn } from "@/lib/utils";
@@ -41,6 +42,56 @@ type ProgressBoardProps = {
   firstName?: string | null;
   className?: string;
 };
+
+function buildPlanRevision(data: HoyPageData | null): string | null {
+  if (!data) return null;
+  const meals = (data.todayPlanMeals ?? [])
+    .map((slot) => `${slot.mealType}:${slot.meal?.recipeId ?? ""}:${slot.meal?.kcal ?? ""}`)
+    .join("|");
+  const snacks = (data.todayPlanSnacks ?? [])
+    .map((snack) => `${snack.id}:${snack.kcal}`)
+    .join("|");
+  const nutrition = data.todayPlanNutrition;
+  return [
+    data.fetchedAt,
+    nutrition?.totalKcal ?? 0,
+    nutrition?.plannedMealCount ?? 0,
+    meals,
+    snacks
+  ].join("::");
+}
+
+/** Snapshot ligero desde el plan de Hoy para actualizar score/chips al instante. */
+function snapshotFromHoyPlan(data: HoyPageData | null): IntelligentDoseMealSnapshot | null {
+  const nutrition = data?.todayPlanNutrition;
+  if (!nutrition || nutrition.plannedMealCount <= 0) return null;
+
+  const totalCalories = nutrition.totalKcal;
+  const mealCount = nutrition.plannedMealCount;
+
+  return {
+    mealCount,
+    totalKcal: totalCalories,
+    totalCalories,
+    totalProtein: nutrition.totalProteinGrams,
+    totalCarbs: nutrition.totalCarbsGrams,
+    totalFat: nutrition.totalFatGrams,
+    hasVegetables: nutrition.hasVegetables,
+    hasProtein: nutrition.hasProtein,
+    mealTitles: (data?.todayPlanMeals ?? [])
+      .map((slot) => slot.meal?.title)
+      .filter((title): title is string => Boolean(title))
+      .slice(0, 8),
+    mealTypesFilled: (data?.todayPlanMeals ?? [])
+      .filter((slot) => slot.meal)
+      .map((slot) => slot.mealType),
+    dishes: [],
+    ingredientNames: [],
+    isLowCalorieDay: totalCalories < 900,
+    isLikelyLiquidOnly: false,
+    isIncompleteMenu: mealCount < 3 || totalCalories < 900
+  };
+}
 
 function DoseScoreBadge({
   score,
@@ -138,6 +189,8 @@ export function ProgressBoard({
   const today = toISODateString(new Date());
   const metrics = data?.metrics ?? EMPTY_METRICS;
   const premiumReady = isPremium && !isPremiumLoading;
+  const planRevision = useMemo(() => buildPlanRevision(data), [data]);
+  const planSnapshot = useMemo(() => snapshotFromHoyPlan(data), [data]);
 
   const weekConsistency = useMemo(
     () =>
@@ -156,7 +209,8 @@ export function ProgressBoard({
   } = useIntelligentDose({
     enabled: premiumReady,
     userId,
-    firstName
+    firstName,
+    planRevision
   });
 
   const freeDailyTip = useMemo(() => {
@@ -167,16 +221,18 @@ export function ProgressBoard({
   }, [locale, userId, today]);
 
   const doseBalance = useMemo(() => {
-    if (!doseContext?.mealsPlannedToday) return null;
-    return computeDayBalanceLevel(doseContext.mealsPlannedToday, {
-      calorieTarget: doseContext.nutritionGoals?.calorieTarget
+    const live = planSnapshot ?? doseContext?.mealsPlannedToday;
+    if (!live || live.mealCount <= 0) return null;
+    return computeDayBalanceLevel(live, {
+      calorieTarget:
+        doseContext?.nutritionGoals?.calorieTarget ?? undefined
     });
-  }, [doseContext]);
+  }, [doseContext, planSnapshot]);
 
   // Evita flash del tip free: skeleton hasta saber el plan y, si es Premium, hasta la dosis.
   const awaitingPremiumStatus = isPremiumLoading;
   const awaitingPremiumDose =
-    Boolean(isPremium && !isPremiumLoading) && isDoseLoading && !doseReport;
+    Boolean(isPremium && !isPremiumLoading) && isDoseLoading && !doseReport && !planSnapshot;
   const showSkeleton =
     (isLoading && !data) || awaitingPremiumStatus || awaitingPremiumDose;
 
@@ -192,7 +248,9 @@ export function ProgressBoard({
     ? t("smartDosePersonalizeCta")
     : "✨ Personalizar este informe →";
 
-  const hasPlanData = Boolean(doseReport?.hasPlanData);
+  const hasPlanData = Boolean(
+    planSnapshot || doseReport?.hasPlanData || (doseContext?.mealsPlannedToday.mealCount ?? 0) > 0
+  );
   const previewHeadline =
     doseReport?.highlight?.trim() ||
     doseReport?.previewHeadline ||
@@ -200,7 +258,7 @@ export function ProgressBoard({
       ? t("smartDoseEmpty")
       : "Planifica tus comidas de hoy para recibir tu balance y consejos personalizados ✨");
 
-  const todaySnapshot = doseContext?.mealsPlannedToday;
+  const todaySnapshot = planSnapshot ?? doseContext?.mealsPlannedToday;
 
   const streakMotivation = useMemo(() => {
     const todayDot = weekConsistency.find((day) => day.isToday);

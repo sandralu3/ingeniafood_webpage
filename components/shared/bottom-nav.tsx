@@ -67,7 +67,7 @@ export function BottomNav() {
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 flex items-end justify-around rounded-t-[1.25rem] border-t border-sv-outline-variant/15 bg-sv-surface/95 px-1 pb-2 pt-1.5 shadow-[0_-8px_24px_rgba(0,0,0,0.04)] backdrop-blur-2xl supports-[backdrop-filter]:bg-sv-surface/90">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 flex items-end justify-around rounded-t-[1.25rem] border-t border-sv-outline-variant/15 bg-sv-surface/95 px-1 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] pt-1.5 shadow-[0_-8px_24px_rgba(0,0,0,0.04)] backdrop-blur-2xl supports-[backdrop-filter]:bg-sv-surface/90">
       {navItems.map(({ href, labelKey, icon: Icon, highlight }) => {
         const isActive = isNavItemActive(pathname, href);
         const iconStroke = isActive && highlight ? 1.85 : 1.4;

@@ -113,44 +113,44 @@ function FreeEmptyMealCard({
   return (
     <div
       className={cn(
-        "relative flex h-full w-full flex-col overflow-hidden rounded-xl border border-white/70 bg-gradient-to-br p-2.5 shadow-sm",
+        "relative flex h-full w-full flex-col overflow-hidden rounded-lg border border-white/70 bg-gradient-to-br p-1.5 shadow-sm",
         style.gradient,
         className
       )}
     >
-      <div className="flex items-start justify-between gap-1">
-        <span className="text-2xl leading-none" aria-hidden>
+      <div className="flex items-center justify-between gap-1">
+        <span className="text-base leading-none" aria-hidden>
           {style.emoji}
         </span>
-        <span className="rounded-full bg-white/80 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-[0.1em] text-stone-600 shadow-sm">
+        <span className="rounded bg-white/80 px-1 py-0.5 text-[7px] font-bold uppercase tracking-[0.08em] text-stone-600">
           {slotLabel}
         </span>
       </div>
 
-      <p className={cn("mt-2 line-clamp-2 text-[12px] font-bold leading-snug", style.accent)}>
+      <p className={cn("mt-1 line-clamp-2 text-[10px] font-bold leading-snug", style.accent)}>
         {fallbackPrompt}
       </p>
-      <p className="mt-0.5 text-[10px] font-medium text-stone-500">{hint}</p>
+      <p className="mt-0.5 line-clamp-1 text-[9px] font-medium text-stone-500">{hint}</p>
 
-      <div className="mt-auto flex flex-wrap items-center gap-1.5 pt-2">
+      <div className="mt-auto flex flex-wrap items-center gap-1 pt-1">
         <Link
           href={APP_ROUTES.plan}
-          className="inline-flex w-fit items-center gap-1 rounded-full bg-white/90 px-2 py-1 text-[10px] font-semibold text-[#3e5219] shadow-sm ring-1 ring-[#556B2F]/15 transition hover:bg-white"
+          className="inline-flex w-fit items-center gap-0.5 rounded-md bg-white/90 px-1.5 py-0.5 text-[9px] font-semibold text-[#3e5219] ring-1 ring-[#556B2F]/15 transition hover:bg-white"
         >
-          <Plus className="h-3 w-3" strokeWidth={2.5} />
+          <Plus className="h-2.5 w-2.5" strokeWidth={2.5} />
           {addChip}
         </Link>
         <button
           type="button"
           onClick={onUnlockPremium}
-          className="inline-flex w-fit items-center gap-1 rounded-full bg-amber-50/95 px-2 py-1 text-[9px] font-bold text-amber-900 ring-1 ring-amber-100 transition hover:bg-amber-100/90"
+          className="inline-flex w-fit items-center gap-0.5 rounded-md bg-amber-50/95 px-1.5 py-0.5 text-[8px] font-bold text-amber-900 ring-1 ring-amber-100 transition hover:bg-amber-100/90"
           aria-label={
             t.has("emptyMealAiBadgeAria")
               ? t("emptyMealAiBadgeAria")
               : "Desbloquear sugerencias inteligentes con Premium"
           }
         >
-          <Sparkles className="h-3 w-3" />
+          <Sparkles className="h-2.5 w-2.5" />
           {aiBadge}
         </button>
       </div>
@@ -377,25 +377,25 @@ export function EmptyMealCard({
       <Link
         href={APP_ROUTES.plan}
         className={cn(
-          "group flex h-full w-full flex-col overflow-hidden rounded-xl border border-white/70 bg-gradient-to-br p-2.5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md",
+          "group flex h-full w-full flex-col overflow-hidden rounded-lg border border-white/70 bg-gradient-to-br p-1.5 shadow-sm transition hover:shadow-md",
           style.gradient,
           className
         )}
       >
-        <div className="flex items-start justify-between gap-1">
-          <span className="text-2xl leading-none" aria-hidden>
+        <div className="flex items-center justify-between gap-1">
+          <span className="text-base leading-none" aria-hidden>
             {style.emoji}
           </span>
-          <span className="rounded-full bg-white/80 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-[0.1em] text-stone-600 shadow-sm">
+          <span className="rounded bg-white/80 px-1 py-0.5 text-[7px] font-bold uppercase tracking-[0.08em] text-stone-600">
             {slotLabel}
           </span>
         </div>
-        <p className={cn("mt-2 line-clamp-2 text-[12px] font-bold leading-snug", style.accent)}>
+        <p className={cn("mt-1 line-clamp-2 text-[10px] font-bold leading-snug", style.accent)}>
           {fallbackPrompt}
         </p>
-        <p className="mt-0.5 text-[10px] font-medium text-stone-500">{hint}</p>
-        <span className="mt-auto inline-flex w-fit items-center gap-1 rounded-full bg-white/90 px-2 py-1 text-[10px] font-semibold text-[#3e5219] shadow-sm ring-1 ring-[#556B2F]/15">
-          <Plus className="h-3 w-3" strokeWidth={2.5} />
+        <p className="mt-0.5 line-clamp-1 text-[9px] font-medium text-stone-500">{hint}</p>
+        <span className="mt-auto inline-flex w-fit items-center gap-0.5 rounded-md bg-white/90 px-1.5 py-0.5 text-[9px] font-semibold text-[#3e5219] ring-1 ring-[#556B2F]/15">
+          <Plus className="h-2.5 w-2.5" strokeWidth={2.5} />
           {planChip}
         </span>
       </Link>
@@ -406,16 +406,16 @@ export function EmptyMealCard({
     return (
       <div
         className={cn(
-          "flex h-full w-full flex-col overflow-hidden rounded-xl border border-white/70 bg-gradient-to-br p-2 shadow-sm",
+          "flex h-full w-full flex-col overflow-hidden rounded-lg border border-white/70 bg-gradient-to-br p-1 shadow-sm",
           style.gradient,
           className
         )}
       >
-        <div className="mt-2 flex flex-1 flex-col gap-2 animate-pulse">
-          <div className="h-7 w-16 rounded-full bg-white/55" />
-          <div className="h-[4.25rem] rounded-lg bg-white/55" />
-          <div className="h-3 w-4/5 rounded bg-white/60" />
-          <div className="mt-auto h-7 w-24 rounded-full bg-white/70" />
+        <div className="flex flex-1 flex-col gap-1 animate-pulse">
+          <div className="h-3.5 w-12 rounded bg-white/55" />
+          <div className="h-12 rounded-md bg-white/55" />
+          <div className="h-2.5 w-4/5 rounded bg-white/60" />
+          <div className="mt-auto h-5 w-16 rounded bg-white/70" />
         </div>
       </div>
     );
@@ -464,21 +464,18 @@ export function EmptyMealCard({
             : undefined
         }
         className={cn(
-          "relative flex h-full w-full flex-col overflow-hidden rounded-xl border border-white/70 bg-gradient-to-br p-2 shadow-sm outline-none",
+          "relative flex h-full w-full flex-col overflow-hidden rounded-lg border border-white/70 bg-gradient-to-br p-1 shadow-sm outline-none",
           style.gradient,
-          suggestion && "cursor-pointer transition hover:-translate-y-0.5 hover:shadow-md",
+          suggestion && "cursor-pointer transition hover:shadow-md",
           className
         )}
       >
-        <div className="flex items-start justify-between gap-1">
-          <span className="rounded-full bg-white/85 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-[0.1em] text-stone-600 shadow-sm">
-            {slotLabel}
-          </span>
+        <div className="absolute right-1 top-1 z-10">
           <button
             type="button"
             onClick={(event) => void handleRefresh(event)}
             disabled={isRefreshing || isLoading || isAdding}
-            className="flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-[#556B2F] shadow-sm ring-1 ring-[#556B2F]/15 transition hover:bg-white disabled:opacity-60"
+            className="flex h-5 w-5 items-center justify-center rounded-full bg-white/95 text-[#556B2F] shadow-sm ring-1 ring-[#556B2F]/15 transition hover:bg-white disabled:opacity-60"
             aria-label={
               t.has("emptyMealRefreshAria")
                 ? t("emptyMealRefreshAria")
@@ -486,23 +483,22 @@ export function EmptyMealCard({
             }
           >
             {isRefreshing ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              <Loader2 className="h-2.5 w-2.5 animate-spin" />
             ) : (
-              <Sparkles className="h-3.5 w-3.5" />
+              <Sparkles className="h-2.5 w-2.5" />
             )}
           </button>
         </div>
 
         {isLoading || (isRefreshing && !suggestion) ? (
-          <div className="mt-2 flex flex-1 flex-col gap-2 animate-pulse">
-            <div className="h-[4.25rem] rounded-lg bg-white/55" />
-            <div className="h-3 w-4/5 rounded bg-white/60" />
-            <div className="h-2.5 w-2/5 rounded bg-white/50" />
-            <div className="mt-auto h-7 w-24 rounded-full bg-white/70" />
+          <div className="flex flex-1 flex-col gap-1 animate-pulse">
+            <div className="h-12 rounded-md bg-white/55" />
+            <div className="h-2.5 w-4/5 rounded bg-white/60" />
+            <div className="mt-auto h-5 w-full rounded bg-white/70" />
           </div>
         ) : suggestion ? (
           <>
-            <div className="relative mt-1.5 h-[4.25rem] overflow-hidden rounded-lg bg-white/40">
+            <div className="relative h-12 shrink-0 overflow-hidden rounded-md bg-white/40">
               {suggestion.imageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -516,80 +512,79 @@ export function EmptyMealCard({
                 />
               ) : (
                 <div className="flex h-full w-full items-center justify-center">
-                  <span className="text-2xl" aria-hidden>
+                  <span className="text-lg" aria-hidden>
                     {style.emoji}
                   </span>
                 </div>
               )}
+              <span className="absolute left-1 top-1 rounded bg-white/90 px-1 py-0.5 text-[7px] font-bold uppercase tracking-[0.08em] text-stone-700 shadow-sm">
+                {slotLabel}
+              </span>
               {isRefreshing ? (
                 <div className="absolute inset-0 flex items-center justify-center bg-white/35 backdrop-blur-[1px]">
-                  <Loader2 className="h-4 w-4 animate-spin text-[#556B2F]" />
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-[#556B2F]" />
                 </div>
               ) : null}
             </div>
 
-            <p
-              className={cn(
-                "mt-1.5 line-clamp-2 text-[11px] font-bold leading-snug",
-                style.accent,
-                isRefreshing && "opacity-60"
-              )}
-            >
-              {suggestion.title}
-            </p>
+            <div className="flex min-h-0 flex-1 flex-col justify-between gap-0.5 px-0.5 pt-1">
+              <p
+                className={cn(
+                  "line-clamp-2 text-[10px] font-bold leading-snug",
+                  style.accent,
+                  isRefreshing && "opacity-60"
+                )}
+              >
+                {suggestion.title}
+              </p>
 
-            <div className="mt-1 flex flex-wrap gap-1">
-              {suggestion.kcal != null ? (
-                <span className="rounded-full bg-white/85 px-1.5 py-0.5 text-[8px] font-semibold text-stone-600">
-                  {suggestion.kcal} kcal
-                </span>
-              ) : null}
-              {suggestion.proteinGrams != null ? (
-                <span className="rounded-full bg-white/85 px-1.5 py-0.5 text-[8px] font-semibold text-stone-600">
-                  {suggestion.proteinGrams}g Prot
-                </span>
-              ) : null}
+              <div className="flex items-center gap-1">
+                {suggestion.kcal != null ? (
+                  <span className="text-[8px] font-semibold tabular-nums text-stone-500">
+                    {suggestion.kcal} kcal
+                  </span>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={(event) => void handleAddToPlan(event)}
+                  disabled={isAdding || isRefreshing}
+                  className="ml-auto inline-flex shrink-0 items-center gap-0.5 rounded-md bg-[#556B2F] px-1.5 py-0.5 text-[9px] font-semibold text-white shadow-sm transition hover:bg-[#3e5219] disabled:opacity-60"
+                >
+                  {isAdding ? (
+                    <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                  ) : (
+                    <Plus className="h-2.5 w-2.5" strokeWidth={2.5} />
+                  )}
+                  {isAdding
+                    ? t.has("emptyMealAdding")
+                      ? t("emptyMealAdding")
+                      : "…"
+                    : addLabel}
+                </button>
+              </div>
             </div>
-
-            <button
-              type="button"
-              onClick={(event) => void handleAddToPlan(event)}
-              disabled={isAdding || isRefreshing}
-              className="mt-auto inline-flex w-fit items-center gap-1 rounded-full bg-[#556B2F] px-2 py-1 text-[10px] font-semibold text-white shadow-sm transition hover:bg-[#3e5219] disabled:opacity-60"
-            >
-              {isAdding ? (
-                <Loader2 className="h-3 w-3 animate-spin" />
-              ) : (
-                <Plus className="h-3 w-3" strokeWidth={2.5} />
-              )}
-              {isAdding
-                ? t.has("emptyMealAdding")
-                  ? t("emptyMealAdding")
-                  : "Añadiendo…"
-                : addLabel}
-            </button>
           </>
         ) : (
-          <div className="mt-2 flex flex-1 flex-col">
-            <div className="flex h-[4.25rem] items-center justify-center rounded-lg bg-white/45">
-              <UtensilsCrossed className="h-5 w-5 text-stone-400" />
+          <div className="flex flex-1 flex-col">
+            <div className="flex h-12 items-center justify-center rounded-md bg-white/45">
+              <UtensilsCrossed className="h-4 w-4 text-stone-400" />
             </div>
-            <p className={cn("mt-1.5 text-[11px] font-bold leading-snug", style.accent)}>
+            <p className={cn("mt-1 line-clamp-2 px-0.5 text-[10px] font-bold leading-snug", style.accent)}>
               {fallbackPrompt}
             </p>
             <Link
               href={APP_ROUTES.plan}
               onClick={(event) => event.stopPropagation()}
-              className="mt-auto inline-flex w-fit items-center gap-1 rounded-full bg-white/90 px-2 py-1 text-[10px] font-semibold text-[#3e5219] shadow-sm ring-1 ring-[#556B2F]/15"
+              className="mt-auto inline-flex w-fit items-center gap-0.5 rounded-md bg-white/90 px-1.5 py-0.5 text-[9px] font-semibold text-[#3e5219] ring-1 ring-[#556B2F]/15"
             >
-              <Plus className="h-3 w-3" strokeWidth={2.5} />
+              <Plus className="h-2.5 w-2.5" strokeWidth={2.5} />
               {planChip}
             </Link>
           </div>
         )}
 
         {error ? (
-          <p className="mt-1 line-clamp-2 text-[9px] font-medium text-rose-700">{error}</p>
+          <p className="line-clamp-1 px-0.5 text-[8px] font-medium text-rose-700">{error}</p>
         ) : null}
       </div>
 

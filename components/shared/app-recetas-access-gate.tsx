@@ -317,14 +317,14 @@ export function AppRecetasAccessGate({ children }: { children: React.ReactNode }
 
   return (
     <div className="h-[100dvh] max-h-[100dvh] overflow-hidden bg-sv-surface text-sv-on-surface overscroll-none">
-      <div className="mx-auto flex h-full w-full max-w-md flex-col overflow-hidden pb-[var(--app-bottom-nav-height)]">
+      <div className="mx-auto flex h-full w-full max-w-md flex-col overflow-hidden pb-[calc(var(--app-bottom-nav-height)+env(safe-area-inset-bottom,0px))]">
         <Header />
         <main
           key={pathname}
           className={
             isScannerRoute
               ? "flex min-h-0 flex-1 flex-col overflow-hidden overscroll-y-contain px-4 pt-3 pb-2"
-              : "flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain px-4 pt-3 pb-2 touch-pan-y [-webkit-overflow-scrolling:touch]"
+              : "flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain px-4 pt-3 pb-6 touch-pan-y [-webkit-overflow-scrolling:touch]"
           }
         >
           {children}

@@ -6,7 +6,11 @@ import {
   readCachedHoyProfile
 } from "@/lib/gamification/fetch-hoy-profile";
 import type { HoyProfileCache } from "@/lib/gamification/hoy-profile-cache";
-import { readHoyCache, writeHoyCache } from "@/lib/gamification/hoy-cache";
+import {
+  clearHoyCache,
+  readHoyCache,
+  writeHoyCache
+} from "@/lib/gamification/hoy-cache";
 import { fetchHoyPageData, type HoyPageData } from "@/lib/gamification/hoy-page-data";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 
@@ -26,6 +30,8 @@ export function useHoyPageData(): UseHoyPageDataResult {
   const [isLoading, setIsLoading] = useState(true);
   const [isProfileLoading, setIsProfileLoading] = useState(true);
   const hasHydratedCacheRef = useRef(false);
+  /** Evita que un fetch antiguo pise datos frescos tras actualizar el plan. */
+  const fetchGenRef = useRef(0);
 
   const refresh = useCallback(async (options?: { force?: boolean }) => {
     const supabase = createSupabaseClient();
@@ -34,6 +40,7 @@ export function useHoyPageData(): UseHoyPageDataResult {
     } = await supabase.auth.getUser();
 
     if (!user) {
+      fetchGenRef.current += 1;
       setUserId(null);
       setData(null);
       setProfile(null);
@@ -43,6 +50,10 @@ export function useHoyPageData(): UseHoyPageDataResult {
     }
 
     setUserId(user.id);
+
+    if (options?.force) {
+      clearHoyCache(user.id);
+    }
 
     const cachedData = !options?.force ? readHoyCache(user.id) : null;
     const cachedProfile = !options?.force ? readCachedHoyProfile(user.id) : null;
@@ -61,6 +72,8 @@ export function useHoyPageData(): UseHoyPageDataResult {
       setIsProfileLoading(true);
     }
 
+    const gen = ++fetchGenRef.current;
+
     try {
       const profilePromise =
         cachedProfile && !options?.force
@@ -72,11 +85,14 @@ export function useHoyPageData(): UseHoyPageDataResult {
         profilePromise
       ]);
 
+      if (gen !== fetchGenRef.current) return;
+
       writeHoyCache(user.id, freshData);
       setData(freshData);
       setProfile(freshProfile);
     } catch (error) {
       console.error("[use-hoy-page-data] Error cargando datos de Hoy:", error);
+      if (gen !== fetchGenRef.current) return;
       if (!cachedData) {
         setData(null);
       }
@@ -84,9 +100,11 @@ export function useHoyPageData(): UseHoyPageDataResult {
         setProfile(null);
       }
     } finally {
-      hasHydratedCacheRef.current = true;
-      setIsLoading(false);
-      setIsProfileLoading(false);
+      if (gen === fetchGenRef.current) {
+        hasHydratedCacheRef.current = true;
+        setIsLoading(false);
+        setIsProfileLoading(false);
+      }
     }
   }, []);
 

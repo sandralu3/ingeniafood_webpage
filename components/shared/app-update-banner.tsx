@@ -23,7 +23,7 @@ export function AppUpdateBanner({ className }: AppUpdateBannerProps) {
       className={cn(
         "fixed inset-x-0 z-[45] px-4",
         isAppRecetasRoute
-          ? "bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))]"
+          ? "bottom-[calc(var(--app-bottom-nav-height)+env(safe-area-inset-bottom,0px)+0.5rem)]"
           : "bottom-[calc(1rem+env(safe-area-inset-bottom,0px))]",
         className
       )}

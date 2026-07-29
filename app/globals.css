@@ -6,7 +6,8 @@
 
 @layer base {
   :root {
-    --app-bottom-nav-height: 3.5rem;
+    /* Altura visual de BottomNav (sin safe-area; sumar env() en el shell). */
+    --app-bottom-nav-height: 4.25rem;
     --app-scan-footer-height: 6rem;
   }
 }

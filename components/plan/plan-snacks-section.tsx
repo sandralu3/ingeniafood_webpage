@@ -19,6 +19,8 @@ type Props = {
   snacks: PlanSnack[];
   /** Si true, solo muestra snacks (sin chips ni registro). Enlace a Plan para añadir. */
   readOnly?: boolean;
+  /** Layout denso para Hoy: menos padding y filas más bajas. */
+  compact?: boolean;
   canRegister?: boolean;
   onSnackAdded?: (snack: PlanSnack) => void;
   onSnackRemoved?: (snackId: string) => void;
@@ -40,6 +42,7 @@ export function PlanSnacksSection({
   weekStartISO,
   snacks,
   readOnly = false,
+  compact = false,
   canRegister: canRegisterProp,
   onSnackAdded,
   onSnackRemoved,
@@ -59,6 +62,11 @@ export function PlanSnacksSection({
   const sectionLabel = t.has("snacksSectionLabel")
     ? t("snacksSectionLabel")
     : "Snacks / Tentempié";
+
+  // En Hoy compacto, no mostrar bloque vacío (ahorra espacio vertical).
+  if (compact && readOnly && snacks.length === 0) {
+    return null;
+  }
 
   const handleRemove = async (snackId: string) => {
     if (readOnly || removingId) return;
@@ -119,31 +127,61 @@ export function PlanSnacksSection({
 
   return (
     <div className={cn(className)}>
-      <PlanSectionDivider label={sectionLabel} accent={SNACK_ACCENT} />
+      <PlanSectionDivider
+        label={sectionLabel}
+        accent={SNACK_ACCENT}
+        className={compact ? "mb-1" : undefined}
+      />
 
-      <div className="rounded-lg border border-stone-100/90 bg-white px-2.5 py-2 shadow-sm shadow-stone-100/20">
+      <div
+        className={cn(
+          "rounded-lg border border-stone-100/90 bg-white shadow-sm shadow-stone-100/20",
+          compact ? "px-2 py-1.5" : "px-2.5 py-2"
+        )}
+      >
         {snacks.length > 0 ? (
-          <ul className={cn("space-y-1.5", !readOnly && canRegister ? "mb-2" : "")}>
+          <ul className={cn(compact ? "space-y-1" : "space-y-1.5", !readOnly && canRegister ? "mb-2" : "")}>
             {snacks.map((snack) => (
               <li
                 key={snack.id}
-                className="flex items-center gap-2 rounded-md bg-stone-50/80 px-2 py-1.5"
+                className={cn(
+                  "flex items-center gap-2 rounded-md bg-stone-50/80",
+                  compact ? "px-1.5 py-1" : "px-2 py-1.5"
+                )}
               >
                 <span
                   className={cn(
-                    "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm ring-1",
+                    "flex shrink-0 items-center justify-center rounded-full ring-1",
+                    compact ? "h-6 w-6 text-xs" : "h-7 w-7 text-sm",
                     SNACK_ACCENT.iconCircleBg,
                     SNACK_ACCENT.iconRing
                   )}
                   aria-hidden
                 >
                   {snack.emoji?.trim() || (
-                    <Cookie className={cn("h-3.5 w-3.5", SNACK_ACCENT.iconText)} />
+                    <Cookie
+                      className={cn(
+                        compact ? "h-3 w-3" : "h-3.5 w-3.5",
+                        SNACK_ACCENT.iconText
+                      )}
+                    />
                   )}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-xs font-semibold text-stone-800">{snack.title}</p>
-                  <p className="text-[10px] font-medium text-stone-500">{snack.kcal} kcal</p>
+                  <p
+                    className={cn(
+                      "truncate font-semibold text-stone-800",
+                      compact ? "text-[11px]" : "text-xs"
+                    )}
+                  >
+                    {snack.title}
+                    {compact ? (
+                      <span className="ml-1.5 font-medium text-stone-500">{snack.kcal} kcal</span>
+                    ) : null}
+                  </p>
+                  {!compact ? (
+                    <p className="text-[10px] font-medium text-stone-500">{snack.kcal} kcal</p>
+                  ) : null}
                 </div>
                 {!readOnly ? (
                   <button
@@ -168,7 +206,7 @@ export function PlanSnacksSection({
                 ? t("snackHoyEmpty")
                 : "Aún no hay snacks registrados hoy."}
             </p>
-          ) : snackKcal > 0 ? (
+          ) : snackKcal > 0 && !compact ? (
             <p className="mt-1.5 px-1 text-[10px] font-medium text-stone-500">
               {snackKcal} kcal en snacks
             </p>

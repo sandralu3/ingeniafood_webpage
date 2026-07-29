@@ -18,6 +18,11 @@ type UseIntelligentDoseParams = {
   enabled: boolean;
   userId: string | null;
   firstName?: string | null;
+  /**
+   * Firma del plan de hoy (kcal, comidas, snacks, fetchedAt).
+   * Cuando cambia tras la primera carga, se recalcula la dosis.
+   */
+  planRevision?: string | null;
 };
 
 type UseIntelligentDoseResult = {
@@ -50,13 +55,16 @@ async function loadPlanDaysForDoseWindow(userId: string): Promise<Map<string, Pl
 export function useIntelligentDose({
   enabled,
   userId,
-  firstName
+  firstName,
+  planRevision = null
 }: UseIntelligentDoseParams): UseIntelligentDoseResult {
   const [report, setReport] = useState<IntelligentDoseReport | null>(null);
   const [context, setContext] = useState<IntelligentDoseUserContext | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const genRef = useRef(0);
+  /** undefined = aún no vimos planRevision; evita doble fetch en el mount. */
+  const seenPlanRevisionRef = useRef<string | null | undefined>(undefined);
 
   const refresh = useCallback(async () => {
     if (!enabled || !userId) {
@@ -131,6 +139,22 @@ export function useIntelligentDose({
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    if (!enabled || !userId) {
+      seenPlanRevisionRef.current = undefined;
+      return;
+    }
+    if (planRevision == null || planRevision === "") return;
+
+    if (seenPlanRevisionRef.current === undefined) {
+      seenPlanRevisionRef.current = planRevision;
+      return;
+    }
+    if (seenPlanRevisionRef.current === planRevision) return;
+    seenPlanRevisionRef.current = planRevision;
+    void refresh();
+  }, [enabled, planRevision, refresh, userId]);
 
   return { report, context, isLoading, error, refresh };
 }

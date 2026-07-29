@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Flame, Loader2, Plus, Sparkles, UtensilsCrossed } from "lucide-react";
+import { Flame, Loader2, Sparkles, UtensilsCrossed } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { HoyPageData } from "@/lib/gamification/hoy-page-data";
 import { EmptyMealCard } from "@/components/hoy/empty-meal-card";
@@ -63,7 +63,7 @@ function CarouselDots({
 
   return (
     <div
-      className="mt-2.5 flex items-center justify-center gap-1.5"
+      className="mt-1.5 flex items-center justify-center gap-1.5"
       role="tablist"
       aria-label="Posición del menú"
     >
@@ -76,7 +76,7 @@ function CarouselDots({
           aria-label={`Ir a comida ${index + 1}`}
           onClick={() => onSelect?.(index)}
           className={cn(
-            "h-1.5 w-1.5 rounded-full transition-colors",
+            "h-1 w-1 rounded-full transition-colors",
             index === activeIndex ? "bg-stone-500" : "bg-stone-300 hover:bg-stone-400"
           )}
         />
@@ -116,9 +116,9 @@ function GenerateFullDayBanner({
     return (
       <Link
         href={APP_ROUTES.plan}
-        className="mb-3 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#556B2F] px-3 py-2.5 text-[12px] font-semibold text-white shadow-sm transition hover:bg-[#3e5219]"
+        className="mb-1.5 flex w-full items-center justify-center gap-1.5 rounded-lg bg-[#556B2F] px-2.5 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-[#3e5219]"
       >
-        <Sparkles className="h-3.5 w-3.5" />
+        <Sparkles className="h-3 w-3" />
         {t.has("todayMenuGenerateCta")
           ? t("todayMenuGenerateCta")
           : "✨ Generar menú completo para hoy"}
@@ -127,56 +127,51 @@ function GenerateFullDayBanner({
   }
 
   return (
-    <div className="mb-3 space-y-1.5">
-      <button
-        type="button"
-        onClick={handleClick}
-        disabled={isGenerating || isPremiumLoading}
-        className={cn(
-          "flex w-full items-center justify-center gap-2 rounded-xl border px-3 py-2 text-[12px] font-semibold transition-all disabled:cursor-wait disabled:opacity-70",
-          premiumReady
-            ? "border-[#4D6638]/30 bg-[#4D6638]/10 text-[#4D6638] hover:bg-[#4D6638]/20"
-            : "border-amber-300/60 bg-amber-500/10 text-amber-900 hover:bg-amber-500/20"
-        )}
-      >
-        {isGenerating ? (
-          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-        ) : (
-          <Sparkles className="h-3.5 w-3.5" />
-        )}
-        <span>
-          {isGenerating
-            ? t.has("todayMenuGenerating")
-              ? t("todayMenuGenerating")
-              : "Generando tu menú…"
-            : t.has("proposeDayMenu")
-              ? t("proposeDayMenu")
-              : "✨ Proponer menú del día"}
-        </span>
-        {!premiumReady && !isGenerating ? (
-          <span className="text-[10px] font-bold tracking-wide">👑 PRO</span>
-        ) : null}
-      </button>
-    </div>
+    <button
+      type="button"
+      onClick={handleClick}
+      disabled={isGenerating || isPremiumLoading}
+      className={cn(
+        "mb-1.5 flex w-full items-center justify-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold transition-all disabled:cursor-wait disabled:opacity-70",
+        premiumReady
+          ? "border-[#4D6638]/25 bg-[#4D6638]/8 text-[#4D6638] hover:bg-[#4D6638]/15"
+          : "border-amber-300/50 bg-amber-500/10 text-amber-900 hover:bg-amber-500/15"
+      )}
+    >
+      {isGenerating ? (
+        <Loader2 className="h-3 w-3 animate-spin" />
+      ) : (
+        <Sparkles className="h-3 w-3" />
+      )}
+      <span>
+        {isGenerating
+          ? t.has("todayMenuGenerating")
+            ? t("todayMenuGenerating")
+            : "Generando tu menú…"
+          : t.has("proposeDayMenu")
+            ? t("proposeDayMenu")
+            : "✨ Proponer menú del día"}
+      </span>
+      {!premiumReady && !isGenerating ? (
+        <span className="text-[9px] font-bold tracking-wide">👑 PRO</span>
+      ) : null}
+    </button>
   );
 }
 
 function GeneratingMealPlaceholder({ slotLabel }: { slotLabel: string }) {
   return (
     <div
-      className="flex h-full min-h-[7.5rem] flex-col items-center justify-center gap-1.5 rounded-xl border border-emerald-100/80 bg-emerald-50/40 px-2 py-3 text-center"
+      className="flex h-full min-h-0 flex-col items-center justify-center gap-1 rounded-lg border border-emerald-100/80 bg-emerald-50/40 px-1.5 py-2 text-center"
       aria-busy="true"
     >
-      <Loader2 className="h-4 w-4 animate-spin text-[#4D6638]" />
-      <p className="text-[10px] font-semibold uppercase tracking-wide text-stone-500">{slotLabel}</p>
-      <p className="text-[11px] font-medium leading-snug text-[#4D6638]">
-        ✨ Generando propuesta con IA...
-      </p>
+      <Loader2 className="h-3.5 w-3.5 animate-spin text-[#4D6638]" />
+      <p className="text-[9px] font-semibold uppercase tracking-wide text-stone-500">{slotLabel}</p>
     </div>
   );
 }
 
-function TodayBalanceBar({
+function TodayBalanceInline({
   totalKcal,
   hasVegetables,
   hasProtein
@@ -188,61 +183,39 @@ function TodayBalanceBar({
   const t = useTranslations("Hoy");
 
   return (
-    <div className="mb-3 flex items-center gap-2 rounded-xl border border-stone-100/80 bg-white/90 px-3 py-2.5 shadow-sm shadow-stone-50">
-      <div className="flex min-w-0 flex-1 items-center gap-2">
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-orange-700">
-          <Flame className="h-3.5 w-3.5" strokeWidth={1.75} />
-        </span>
-        <div className="min-w-0">
-          <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-stone-400">
-            {t.has("todayBalanceLabel") ? t("todayBalanceLabel") : t("todayPlanKcalLabel")}
-          </p>
-          <p className="text-sm font-bold tabular-nums leading-tight text-stone-900">
-            {totalKcal}
-            <span className="ml-1 text-[10px] font-semibold text-stone-500">kcal</span>
-          </p>
-        </div>
-      </div>
-
-      <div className="flex shrink-0 items-center gap-1.5">
-        <BalanceChip
-          active={hasVegetables}
-          label={t.has("todayBalanceVeggies") ? t("todayBalanceVeggies") : "🥗"}
-          activeClass="border-emerald-200 bg-emerald-50 text-emerald-800"
-        />
-        <BalanceChip
-          active={hasProtein}
-          label={t.has("todayBalanceProtein") ? t("todayBalanceProtein") : "🥩"}
-          activeClass="border-amber-200 bg-amber-50 text-amber-900"
-        />
-      </div>
+    <div className="flex items-center gap-1.5">
+      <span className="inline-flex items-center gap-1 rounded-full bg-orange-50 px-2 py-0.5 text-[10px] font-bold tabular-nums text-orange-900 ring-1 ring-orange-100">
+        <Flame className="h-3 w-3" strokeWidth={2} />
+        {totalKcal}
+        <span className="font-semibold text-orange-800/70">kcal</span>
+      </span>
+      <span
+        className={cn(
+          "inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] ring-1",
+          hasVegetables
+            ? "bg-emerald-50 ring-emerald-200"
+            : "bg-stone-50 text-stone-300 ring-stone-200"
+        )}
+        title={t.has("todayBalanceVeggies") ? t("todayBalanceVeggies") : "Vegetales"}
+      >
+        🥗
+      </span>
+      <span
+        className={cn(
+          "inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] ring-1",
+          hasProtein
+            ? "bg-amber-50 ring-amber-200"
+            : "bg-stone-50 text-stone-300 ring-stone-200"
+        )}
+        title={t.has("todayBalanceProtein") ? t("todayBalanceProtein") : "Proteína"}
+      >
+        🥩
+      </span>
     </div>
   );
 }
 
-function BalanceChip({
-  active,
-  label,
-  activeClass
-}: {
-  active: boolean;
-  label: string;
-  activeClass: string;
-}) {
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-full border px-2 py-1 text-[10px] font-semibold transition",
-        active ? activeClass : "border-stone-200 bg-stone-50 text-stone-400 opacity-70"
-      )}
-      aria-pressed={active}
-    >
-      {label}
-    </span>
-  );
-}
-
-const MEAL_CARD_FRAME = "h-40 w-[150px] shrink-0 snap-start";
+const MEAL_CARD_FRAME = "h-[7.25rem] w-[128px] shrink-0 snap-start";
 
 function MealStoryCard({
   mealType,
@@ -258,45 +231,43 @@ function MealStoryCard({
   return (
     <Link
       href={href}
-      className="group flex h-full w-full flex-col overflow-hidden rounded-xl border border-stone-100/90 bg-white p-1.5 shadow-sm shadow-stone-100/40 transition hover:border-emerald-100 hover:shadow-md"
+      className="group flex h-full w-full flex-col overflow-hidden rounded-lg border border-stone-100/90 bg-white p-1 shadow-sm shadow-stone-100/40 transition hover:border-emerald-100 hover:shadow-md"
     >
-      <div className="relative h-[4.75rem] shrink-0 overflow-hidden rounded-lg">
+      <div className="relative h-14 shrink-0 overflow-hidden rounded-md">
         {meal.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element -- URLs externas de Supabase/storage
           <img
             src={meal.imageUrl}
             alt={meal.title}
-            className="h-full w-full rounded-lg object-cover"
+            className="h-full w-full rounded-md object-cover"
             loading="lazy"
           />
         ) : (
           <div
             className={cn(
-              "flex h-full w-full items-center justify-center rounded-lg bg-gradient-to-br",
+              "flex h-full w-full items-center justify-center rounded-md bg-gradient-to-br",
               mealType === "Desayuno" && "from-amber-50 to-orange-100",
               mealType === "Almuerzo" && "from-emerald-50 to-lime-100",
               mealType === "Cena" && "from-indigo-50 to-stone-100"
             )}
             aria-hidden
           >
-            <UtensilsCrossed className="h-6 w-6 text-stone-400/80" strokeWidth={1.4} />
+            <UtensilsCrossed className="h-4 w-4 text-stone-400/80" strokeWidth={1.4} />
           </div>
         )}
-        <span className="absolute left-1.5 top-1.5 rounded bg-white/90 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-[0.1em] text-stone-700 shadow-sm backdrop-blur-sm">
+        <span className="absolute left-1 top-1 rounded bg-white/90 px-1 py-0.5 text-[7px] font-bold uppercase tracking-[0.08em] text-stone-700 shadow-sm backdrop-blur-sm">
           {slotLabel}
         </span>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col justify-between gap-0.5 px-0.5 pt-1.5">
-        <p className="line-clamp-2 text-[12px] font-semibold leading-snug text-stone-900 group-hover:text-emerald-950">
+      <div className="flex min-h-0 flex-1 flex-col justify-between gap-0.5 px-0.5 pt-1">
+        <p className="line-clamp-2 text-[11px] font-semibold leading-snug text-stone-900 group-hover:text-emerald-950">
           {meal.title}
         </p>
         {meal.kcal != null ? (
-          <p className="text-[10px] font-medium tabular-nums text-stone-500">
-            🔥 {meal.kcal} kcal
-          </p>
+          <p className="text-[9px] font-medium tabular-nums text-stone-500">🔥 {meal.kcal} kcal</p>
         ) : (
-          <p className="text-[10px] font-medium text-stone-400">—</p>
+          <p className="text-[9px] font-medium text-stone-400">—</p>
         )}
       </div>
     </Link>
@@ -405,7 +376,7 @@ function TodayMenuCarousel({
     <div>
       <div
         ref={scrollerRef}
-        className="no-scrollbar flex flex-row items-stretch gap-3 overflow-x-auto overscroll-x-contain pb-0.5 snap-x snap-mandatory"
+        className="no-scrollbar flex flex-row items-stretch gap-2 overflow-x-auto overscroll-x-contain pb-0.5 snap-x snap-mandatory"
         role="list"
         aria-label={t.has("todayMenuTitle") ? t("todayMenuTitle") : t("todayPlan")}
       >
@@ -494,13 +465,12 @@ function TodayMenuSection({
   const title = t.has("todayMenuTitle") ? t("todayMenuTitle") : t("todayPlan");
   const isEmptyDay = plannedCount === 0 && localSnacks.length === 0;
   const hasEmptySlots = plannedCount < MEAL_TYPES.length;
+  // Subtítulo solo si el día está vacío; si hay comidas, la kcal va en el meta.
   const subtitle = isEmptyDay
     ? t.has("todayMenuEmptySubtitle")
       ? t("todayMenuEmptySubtitle")
       : "Elige plato a plato o genera el menú completo"
-    : t.has("todayPlanMenuSubtitle")
-      ? t("todayPlanMenuSubtitle", { count: plannedCount, kcal: totalKcal })
-      : t("todayPlanSubtitle");
+    : undefined;
 
   const [dayBudget, setDayBudget] = useState<RemainingMacros | null>(null);
 
@@ -597,6 +567,15 @@ function TodayMenuSection({
       className={className}
       title={title}
       subtitle={subtitle}
+      meta={
+        !isEmptyDay ? (
+          <TodayBalanceInline
+            totalKcal={displayKcal}
+            hasVegetables={hasVegetables}
+            hasProtein={hasProtein || displayProtein >= 12}
+          />
+        ) : null
+      }
       action={
         <Link
           href={APP_ROUTES.plan}
@@ -606,7 +585,7 @@ function TodayMenuSection({
         </Link>
       }
       contentClassName={cn(
-        "overflow-hidden border p-3 sm:p-4",
+        "overflow-hidden border p-2 sm:p-2.5",
         isEmptyDay
           ? "border-emerald-100/50 bg-gradient-to-br from-white via-emerald-50/25 to-lime-50/30"
           : "border-emerald-100/40 bg-gradient-to-br from-white via-[#FBFCF8] to-emerald-50/20"
@@ -622,16 +601,10 @@ function TodayMenuSection({
             onGenerate={() => void handleGenerateFullDay()}
             onUnlockPremium={() => setShowPremiumPaywall(true)}
           />
-          {menuError ? <p className="mb-2 text-center text-[10px] text-rose-600">{menuError}</p> : null}
+          {menuError ? (
+            <p className="mb-1.5 text-center text-[10px] text-rose-600">{menuError}</p>
+          ) : null}
         </>
-      ) : null}
-
-      {!isEmptyDay ? (
-        <TodayBalanceBar
-          totalKcal={displayKcal}
-          hasVegetables={hasVegetables}
-          hasProtein={hasProtein || displayProtein >= 12}
-        />
       ) : null}
 
       <TodayMenuCarousel
@@ -643,12 +616,13 @@ function TodayMenuSection({
       />
 
       {weekStartISO ? (
-        <div className="mt-3">
+        <div className="mt-2">
           <PlanSnacksSection
             dayLabel={getTodayWeekDay()}
             weekStartISO={weekStartISO}
             snacks={localSnacks}
             readOnly
+            compact
           />
         </div>
       ) : null}

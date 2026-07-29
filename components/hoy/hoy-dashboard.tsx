@@ -27,7 +27,8 @@ export function HoyDashboard() {
   return (
     <div
       className={cn(
-        "-mx-4 -mb-6 min-h-full px-4 pb-6 pt-0",
+        // Sin -mb-6: ese margen negativo anulaba pb-* y el scroll no llegaba a ver los retos.
+        "-mx-4 min-h-full px-4 pb-8 pt-0",
         premiumLayout
           ? "bg-gradient-to-b from-[#F7F8F4] via-emerald-50/20 to-sv-surface"
           : "bg-gradient-to-b from-stone-50 via-emerald-50/15 to-sv-surface"
@@ -78,7 +79,9 @@ export function HoyDashboard() {
           <TodayPlanNutrition
             data={data}
             userId={userId}
-            onPlanUpdated={() => void refresh({ force: true })}
+            onPlanUpdated={() => {
+              void refresh({ force: true });
+            }}
             className={
               premiumLayout
                 ? "border-0 bg-transparent shadow-none ring-0"
