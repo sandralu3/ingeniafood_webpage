@@ -88,7 +88,7 @@ export function translateSavedCardLabel(t: Translate, label: string | null): str
     case "Cena":
       return t("tagDinner");
     case "Postre":
-      return t.has("tagDessert") ? t("tagDessert") : "Postre";
+      return t("tagDessert");
     case "Sin Harinas":
       return t("tagFlourless");
     case "Airfryer":
