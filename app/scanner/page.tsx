@@ -52,6 +52,14 @@ import { usePremium } from "@/hooks/use-premium";
 import { useScannerReset } from "@/lib/scanner/scanner-reset-context";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import { cn } from "@/lib/utils";
+import {
+  normalizeRecipeVariant,
+  shortRecipeName,
+  RECIPE_OPTION_DEFAULTS,
+  type RecipeOption,
+  type RecipeOptionVariant
+} from "@/lib/recipes/recipe-options";
+import { normalizeRecipeImageFields } from "@/lib/recipes/dish-image-fallback";
 
 type GeneratedRecipe = {
   titulo: string;
@@ -63,10 +71,14 @@ type GeneratedRecipe = {
   macronutrientes?: RecipeMacros | null;
   imageUrl?: string | null;
   referenceImageUrl?: string | null;
+  variant?: RecipeOptionVariant;
+  emoji?: string;
+  nombre_corto?: string;
 };
 
 type ApiPayload = {
   recipe?: GeneratedRecipe;
+  recipes?: GeneratedRecipe[];
   error?: string;
   details?: string;
   code?: string;
@@ -82,6 +94,32 @@ type ApiPayload = {
   savedRecipe?: { id: string } | null;
   mealTypeAdvisory?: string;
 };
+
+function toRecipeOption(
+  recipe: GeneratedRecipe,
+  index: number,
+  images?: { imageUrl?: string | null; referenceImageUrl?: string | null }
+): RecipeOption {
+  const variant = normalizeRecipeVariant(recipe.variant, index);
+  const defaults = RECIPE_OPTION_DEFAULTS[variant];
+  return {
+    titulo: recipe.titulo,
+    tiempo_preparacion: recipe.tiempo_preparacion,
+    ingredientes_detallados: recipe.ingredientes_detallados,
+    pasos_ordenados: recipe.pasos_ordenados,
+    tip_sandra: recipe.tip_sandra,
+    tags: recipe.tags,
+    macronutrientes: recipe.macronutrientes ?? null,
+    imageUrl: images?.imageUrl ?? recipe.imageUrl ?? null,
+    referenceImageUrl: images?.referenceImageUrl ?? recipe.referenceImageUrl ?? null,
+    variant,
+    emoji:
+      typeof recipe.emoji === "string" && recipe.emoji.trim().length > 0
+        ? recipe.emoji.trim()
+        : defaults.emoji,
+    nombre_corto: shortRecipeName(recipe.titulo, recipe.nombre_corto)
+  };
+}
 
 const DISH_PHOTO_POLL_INTERVAL_MS = 3000;
 const DISH_PHOTO_POLL_MAX_ATTEMPTS = 20;
@@ -230,7 +268,7 @@ export default function ScannerPage() {
   const tPlan = useTranslations("Plan");
   const locale = useLocale();
   const scannerReset = useScannerReset();
-  const { refresh: refreshPremium, isPaidPremium } = usePremium();
+  const { refresh: refreshPremium, isPaidPremium, isPremium } = usePremium();
   const dishPhotoChoiceRef = useRef(false);
   const [showPhotoCreditConfirm, setShowPhotoCreditConfirm] = useState(false);
   const [selectedIngredients, setSelectedIngredients] = useState<string[]>([]);
@@ -238,6 +276,9 @@ export default function ScannerPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [retryMessage, setRetryMessage] = useState<string | null>(null);
   const [recipe, setRecipe] = useState<GeneratedRecipe | null>(null);
+  const [recipeOptions, setRecipeOptions] = useState<RecipeOption[]>([]);
+  const [selectedRecipeIndex, setSelectedRecipeIndex] = useState(0);
+  const selectedRecipeIndexRef = useRef(0);
   const [pantryImageFile, setPantryImageFile] = useState<File | null>(null);
   const [scannedIngredients, setScannedIngredients] = useState<DetectedIngredient[]>([]);
   const [confirmPreviewUrl, setConfirmPreviewUrl] = useState<string | null>(null);
@@ -373,6 +414,9 @@ export default function ScannerPage() {
     detectAbortRef.current = null;
     setSelectedIngredients([]);
     setRecipe(null);
+    setRecipeOptions([]);
+    setSelectedRecipeIndex(0);
+    selectedRecipeIndexRef.current = 0;
     setPantryImageFile(null);
     setScannedIngredients([]);
     setConfirmPreviewUrl((prev) => {
@@ -767,6 +811,8 @@ export default function ScannerPage() {
     setErrorMessage(null);
     setRetryMessage(null);
     setRecipe(null);
+    setRecipeOptions([]);
+    setSelectedRecipeIndex(0);
     setAppliedRecipeFilters(null);
     setMealTypeAdvisory(null);
     setShowNotFoodGuidance(false);
@@ -790,6 +836,7 @@ export default function ScannerPage() {
     const shouldRetryParse =
       !response.ok &&
       !payload.recipe &&
+      !(Array.isArray(payload.recipes) && payload.recipes.length > 0) &&
       (payload.code === "INCOMPLETE_RESPONSE" || payload.code === "PARSING_ERROR");
 
     if (shouldRetryParse) {
@@ -808,6 +855,8 @@ export default function ScannerPage() {
     try {
       if (!response || response.status === 0) {
         setRecipe(null);
+        setRecipeOptions([]);
+        setSelectedRecipeIndex(0);
         setErrorMessage(
           networkError
             ? resolveErrorMessage(0, {}, true)
@@ -816,8 +865,13 @@ export default function ScannerPage() {
         return;
       }
 
-      if (!response.ok || !payload.recipe) {
+      if (
+        !response.ok ||
+        (!payload.recipe && !(Array.isArray(payload.recipes) && payload.recipes.length > 0))
+      ) {
         setRecipe(null);
+        setRecipeOptions([]);
+        setSelectedRecipeIndex(0);
 
         if (payload.code === "GENERATIONS_EXHAUSTED") {
           setGenerationsLeft(0);
@@ -888,11 +942,41 @@ export default function ScannerPage() {
         return;
       }
 
-      setRecipe({
-        ...payload.recipe,
-        referenceImageUrl: payload.referenceImageUrl ?? null,
-        imageUrl: payload.imageUrl ?? null
+      const rawOptions =
+        Array.isArray(payload.recipes) && payload.recipes.length > 0
+          ? payload.recipes
+          : payload.recipe
+            ? [payload.recipe]
+            : [];
+      if (rawOptions.length === 0) {
+        setRecipe(null);
+        setRecipeOptions([]);
+        setSelectedRecipeIndex(0);
+        selectedRecipeIndexRef.current = 0;
+        setErrorMessage("No pudimos generar opciones de receta. Inténtalo de nuevo.");
+        return;
+      }
+      const nextOptions = rawOptions.map((item, index) => {
+        const fromPayload =
+          item.imageUrl || item.referenceImageUrl
+            ? {
+                imageUrl: item.imageUrl ?? null,
+                referenceImageUrl: item.referenceImageUrl ?? null
+              }
+            : index === 0
+              ? {
+                  imageUrl: payload.imageUrl ?? null,
+                  referenceImageUrl: payload.referenceImageUrl ?? null
+                }
+              : undefined;
+        return toRecipeOption(item, index, fromPayload);
       });
+      const primary = nextOptions[0] ?? null;
+
+      setRecipeOptions(nextOptions);
+      setSelectedRecipeIndex(0);
+      selectedRecipeIndexRef.current = 0;
+      setRecipe(primary);
       setImageGenerationError(null);
       setIsGeneratingDishPhoto(Boolean(payload.dishPhotoPending));
       setAppliedRecipeFilters(
@@ -951,14 +1035,17 @@ export default function ScannerPage() {
               };
 
               if (statusPayload.status === "ready" && statusPayload.imageUrl) {
-                setRecipe((current) =>
-                  current
-                    ? {
-                        ...current,
-                        imageUrl: statusPayload.imageUrl
-                      }
-                    : current
+                const nextUrl = statusPayload.imageUrl;
+                setRecipeOptions((current) =>
+                  current.map((option, index) =>
+                    index === 0 ? { ...option, imageUrl: nextUrl } : option
+                  )
                 );
+                if (selectedRecipeIndexRef.current === 0) {
+                  setRecipe((current) =>
+                    current ? { ...current, imageUrl: nextUrl } : current
+                  );
+                }
                 setImageGenerationError(null);
                 setIsGeneratingDishPhoto(false);
                 void refreshPremium();
@@ -997,12 +1084,32 @@ export default function ScannerPage() {
     } catch (err) {
       showDebugError("manejo de respuesta", err);
       setRecipe(null);
+      setRecipeOptions([]);
+      setSelectedRecipeIndex(0);
+      selectedRecipeIndexRef.current = 0;
       setErrorMessage(
         "Ocurrió un error al procesar la respuesta. Revisa la consola para más detalle."
       );
     }
   };
   generarRecetaRef.current = generarReceta;
+
+  const handleSelectRecipeIndex = useCallback((index: number) => {
+    setRecipeOptions((options) => {
+      const next = options[index];
+      if (!next) return options;
+      selectedRecipeIndexRef.current = index;
+      setSelectedRecipeIndex(index);
+      setRecipe(next);
+      setIsRecipeSaved(false);
+      setSavedRecipeId(null);
+      setSaveErrorMessage(null);
+      if (index !== 0) {
+        setIsGeneratingDishPhoto(false);
+      }
+      return options;
+    });
+  }, []);
 
   const handleFindRecipes = () => {
     if (isPaidPremium) {
@@ -1039,6 +1146,14 @@ export default function ScannerPage() {
       stringsToStructuredIngredients(recipe.ingredientes_detallados)
     );
 
+    const imageFields = normalizeRecipeImageFields({
+      imageUrl: recipe.imageUrl,
+      referenceImageUrl: recipe.referenceImageUrl,
+      titulo: recipe.titulo,
+      ingredientes_detallados: recipe.ingredientes_detallados,
+      tags: recipeTags
+    });
+
     const saveResult = await saveGeneratedRecipeToLibrary(supabase, {
       userId: user.id,
       title: recipe.titulo,
@@ -1051,8 +1166,8 @@ export default function ScannerPage() {
       tags: recipeTags,
       macronutrientes: recipe.macronutrientes,
       cookingTimeMinutes: parseCookingMinutesFromLabel(recipe.tiempo_preparacion),
-      imageUrl: recipe.imageUrl ?? null,
-      referenceImageUrl: recipe.referenceImageUrl ?? null,
+      imageUrl: imageFields.imageUrl,
+      referenceImageUrl: imageFields.referenceImageUrl ?? recipe.referenceImageUrl ?? null,
       appliedFilters: appliedRecipeFilters,
       mealTypeAdvisory: mealTypeAdvisory
     });
@@ -1159,7 +1274,7 @@ export default function ScannerPage() {
       className={cn(
         isRecipeFlowView
           ? "-mx-4 min-h-0 flex-1 bg-gradient-to-b from-stone-50 via-amber-50/20 to-sv-surface px-4 pt-1"
-          : "bg-[#FBF9F6]",
+          : "bg-[#FAF9F6]",
         isScannerIdleView
           ? "flex min-h-0 flex-1 flex-col overflow-hidden"
           : isRecipeFlowView
@@ -1239,6 +1354,11 @@ export default function ScannerPage() {
           ) : null}
           <RecipeResultView
             recipe={displayRecipe}
+            recipeOptions={recipeOptions}
+            selectedRecipeIndex={selectedRecipeIndex}
+            onSelectRecipeIndex={handleSelectRecipeIndex}
+            isPremium={isPremium}
+            pantryIngredients={selectedIngredients}
             showPhotoBanner={recipeFromPhoto}
             appliedFilters={appliedRecipeFilters}
             showAppliedFilters={Boolean(appliedRecipeFilters)}
@@ -1249,7 +1369,7 @@ export default function ScannerPage() {
             onPlanAssigned={(message) => setSaveSuccessMessage(message)}
             isSavingFavorites={isSavingRecipe}
             isSavedFavorites={isRecipeSaved}
-            isGeneratingPhoto={isGeneratingDishPhoto}
+            isGeneratingPhoto={isGeneratingDishPhoto && selectedRecipeIndex === 0}
           />
         </section>
       ) : null}
@@ -1345,7 +1465,7 @@ export default function ScannerPage() {
       {!isLoading && !recipe && !showGenerationError ? (
         <div
           className={cn(
-            "flex min-h-0 flex-1 flex-col gap-3",
+            "flex min-h-0 flex-1 flex-col gap-2",
             isPantryIdleView && "overflow-hidden",
             isInstagramIdleView &&
               "overflow-y-auto overscroll-y-contain touch-pan-y [-webkit-overflow-scrolling:touch] pb-[calc(var(--app-bottom-nav-height)+0.5rem)]"

@@ -4,10 +4,10 @@ import { isOpenAiDishPhotosEnabled } from "@/lib/recipes/can-generate-openai-dis
 import { getOpenAI } from "@/lib/openai";
 import { randomUUID } from "crypto";
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin";
+import { DEFAULT_DISH_HERO_FALLBACK } from "@/lib/recipes/dish-image-fallback";
 
 const RECIPE_IMAGES_BUCKET = "recetas-imagenes";
-export const DEFAULT_DISH_IMAGE_PLACEHOLDER =
-  "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=1200&q=80";
+export const DEFAULT_DISH_IMAGE_PLACEHOLDER = DEFAULT_DISH_HERO_FALLBACK;
 
 const DEFAULT_GEMINI_IMAGE_MODELS = [
   "gemini-2.5-flash-image",

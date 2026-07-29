@@ -3,6 +3,7 @@ import type { ShareableRecipe } from "@/lib/share/recipe-share-image";
 import { resolveRecipeTags } from "@/lib/recipes/recipe-tags";
 import { ingredientsJsonToDisplayStrings } from "@/lib/recipes/structured-ingredients";
 import { buildMacroDisplay, parseMacrosFromJson } from "@/lib/recipes/recipe-macros";
+import { getRecipeImageFallback } from "@/lib/recipes/dish-image-fallback";
 export function inferDifficulty(pasosCount: number): string {
   if (pasosCount <= 3) return "FÁCIL";
   if (pasosCount <= 5) return "INTERMEDIO";
@@ -75,6 +76,20 @@ export function savedRecipeToShareable(recipe: SavedRecipeSource): ShareableReci
 
   const storedImage = recipe.image_url?.trim() || null;
   const storedReference = recipe.reference_image_url?.trim() || null;
+  const resolvedImage =
+    storedImage ||
+    storedReference ||
+    getRecipeImageFallback({
+      title: recipe.title,
+      image_url: storedImage,
+      reference_image_url: storedReference,
+      ingredients: jsonToStringList(recipe.ingredients),
+      tags: resolveRecipeTags({
+        tags: recipe.tags,
+        is_airfryer: recipe.is_airfryer,
+        is_flourless: recipe.is_flourless
+      })
+    });
 
   return {
     titulo: recipe.title,
@@ -88,8 +103,8 @@ export function savedRecipeToShareable(recipe: SavedRecipeSource): ShareableReci
       is_flourless: recipe.is_flourless
     }),
     macronutrientes: parseMacrosFromJson(recipe.macros),
-    imageUrl: storedImage,
+    imageUrl: resolvedImage,
     referenceImageUrl:
-      storedReference && storedReference !== storedImage ? storedReference : null
+      storedReference && storedReference !== resolvedImage ? storedReference : null
   };
 }

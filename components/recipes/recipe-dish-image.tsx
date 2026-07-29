@@ -5,6 +5,7 @@ import { ImageOff } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { RecipeImageLoader } from "@/components/recipes/RecipeImageLoader";
 import { usePremium } from "@/hooks/use-premium";
+import { DEFAULT_DISH_HERO_FALLBACK } from "@/lib/recipes/dish-image-fallback";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -30,52 +31,51 @@ export function RecipeDishImage({
   const { isPaidPremium, isLoading } = usePremium();
   const [realImageFailed, setRealImageFailed] = useState(false);
   const [referenceImageFailed, setReferenceImageFailed] = useState(false);
+  const [fallbackFailed, setFallbackFailed] = useState(false);
   const [imageVisible, setImageVisible] = useState(false);
 
   useEffect(() => {
     setRealImageFailed(false);
+    setReferenceImageFailed(false);
+    setFallbackFailed(false);
     setImageVisible(false);
-  }, [imageUrl]);
+  }, [imageUrl, referenceImageUrl]);
 
   if (isLoading) {
     return null;
   }
 
   if (displayMode === "library") {
-    const libraryUrl = imageUrl ?? referenceImageUrl;
-    if (libraryUrl && !realImageFailed) {
+    const libraryUrl =
+      (imageUrl && !realImageFailed ? imageUrl : null) ||
+      (referenceImageUrl && !referenceImageFailed ? referenceImageUrl : null) ||
+      (!fallbackFailed ? DEFAULT_DISH_HERO_FALLBACK : null);
+
+    if (libraryUrl) {
       return (
-        <div className={cn("mx-auto w-full max-w-xs space-y-1.5", className)}>
-          <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-stone-100 shadow-sm shadow-stone-200/40">
-            <img
-              src={libraryUrl}
-              alt={
-                recipeTitle
-                  ? t("dishPhotoAlt", { title: recipeTitle })
-                  : t("dishPhotoAltFallback")
+        <div className={cn("relative h-44 w-full overflow-hidden bg-stone-100", className)}>
+          <img
+            src={libraryUrl}
+            alt={
+              recipeTitle
+                ? t("dishPhotoAlt", { title: recipeTitle })
+                : t("dishPhotoAltFallback")
+            }
+            className="h-44 w-full object-cover"
+            loading="eager"
+            decoding="async"
+            onError={() => {
+              if (imageUrl && !realImageFailed && libraryUrl === imageUrl) {
+                setRealImageFailed(true);
+                return;
               }
-              className="h-full w-full object-cover"
-              loading="eager"
-              decoding="async"
-              onError={() => setRealImageFailed(true)}
-            />
-          </div>
-          <p className="text-center text-[10px] font-medium text-stone-500">
-            {t("savedPhotoCaption")}
-          </p>
-        </div>
-      );
-    }
-    if (libraryUrl && realImageFailed) {
-      return (
-        <div
-          className={cn(
-            "mx-auto flex aspect-[4/3] w-full max-w-xs flex-col items-center justify-center gap-2 rounded-xl border border-stone-200/70 bg-stone-50 px-4 text-center",
-            className
-          )}
-        >
-          <ImageOff className="h-7 w-7 text-stone-400" aria-hidden />
-          <p className="text-[10px] font-medium text-stone-500">{t("savedPhotoLoadError")}</p>
+              if (referenceImageUrl && !referenceImageFailed && libraryUrl === referenceImageUrl) {
+                setReferenceImageFailed(true);
+                return;
+              }
+              setFallbackFailed(true);
+            }}
+          />
         </div>
       );
     }

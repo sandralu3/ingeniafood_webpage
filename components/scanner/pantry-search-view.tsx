@@ -17,10 +17,10 @@ import {
   Package,
   Bookmark,
   BookmarkCheck,
-  ChevronRight
+  ChevronRight,
+  Camera
 } from "lucide-react";
-import { AdvancedRecipeFilters, SCANNER_SECTION_CLASS } from "@/components/scanner/advanced-recipe-filters";
-import { PlanSectionDivider } from "@/components/plan/plan-section-divider";
+import { AdvancedRecipeFilters } from "@/components/scanner/advanced-recipe-filters";
 import { IngredientCombobox } from "@/components/scanner/ingredient-combobox";
 import type {
   RecipeCuisineStyle,
@@ -32,7 +32,6 @@ import type {
 import { usePantryData } from "@/hooks/use-pantry-data";
 import { usePremium } from "@/hooks/use-premium";
 import { cn } from "@/lib/utils";
-import { SCANNER_SECTION_ACCENTS } from "@/lib/scanner/scanner-section-accent";
 import {
   CATEGORY_DB_TO_UI,
   type CategoryKey,
@@ -146,9 +145,15 @@ export function PantrySearchView({
   const [isMounted, setIsMounted] = useState(false);
   const pathname = usePathname();
   const hasBottomNav = pathname.startsWith("/app-recetas");
+  const selectedCount = selectedIngredients.length;
+  const hasSelection = selectedCount > 0;
   const scrollBottomPaddingClass = hasBottomNav
-    ? "pb-[calc(var(--app-bottom-nav-height)+var(--app-scan-footer-height))]"
-    : "pb-28";
+    ? hasSelection
+      ? "pb-[calc(var(--app-bottom-nav-height)+var(--app-scan-footer-height))]"
+      : "pb-[calc(var(--app-bottom-nav-height)+0.75rem)]"
+    : hasSelection
+      ? "pb-28"
+      : "pb-6";
 
   const canUseDishPhoto = isPaidPremium;
 
@@ -188,9 +193,6 @@ export function PantrySearchView({
     return grouped;
   }, [favorites]);
 
-  const totalFavorites = favorites.length;
-  const selectedCount = selectedIngredients.length;
-  const hasSelection = selectedCount > 0;
   const scansExhausted = generationsLeft !== null && generationsLeft <= 0;
 
   const openSourceModal = useCallback(() => {
@@ -267,43 +269,35 @@ export function PantrySearchView({
       onGenerationsExhausted?.();
       return;
     }
-    if (hasSelection) {
-      onFindRecipes();
-      return;
-    }
-    openSourceModal();
-  }, [hasSelection, onFindRecipes, onGenerationsExhausted, openSourceModal, scansExhausted]);
+    onFindRecipes();
+  }, [onFindRecipes, onGenerationsExhausted, scansExhausted]);
 
   const primaryLabel = scansExhausted
     ? "Pruebas gratuitas agotadas"
-    : hasSelection
-      ? rateLimitSecondsLeft > 0
-        ? `Reintentar en ${rateLimitSecondsLeft}s`
-        : t.has("searchWithCount")
-          ? t("searchWithCount", { count: selectedCount })
-          : `✨ Buscar recetas con (${selectedCount}) ingredientes`
-      : t.has("takeFridgePhotoCta")
-        ? t("takeFridgePhotoCta")
-        : "📷 Tomar foto a mi nevera";
+    : rateLimitSecondsLeft > 0
+      ? `Reintentar en ${rateLimitSecondsLeft}s`
+      : t.has("generateWithCount")
+        ? t("generateWithCount", { count: selectedCount })
+        : `✨ Generar Recetas (${selectedCount} ingredientes)`;
 
-  const scanFooter = (
+  const scanFooter = hasSelection ? (
     <div
       className={cn(
-        "fixed inset-x-0 z-[45] border-t border-stone-200/70 bg-[#FBF9F6]/98 pt-2 shadow-[0_-6px_20px_rgba(0,0,0,0.08)] backdrop-blur-md",
+        "fixed inset-x-0 z-[45] border-t border-stone-200/70 bg-[#FAF9F6]/95 pt-2 shadow-[0_-6px_20px_rgba(0,0,0,0.06)] backdrop-blur-md animate-slide-up",
         hasBottomNav ? "bottom-[var(--app-bottom-nav-height)]" : "bottom-0"
       )}
     >
-      <div className="mx-auto w-full max-w-md px-4 pb-1">
+      <div className="mx-auto w-full max-w-md px-4 pb-3">
         {isUnlimitedGenerationsCount(generationsLeft) ? (
-          <span className="mb-1 block text-center text-[10px] text-stone-400">
+          <span className="mb-1.5 block text-center text-[10px] text-stone-400">
             {t("unlimitedScansAdmin")}
           </span>
         ) : generationsLeft !== null && generationsLeft > 0 ? (
-          <span className="mb-1 block text-center text-[10px] text-stone-400">
+          <span className="mb-1.5 block text-center text-[10px] text-stone-400">
             {t("scansLeftToday", { count: generationsLeft })}
           </span>
         ) : (
-          <span className="mb-1 block" />
+          <span className="mb-1.5 block" />
         )}
 
         <button
@@ -311,13 +305,13 @@ export function PantrySearchView({
           onClick={handlePrimaryAction}
           disabled={isBusy}
           aria-label={primaryLabel}
-          className="w-full rounded-full bg-[#556B2F] py-2.5 text-center text-sm font-semibold text-white shadow-sm transition hover:bg-[#4a5f28] disabled:cursor-not-allowed disabled:opacity-60"
+          className="w-full rounded-2xl bg-[#4D6638] py-3 text-center text-sm font-semibold text-white shadow-sm transition hover:bg-[#42572f] disabled:cursor-not-allowed disabled:opacity-60"
         >
           {primaryLabel}
         </button>
       </div>
     </div>
-  );
+  ) : null;
 
   const handleComboboxSelect = useCallback(
     (ingredient: MasterIngredient) => {
@@ -358,7 +352,7 @@ export function PantrySearchView({
   );
 
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
+    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-[#FAF9F6]">
       <input
         ref={cameraInputRef}
         id="cameraInput"
@@ -385,41 +379,46 @@ export function PantrySearchView({
           scrollBottomPaddingClass
         )}
       >
-        {/* Hero compacto: único banner de escaneo */}
+        {/* Hero CTA: Escanear Nevera / Despensa */}
         <button
           type="button"
           onClick={openSourceModal}
           disabled={isBusy}
-          className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-[#C5D6B8] bg-gradient-to-r from-[#EEF4E8] to-[#E4EDDC] px-3.5 py-3 text-left shadow-sm transition hover:brightness-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+          className="mb-3 flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-gradient-to-r from-[#4D6638] via-[#435931] to-[#384B29] p-4 text-left text-white shadow-lg shadow-[#4D6638]/25 transition-all hover:scale-[1.01] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
         >
           <span
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/80 text-xl shadow-sm ring-1 ring-[#556B2F]/10"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/25 bg-white/15 text-white shadow-inner backdrop-blur-md"
             aria-hidden
           >
-            📷
+            <Camera className="h-[1.125rem] w-[1.125rem] text-lg text-white" strokeWidth={1.75} />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block text-sm font-bold leading-snug text-[#3e5219]">
+            <span className="mb-1 inline-flex items-center rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-medium text-white/95">
+              {t.has("visionAiBadge") ? t("visionAiBadge") : "✨ Escáner Inteligente"}
+            </span>
+            <span className="block text-sm font-semibold leading-snug text-white">
               {t.has("scanPantryBannerTitle")
                 ? t("scanPantryBannerTitle")
                 : "Escanear Nevera o Despensa"}
             </span>
-            <span className="mt-0.5 block text-xs leading-snug text-[#556B2F]/85">
-              {t.has("scanPantryBannerSubtitle")
-                ? t("scanPantryBannerSubtitle")
-                : "Toma una foto y la IA detectará tus ingredientes"}
+            <span className="mt-0.5 block text-xs font-normal leading-snug text-white/80">
+              {t.has("scanPantryHeroSubtitle")
+                ? t("scanPantryHeroSubtitle")
+                : "Toma una foto y detectaremos tus ingredientes al instante"}
             </span>
           </span>
-          <ChevronRight className="h-5 w-5 shrink-0 text-[#556B2F]/70" aria-hidden />
+          <span
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs text-white/90"
+            aria-hidden
+          >
+            <ChevronRight className="h-3.5 w-3.5" strokeWidth={2} />
+          </span>
         </button>
 
-        {/* Búsqueda manual destacada */}
-        <section className="mb-3">
-          <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.12em] text-stone-400">
-            {t.has("manualAddSection") ? t("manualAddSection") : "Añadir a mano"}
-          </p>
+        {/* Añadir a mano + sugerencias (bloque unificado) */}
+        <section className="mb-3 space-y-2">
           {isPantryLoading ? (
-            <div className="h-12 animate-pulse rounded-full border border-stone-100 bg-stone-50" />
+            <div className="h-10 animate-pulse rounded-xl border border-slate-200/80 bg-white" />
           ) : (
             <IngredientCombobox
               ingredients={masterIngredients}
@@ -428,15 +427,9 @@ export function PantrySearchView({
               onCreateCustomIngredient={handleCreateCustomIngredient}
             />
           )}
-          {pantryError ? <p className="mt-2 text-xs text-red-600">{pantryError}</p> : null}
-        </section>
+          {pantryError ? <p className="text-xs text-red-600">{pantryError}</p> : null}
 
-        {/* Quick chips */}
-        <section className="mb-4">
-          <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.12em] text-stone-400">
-            {t.has("quickSuggestions") ? t("quickSuggestions") : "Sugerencias rápidas"}
-          </p>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1.5">
             {QUICK_SUGGESTIONS.map((suggestion) => {
               const name = resolveQuickName(suggestion);
               const alreadyAdded = selectedIngredients.some(
@@ -449,17 +442,12 @@ export function PantrySearchView({
                   disabled={isBusy || alreadyAdded}
                   onClick={() => handleQuickAdd(suggestion)}
                   className={cn(
-                    "inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-semibold transition",
+                    "inline-flex items-center gap-1 rounded-lg border-0 px-2.5 py-1 text-[11px] font-medium transition",
                     alreadyAdded
-                      ? "border-[#556B2F]/30 bg-[#eef4e6] text-[#3e5219]"
-                      : "border-stone-200 bg-white text-stone-700 hover:border-[#556B2F]/35 hover:bg-[#F4F7F2]"
+                      ? "bg-[#4D6638]/15 text-[#4D6638]"
+                      : "bg-slate-100/80 text-slate-700 hover:bg-slate-200/80"
                   )}
                 >
-                  {alreadyAdded ? (
-                    <Check className="h-3 w-3" strokeWidth={2.5} />
-                  ) : (
-                    <Plus className="h-3 w-3" strokeWidth={2.5} />
-                  )}
                   <span aria-hidden>{suggestion.emoji}</span>
                   {suggestion.label}
                 </button>
@@ -468,81 +456,69 @@ export function PantrySearchView({
           </div>
         </section>
 
-        {selectedIngredients.length > 0 ? (
-          <section className="mb-4 flex flex-wrap gap-2">
-            {selectedIngredients.map((name) => {
-              const Icon = pillIconFor(name);
-              const ingredient = masterByName.get(name.toLowerCase());
-              const isFavorite = ingredient ? favoriteIngredientIds.has(ingredient.id) : false;
-              return (
-                <div
-                  key={name}
-                  className="flex items-center gap-1 rounded-full bg-sv-secondary-container py-1.5 pl-3 pr-1 text-xs font-medium text-sv-on-secondary-container"
-                >
-                  <button
-                    type="button"
-                    onClick={() => onRemoveIngredient(name)}
-                    className="flex items-center gap-1.5"
+        {/* Tu Despensa — sin cajas anidadas */}
+        <section className="mb-3">
+          <h2 className="mb-1 mt-2 text-xs font-bold uppercase tracking-wider text-slate-400">
+            {t.has("yourPantryTitle") ? t("yourPantryTitle") : "Tu Despensa"} ({selectedCount})
+          </h2>
+
+          {selectedIngredients.length > 0 ? (
+            <div className="mb-2 flex flex-wrap gap-1.5">
+              {selectedIngredients.map((name) => {
+                const Icon = pillIconFor(name);
+                const ingredient = masterByName.get(name.toLowerCase());
+                const isFavorite = ingredient ? favoriteIngredientIds.has(ingredient.id) : false;
+                return (
+                  <div
+                    key={name}
+                    className="flex items-center gap-0.5 rounded-lg bg-[#4D6638]/10 py-1 pl-2 pr-0.5 text-[11px] font-medium text-[#4D6638]"
                   >
-                    <Icon className="h-3.5 w-3.5 shrink-0" />
-                    {name}
-                  </button>
-                  {ingredient ? (
                     <button
                       type="button"
-                      onClick={() => void handleToggleFavorite(name)}
-                      className="ml-0.5 rounded-full p-1 transition hover:bg-white/50"
-                      aria-label={
-                        isFavorite
-                          ? "Quitar de favoritos de despensa"
-                          : "Guardar en favoritos de despensa"
-                      }
+                      onClick={() => onRemoveIngredient(name)}
+                      className="flex items-center gap-1"
                     >
-                      {isFavorite ? (
-                        <BookmarkCheck className="h-3.5 w-3.5 text-sv-primary" />
-                      ) : (
-                        <Bookmark className="h-3.5 w-3.5 opacity-70" />
-                      )}
+                      <Icon className="h-3 w-3 shrink-0 opacity-70" />
+                      {name}
                     </button>
-                  ) : null}
-                  <button
-                    type="button"
-                    onClick={() => onRemoveIngredient(name)}
-                    className="rounded-full p-1 opacity-60 transition hover:opacity-100"
-                    aria-label={t("removeIngredientAria", { name })}
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              );
-            })}
-          </section>
-        ) : null}
+                    {ingredient ? (
+                      <button
+                        type="button"
+                        onClick={() => void handleToggleFavorite(name)}
+                        className="rounded-md p-1 transition hover:bg-white/60"
+                        aria-label={
+                          isFavorite
+                            ? "Quitar de favoritos de despensa"
+                            : "Guardar en favoritos de despensa"
+                        }
+                      >
+                        {isFavorite ? (
+                          <BookmarkCheck className="h-3 w-3 text-[#4D6638]" />
+                        ) : (
+                          <Bookmark className="h-3 w-3 opacity-60" />
+                        )}
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => onRemoveIngredient(name)}
+                      className="rounded-md p-1 text-slate-400 transition hover:bg-white/60 hover:text-slate-600"
+                      aria-label={t("removeIngredientAria", { name })}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          ) : null}
 
-        <section className={SCANNER_SECTION_CLASS}>
-          <PlanSectionDivider label={t("favorites")} accent={SCANNER_SECTION_ACCENTS.favoritos} />
-
-          <div className="mb-1.5 px-0.5">
-            {totalFavorites > 0 ? (
-              <p className="text-[11px] text-stone-500">{t("savedCount", { count: totalFavorites })}</p>
-            ) : null}
-            {activeCategory === null ? (
-              <p className="text-[11px] text-stone-500">{t("chooseCategory")}</p>
-            ) : (
-              <p className="text-[11px] text-stone-500">
-                {t("categoryIngredients", {
-                  category: t(CATEGORY_TAB_META[activeCategory].labelKey),
-                  count: favoritesByCategory[activeCategory].length
-                })}
-              </p>
-            )}
-          </div>
-
-          <div className="mb-1.5 grid grid-cols-3 gap-1.5">
+          <div className="mb-2 flex gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {CATEGORY_KEYS.map((key) => {
               const isActive = activeCategory === key;
               const meta = CATEGORY_TAB_META[key];
               const categoryLabel = t(meta.labelKey);
+              const count = favoritesByCategory[key].length;
               return (
                 <button
                   key={key}
@@ -551,25 +527,18 @@ export function PantrySearchView({
                   aria-pressed={isActive}
                   aria-label={t("viewFavoritesAria", { category: categoryLabel })}
                   className={cn(
-                    "flex min-w-0 items-center justify-center gap-1 rounded-full border px-2 py-1 text-[10px] font-semibold transition-colors",
+                    "inline-flex shrink-0 items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium transition",
                     isActive
-                      ? "border-[#4C6B3F]/35 bg-[#F4F6F2] text-[#3e5219]"
-                      : "border-stone-200/80 bg-white text-stone-600 hover:border-stone-300"
+                      ? "border-[#4D6638] bg-[#4D6638]/10 text-[#4D6638]"
+                      : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
                   )}
                 >
-                  <span aria-hidden className="shrink-0 text-sm leading-none">
+                  <span aria-hidden className="text-[11px] leading-none">
                     {meta.emoji}
                   </span>
-                  <span className="truncate">{categoryLabel}</span>
-                  {favoritesByCategory[key].length > 0 ? (
-                    <span
-                      className={cn(
-                        "shrink-0 rounded-full px-1 text-[9px] font-bold leading-4",
-                        isActive ? "bg-[#4C6B3F]/15 text-[#4C6B3F]" : "bg-stone-100 text-stone-500"
-                      )}
-                    >
-                      {favoritesByCategory[key].length}
-                    </span>
+                  <span>{categoryLabel}</span>
+                  {count > 0 ? (
+                    <span className="text-[10px] opacity-70">{count}</span>
                   ) : null}
                 </button>
               );
@@ -592,19 +561,17 @@ export function PantrySearchView({
                         : `Añadir ${fav.name} al escaneo`
                     }
                     className={cn(
-                      "flex items-center justify-between rounded-lg px-2 py-1.5 text-left text-[11px] font-medium transition-colors",
+                      "flex items-center justify-between rounded-lg px-2 py-1.5 text-left text-[11px] font-medium transition",
                       isSelected
-                        ? "bg-[#eef4e6]/80 text-[#3e5219]"
-                        : "bg-stone-50/70 text-stone-700 hover:bg-stone-100/80"
+                        ? "bg-[#4D6638]/10 text-[#4D6638]"
+                        : "bg-slate-50 text-slate-700 hover:bg-slate-100"
                     )}
                   >
                     <span className="min-w-0 truncate pr-2">{fav.name}</span>
                     <span
                       className={cn(
-                        "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border",
-                        isSelected
-                          ? "border-[#4C6B3F] bg-[#4C6B3F] text-white"
-                          : "border-stone-200 bg-white text-[#556B2F]"
+                        "flex h-5 w-5 shrink-0 items-center justify-center rounded-full",
+                        isSelected ? "bg-[#4D6638] text-white" : "bg-white text-[#4D6638]"
                       )}
                       aria-hidden
                     >
@@ -619,22 +586,13 @@ export function PantrySearchView({
               })}
             </div>
           ) : (
-            <p className="text-[11px] leading-relaxed text-stone-500">
+            <p className="text-[11px] leading-relaxed text-slate-500">
               {t("noFavoritesInCategory", {
                 category: t(CATEGORY_TAB_META[activeCategory].labelKey).toLowerCase()
               })}
             </p>
           )}
         </section>
-
-        {!isPremiumLoading && canUseDishPhoto ? (
-          <div
-            role="status"
-            className="mb-2 rounded-2xl border border-[#556B2F]/20 bg-[#F0F4ED] px-3 py-2.5 text-[11px] leading-snug text-[#3e5219] shadow-sm"
-          >
-            {t("photoCreditBannerPremium")}
-          </div>
-        ) : null}
 
         <AdvancedRecipeFilters
           mealType={mealType}
@@ -648,17 +606,28 @@ export function PantrySearchView({
           disabled={isBusy}
         />
 
+        {!isPremiumLoading && canUseDishPhoto ? (
+          <p
+            role="status"
+            className="mb-3 mt-1 flex items-center justify-center gap-1.5 rounded-xl border border-amber-200/50 bg-amber-50/80 px-3 py-1.5 text-center text-[11px] font-medium text-amber-800"
+          >
+            {t.has("proBenefitChip")
+              ? t("proBenefitChip")
+              : "✨ Beneficio PRO: Fotos fotorreales de tus platos ilimitadas"}
+          </p>
+        ) : null}
+
         {errorMessage ? (
           <div
             role="alert"
-            className="mb-4 flex flex-col gap-2 rounded-xl border-2 border-red-300 bg-red-50 px-3 py-2 text-sm text-red-900"
+            className="mb-4 flex flex-col gap-2 rounded-2xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-900"
           >
             <p>{errorMessage}</p>
             <button
               type="button"
               onClick={onRetry}
               disabled={isBusy || !hasSelection}
-              className="self-start rounded-lg border border-red-400 bg-white px-3 py-2 text-sm font-semibold text-red-800 disabled:opacity-50"
+              className="self-start rounded-xl border border-red-300 bg-white px-3 py-2 text-sm font-semibold text-red-800 disabled:opacity-50"
             >
               {rateLimitSecondsLeft > 0
                 ? `Reintentar en ${rateLimitSecondsLeft}s`
@@ -668,7 +637,7 @@ export function PantrySearchView({
         ) : null}
       </div>
 
-      {isMounted ? createPortal(scanFooter, document.body) : null}
+      {isMounted && scanFooter ? createPortal(scanFooter, document.body) : null}
 
       {showSourceModal ? (
         <>

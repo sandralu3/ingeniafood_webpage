@@ -35,6 +35,13 @@ import {
   stringsToStructuredIngredients,
   structuredIngredientsToJson
 } from "@/lib/recipes/structured-ingredients";
+import {
+  normalizeRecipeVariant,
+  shortRecipeName,
+  RECIPE_OPTION_DEFAULTS,
+  RECIPE_OPTION_VARIANTS,
+  type RecipeOptionVariant
+} from "@/lib/recipes/recipe-options";
 import { createSupabaseRouteClient } from "@/lib/supabaseRoute";
 import { LOCALE_COOKIE_NAME } from "@/i18n/config";
 import { cookies } from "next/headers";
@@ -99,6 +106,9 @@ type GeminiRecipe = {
   tip_sandra: string;
   tags: string[];
   macronutrientes: RecipeMacros | null;
+  variant: RecipeOptionVariant;
+  emoji: string;
+  nombre_corto: string;
 };
 
 type LooseGeminiRecipe = Partial<GeminiRecipe> & {
@@ -108,6 +118,9 @@ type LooseGeminiRecipe = Partial<GeminiRecipe> & {
   pasos?: string[];
   etiquetas?: string[];
   macronutrientes?: unknown;
+  variante?: string;
+  option?: string;
+  tipo?: string;
 };
 
 function sleep(ms: number): Promise<void> {
@@ -126,14 +139,17 @@ function maskApiKeyForDevLog(apiKey: string): string {
 const GEMINI_REQUEST_TIMEOUT_MS = 180_000;
 
 type ParseOutcome =
-  | { status: "ok"; recipe: GeminiRecipe; mealTypeAdvisory?: string }
+  | { status: "ok"; recipes: GeminiRecipe[]; mealTypeAdvisory?: string }
   | { status: "not_food" }
   | { status: "invalid_ingredient"; message: string }
   | { status: "meal_type_mismatch"; message: string }
   | { status: "incomplete" }
   | { status: "invalid" };
 
-function normalizeRecipePayload(recipe: LooseGeminiRecipe): GeminiRecipe {
+function normalizeRecipePayload(
+  recipe: LooseGeminiRecipe,
+  fallbackIndex = 0
+): GeminiRecipe {
   const tags = normalizeRecipeTags(
     Array.isArray(recipe.tags)
       ? recipe.tags
@@ -142,8 +158,19 @@ function normalizeRecipePayload(recipe: LooseGeminiRecipe): GeminiRecipe {
         : []
   );
 
+  const variant = normalizeRecipeVariant(
+    recipe.variant ?? recipe.variante ?? recipe.option ?? recipe.tipo,
+    fallbackIndex
+  );
+  const defaults = RECIPE_OPTION_DEFAULTS[variant];
+  const titulo = recipe.titulo ?? "Receta Saludable de Sandra";
+  const emoji =
+    typeof recipe.emoji === "string" && recipe.emoji.trim().length > 0
+      ? recipe.emoji.trim().slice(0, 4)
+      : defaults.emoji;
+
   return {
-    titulo: recipe.titulo ?? "Receta Saludable de Sandra",
+    titulo,
     tiempo_preparacion: recipe.tiempo_preparacion ?? recipe.tiempo ?? "20 min",
     ingredientes_detallados: normalizeLooseGeminiIngredients(recipe),
     pasos_ordenados: normalizeRecipeSteps(
@@ -158,8 +185,39 @@ function normalizeRecipePayload(recipe: LooseGeminiRecipe): GeminiRecipe {
         ? recipe.tip_sandra.trim()
         : "Tip de Sandra: Equilibra tu plato con proteína magra, vegetales y una grasa saludable.",
     tags,
-    macronutrientes: normalizeRecipeMacros(recipe)
+    macronutrientes: normalizeRecipeMacros(recipe),
+    variant,
+    emoji,
+    nombre_corto: shortRecipeName(
+      titulo,
+      typeof recipe.nombre_corto === "string" ? recipe.nombre_corto : null
+    )
   };
+}
+
+function finalizeRecipeList(recipes: GeminiRecipe[]): GeminiRecipe[] {
+  const byVariant = new Map<RecipeOptionVariant, GeminiRecipe>();
+  for (const recipe of recipes) {
+    if (!byVariant.has(recipe.variant)) {
+      byVariant.set(recipe.variant, recipe);
+    }
+  }
+
+  const ordered = RECIPE_OPTION_VARIANTS.map((variant, index) => {
+    const existing = byVariant.get(variant);
+    if (existing) return existing;
+    const fallback = recipes[index] ?? recipes[0];
+    if (!fallback) return null;
+    const defaults = RECIPE_OPTION_DEFAULTS[variant];
+    return {
+      ...fallback,
+      variant,
+      emoji: defaults.emoji,
+      nombre_corto: shortRecipeName(fallback.titulo, fallback.nombre_corto)
+    };
+  }).filter((item): item is GeminiRecipe => Boolean(item));
+
+  return ordered.slice(0, 3);
 }
 
 /**
@@ -190,6 +248,9 @@ function parseJsonResponse(rawText: string): ParseOutcome {
       error?: string;
       mensaje?: string;
       advertencia_ingredientes?: string;
+      recipes?: LooseGeminiRecipe[];
+      recetas?: LooseGeminiRecipe[];
+      opciones?: LooseGeminiRecipe[];
     };
     if (parsed.error === "NOT_FOOD") {
       return { status: "not_food" };
@@ -215,7 +276,25 @@ function parseJsonResponse(rawText: string): ParseOutcome {
         ? parsed.advertencia_ingredientes.trim()
         : undefined;
 
-    return { status: "ok", recipe: normalizeRecipePayload(parsed), mealTypeAdvisory };
+    const looseList = Array.isArray(parsed.recipes)
+      ? parsed.recipes
+      : Array.isArray(parsed.recetas)
+        ? parsed.recetas
+        : Array.isArray(parsed.opciones)
+          ? parsed.opciones
+          : null;
+
+    const normalizedList =
+      looseList && looseList.length > 0
+        ? looseList.map((item, index) => normalizeRecipePayload(item, index))
+        : [normalizeRecipePayload(parsed, 0)];
+
+    const recipes = finalizeRecipeList(normalizedList);
+    if (recipes.length === 0) {
+      return { status: "invalid" };
+    }
+
+    return { status: "ok", recipes, mealTypeAdvisory };
   } catch {
     console.log("DEBUG RAW RESPONSE: " + rawText);
     return { status: "invalid" };
@@ -504,6 +583,17 @@ export async function POST(request: Request) {
       ? `Usa como base OBLIGATORIA y PRINCIPAL los ingredientes seleccionados manualmente: [${selectedList}]. La receta debe girar en torno a ellos. Combínalos de forma coherente con lo visible en la imagen (si aplica). NO sustituyas ni añadas ingredientes principales ajenos a esta lista.`
       : "El usuario no seleccionó ingredientes manualmente; infiere los ingredientes únicamente desde la imagen si es posible y no inventes ingredientes principales que no se vean.";
 
+    const recipeJsonShape =
+      '{ "variant": "classic"|"quick"|"light", "emoji": string, "nombre_corto": string, "titulo": string, "tiempo_preparacion": string, "ingredientes_detallados": string[], "ingredientes_estructurados": [{"name": string, "amount": number, "unit": string, "optional": boolean}], "pasos_ordenados": string[], "tip_sandra": string, "etiquetas": string[], "macronutrientes": {"proteinas_g": number, "carbohidratos_g": number, "grasas_g": number, "calorias": number} }';
+
+    const multiRecipeRules =
+      "Entrega EXACTAMENTE 3 OPCIONES DE RECETAS DISTINTAS en el array recipes. " +
+      "Opción 1 (variant=\"classic\"): la más equilibrada/tradicional. " +
+      "Opción 2 (variant=\"quick\"): ultra rápida, tiempo_preparacion menor a 20 minutos. " +
+      "Opción 3 (variant=\"light\"): ligera/fit o creativa, más fresca o creativa. " +
+      "Las 3 deben usar los mismos ingredientes base del usuario pero con enfoques claramente distintos (titulo, pasos y tiempos diferentes). " +
+      "Incluye emoji (1 emoji) y nombre_corto (max 28 chars) en cada opción. ";
+
     const jsonRules =
       languagePromptClause +
       PANTRY_PRIORITY_RULE +
@@ -512,7 +602,10 @@ export async function POST(request: Request) {
       MACRO_ESTIMATION_RULE +
       `${filtersPromptClause}\n\n${mealTypeCompatibilityClause}\n\n${mealTypePantryClause}\n\n` +
       (recipeIdeaClause ? `${recipeIdeaClause}\n\n` : "") +
-      "Solo JSON valido. Entrega receta saludable y rapida. Formato esperado: { \"titulo\": \"\", \"tiempo_preparacion\": \"X min\", \"ingredientes_detallados\": [], \"ingredientes_estructurados\": [], \"pasos_ordenados\": [], \"tip_sandra\": \"\", \"etiquetas\": [], \"advertencia_ingredientes\": \"\", \"macronutrientes\": {\"proteinas_g\": 0, \"carbohidratos_g\": 0, \"grasas_g\": 0, \"calorias\": 0} }. " +
+      "Solo JSON valido. Formato esperado: { \"advertencia_ingredientes\": \"\", \"recipes\": [ " +
+      recipeJsonShape +
+      ", ...exactamente 3 ] }. " +
+      multiRecipeRules +
       "advertencia_ingredientes: opcional; texto breve (en el idioma de salida) si hace falta avisar de complementos no escaneados. Si no aplica, usa \"\". " +
       "ETIQUETAS (campo etiquetas): array de 0 a 3 strings. Valores permitidos SOLO: \"Sin Harinas\", \"Apto para Airfryer\", \"Alto en Proteína\". " +
       "NO incluyas Desayuno, Cena, Snack, Almuerzo ni Postre en etiquetas (el momento del plato ya se define por filtros del usuario). " +
@@ -527,7 +620,7 @@ export async function POST(request: Request) {
 
     const systemInstruction = hasImage
       ? `${INGREDIENT_VALIDATION_RULE}${ingredientQuantityRule}${VISION_SYSTEM_PREFIX}${jsonRules} ${manualClause}`
-      : `${INGREDIENT_VALIDATION_RULE}${ingredientQuantityRule}Solo JSON valido. Usa ingredientes: [${selectedList}]. Entrega receta saludable y rapida con formato { "titulo": "", "tiempo_preparacion": "X min", "ingredientes_detallados": [], "ingredientes_estructurados": [], "pasos_ordenados": [], "tip_sandra": "", "etiquetas": [], "macronutrientes": {"proteinas_g": 0, "carbohidratos_g": 0, "grasas_g": 0, "calorias": 0} }. ${jsonRules}`;
+      : `${INGREDIENT_VALIDATION_RULE}${ingredientQuantityRule}Solo JSON valido. Usa ingredientes: [${selectedList}]. ${multiRecipeRules} Formato { "advertencia_ingredientes": "", "recipes": [${recipeJsonShape}, ...] }. ${jsonRules}`;
 
     const promptTail =
       selectedIngredients.length && hasImage
@@ -539,8 +632,8 @@ export async function POST(request: Request) {
     const prompt =
       "Primero valida si hay comida visible. Si NO hay comida, responde solo {\"error\":\"NOT_FOOD\"} y termina sin texto adicional. " +
       "Si sí hay comida, responde exclusivamente con JSON valido (sin markdown, sin bloques de codigo) usando esta estructura exacta: " +
-      '{"titulo": string, "tiempo_preparacion": string, "ingredientes_detallados": string[], "ingredientes_estructurados": [{"name": string, "amount": number, "unit": string, "optional": boolean}], "pasos_ordenados": string[], "tip_sandra": string, "etiquetas": string[], "advertencia_ingredientes": string, "macronutrientes": {"proteinas_g": number, "carbohidratos_g": number, "grasas_g": number, "calorias": number}}. ' +
-      `${promptTail} No inventes ingredientes principales imposibles; prioriza exclusivamente lo visible y lo indicado arriba. El titulo debe reflejar los ingredientes reales del usuario, no sabores inventados.`;
+      `{ "advertencia_ingredientes": string, "recipes": [${recipeJsonShape}, ${recipeJsonShape}, ${recipeJsonShape}] }. ` +
+      `${multiRecipeRules}${promptTail} No inventes ingredientes principales imposibles; prioriza exclusivamente lo visible y lo indicado arriba. El titulo debe reflejar los ingredientes reales del usuario, no sabores inventados.`;
 
     let rawResponse = "";
 
@@ -571,10 +664,10 @@ export async function POST(request: Request) {
             model: candidateModel,
             systemInstruction,
             generationConfig: {
-              temperature: 0.2,
+              temperature: 0.35,
               topP: 0.9,
-              // Evita truncar el JSON (PARSING_ERROR por respuesta cortada).
-              maxOutputTokens: 2048,
+              // 3 recetas en un solo JSON: subir techo para evitar truncado.
+              maxOutputTokens: 8192,
               responseMimeType: "application/json"
             }
           },
@@ -747,29 +840,51 @@ export async function POST(request: Request) {
         502
       );
     }
-    const recipe = parseOutcome.recipe;
+    const parsedRecipes = parseOutcome.recipes;
     const mealTypeAdvisory = parseOutcome.mealTypeAdvisory;
 
-    const safeRecipe: GeminiRecipe = {
-      titulo: recipe.titulo || "Receta Saludable de Sandra",
-      tiempo_preparacion: recipe.tiempo_preparacion || "20 min",
-      ingredientes_detallados: (() => {
-        const normalized = normalizeLooseGeminiIngredients(recipe);
-        if (normalized.length > 0) {
-          return normalized;
-        }
-        return selectedIngredients;
-      })(),
-      pasos_ordenados: normalizeRecipeSteps(
-        Array.isArray(recipe.pasos_ordenados) ? recipe.pasos_ordenados : []
-      ),
-      tip_sandra:
-        typeof recipe.tip_sandra === "string" && recipe.tip_sandra.trim().length > 0
-          ? recipe.tip_sandra.trim()
-          : "Tip de Sandra: organiza todos tus ingredientes antes de cocinar para ganar tiempo y mantener una preparación más eficiente.",
-      tags: normalizeRecipeTags(recipe.tags),
-      macronutrientes: recipe.macronutrientes
-    };
+    const safeRecipes: GeminiRecipe[] = parsedRecipes.map((recipe, index) => {
+      const variant = normalizeRecipeVariant(recipe.variant, index);
+      const defaults = RECIPE_OPTION_DEFAULTS[variant];
+      const titulo = recipe.titulo || "Receta Saludable de Sandra";
+      return {
+        titulo,
+        tiempo_preparacion: recipe.tiempo_preparacion || (variant === "quick" ? "15 min" : "20 min"),
+        ingredientes_detallados: (() => {
+          const normalized = normalizeLooseGeminiIngredients(recipe);
+          if (normalized.length > 0) {
+            return normalized;
+          }
+          return selectedIngredients;
+        })(),
+        pasos_ordenados: normalizeRecipeSteps(
+          Array.isArray(recipe.pasos_ordenados) ? recipe.pasos_ordenados : []
+        ),
+        tip_sandra:
+          typeof recipe.tip_sandra === "string" && recipe.tip_sandra.trim().length > 0
+            ? recipe.tip_sandra.trim()
+            : "Tip de Sandra: organiza todos tus ingredientes antes de cocinar para ganar tiempo y mantener una preparación más eficiente.",
+        tags: normalizeRecipeTags(recipe.tags),
+        macronutrientes: recipe.macronutrientes,
+        variant,
+        emoji:
+          typeof recipe.emoji === "string" && recipe.emoji.trim().length > 0
+            ? recipe.emoji.trim().slice(0, 4)
+            : defaults.emoji,
+        nombre_corto: shortRecipeName(titulo, recipe.nombre_corto)
+      };
+    });
+
+    const primaryParsedRecipe = safeRecipes[0];
+    if (!primaryParsedRecipe) {
+      return jsonResponse(
+        {
+          error: "La IA no devolvió opciones de receta válidas. Intenta de nuevo.",
+          code: "PARSING_ERROR"
+        },
+        502
+      );
+    }
 
     const remainingGenerations = await consumeGeneration(user.id, user.email);
     if (remainingGenerations === null) {
@@ -801,6 +916,7 @@ export async function POST(request: Request) {
     }
 
     // Banco de fotos: Premium de pago. Free solo si va a generar foto OpenAI con créditos.
+    // Sin OpenAI aquí: solo match local (banco / catálogo / placeholder).
     const userWantsDishPhoto = body.useDishPhoto === true;
     const eligibleForDishPhoto = await canGenerateOpenAiDishPhoto(
       supabase,
@@ -810,21 +926,69 @@ export async function POST(request: Request) {
     const canGenerateDishPhoto = userWantsDishPhoto && eligibleForDishPhoto;
     const canUseDishImages = premiumAccess.isPaidPremium || canGenerateDishPhoto;
 
-    let referenceImageUrl: string | null = null;
-    if (canUseDishImages) {
+    type RecipeWithCover = GeminiRecipe & {
+      imageUrl: string | null;
+      referenceImageUrl: string | null;
+    };
+
+    const resolveCoverForRecipe = async (recipe: GeminiRecipe): Promise<{
+      imageUrl: string;
+      referenceImageUrl: string | null;
+    }> => {
       try {
         const referenceMatch = await resolveDishImageMatch({
-          recipeTitle: safeRecipe.titulo,
-          ingredients: safeRecipe.ingredientes_detallados,
-          tags: safeRecipe.tags,
+          recipeTitle: recipe.titulo,
+          ingredients: recipe.ingredientes_detallados,
+          tags: recipe.tags,
           mealType: resolvedFilters.mealType,
           cuisineStyle: resolvedFilters.cuisineStyle
         });
-        referenceImageUrl = referenceMatch?.imageUrl ?? null;
+        if (referenceMatch?.imageUrl) {
+          return {
+            imageUrl: referenceMatch.imageUrl,
+            referenceImageUrl: referenceMatch.imageUrl
+          };
+        }
       } catch (referenceError) {
         console.warn("[recipe-image] No se pudo resolver imagen de referencia:", referenceError);
       }
+
+      const placeholder = await resolveDishImagePlaceholder({
+        title: recipe.titulo,
+        ingredients: recipe.ingredientes_detallados,
+        tags: recipe.tags,
+        mealType: resolvedFilters.mealType,
+        cuisineStyle: resolvedFilters.cuisineStyle
+      });
+      return { imageUrl: placeholder, referenceImageUrl: null };
+    };
+
+    let recipesWithCovers: RecipeWithCover[] = safeRecipes.map((recipe) => ({
+      ...recipe,
+      imageUrl: null,
+      referenceImageUrl: null
+    }));
+
+    if (canUseDishImages) {
+      recipesWithCovers = await Promise.all(
+        safeRecipes.map(async (recipe) => {
+          const cover = await resolveCoverForRecipe(recipe);
+          return {
+            ...recipe,
+            imageUrl: cover.imageUrl,
+            referenceImageUrl: cover.referenceImageUrl
+          };
+        })
+      );
     }
+
+    const safeRecipe = recipesWithCovers[0] ?? {
+      ...safeRecipes[0]!,
+      imageUrl: null as string | null,
+      referenceImageUrl: null as string | null
+    };
+    const referenceImageUrl = safeRecipe.referenceImageUrl;
+    const provisionalImageUrl = canUseDishImages ? safeRecipe.imageUrl : null;
 
     const dishImageInput = {
       userId: user.id,
@@ -851,10 +1015,6 @@ export async function POST(request: Request) {
               : "Revisa saldo de créditos (Free) o suscripción Premium."
       });
     }
-
-    const provisionalImageUrl = canUseDishImages
-      ? referenceImageUrl ?? (await resolveDishImagePlaceholder(dishImageInput))
-      : null;
 
     const appliedFilters = {
       mealType: resolvedFilters.mealType,
@@ -900,19 +1060,43 @@ export async function POST(request: Request) {
           userEmail: user.email,
           ...dishImageInput
         });
+        // Opción 1: skeleton hasta que llegue la foto; opciones 2–3 conservan cover del banco.
+        recipesWithCovers = recipesWithCovers.map((recipe, index) =>
+          index === 0 ? { ...recipe, imageUrl: null } : recipe
+        );
       } else {
         console.warn("[generate-recipe] Auto-guardado Premium falló:", saveResult.error);
       }
     }
 
+    const responseRecipes = recipesWithCovers;
+    const responsePrimary = responseRecipes[0] ?? safeRecipe;
+
     return jsonResponse({
-      recipe: safeRecipe,
+      recipe: {
+        titulo: responsePrimary.titulo,
+        tiempo_preparacion: responsePrimary.tiempo_preparacion,
+        ingredientes_detallados: responsePrimary.ingredientes_detallados,
+        pasos_ordenados: responsePrimary.pasos_ordenados,
+        tip_sandra: responsePrimary.tip_sandra,
+        tags: responsePrimary.tags,
+        macronutrientes: responsePrimary.macronutrientes,
+        variant: responsePrimary.variant,
+        emoji: responsePrimary.emoji,
+        nombre_corto: responsePrimary.nombre_corto,
+        imageUrl: responsePrimary.imageUrl,
+        referenceImageUrl: responsePrimary.referenceImageUrl
+      },
+      recipes: responseRecipes,
       savedRecipe: savedRecipeId ? { id: savedRecipeId } : null,
       savedRecipeId,
       generationsLeft: remainingGenerations,
-      referenceImageUrl,
+      referenceImageUrl: responsePrimary.referenceImageUrl,
       // Premium+OpenAI: sin URL final (skeleton). Premium sin foto: banco. Free: null.
-      imageUrl: canGenerateDishPhoto && savedRecipeId ? null : provisionalImageUrl,
+      imageUrl:
+        canGenerateDishPhoto && savedRecipeId
+          ? null
+          : responsePrimary.imageUrl ?? provisionalImageUrl,
       dishPhotoPending: Boolean(canGenerateDishPhoto && savedRecipeId),
       appliedFilters,
       ...(mealTypeAdvisory ? { mealTypeAdvisory } : {}),

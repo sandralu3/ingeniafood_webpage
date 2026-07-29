@@ -29,9 +29,17 @@ type RecipeRow = Database["public"]["Tables"]["recipes"]["Row"];
 
 const FILTER_CHIPS = SAVED_RECIPE_FILTERS;
 
-function isMissingTipSandraColumnError(error: { code?: string; message?: string } | null): boolean {
+function isMissingOptionalRecipesColumnError(
+  error: { code?: string; message?: string } | null,
+  column: string
+): boolean {
   if (!error) return false;
-  return error.code === "42703" || error.message?.includes("column recipes.tip_sandra does not exist") === true;
+  return (
+    error.code === "42703" ||
+    error.code === "PGRST204" ||
+    error.message?.includes(`column recipes.${column} does not exist`) === true ||
+    error.message?.includes(column) === true
+  );
 }
 
 function formatSavedDate(isoDate: string, locale: string, template: (date: string) => string): string {
@@ -128,7 +136,7 @@ export default function RecipesPage() {
       const primaryQuery = await supabase
         .from("recipes")
         .select(
-          "id,title,description,cooking_time,is_airfryer,is_flourless,is_public,created_at,user_id,ingredients,steps,instructions,image_url,tip_sandra,instagram_url"
+          "id,title,description,cooking_time,is_airfryer,is_flourless,is_public,created_at,user_id,ingredients,steps,instructions,image_url,reference_image_url,tip_sandra,instagram_url"
         )
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
@@ -136,7 +144,10 @@ export default function RecipesPage() {
       let recipesData = primaryQuery.data as RecipeRow[] | null;
       let recipesError = primaryQuery.error;
 
-      if (isMissingTipSandraColumnError(recipesError)) {
+      if (
+        isMissingOptionalRecipesColumnError(recipesError, "tip_sandra") ||
+        isMissingOptionalRecipesColumnError(recipesError, "reference_image_url")
+      ) {
         const fallbackQuery = await supabase
           .from("recipes")
           .select(
@@ -148,7 +159,8 @@ export default function RecipesPage() {
         recipesError = fallbackQuery.error;
         recipesData = (fallbackQuery.data as RecipeRow[] | null)?.map((recipe) => ({
           ...recipe,
-          tip_sandra: null
+          tip_sandra: null,
+          reference_image_url: null
         })) ?? null;
       }
 
@@ -256,8 +268,11 @@ export default function RecipesPage() {
                     t("savedOn", { date })
                   )}
                   imageUrl={recipe.image_url}
+                  referenceImageUrl={recipe.reference_image_url}
                   instagramUrl={recipe.instagram_url}
-                  isSocialVideo={Boolean(recipe.instagram_url && !recipe.image_url)}
+                  isSocialVideo={Boolean(
+                    recipe.instagram_url && !recipe.image_url && !recipe.reference_image_url
+                  )}
                   detailHref={`/app-recetas/recipes/${recipe.id}`}
                   onPrefetch={() => router.prefetch(`/app-recetas/recipes/${recipe.id}`)}
                   onShare={() => handleShareRecipe(recipe)}

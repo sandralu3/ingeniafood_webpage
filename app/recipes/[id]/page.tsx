@@ -5,9 +5,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Heart, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { RecipeDetailMagazine } from "@/components/recipes/recipe-detail-magazine";
+import { RecipeAppliedFiltersBadges } from "@/components/recipes/recipe-applied-filters-badges";
 import { RecipeInstagramAdminForm } from "@/components/recipes/recipe-instagram-admin-form";
 import { RecipeInstagramLink } from "@/components/recipes/recipe-instagram-link";
+import { RecipeResultHeroCard } from "@/components/scanner/recipe-result-hero-card";
 import { isSandraAdmin } from "@/lib/auth/sandra-admin";
 import { handleRemoveFromFavorites } from "@/lib/recipes/remove-from-favorites";
 import {
@@ -222,10 +223,6 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
     [recipe]
   );
 
-  const showScanOrigin = Boolean(
-    recipe && !recipe.es_instagram && (recipe.image_url || appliedFilters)
-  );
-
   const handleRemoveFavorite = useCallback(async () => {
     if (!recipe || isRemoving || !isFavorite) return;
 
@@ -302,17 +299,19 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
       ) : null}
 
       {!isLoading && shareableRecipe && recipe ? (
-        <article className="animate-detail-enter space-y-5">
+        <article className="animate-detail-enter space-y-4">
           {recipe.instagram_url ? (
             <RecipeInstagramLink url={recipe.instagram_url} />
           ) : null}
-          <RecipeDetailMagazine
+          {appliedFilters ? (
+            <div className="flex flex-wrap gap-1.5 px-0.5">
+              <RecipeAppliedFiltersBadges filters={appliedFilters} />
+            </div>
+          ) : null}
+          <RecipeResultHeroCard
             recipe={shareableRecipe}
-            showScanBanner={showScanOrigin}
-            appliedFilters={appliedFilters}
-            showAppliedFilters={Boolean(appliedFilters)}
+            pantryIngredients={[]}
             mealTypeAdvisory={recipe.meal_type_advisory}
-            imageDisplayMode="library"
           />
           {isAdmin ? (
             <RecipeInstagramAdminForm

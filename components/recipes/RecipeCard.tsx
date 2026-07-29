@@ -1,7 +1,13 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
 import { Heart, Loader2, Play, Share2 } from "lucide-react";
 import { RecipeInstagramLink } from "@/components/recipes/recipe-instagram-link";
-import { getRecipePlaceholder } from "@/lib/recipes/recipe-placeholder";
+import {
+  getRecipeImageFallback,
+  pickStoredRecipeImageUrl
+} from "@/lib/recipes/dish-image-fallback";
 import { cn } from "@/lib/utils";
 
 type RecipeCardProps = {
@@ -11,6 +17,7 @@ type RecipeCardProps = {
   detailHref: string;
   recipeId?: string;
   imageUrl?: string | null;
+  referenceImageUrl?: string | null;
   instagramUrl?: string | null;
   isSocialVideo?: boolean;
   className?: string;
@@ -28,23 +35,41 @@ const thumbnailClass =
 
 function RecipeCardThumbnail({
   title,
-  recipeKey,
   imageUrl,
+  referenceImageUrl,
   isSocialVideo
 }: {
   title: string;
-  recipeKey?: string;
   imageUrl?: string | null;
+  referenceImageUrl?: string | null;
   isSocialVideo?: boolean;
 }) {
-  if (imageUrl) {
+  const resolvedUrl =
+    pickStoredRecipeImageUrl({ imageUrl, referenceImageUrl, title }) ||
+    getRecipeImageFallback({ title, imageUrl, referenceImageUrl });
+  const [failed, setFailed] = useState(false);
+  const [fallbackFailed, setFallbackFailed] = useState(false);
+  const displayUrl = !failed
+    ? resolvedUrl
+    : !fallbackFailed
+      ? getRecipeImageFallback({ title })
+      : null;
+
+  if (displayUrl) {
     return (
       <div className={cn(thumbnailClass, "border border-stone-200/40 bg-stone-100")}>
         <img
-          src={imageUrl}
+          src={displayUrl}
           alt={title ? `Imagen de ${title}` : ""}
           className="h-full w-full object-cover"
           loading="lazy"
+          onError={() => {
+            if (!failed) {
+              setFailed(true);
+              return;
+            }
+            setFallbackFailed(true);
+          }}
         />
       </div>
     );
@@ -65,20 +90,14 @@ function RecipeCardThumbnail({
     );
   }
 
-  const placeholder = getRecipePlaceholder(title, recipeKey);
-  const PlaceholderIcon = placeholder.Icon;
-
   return (
     <div
       className={cn(
         thumbnailClass,
-        "flex items-center justify-center border border-stone-200/40",
-        placeholder.containerClass
+        "border border-stone-200/40 bg-gradient-to-br from-[#F0F4ED] to-[#E8EFE3]"
       )}
       aria-hidden
-    >
-      <PlaceholderIcon className={cn("h-3.5 w-3.5", placeholder.iconClass)} strokeWidth={1.75} />
-    </div>
+    />
   );
 }
 
@@ -93,6 +112,7 @@ export function RecipeCard({
   detailHref,
   recipeId,
   imageUrl,
+  referenceImageUrl,
   instagramUrl,
   isSocialVideo = false,
   className,
@@ -121,8 +141,8 @@ export function RecipeCard({
         >
           <RecipeCardThumbnail
             title={title}
-            recipeKey={recipeId}
             imageUrl={imageUrl}
+            referenceImageUrl={referenceImageUrl}
             isSocialVideo={isSocialVideo}
           />
         </Link>

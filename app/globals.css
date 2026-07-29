@@ -25,6 +25,10 @@
     animation: scanner-laser 2.2s ease-in-out infinite;
   }
 
+  .sheet-swipe-hint {
+    animation: sheet-swipe-hint 1.15s ease-out 1;
+  }
+
   .hero-organic-texture {
     background-image:
       radial-gradient(ellipse 120% 80% at 10% 20%, rgba(85, 107, 47, 0.14) 0%, transparent 55%),
@@ -118,6 +122,22 @@
   100% {
     top: 90%;
     opacity: 0;
+  }
+}
+
+@keyframes sheet-swipe-hint {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  35% {
+    transform: translateY(-14px);
+  }
+  55% {
+    transform: translateY(-4px);
+  }
+  75% {
+    transform: translateY(-10px);
   }
 }
 

@@ -2,12 +2,10 @@
 
 import { useState, type ReactNode } from "react";
 import { ChevronDown, Lock } from "lucide-react";
-import { PlanSectionDivider } from "@/components/plan/plan-section-divider";
 import { PremiumLabel } from "@/components/premium/premium-label";
 import { PremiumUpgradeDialog } from "@/components/premium/premium-upgrade-dialog";
 import { usePremium } from "@/hooks/use-premium";
 import { useTranslations } from "next-intl";
-import { SCANNER_SECTION_ACCENTS } from "@/lib/scanner/scanner-section-accent";
 import {
   RECIPE_COMPLEXITY_LEVELS,
   RECIPE_CUISINE_STYLES,
@@ -26,7 +24,7 @@ import {
 import { cn } from "@/lib/utils";
 
 export const SCANNER_SECTION_CLASS =
-  "mb-2 rounded-2xl bg-white/90 px-2.5 py-2 shadow-sm shadow-stone-100/30";
+  "mb-2 overflow-hidden rounded-2xl border border-slate-100/80 bg-white/90 shadow-none";
 
 type Props = {
   mealType: RecipeMealType;
@@ -71,10 +69,10 @@ function FilterChip({
       className={cn(
         "inline-flex shrink-0 items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-50",
         selected
-          ? "border-[#556B2F]/45 bg-[#eef4e6] text-[#3e5219] shadow-sm shadow-[#556B2F]/5"
+          ? "border-[#4D6638] bg-[#4D6638]/10 text-[#4D6638] font-medium"
           : locked
-            ? "border-stone-200 bg-stone-50/60 text-stone-400"
-            : "border-stone-200 bg-white text-stone-600 hover:border-stone-300 hover:bg-stone-50",
+            ? "border-slate-200 bg-slate-50/60 text-slate-400"
+            : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50",
         className
       )}
     >
@@ -95,7 +93,7 @@ function FilterGroup({
 }) {
   return (
     <div className="space-y-1">
-      <p className="mb-1 px-0.5 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+      <p className="mb-1 px-0.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">
         {label}
       </p>
       <div
@@ -178,52 +176,51 @@ export function AdvancedRecipeFilters({
           type="button"
           onClick={() => setExpanded((current) => !current)}
           disabled={disabled}
-          className="w-full text-left disabled:cursor-not-allowed disabled:opacity-60"
+          className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left transition hover:bg-slate-50/80 disabled:cursor-not-allowed disabled:opacity-60"
           aria-expanded={expanded}
         >
-          <PlanSectionDivider
-            label={t("advancedFilters")}
-            accent={SCANNER_SECTION_ACCENTS.filtros}
-            trailing={
-              <div className="flex items-center gap-1.5">
-                {isPaidPremium ? (
-                  <PremiumLabel size="2xs" />
-                ) : premiumTrialRemaining > 0 ? (
-                  <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-900">
-                    {t("trialBadge")}
-                  </span>
-                ) : null}
-                <ChevronDown
-                  className={cn(
-                    "h-4 w-4 text-stone-400 transition-transform duration-200",
-                    expanded && "rotate-180"
-                  )}
-                  strokeWidth={2.25}
-                  aria-hidden
-                />
-              </div>
-            }
-          />
-          <p className="truncate px-0.5 text-[10px] font-medium leading-tight text-stone-500">
-            {headerSummary}
-            {isPaidPremium || isPremium ? " 👑" : ""}
-          </p>
-
-          {!expanded ? (
-            <p className="mt-0.5 px-0.5 text-[10px] text-stone-400">
-              {isTester
-                ? isPremium
-                  ? isPaidPremium
-                    ? t("customizeFilters")
-                    : t("trialActiveHint")
-                  : t("freePlanHint")
-                : t("customizeFilters")}
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm font-semibold text-slate-800">{t("advancedFilters")}</span>
+              {isPaidPremium ? (
+                <PremiumLabel size="2xs" />
+              ) : premiumTrialRemaining > 0 ? (
+                <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-900">
+                  {t("trialBadge")}
+                </span>
+              ) : (
+                <span className="inline-flex items-center rounded-full bg-[#4D6638]/10 px-2 py-0.5 text-[10px] font-medium text-[#4D6638]">
+                  👑 PRO
+                </span>
+              )}
+            </div>
+            <p className="mt-1 truncate text-[11px] font-medium text-slate-500">
+              {headerSummary}
             </p>
-          ) : null}
+            {!expanded ? (
+              <p className="mt-0.5 text-[10px] text-slate-400">
+                {isTester
+                  ? isPremium
+                    ? isPaidPremium
+                      ? t("customizeFilters")
+                      : t("trialActiveHint")
+                    : t("freePlanHint")
+                  : t("customizeFilters")}
+              </p>
+            ) : null}
+          </div>
+          <ChevronDown
+            className={cn(
+              "h-5 w-5 shrink-0 text-slate-400 transition-transform duration-200",
+              expanded && "rotate-180"
+            )}
+            strokeWidth={2.25}
+            aria-hidden
+          />
         </button>
 
         {expanded ? (
-          <div className="mt-2 space-y-2 border-t border-stone-100 px-0.5 pt-2">
+          <div className="space-y-3 border-t border-slate-100 px-4 py-3">
             <FilterGroup label={t("filterMeal")} scrollX>
               {RECIPE_MEAL_TYPES.filter((option) => isTester || !option.premium).map((option) => (
                 <FilterChip
@@ -253,7 +250,7 @@ export function AdvancedRecipeFilters({
             </FilterGroup>
 
             <div className="space-y-1">
-              <p className="mb-1 px-0.5 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+              <p className="mb-1 px-0.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">
                 {t("filterServings")}
               </p>
               <div className="flex gap-1 rounded-xl bg-gray-100 p-1">
@@ -271,7 +268,7 @@ export function AdvancedRecipeFilters({
                       className={cn(
                         "flex flex-1 items-center justify-center gap-0.5 rounded-lg py-1.5 text-xs font-semibold transition disabled:opacity-50",
                         selected
-                          ? "bg-white text-[#3e5219] shadow-sm"
+                          ? "bg-white text-[#4D6638] shadow-sm"
                           : locked
                             ? "text-stone-400"
                             : "text-stone-600 hover:text-stone-800"

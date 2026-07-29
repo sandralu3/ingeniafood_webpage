@@ -176,17 +176,17 @@ export function IngredientCombobox({
           }
         }}
         placeholder={t("addMorePlaceholder")}
-        className="w-full rounded-full border border-stone-200/80 bg-stone-50/90 px-4 py-2 pr-11 text-sm text-stone-800 shadow-sm placeholder:text-stone-400 transition focus:border-[#556B2F]/25 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#556B2F]/10 disabled:opacity-60"
+        className="w-full rounded-xl border border-slate-200/80 bg-white px-3 py-2.5 pr-11 text-xs text-slate-800 shadow-none placeholder:text-slate-400 transition focus:border-[#4D6638]/40 focus:outline-none focus:ring-1 focus:ring-[#4D6638] disabled:opacity-60"
       />
       <button
         type="button"
         onClick={handleAddExisting}
         disabled={disabled || isCreating || !canAddExisting}
         className={cn(
-          "absolute right-1.5 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full transition",
+          "absolute right-1 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg transition",
           canAddExisting
-            ? "bg-[#4c6633] text-white shadow-sm hover:bg-[#556B2F]"
-            : "cursor-not-allowed bg-stone-200 text-stone-400"
+            ? "bg-[#4D6638] text-white hover:bg-[#42572f]"
+            : "cursor-not-allowed bg-slate-100 text-slate-400"
         )}
         aria-label={t("addValidatedIngredientAria")}
       >

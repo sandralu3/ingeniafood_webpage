@@ -66,11 +66,12 @@ function buildInsertPayload(input: SaveGeneratedRecipeInput, options?: InsertOpt
     typeof input.cookingTimeMinutes === "number" &&
     input.cookingTimeMinutes > 0;
 
-  // `imageUrl: null` explícito = foto Premium pendiente (no usar la referencia como primaria).
+  // Preferir foto real; si imageUrl es null (p. ej. pendiente), usar referencia/banco.
+  // Así la lista de Guardadas no queda con placeholder beige.
   const primaryImage =
-    input.imageUrl !== undefined
-      ? input.imageUrl
-      : (input.referenceImageUrl ?? null);
+    (typeof input.imageUrl === "string" && input.imageUrl.trim()) ||
+    (typeof input.referenceImageUrl === "string" && input.referenceImageUrl.trim()) ||
+    null;
 
   const payload: RecipesInsert = {
     user_id: input.userId,
