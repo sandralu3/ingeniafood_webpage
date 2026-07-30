@@ -1,10 +1,10 @@
 "use client";
 
+import { Crown } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
   RECIPE_OPTION_DEFAULTS,
-  type RecipeOption,
-  type RecipeOptionVariant
+  type RecipeOption
 } from "@/lib/recipes/recipe-options";
 import { cn } from "@/lib/utils";
 
@@ -15,10 +15,6 @@ type Props = {
   onSelect: (index: number) => void;
   onLockedSelect?: () => void;
 };
-
-function badgeKeyForVariant(variant: RecipeOptionVariant) {
-  return RECIPE_OPTION_DEFAULTS[variant].badgeKey;
-}
 
 export function RecipeOptionsSelector({
   options,
@@ -31,16 +27,25 @@ export function RecipeOptionsSelector({
 
   if (options.length <= 1) return null;
 
+  const cols =
+    options.length === 2
+      ? "grid-cols-2"
+      : options.length >= 3
+        ? "grid-cols-3"
+        : "grid-cols-1";
+
   return (
     <div
-      className="flex flex-row gap-3 overflow-x-auto py-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      className={cn("mb-1 grid gap-1 rounded-2xl bg-slate-100/80 p-1", cols)}
       role="tablist"
       aria-label={t("recipeOptionsLabel")}
     >
       {options.map((option, index) => {
         const locked = !isPremium && index > 0;
         const selected = selectedIndex === index && !locked;
-        const badge = t(badgeKeyForVariant(option.variant));
+        const defaults = RECIPE_OPTION_DEFAULTS[option.variant];
+        const label = t(defaults.badgeKey);
+        const emoji = option.emoji || defaults.emoji;
 
         return (
           <button
@@ -49,6 +54,7 @@ export function RecipeOptionsSelector({
             role="tab"
             aria-selected={selected}
             aria-disabled={locked}
+            title={option.titulo}
             onClick={() => {
               if (locked) {
                 onLockedSelect?.();
@@ -57,51 +63,27 @@ export function RecipeOptionsSelector({
               onSelect(index);
             }}
             className={cn(
-              "relative w-[7.75rem] shrink-0 rounded-2xl border px-2.5 py-2.5 text-left transition",
-              selected
-                ? "border-2 border-lime-600 bg-lime-50/50 shadow-sm"
-                : "border border-stone-200/80 bg-white/90 shadow-sm shadow-stone-100/40 hover:border-stone-300",
-              locked && "opacity-80"
+              "flex w-full items-center justify-center gap-1 rounded-xl px-2 py-1.5 text-[11px] transition-all",
+              selected && "bg-white font-bold text-[#4D6638] shadow-sm",
+              !selected &&
+                !locked &&
+                "bg-transparent font-medium text-slate-500 hover:text-slate-700",
+              locked &&
+                "bg-transparent font-medium text-amber-800 hover:bg-amber-100/40"
             )}
           >
             {locked ? (
-              <span
-                className="absolute right-1.5 top-1.5 text-[11px] leading-none"
+              <Crown
+                className="h-2.5 w-2.5 shrink-0 text-amber-700"
+                strokeWidth={2.25}
                 aria-hidden
-              >
-                👑
+              />
+            ) : (
+              <span className="shrink-0 text-[11px] leading-none" aria-hidden>
+                {emoji}
               </span>
-            ) : null}
-            <div className="flex items-start gap-1.5">
-              <span className="text-lg leading-none" aria-hidden>
-                {option.emoji || RECIPE_OPTION_DEFAULTS[option.variant].emoji}
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="line-clamp-2 text-[11px] font-semibold leading-snug text-stone-800">
-                  {option.nombre_corto || option.titulo}
-                </p>
-                <p className="mt-1 text-[10px] font-medium tabular-nums text-stone-500">
-                  {option.tiempo_preparacion}
-                </p>
-                <span
-                  className={cn(
-                    "mt-1.5 inline-flex rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide",
-                    option.variant === "quick"
-                      ? "bg-amber-50 text-amber-800"
-                      : option.variant === "light"
-                        ? "bg-sky-50 text-sky-800"
-                        : "bg-[#F0F4ED] text-[#3e5219]"
-                  )}
-                >
-                  {badge}
-                </span>
-              </div>
-            </div>
-            {locked ? (
-              <p className="mt-1.5 text-[9px] font-medium leading-snug text-stone-500">
-                {t("recipeOptionPremiumHint")}
-              </p>
-            ) : null}
+            )}
+            <span className="truncate">{label}</span>
           </button>
         );
       })}

@@ -19,7 +19,7 @@ import { createSupabaseClient } from "@/lib/supabaseClient";
 
 type UsePremiumResult = PremiumAccess & {
   userId: string | null;
-  /** Puede usar funciones Premium (pago o prueba con usos restantes). */
+  /** Puede usar funciones Premium (suscripción / is_premium de pago). */
   isPremium: boolean;
   isLoading: boolean;
   error: string | null;
@@ -118,7 +118,7 @@ export function PremiumProvider({ children }: { children: ReactNode }) {
 
 /**
  * Carga el plan premium del usuario sin parpadeos.
- * isPremium = canUsePremiumFeatures (pago o prueba activa).
+ * isPremium = canUsePremiumFeatures (Premium de pago).
  * Requiere PremiumProvider en el árbol de componentes.
  */
 export function usePremium(): UsePremiumResult {

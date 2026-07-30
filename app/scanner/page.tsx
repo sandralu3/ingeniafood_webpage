@@ -1281,12 +1281,20 @@ export default function ScannerPage() {
     <div
       className={cn(
         isRecipeFlowView
-          ? "-mx-4 min-h-0 flex-1 bg-gradient-to-b from-stone-50 via-amber-50/20 to-sv-surface px-4 pt-1"
+          ? cn(
+              "-mx-4 min-h-0 flex-1 bg-gradient-to-b from-stone-50 via-amber-50/20 to-sv-surface",
+              displayRecipe ? "px-0 pt-0" : "px-4 pt-1"
+            )
           : "bg-[#FAF9F6]",
         isScannerIdleView
           ? "flex min-h-0 flex-1 flex-col overflow-hidden"
           : isRecipeFlowView
-            ? "flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain touch-pan-y [-webkit-overflow-scrolling:touch] pb-[calc(var(--app-bottom-nav-height)+0.75rem)]"
+            ? cn(
+                "flex min-h-0 flex-1 flex-col",
+                displayRecipe
+                  ? "overflow-hidden"
+                  : "justify-center overflow-hidden pb-2"
+              )
             : "min-h-[calc(100dvh-10rem)]"
       )}
     >
@@ -1321,13 +1329,13 @@ export default function ScannerPage() {
       ) : null}
 
       {isLoading ? (
-        <section className="space-y-3">
+        <section className="w-full">
           <RecipeGenerationState variant="loading" retryMessage={retryMessage} />
         </section>
       ) : null}
 
       {showGenerationError && errorMessage ? (
-        <section className="space-y-3">
+        <section className="w-full">
           <RecipeGenerationState
             variant="error"
             errorMessage={errorMessage}
@@ -1338,16 +1346,16 @@ export default function ScannerPage() {
       ) : null}
 
       {!isLoading && displayRecipe ? (
-        <section className="animate-fade-in space-y-3">
+        <section className="animate-fade-in flex min-h-0 flex-1 flex-col gap-1.5">
           {saveSuccessMessage ? (
-            <div className="rounded-2xl border border-[#556B2F]/20 bg-white/90 px-2.5 py-2 text-xs font-medium text-[#556B2F] shadow-sm shadow-stone-100/30">
+            <div className="mx-4 shrink-0 rounded-2xl border border-[#556B2F]/20 bg-white/90 px-2.5 py-2 text-xs font-medium text-[#556B2F] shadow-sm shadow-stone-100/30">
               {saveSuccessMessage}
             </div>
           ) : null}
           {saveErrorMessage ? (
             <div
               role="alert"
-              className="rounded-2xl border border-red-200/80 bg-white/90 px-2.5 py-2 text-xs text-red-800 shadow-sm shadow-stone-100/30"
+              className="mx-4 shrink-0 rounded-2xl border border-red-200/80 bg-white/90 px-2.5 py-2 text-xs text-red-800 shadow-sm shadow-stone-100/30"
             >
               {saveErrorMessage}
             </div>
@@ -1355,7 +1363,7 @@ export default function ScannerPage() {
           {imageGenerationError && !isGeneratingDishPhoto ? (
             <div
               role="status"
-              className="rounded-2xl border border-amber-200/80 bg-amber-50/90 px-2.5 py-2 text-xs text-amber-900 shadow-sm"
+              className="mx-4 shrink-0 rounded-2xl border border-amber-200/80 bg-amber-50/90 px-2.5 py-2 text-xs text-amber-900 shadow-sm"
             >
               No se generó la foto del plato: {imageGenerationError}
             </div>

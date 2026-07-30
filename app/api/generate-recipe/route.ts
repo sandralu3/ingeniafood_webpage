@@ -6,8 +6,6 @@ import { normalizeRecipeMacros, type RecipeMacros } from "@/lib/recipes/recipe-m
 import { normalizeLooseGeminiIngredients } from "@/lib/recipes/structured-ingredients";
 import { consumeGeneration, getGenerationsLeft } from "@/lib/generations/quota";
 import { getUserIsPremium } from "@/lib/auth/user-premium";
-import { consumePremiumTrialUse } from "@/lib/auth/premium-trial";
-import { usedPremiumRecipeFilters } from "@/lib/auth/premium-access";
 import {
   buildIngredientQuantityPromptClause,
   buildRecipeFiltersPromptClause,
@@ -493,8 +491,6 @@ export async function POST(request: Request) {
       );
     }
 
-    const hadTrialUseBeforeGeneration = premiumAccess.premiumTrialRemaining > 0;
-
     const resolvedFilters = resolveRecipeFilters({
       isPremium,
       requestedMealType: body.mealType,
@@ -917,22 +913,6 @@ export async function POST(request: Request) {
       );
     }
 
-    let premiumTrialRemaining = premiumAccess.premiumTrialRemaining;
-    const consumedPremiumTrial =
-      !premiumAccess.isPaidPremium &&
-      hadTrialUseBeforeGeneration &&
-      usedPremiumRecipeFilters(resolvedFilters);
-
-    if (consumedPremiumTrial) {
-      premiumTrialRemaining = await consumePremiumTrialUse(user.id);
-      if (process.env.NODE_ENV !== "production") {
-        console.log("[premium-trial] Consumido tras receta con filtros Premium.", {
-          userId: user.id,
-          premiumTrialRemaining
-        });
-      }
-    }
-
     // Banco de fotos: Premium de pago. Free solo si va a generar foto OpenAI con créditos.
     // Sin OpenAI aquí: solo match local (banco / catálogo / placeholder).
     const userWantsDishPhoto = body.useDishPhoto === true;
@@ -1118,7 +1098,7 @@ export async function POST(request: Request) {
       dishPhotoPending: Boolean(canGenerateDishPhoto && savedRecipeId),
       appliedFilters,
       ...(mealTypeAdvisory ? { mealTypeAdvisory } : {}),
-      premiumTrialRemaining
+      premiumTrialRemaining: 0
     });
   } catch (error) {
     const message =

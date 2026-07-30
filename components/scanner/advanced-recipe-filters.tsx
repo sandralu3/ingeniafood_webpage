@@ -125,8 +125,7 @@ export function AdvancedRecipeFilters({
   selectedIngredientNames = []
 }: Props) {
   const t = useTranslations("Scanner");
-  const { isPremium, isLoading, isPaidPremium, isTester, premiumTrialRemaining, refresh } =
-    usePremium();
+  const { isPremium, isLoading, isPaidPremium, refresh } = usePremium();
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
@@ -138,11 +137,12 @@ export function AdvancedRecipeFilters({
   const servingsCompact =
     servings >= 4 ? "4+" : servings === 2 ? "2p" : `${servings}`;
   const headerSummary = `${mealLabel}, ${cuisineLabel}, ${servingsCompact}`;
+  const premiumLocked = !isPremium && !isLoading;
 
   const handleMealTypeClick = (option: (typeof RECIPE_MEAL_TYPES)[number]) => {
     if (disabled || isLoading) return;
     if (option.premium && !isPremium) {
-      if (isTester) setShowUpgradeDialog(true);
+      setShowUpgradeDialog(true);
       return;
     }
     onMealTypeChange(option.id);
@@ -151,7 +151,7 @@ export function AdvancedRecipeFilters({
   const handleCuisineStyleClick = (option: (typeof RECIPE_CUISINE_STYLES)[number]) => {
     if (disabled || isLoading) return;
     if (option.premium && !isPremium) {
-      if (isTester) setShowUpgradeDialog(true);
+      setShowUpgradeDialog(true);
       return;
     }
     onCuisineStyleChange(option.id);
@@ -161,7 +161,7 @@ export function AdvancedRecipeFilters({
     if (disabled || isLoading) return;
     const option = RECIPE_SERVINGS_OPTIONS.find((item) => item.value === value);
     if (option?.premium && !isPremium) {
-      if (isTester) setShowUpgradeDialog(true);
+      setShowUpgradeDialog(true);
       return;
     }
     onServingsChange(value);
@@ -170,7 +170,7 @@ export function AdvancedRecipeFilters({
   const handleComplexityClick = (option: (typeof RECIPE_COMPLEXITY_LEVELS)[number]) => {
     if (disabled || isLoading) return;
     if (option.premium && !isPremium) {
-      if (isTester) setShowUpgradeDialog(true);
+      setShowUpgradeDialog(true);
       return;
     }
     onComplexityChange(option.id);
@@ -191,10 +191,6 @@ export function AdvancedRecipeFilters({
               <span className="text-sm font-semibold text-slate-800">{t("advancedFilters")}</span>
               {isPaidPremium ? (
                 <PremiumLabel size="2xs" />
-              ) : premiumTrialRemaining > 0 ? (
-                <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-900">
-                  {t("trialBadge")}
-                </span>
               ) : (
                 <span className="inline-flex items-center rounded-full bg-[#4D6638]/10 px-2 py-0.5 text-[10px] font-medium text-[#4D6638]">
                   👑 PRO
@@ -206,13 +202,7 @@ export function AdvancedRecipeFilters({
             </p>
             {!expanded ? (
               <p className="mt-0.5 text-[10px] text-slate-400">
-                {isTester
-                  ? isPremium
-                    ? isPaidPremium
-                      ? t("customizeFilters")
-                      : t("trialActiveHint")
-                    : t("freePlanHint")
-                  : t("customizeFilters")}
+                {isPremium ? t("customizeFilters") : t("freePlanHint")}
               </p>
             ) : null}
           </div>
@@ -229,12 +219,12 @@ export function AdvancedRecipeFilters({
         {expanded ? (
           <div className="space-y-3 border-t border-slate-100 px-4 py-3">
             <FilterGroup label={t("filterMeal")} scrollX>
-              {RECIPE_MEAL_TYPES.filter((option) => isTester || !option.premium).map((option) => (
+              {RECIPE_MEAL_TYPES.map((option) => (
                 <FilterChip
                   key={option.id}
                   label={translateMealType(t, option.id)}
                   selected={mealType === option.id}
-                  locked={Boolean(isTester && option.premium && !isPremium)}
+                  locked={Boolean(option.premium && premiumLocked)}
                   disabled={disabled || isLoading}
                   onClick={() => handleMealTypeClick(option)}
                 />
@@ -242,18 +232,16 @@ export function AdvancedRecipeFilters({
             </FilterGroup>
 
             <FilterGroup label={t("filterStyle")} scrollX>
-              {RECIPE_CUISINE_STYLES.filter((option) => isTester || !option.premium).map(
-                (option) => (
-                  <FilterChip
-                    key={option.id}
-                    label={translateCuisineStyleShort(t, option.id)}
-                    selected={cuisineStyle === option.id}
-                    locked={Boolean(isTester && option.premium && !isPremium)}
-                    disabled={disabled || isLoading}
-                    onClick={() => handleCuisineStyleClick(option)}
-                  />
-                )
-              )}
+              {RECIPE_CUISINE_STYLES.map((option) => (
+                <FilterChip
+                  key={option.id}
+                  label={translateCuisineStyleShort(t, option.id)}
+                  selected={cuisineStyle === option.id}
+                  locked={Boolean(option.premium && premiumLocked)}
+                  disabled={disabled || isLoading}
+                  onClick={() => handleCuisineStyleClick(option)}
+                />
+              ))}
             </FilterGroup>
 
             <div className="space-y-1">
@@ -263,7 +251,7 @@ export function AdvancedRecipeFilters({
               <div className="flex gap-1 rounded-xl bg-gray-100 p-1">
                 {COMPACT_SERVINGS.map((option) => {
                   const meta = RECIPE_SERVINGS_OPTIONS.find((item) => item.value === option.value);
-                  const locked = Boolean(isTester && meta?.premium && !isPremium);
+                  const locked = Boolean(meta?.premium && premiumLocked);
                   const selected = servings === option.value || (option.value === 4 && servings >= 4);
                   return (
                     <button
@@ -290,18 +278,16 @@ export function AdvancedRecipeFilters({
             </div>
 
             <FilterGroup label={t("filterComplexity")} scrollX>
-              {RECIPE_COMPLEXITY_LEVELS.filter((option) => isTester || !option.premium).map(
-                (option) => (
-                  <FilterChip
-                    key={option.id}
-                    label={translateComplexity(t, option.id)}
-                    selected={complexity === option.id}
-                    locked={Boolean(isTester && option.premium && !isPremium)}
-                    disabled={disabled || isLoading}
-                    onClick={() => handleComplexityClick(option)}
-                  />
-                )
-              )}
+              {RECIPE_COMPLEXITY_LEVELS.map((option) => (
+                <FilterChip
+                  key={option.id}
+                  label={translateComplexity(t, option.id)}
+                  selected={complexity === option.id}
+                  locked={Boolean(option.premium && premiumLocked)}
+                  disabled={disabled || isLoading}
+                  onClick={() => handleComplexityClick(option)}
+                />
+              ))}
             </FilterGroup>
 
             {showBreakfastHeavyTip ? (
@@ -319,13 +305,16 @@ export function AdvancedRecipeFilters({
         ) : null}
       </section>
 
-      {isTester ? (
-        <PremiumUpgradeDialog
-          open={showUpgradeDialog}
-          onClose={() => setShowUpgradeDialog(false)}
-          onUpgraded={() => void refresh()}
-        />
-      ) : null}
+      <PremiumUpgradeDialog
+        open={showUpgradeDialog}
+        onClose={() => setShowUpgradeDialog(false)}
+        onUpgraded={() => void refresh()}
+        featureLabel={
+          t.has("advancedFiltersPremiumFeature")
+            ? t("advancedFiltersPremiumFeature")
+            : "Filtros avanzados de recetas"
+        }
+      />
     </>
   );
 }

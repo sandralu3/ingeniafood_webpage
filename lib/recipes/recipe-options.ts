@@ -48,11 +48,12 @@ export function normalizeRecipeVariant(value: unknown, fallbackIndex: number): R
 export function shortRecipeName(title: string, explicit?: string | null): string {
   const fromExplicit = typeof explicit === "string" ? explicit.trim() : "";
   if (fromExplicit.length > 0) {
-    return fromExplicit.length > 28 ? `${fromExplicit.slice(0, 27)}…` : fromExplicit;
+    // Hasta ~42 caracteres: cabe en 2 líneas de tarjeta sin forzar "…".
+    return fromExplicit.length > 42 ? `${fromExplicit.slice(0, 41).trimEnd()}…` : fromExplicit;
   }
   const cleaned = title.trim();
-  if (cleaned.length <= 28) return cleaned || "Receta";
-  return `${cleaned.slice(0, 27)}…`;
+  if (cleaned.length <= 42) return cleaned || "Receta";
+  return `${cleaned.slice(0, 41).trimEnd()}…`;
 }
 
 /** Extrae el nombre base de una línea de ingrediente ("2 huevos" → "huevos"). */

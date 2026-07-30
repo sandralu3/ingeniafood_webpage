@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { AdvancedRecipeFilters } from "@/components/scanner/advanced-recipe-filters";
 import { IngredientCombobox } from "@/components/scanner/ingredient-combobox";
+import { PremiumUpgradeDialog } from "@/components/premium/premium-upgrade-dialog";
 import type {
   RecipeCuisineStyle,
   RecipeMealType,
@@ -138,7 +139,9 @@ export function PantrySearchView({
   onComplexityChange
 }: Props) {
   const t = useTranslations("Scanner");
-  const { isPaidPremium, isLoading: isPremiumLoading } = usePremium();
+  const { isPremium, isPaidPremium, isLoading: isPremiumLoading, refresh: refreshPremium } =
+    usePremium();
+  const [showPremiumPaywall, setShowPremiumPaywall] = useState(false);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const [showSourceModal, setShowSourceModal] = useState(false);
@@ -616,6 +619,17 @@ export function PantrySearchView({
               ? t("proBenefitChip")
               : "✨ Beneficio PRO: Fotos reales ilimitadas de tus platos"}
           </p>
+        ) : !isPremiumLoading && !isPremium ? (
+          <button
+            type="button"
+            onClick={() => setShowPremiumPaywall(true)}
+            className="mb-3 mt-1 flex w-full items-center justify-center gap-1.5 rounded-xl border border-amber-200/60 bg-amber-50/70 px-3 py-1.5 text-center text-[11px] font-semibold text-amber-900 transition hover:bg-amber-50"
+          >
+            {t.has("premiumRealPhotoPrompt")
+              ? t("premiumRealPhotoPrompt")
+              : "¿Quieres ver la foto real de tu plato? Activa Premium"}
+            <span aria-hidden>👑</span>
+          </button>
         ) : null}
 
         {errorMessage ? (
@@ -692,6 +706,20 @@ export function PantrySearchView({
           </div>
         </>
       ) : null}
+
+      <PremiumUpgradeDialog
+        open={showPremiumPaywall}
+        onClose={() => setShowPremiumPaywall(false)}
+        onUpgraded={() => {
+          setShowPremiumPaywall(false);
+          void refreshPremium();
+        }}
+        featureLabel={
+          t.has("premiumRealPhoto")
+            ? t("premiumRealPhoto")
+            : "La foto real de tu plato es una función Premium"
+        }
+      />
     </div>
   );
 }

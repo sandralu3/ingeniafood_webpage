@@ -323,7 +323,7 @@ export function AppRecetasAccessGate({ children }: { children: React.ReactNode }
           key={pathname}
           className={
             isScannerRoute
-              ? "flex min-h-0 flex-1 flex-col overflow-hidden overscroll-y-contain px-4 pt-3 pb-2"
+              ? "flex min-h-0 flex-1 flex-col overflow-hidden overscroll-y-contain px-4 pt-1 pb-2"
               : "flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain px-4 pt-3 pb-6 touch-pan-y [-webkit-overflow-scrolling:touch]"
           }
         >

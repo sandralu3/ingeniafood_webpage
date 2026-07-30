@@ -2,6 +2,7 @@ import { GoogleGenerativeAI, type Part } from "@google/generative-ai";
 import { NextResponse } from "next/server";
 import { createSupabaseRouteClient } from "@/lib/supabaseRoute";
 import { getRouteUser } from "@/lib/auth/get-route-user";
+import { getUserIsPremium } from "@/lib/auth/user-premium";
 import {
   EXTERNAL_MEAL_BADGE,
   isExternalMealBadge,
@@ -240,6 +241,24 @@ export async function POST(request: Request) {
     }
     if (auth.status !== "ok") {
       return jsonResponse({ error: "No autenticado.", code: "UNAUTHORIZED" }, 401);
+    }
+
+    const { isPremium, error: premiumError } = await getUserIsPremium(
+      supabase,
+      auth.user.id,
+      auth.user.email
+    );
+    if (premiumError) {
+      return jsonResponse({ error: premiumError, code: "PREMIUM_CHECK_FAILED" }, 503);
+    }
+    if (!isPremium) {
+      return jsonResponse(
+        {
+          error: "Registrar comida fuera requiere Premium.",
+          code: "PREMIUM_REQUIRED"
+        },
+        403
+      );
     }
 
     const body = (await request.json()) as EstimatePayload;

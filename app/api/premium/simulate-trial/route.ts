@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { claimPremiumTrial } from "@/lib/auth/premium-trial";
 import { createSupabaseRouteClient } from "@/lib/supabaseRoute";
 
+/** La prueba Premium de 1 uso fue retirada. */
 export async function POST() {
   const supabase = await createSupabaseRouteClient();
   if (!supabase) {
@@ -17,24 +17,11 @@ export async function POST() {
     return NextResponse.json({ error: "Debes iniciar sesión." }, { status: 401 });
   }
 
-  const result = await claimPremiumTrial(user.id, user.email);
-  if (!result.ok) {
-    const message =
-      result.code === "ALREADY_PREMIUM"
-        ? "Ya tienes Premium activo."
-        : result.code === "ALREADY_CLAIMED"
-          ? "Ya usaste tu prueba Premium simulada."
-          : "No pudimos activar la prueba Premium.";
-
-    return NextResponse.json(
-      { error: message, code: result.code },
-      { status: result.code === "UPDATE_FAILED" ? 503 : 403 }
-    );
-  }
-
-  return NextResponse.json({
-    ok: true,
-    premiumTrialRemaining: result.access.premiumTrialRemaining,
-    canUsePremiumFeatures: result.access.canUsePremiumFeatures
-  });
+  return NextResponse.json(
+    {
+      error: "La prueba Premium gratuita ya no está disponible. Contrata Premium para continuar.",
+      code: "PREMIUM_TRIAL_DISABLED"
+    },
+    { status: 410 }
+  );
 }

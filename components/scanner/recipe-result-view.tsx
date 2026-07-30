@@ -67,116 +67,117 @@ export function RecipeResultView({
   const showOptions = recipeOptions.length > 1 && Boolean(onSelectRecipeIndex);
 
   return (
-    <article className="space-y-2 pb-32 duration-500 has-[.recipe-share-capturing]:pb-4">
-      {onNewSearch ? (
-        <div data-share-exclude>
-          <button
-            type="button"
-            onClick={onNewSearch}
-            className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#556B2F] transition hover:text-[#3e5219]"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" strokeWidth={2} />
-            {t("newSearch")}
-          </button>
-        </div>
-      ) : null}
+    <article className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden duration-500">
+      <div className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-y-contain px-0 pb-24 touch-pan-y [-webkit-overflow-scrolling:touch]">
+        {onNewSearch ? (
+          <div data-share-exclude className="px-4">
+            <button
+              type="button"
+              onClick={onNewSearch}
+              className="inline-flex items-center gap-1 text-[11px] font-semibold leading-none text-[#556B2F] transition hover:text-[#3e5219]"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" strokeWidth={2} />
+              {t("newSearch")}
+            </button>
+          </div>
+        ) : null}
 
-      {showOptions ? (
+        {showOptions ? (
+          <div data-share-exclude className="mb-1 px-4">
+            <p className="mb-1 text-[9px] font-bold uppercase tracking-widest text-slate-400">
+              {t.has("aiSuggestions")
+                ? t("aiSuggestions")
+                : "Sugerencias de la IA"}
+            </p>
+            <RecipeOptionsSelector
+              options={recipeOptions}
+              selectedIndex={selectedRecipeIndex}
+              isPremium={isPremium}
+              onSelect={onSelectRecipeIndex!}
+              onLockedSelect={() => setShowPremiumDialog(true)}
+            />
+          </div>
+        ) : null}
+
         <div data-share-exclude>
-          <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-stone-500">
-            {t("chooseRecipeOption")}
-          </p>
-          <RecipeOptionsSelector
-            options={recipeOptions}
-            selectedIndex={selectedRecipeIndex}
-            isPremium={isPremium}
-            onSelect={onSelectRecipeIndex!}
-            onLockedSelect={() => setShowPremiumDialog(true)}
+          <RecipeResultHeroCard
+            recipe={recipe}
+            pantryIngredients={pantryIngredients}
+            mealTypeAdvisory={mealTypeAdvisory}
+            isGeneratingPhoto={isGeneratingPhoto}
+            appliedFilters={appliedFilters}
           />
         </div>
-      ) : null}
 
-      <div data-share-exclude>
-        <RecipeResultHeroCard
-          recipe={recipe}
-          pantryIngredients={pantryIngredients}
-          mealTypeAdvisory={mealTypeAdvisory}
-          isGeneratingPhoto={isGeneratingPhoto}
-          appliedFilters={appliedFilters}
-        />
-      </div>
-
-      {/* Captura fuera de viewport para compartir (mantiene tamaño real para html-to-image) */}
-      <div
-        className="pointer-events-none fixed left-[-100vw] top-0 z-[-1] w-[360px]"
-        aria-hidden
-      >
-        <RecipeShareCapture
-          ref={captureRef}
-          recipe={recipe}
-          showScanBanner
-          appliedFilters={appliedFilters}
-          showAppliedFilters={showAppliedFilters}
-          mealTypeAdvisory={mealTypeAdvisory}
-          isGeneratingPhoto={isGeneratingPhoto}
-        />
-      </div>
-
-      <div className="flex items-center gap-2 pt-1" data-share-exclude>
-        <button
-          type="button"
-          onClick={handleShareImage}
-          disabled={isGenerating}
-          className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full border border-stone-200/70 bg-white px-3 py-2 text-[12px] font-semibold text-[#556B2F] transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
+        {/* Captura fuera de viewport para compartir (mantiene tamaño real para html-to-image) */}
+        <div
+          className="pointer-events-none fixed left-[-100vw] top-0 z-[-1] w-[360px]"
+          aria-hidden
         >
-          {isGenerating ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <Share2 className="h-3.5 w-3.5" strokeWidth={2} />
-          )}
-          {isGenerating
-            ? t("generatingImage")
-            : t.has("shareRecipe")
-              ? t("shareRecipe")
-              : "Compartir"}
-        </button>
+          <RecipeShareCapture
+            ref={captureRef}
+            recipe={recipe}
+            showScanBanner
+            appliedFilters={appliedFilters}
+            showAppliedFilters={showAppliedFilters}
+            mealTypeAdvisory={mealTypeAdvisory}
+            isGeneratingPhoto={isGeneratingPhoto}
+          />
+        </div>
 
-        <button
-          type="button"
-          onClick={onSaveFavorites}
-          disabled={actionsDisabled || isSavedFavorites}
-          className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full border border-stone-200/70 bg-[#F0F4ED] px-3 py-2 text-[12px] font-semibold text-[#3e5219] transition hover:bg-[#E9F0E6] disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          <Bookmark className="h-3.5 w-3.5" strokeWidth={2} />
-          {isSavedFavorites
-            ? t("saved")
-            : isSavingFavorites
-              ? t("saving")
-              : t("saveToCookbook")}
-        </button>
-      </div>
+        {errorMessage ? (
+          <p
+            data-share-exclude
+            className="mx-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-[11px] text-red-700"
+          >
+            {errorMessage}
+          </p>
+        ) : null}
 
-      {errorMessage ? (
-        <p
-          data-share-exclude
-          className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-[11px] text-red-700"
-        >
-          {errorMessage}
-        </p>
-      ) : null}
+        <div data-share-exclude className="space-y-2 px-4 pt-1">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleShareImage}
+              disabled={isGenerating}
+              className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full border border-stone-200/70 bg-white px-3 py-2 text-[12px] font-semibold text-[#556B2F] transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isGenerating ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Share2 className="h-3.5 w-3.5" strokeWidth={2} />
+              )}
+              {isGenerating
+                ? t("generatingImage")
+                : t.has("shareRecipe")
+                  ? t("shareRecipe")
+                  : "Compartir"}
+            </button>
 
-      <div
-        data-share-exclude
-        className="fixed inset-x-0 bottom-[calc(var(--app-bottom-nav-height)+0.75rem)] z-30 px-4"
-      >
-        <button
-          type="button"
-          onClick={() => setIsPlanModalOpen(true)}
-          disabled={actionsDisabled}
-          className="mx-auto flex w-full max-w-md items-center justify-center gap-2 rounded-full bg-[#556B2F] px-4 py-3.5 text-sm font-semibold text-white shadow-lg shadow-[#556B2F]/30 transition hover:bg-[#4a5f28] disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {t("cookOrSaveToPlan")}
-        </button>
+            <button
+              type="button"
+              onClick={onSaveFavorites}
+              disabled={actionsDisabled || isSavedFavorites}
+              className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full border border-stone-200/70 bg-[#F0F4ED] px-3 py-2 text-[12px] font-semibold text-[#3e5219] transition hover:bg-[#E9F0E6] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <Bookmark className="h-3.5 w-3.5" strokeWidth={2} />
+              {isSavedFavorites
+                ? t("saved")
+                : isSavingFavorites
+                  ? t("saving")
+                  : t("saveToCookbook")}
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setIsPlanModalOpen(true)}
+            disabled={actionsDisabled}
+            className="flex w-full items-center justify-center gap-2 rounded-full bg-[#556B2F] px-4 py-3 text-sm font-semibold text-white shadow-md shadow-[#556B2F]/25 transition hover:bg-[#4a5f28] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {t("cookOrSaveToPlan")}
+          </button>
+        </div>
       </div>
 
       <AddToPlanSheet

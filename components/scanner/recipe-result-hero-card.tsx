@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Wand2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { ShareableRecipe } from "@/lib/share/recipe-share-image";
 import { formatTimeLabel } from "@/lib/share/recipe-share-utils";
@@ -76,8 +77,8 @@ export function RecipeResultHeroCard({
   const showGenerating = Boolean(isGeneratingPhoto && !primaryUrl);
 
   return (
-    <section className="mt-4 overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
-      <div className="relative h-44 w-full overflow-hidden bg-stone-200">
+    <section>
+      <div className="relative h-64 w-full overflow-hidden bg-stone-200">
         {showGenerating ? (
           <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#F0F4ED] via-stone-50 to-[#E8EFE3]">
             <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#556B2F]/30 border-t-[#556B2F]" />
@@ -90,7 +91,7 @@ export function RecipeResultHeroCard({
                 ? tDetail("dishPhotoAlt", { title: recipe.titulo })
                 : tDetail("dishPhotoAltFallback")
             }
-            className="h-44 w-full object-cover"
+            className="h-full w-full object-cover"
             loading="eager"
             decoding="async"
             onError={() => {
@@ -105,9 +106,9 @@ export function RecipeResultHeroCard({
           <div className="h-full w-full bg-gradient-to-br from-[#556B2F]/40 via-stone-400 to-stone-600" />
         )}
 
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent" />
-        <div className="absolute inset-x-0 bottom-0 space-y-2 p-4">
-          <h1 className="font-serif text-lg font-semibold leading-snug text-white drop-shadow-sm">
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-black/45 to-transparent" />
+        <div className="absolute inset-x-0 bottom-0 space-y-2 px-4 pb-3 pt-10">
+          <h1 className="font-serif text-lg font-semibold leading-snug text-white drop-shadow-md">
             {recipe.titulo}
           </h1>
           <HeroBadges
@@ -123,7 +124,11 @@ export function RecipeResultHeroCard({
         </div>
       </div>
 
-      <div className="border-b border-stone-100 px-2 pt-2" role="tablist" aria-label={t("recipeDetailTabs")}>
+      <div
+        className="border-b border-stone-100 bg-white px-4 pt-2"
+        role="tablist"
+        aria-label={t("recipeDetailTabs")}
+      >
         <div className="grid grid-cols-2 gap-1">
           <TabButton
             active={tab === "ingredients"}
@@ -138,18 +143,22 @@ export function RecipeResultHeroCard({
         </div>
       </div>
 
-      <div className="px-4 py-3">
+      <div className="bg-white px-4 py-3">
         {tab === "ingredients" ? (
           <>
             {mealTypeAdvisory ? (
               <div
                 role="status"
-                className="mb-3 flex items-start gap-2 rounded-xl border border-emerald-200/80 bg-emerald-50 p-3 text-xs text-emerald-900 shadow-xs"
+                className="mb-2 flex items-start gap-1.5 rounded-lg border border-[#4D6638]/15 bg-[#4D6638]/5 px-2.5 py-1.5"
               >
-                <span className="shrink-0 text-sm leading-none" aria-hidden>
-                  ✨
-                </span>
-                <p className="leading-relaxed">{mealTypeAdvisory}</p>
+                <Wand2
+                  className="mt-px h-3 w-3 shrink-0 text-[#4D6638]/80"
+                  strokeWidth={2}
+                  aria-hidden
+                />
+                <p className="text-[11px] font-medium leading-snug text-[#334425]/90">
+                  {mealTypeAdvisory}
+                </p>
               </div>
             ) : null}
             <div className="grid grid-cols-2 gap-4">
@@ -256,7 +265,7 @@ function HeroBadges({
     : "inline-flex items-center gap-1 rounded-full border border-stone-200/80 bg-white px-2 py-0.5 text-[10px] font-semibold text-stone-700 shadow-sm";
 
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div className="flex flex-wrap gap-x-3 gap-y-1.5">
       {mealTypeLabel ? <span className={chip}>☀️ {mealTypeLabel}</span> : null}
       <span className={chip}>⚡ {timeLabel}</span>
       {servingsLabel ? <span className={chip}>🍽️ {servingsLabel}</span> : null}

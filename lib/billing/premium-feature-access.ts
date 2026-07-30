@@ -36,12 +36,11 @@ export async function resolveDishPhotoAccess(
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("is_premium, premium_trial_remaining")
+    .select("is_premium")
     .eq("id", trimmedUserId)
     .maybeSingle();
 
-  const trialRemaining = Math.max(0, profile?.premium_trial_remaining ?? 0);
-  if (profile?.is_premium === true && trialRemaining === 0) {
+  if (profile?.is_premium === true) {
     return { allowed: true, mode: "unlimited" };
   }
 

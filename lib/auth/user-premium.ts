@@ -30,7 +30,7 @@ export async function getUserPremiumAccess(
   return { access: resolvePremiumAccess(profile, { email }) };
 }
 
-/** Compat: true si el usuario puede usar funciones Premium (pago o prueba activa). */
+/** Compat: true si el usuario puede usar funciones Premium (suscripción / is_premium). */
 export async function getUserIsPremium(
   supabase: SupabaseRouteClient,
   userId: string,

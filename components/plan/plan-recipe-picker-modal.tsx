@@ -7,7 +7,9 @@ import { useTranslations } from "next-intl";
 import { ExternalMealRegisterModal } from "@/components/plan/external-meal-register-modal";
 import { PlanRecipePickerRow } from "@/components/plan/plan-recipe-picker-row";
 import type { PlanMeal } from "@/components/plan/plan-meal-card";
+import { PremiumUpgradeDialog } from "@/components/premium/premium-upgrade-dialog";
 import type { ScannerMode } from "@/components/scanner/scanner-mode-tabs";
+import { usePremium } from "@/hooks/use-premium";
 import type { RecipePickerItem } from "@/lib/plan/plan-service";
 import { WEEK_DAYS, type MealType, type WeekDay } from "@/lib/plan/constants";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
@@ -61,10 +63,12 @@ export function PlanRecipePickerModal({
   const t = useTranslations("Plan");
   const tCommon = useTranslations("Common");
   const router = useRouter();
+  const { isPremium, isLoading: isPremiumLoading, refresh: refreshPremium } = usePremium();
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilter, setActiveFilter] = useState<SavedRecipeFilter>("Todas");
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
   const [externalMode, setExternalMode] = useState<"photo" | "text" | null>(null);
+  const [showPremiumPaywall, setShowPremiumPaywall] = useState(false);
   const filterMenuRef = useRef<HTMLDivElement>(null);
 
   const dayDisplay =
@@ -122,6 +126,15 @@ export function PlanRecipePickerModal({
     router.push(APP_ROUTES.scanner);
   };
 
+  const handleExternalMealClick = (mode: "photo" | "text") => {
+    if (isPremiumLoading) return;
+    if (!isPremium) {
+      setShowPremiumPaywall(true);
+      return;
+    }
+    setExternalMode(mode);
+  };
+
   if (!open) return null;
 
   return (
@@ -164,31 +177,45 @@ export function PlanRecipePickerModal({
               <div className="grid grid-cols-1 gap-2">
                 <button
                   type="button"
-                  disabled={isAssigning}
-                  onClick={() => setExternalMode("photo")}
+                  disabled={isAssigning || isPremiumLoading}
+                  onClick={() => handleExternalMealClick("photo")}
                   className={cn(
                     "inline-flex items-center justify-center gap-1.5 rounded-xl border border-sky-200/80 bg-white px-3 py-2.5 text-xs font-semibold text-sky-900 shadow-sm transition",
                     "hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-60"
                   )}
                 >
                   <Camera className="h-4 w-4 shrink-0" />
-                  {t.has("externalMealScanCta")
-                    ? t("externalMealScanCta")
-                    : "📸 Escanear plato servido (IA)"}
+                  <span className="min-w-0 flex-1 text-left">
+                    {t.has("externalMealScanCta")
+                      ? t("externalMealScanCta")
+                      : "📸 Escanear plato servido (IA)"}
+                  </span>
+                  {!isPremium ? (
+                    <span className="shrink-0 text-[9px] font-bold tracking-wide text-amber-800">
+                      👑 PRO
+                    </span>
+                  ) : null}
                 </button>
                 <button
                   type="button"
-                  disabled={isAssigning}
-                  onClick={() => setExternalMode("text")}
+                  disabled={isAssigning || isPremiumLoading}
+                  onClick={() => handleExternalMealClick("text")}
                   className={cn(
                     "inline-flex items-center justify-center gap-1.5 rounded-xl border border-violet-200/80 bg-white px-3 py-2.5 text-xs font-semibold text-violet-900 shadow-sm transition",
                     "hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-60"
                   )}
                 >
                   <PenLine className="h-4 w-4 shrink-0" />
-                  {t.has("externalMealQuickCta")
-                    ? t("externalMealQuickCta")
-                    : "✍️ Registrar comida rápida"}
+                  <span className="min-w-0 flex-1 text-left">
+                    {t.has("externalMealQuickCta")
+                      ? t("externalMealQuickCta")
+                      : "✍️ Registrar comida rápida"}
+                  </span>
+                  {!isPremium ? (
+                    <span className="shrink-0 text-[9px] font-bold tracking-wide text-amber-800">
+                      👑 PRO
+                    </span>
+                  ) : null}
                 </button>
               </div>
             </div>
@@ -333,7 +360,7 @@ export function PlanRecipePickerModal({
       </div>
 
       <ExternalMealRegisterModal
-        open={externalMode !== null && canRegisterExternal}
+        open={externalMode !== null && canRegisterExternal && isPremium}
         mode={externalMode ?? "text"}
         dayLabel={
           (WEEK_DAYS as readonly string[]).includes(dayLabel)
@@ -348,6 +375,20 @@ export function PlanRecipePickerModal({
           onExternalMealRegistered?.(meal);
           onClose();
         }}
+      />
+
+      <PremiumUpgradeDialog
+        open={showPremiumPaywall}
+        onClose={() => setShowPremiumPaywall(false)}
+        onUpgraded={() => {
+          setShowPremiumPaywall(false);
+          void refreshPremium();
+        }}
+        featureLabel={
+          t.has("externalMealPremiumFeature")
+            ? t("externalMealPremiumFeature")
+            : "Registrar comida fuera (escaneo o escritura)"
+        }
       />
     </div>
   );
