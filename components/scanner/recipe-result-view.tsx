@@ -68,7 +68,7 @@ export function RecipeResultView({
 
   return (
     <article className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden duration-500">
-      <div className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-y-contain px-0 pb-24 touch-pan-y [-webkit-overflow-scrolling:touch]">
+      <div className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-y-contain px-0 pb-6 touch-pan-y [-webkit-overflow-scrolling:touch]">
         {onNewSearch ? (
           <div data-share-exclude className="px-4">
             <button

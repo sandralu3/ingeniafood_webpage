@@ -34,7 +34,7 @@ export function HoyDashboard() {
   const levelLabel = data ? deriveLevelLabel(earnedPoints) : null;
 
   return (
-    <div className="-mx-4 min-h-full bg-[#FAF7F2] px-4 pb-20 pt-2">
+    <div className="-mx-4 min-h-full bg-[#FAF7F2] px-4 pb-2 pt-2">
       <section className="space-y-3.5">
         <HoyGreetingHeader
           displayName={profile?.displayName}

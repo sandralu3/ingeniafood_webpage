@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Cookie, Flame, Plus, X } from "lucide-react";
+import { Cookie, Plus, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { SnackRegisterModal } from "@/components/plan/snack-register-modal";
 import { PlanSectionDivider } from "@/components/plan/plan-section-divider";
@@ -41,11 +41,9 @@ const SNACK_ACCENT = {
 
 function HoySnacksLayout({
   snacks,
-  snackKcal,
   className
 }: {
   snacks: PlanSnack[];
-  snackKcal: number;
   className?: string;
 }) {
   const tPlan = useTranslations("Plan");
@@ -55,15 +53,9 @@ function HoySnacksLayout({
 
   return (
     <div className={cn("space-y-1.5", className)}>
-      <div className="flex items-center justify-between gap-2 px-0.5">
-        <h3 className="text-xs font-semibold tracking-wide text-stone-500">
-          {title}
-        </h3>
-        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-stone-400">
-          <Flame className="h-3 w-3 text-[#F9A825]/80" strokeWidth={2} />
-          {snackKcal} kcal
-        </span>
-      </div>
+      <h3 className="px-0.5 text-xs font-semibold tracking-wide text-stone-500">
+        {title}
+      </h3>
 
       <ul className="flex flex-wrap gap-1.5" aria-label={title}>
         {snacks.map((snack) => (
@@ -120,9 +112,7 @@ export function PlanSnacksSection({
   }
 
   if (isHoy) {
-    return (
-      <HoySnacksLayout snacks={snacks} snackKcal={snackKcal} className={className} />
-    );
+    return <HoySnacksLayout snacks={snacks} className={className} />;
   }
 
   const handleRemove = async (snackId: string) => {

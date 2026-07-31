@@ -443,7 +443,7 @@ export default function ProfilePage() {
         onClose={closeCropModal}
         onConfirm={(croppedBlob) => void handleCropConfirm(croppedBlob)}
       />
-      <section className="-mx-4 -mb-6 min-h-[calc(100dvh-10rem)] bg-gradient-to-b from-stone-50 via-amber-50/20 to-sv-surface px-4 pb-6 pt-1">
+      <section className="-mx-4 min-h-[calc(100dvh-10rem)] bg-gradient-to-b from-stone-50 via-amber-50/20 to-sv-surface px-4 pb-2 pt-1">
         <div className="mx-auto max-w-md space-y-6">
           <header className="text-center">
             <h1 className="font-serif text-lg font-semibold tracking-tight text-stone-900">

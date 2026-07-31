@@ -152,8 +152,8 @@ export function PantrySearchView({
   const hasSelection = selectedCount > 0;
   const scrollBottomPaddingClass = hasBottomNav
     ? hasSelection
-      ? "pb-[calc(var(--app-bottom-nav-height)+var(--app-scan-footer-height))]"
-      : "pb-[calc(var(--app-bottom-nav-height)+0.75rem)]"
+      ? "pb-[calc(var(--app-scan-footer-height)+0.75rem)]"
+      : "pb-6"
     : hasSelection
       ? "pb-28"
       : "pb-6";

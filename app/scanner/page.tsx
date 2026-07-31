@@ -1490,7 +1490,7 @@ export default function ScannerPage() {
             "flex min-h-0 flex-1 flex-col gap-2",
             isPantryIdleView && "overflow-hidden",
             isInstagramIdleView &&
-              "overflow-y-auto overscroll-y-contain touch-pan-y [-webkit-overflow-scrolling:touch] pb-[calc(var(--app-bottom-nav-height)+0.5rem)]"
+              "overflow-y-auto overscroll-y-contain touch-pan-y [-webkit-overflow-scrolling:touch] pb-6"
           )}
         >
           <div className="shrink-0">
