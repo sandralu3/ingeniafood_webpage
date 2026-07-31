@@ -227,6 +227,7 @@
     "externalMealFutureDayError": "No puedes registrar una comida fuera en un día futuro: todavía no ha ocurrido.",
     "externalMealPremiumFeature": "Registrar comida fuera (escaneo o escritura)",
     "snacksSectionLabel": "Snacks / Tentempié",
+    "snacksHoyTitle": "Snacks",
     "snackRegisterCta": "+ Registrar snack",
     "snackRegisterTitle": "Registrar snack",
     "snackRegisterSubtitle": "Añade un tentempié en segundos. Cuenta para el balance del día.",

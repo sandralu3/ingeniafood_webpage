@@ -407,15 +407,13 @@ function TodayMenuSection({
       <TodayMealGrid slots={slots} isGeneratingFullDay={isGeneratingFullDay} />
 
       {weekStartISO && localSnacks.length > 0 ? (
-        <div className="rounded-[20px] border border-stone-100 bg-white p-3 shadow-sm shadow-stone-200/50">
-          <PlanSnacksSection
-            dayLabel={getTodayWeekDay()}
-            weekStartISO={weekStartISO}
-            snacks={localSnacks}
-            readOnly
-            compact
-          />
-        </div>
+        <PlanSnacksSection
+          dayLabel={getTodayWeekDay()}
+          weekStartISO={weekStartISO}
+          snacks={localSnacks}
+          readOnly
+          variant="hoy"
+        />
       ) : null}
 
       <PremiumUpgradeDialog

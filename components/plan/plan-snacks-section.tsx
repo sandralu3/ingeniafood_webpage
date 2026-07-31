@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Cookie, Plus, X } from "lucide-react";
+import { Cookie, Flame, Plus, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { SnackRegisterModal } from "@/components/plan/snack-register-modal";
 import { PlanSectionDivider } from "@/components/plan/plan-section-divider";
@@ -19,8 +19,10 @@ type Props = {
   snacks: PlanSnack[];
   /** Si true, solo muestra snacks (sin chips ni registro). Enlace a Plan para añadir. */
   readOnly?: boolean;
-  /** Layout denso para Hoy: menos padding y filas más bajas. */
+  /** Layout denso legacy; preferir `variant="hoy"` en el dashboard. */
   compact?: boolean;
+  /** Variante visual alineada con Plan de hoy (cabecera + mini-cards). */
+  variant?: "default" | "hoy";
   canRegister?: boolean;
   onSnackAdded?: (snack: PlanSnack) => void;
   onSnackRemoved?: (snackId: string) => void;
@@ -37,12 +39,60 @@ const SNACK_ACCENT = {
   iconText: "text-amber-700"
 } as const;
 
+function HoySnacksLayout({
+  snacks,
+  snackKcal,
+  className
+}: {
+  snacks: PlanSnack[];
+  snackKcal: number;
+  className?: string;
+}) {
+  const tPlan = useTranslations("Plan");
+  const title = tPlan.has("snacksHoyTitle")
+    ? tPlan("snacksHoyTitle")
+    : "Snacks";
+
+  return (
+    <div className={cn("space-y-1.5", className)}>
+      <div className="flex items-center justify-between gap-2 px-0.5">
+        <h3 className="text-xs font-semibold tracking-wide text-stone-500">
+          {title}
+        </h3>
+        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-stone-400">
+          <Flame className="h-3 w-3 text-[#F9A825]/80" strokeWidth={2} />
+          {snackKcal} kcal
+        </span>
+      </div>
+
+      <ul className="flex flex-wrap gap-1.5" aria-label={title}>
+        {snacks.map((snack) => (
+          <li
+            key={snack.id}
+            className="min-w-[calc(33.333%-0.375rem)] flex-1"
+          >
+            <span className="flex w-full items-center justify-center gap-1 rounded-full bg-[#F3F0E8]/90 px-2.5 py-1.5 text-[11px] text-stone-700">
+              <span className="shrink-0 text-[12px] leading-none" aria-hidden>
+                {snack.emoji?.trim() || (
+                  <Cookie className="h-3 w-3 text-[#C27803]" strokeWidth={1.75} />
+                )}
+              </span>
+              <span className="truncate font-medium">{snack.title}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export function PlanSnacksSection({
   dayLabel,
   weekStartISO,
   snacks,
   readOnly = false,
   compact = false,
+  variant = "default",
   canRegister: canRegisterProp,
   onSnackAdded,
   onSnackRemoved,
@@ -54,6 +104,7 @@ export function PlanSnacksSection({
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [quickBusyId, setQuickBusyId] = useState<string | null>(null);
 
+  const isHoy = variant === "hoy";
   const canRegister =
     !readOnly &&
     (canRegisterProp ?? canRegisterExternalMealForPlanDay(weekStartISO, dayLabel));
@@ -63,9 +114,15 @@ export function PlanSnacksSection({
     ? t("snacksSectionLabel")
     : "Snacks / Tentempié";
 
-  // En Hoy compacto, no mostrar bloque vacío (ahorra espacio vertical).
-  if (compact && readOnly && snacks.length === 0) {
+  // En Hoy, no mostrar bloque vacío (ahorra espacio vertical).
+  if ((isHoy || (compact && readOnly)) && snacks.length === 0) {
     return null;
+  }
+
+  if (isHoy) {
+    return (
+      <HoySnacksLayout snacks={snacks} snackKcal={snackKcal} className={className} />
+    );
   }
 
   const handleRemove = async (snackId: string) => {
