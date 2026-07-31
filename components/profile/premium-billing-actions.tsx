@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Crown, Loader2, Settings2 } from "lucide-react";
+import { PremiumCodeRedeemForm } from "@/components/premium/premium-code-redeem-form";
 import { PremiumRichText } from "@/components/premium/premium-label";
 import { usePremium } from "@/hooks/use-premium";
 import { createSupabaseClient } from "@/lib/supabaseClient";
@@ -40,7 +41,11 @@ export function PremiumBillingActions() {
   const {
     userId,
     isTester,
+    isPremium,
     isPaidPremium,
+    isCodePremium,
+    premiumExpiresAt,
+    hasGeneratedRealPhoto,
     openaiPhotoCredits,
     isLoading: isPremiumLoading,
     refresh
@@ -102,13 +107,14 @@ export function PremiumBillingActions() {
     window.history.replaceState({}, "", next);
   }, [refresh, refreshBilling]);
 
-  if (isPremiumLoading || isBillingLoading || !isTester) {
+  if (isPremiumLoading || isBillingLoading || !userId) {
     return null;
   }
 
   // Solo portal si hay suscripción Stripe real. is_premium manual no basta.
-  const canManageSubscription = billing.hasActiveSubscription && billing.hasStripeCustomer;
-  const canStartSubscription = !billing.hasActiveSubscription;
+  const canManageSubscription =
+    isTester && billing.hasActiveSubscription && billing.hasStripeCustomer;
+  const canStartSubscription = isTester && !billing.hasActiveSubscription;
 
   const handleUpgrade = async () => {
     setIsCheckoutLoading(true);
@@ -142,21 +148,47 @@ export function PremiumBillingActions() {
       </h2>
       <p className="text-[10px] leading-snug text-stone-500">{t("billingSubtitle")}</p>
 
+      {isCodePremium && premiumExpiresAt ? (
+        <div
+          className="rounded-lg border border-[#556B2F]/20 bg-[#F0F4ED] px-2.5 py-2 text-[10px] leading-snug text-[#3e5219]"
+          role="status"
+        >
+          {t.has("codePremiumActive")
+            ? t("codePremiumActive", {
+                date: new Date(premiumExpiresAt).toLocaleString()
+              })
+            : `Premium por código activo hasta ${new Date(premiumExpiresAt).toLocaleString()}`}
+        </div>
+      ) : null}
+
+      {isPremium && hasGeneratedRealPhoto ? (
+        <div
+          className="rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-2 text-[10px] leading-snug text-stone-500"
+          role="status"
+        >
+          {t.has("photoCreditExhausted")
+            ? t("photoCreditExhausted")
+            : "Ya usaste tu generación de foto real de prueba."}
+        </div>
+      ) : null}
+
       {isPaidPremium && billing.hasActiveSubscription ? (
         <div
           className={cn(
             "rounded-lg border px-2.5 py-2 text-[10px] leading-snug",
-            openaiPhotoCredits > 0
+            openaiPhotoCredits > 0 || !hasGeneratedRealPhoto
               ? "border-[#556B2F]/20 bg-[#F0F4ED] text-[#3e5219]"
               : "border-stone-200 bg-stone-50 text-stone-500"
           )}
           role="status"
         >
-          {openaiPhotoCredits > 0
-            ? t("photoCreditAvailable", { count: openaiPhotoCredits })
+          {openaiPhotoCredits > 0 || !hasGeneratedRealPhoto
+            ? t("photoCreditAvailable", { count: Math.max(openaiPhotoCredits, 1) })
             : t("photoCreditExhausted")}
         </div>
       ) : null}
+
+      {!isPremium ? <PremiumCodeRedeemForm onRedeemed={() => void refresh()} /> : null}
 
       {canStartSubscription ? (
         <button

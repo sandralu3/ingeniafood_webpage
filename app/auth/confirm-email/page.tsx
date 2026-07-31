@@ -150,7 +150,18 @@ function ConfirmEmailForm() {
       if (session?.user?.id) {
         const referralCode = readStashedReferralCode();
         if (referralCode) {
-          clearStashedReferralCode();
+          try {
+            await fetch("/api/premium/attach-referral", {
+              method: "POST",
+              credentials: "include",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ ref: referralCode })
+            });
+          } catch {
+            // Continuar al destino; HOY mostrará banner si el attach llegó por access-gate.
+          } finally {
+            clearStashedReferralCode();
+          }
         }
       }
 

@@ -22,7 +22,7 @@ import {
 } from "@/lib/recipes/recipe-locale-prompt";
 import { resolveDishImagePlaceholder } from "@/lib/recipes/generate-recipe-image";
 import { resolveDishImageMatch } from "@/lib/recipes/resolve-dish-image-match";
-import { canGenerateOpenAiDishPhoto } from "@/lib/recipes/can-generate-openai-dish-photo";
+import { getOpenAiDishPhotoAccess } from "@/lib/recipes/can-generate-openai-dish-photo";
 import { schedulePremiumDishPhoto } from "@/lib/recipes/schedule-premium-dish-photo";
 import {
   parseCookingMinutesFromLabel,
@@ -913,16 +913,18 @@ export async function POST(request: Request) {
       );
     }
 
-    // Banco de fotos: Premium de pago. Free solo si va a generar foto OpenAI con créditos.
-    // Sin OpenAI aquí: solo match local (banco / catálogo / placeholder).
+    // Banco de fotos: Premium. Free solo con match local.
+    // OpenAI: ilimitado (Stripe/admin/tester) o 1x lifetime (código).
     const userWantsDishPhoto = body.useDishPhoto === true;
-    const eligibleForDishPhoto = await canGenerateOpenAiDishPhoto(
+    const dishPhotoAccess = await getOpenAiDishPhotoAccess(
       supabase,
       user.id,
       user.email
     );
-    const canGenerateDishPhoto = userWantsDishPhoto && eligibleForDishPhoto;
+    const canGenerateDishPhoto = userWantsDishPhoto && dishPhotoAccess.allowed;
     const canUseDishImages = premiumAccess.isPaidPremium || canGenerateDishPhoto;
+    const dishPhotoBlockedReason =
+      userWantsDishPhoto && !dishPhotoAccess.allowed ? dishPhotoAccess.reason : null;
 
     type RecipeWithCover = GeminiRecipe & {
       imageUrl: string | null;
@@ -1003,14 +1005,14 @@ export async function POST(request: Request) {
       console.info("[generate-recipe] Foto OpenAI no programada", {
         userId: user.id,
         userWantsDishPhoto,
-        eligibleForDishPhoto,
+        dishPhotoAccess,
         openAiDishPhotosEnabled: enabled === "true" || enabled === "1",
         hint:
           !userWantsDishPhoto
             ? "El usuario no confirmó usar el crédito de foto."
             : enabled !== "true" && enabled !== "1"
               ? "Activa OPENAI_DISH_PHOTOS_ENABLED=true en .env.local y reinicia el servidor."
-              : "Revisa saldo de créditos (Free) o suscripción Premium."
+              : "Revisa Premium, código 24h o flag has_generated_real_photo."
       });
     }
 
@@ -1096,6 +1098,7 @@ export async function POST(request: Request) {
           ? null
           : responsePrimary.imageUrl ?? provisionalImageUrl,
       dishPhotoPending: Boolean(canGenerateDishPhoto && savedRecipeId),
+      ...(dishPhotoBlockedReason ? { dishPhotoBlockedReason } : {}),
       appliedFilters,
       ...(mealTypeAdvisory ? { mealTypeAdvisory } : {}),
       premiumTrialRemaining: 0

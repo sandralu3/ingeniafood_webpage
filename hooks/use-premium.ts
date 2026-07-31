@@ -15,21 +15,19 @@ import {
   type PremiumAccess,
   type PremiumProfileRow
 } from "@/lib/auth/premium-access";
+import { PREMIUM_PROFILE_SELECT } from "@/lib/auth/user-premium";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 
 type UsePremiumResult = PremiumAccess & {
   userId: string | null;
-  /** Puede usar funciones Premium (suscripción / is_premium de pago). */
+  /** Puede usar funciones Premium (rol permanente, Stripe o código 24h vigente). */
   isPremium: boolean;
   isLoading: boolean;
   error: string | null;
-  refresh: () => Promise<void>;
-  /** Actualiza el estado Premium en memoria (p. ej. tras autogestión sin esperar al fetch). */
+  refresh: (options?: { showLoading?: boolean }) => Promise<void>;
+  /** Actualiza el estado Premium en memoria (p. ej. tras canje de código). */
   applyPremiumProfile: (profile: PremiumProfileRow, email?: string | null) => void;
 };
-
-const PREMIUM_PROFILE_SELECT =
-  "is_premium, is_tester, openai_photo_credits, premium_trial_remaining, premium_trial_claimed_at" as const;
 
 const PremiumContext = createContext<UsePremiumResult | null>(null);
 
@@ -100,6 +98,25 @@ function usePremiumState(): UsePremiumResult {
     void refresh({ showLoading: true });
   }, [refresh]);
 
+  useEffect(() => {
+    const onPremiumChanged = () => {
+      void refresh({ showLoading: false });
+    };
+    window.addEventListener("ingeniafood:premium-changed", onPremiumChanged);
+    return () => {
+      window.removeEventListener("ingeniafood:premium-changed", onPremiumChanged);
+    };
+  }, [refresh]);
+
+  // Revalida expiración de código cada minuto en cliente.
+  useEffect(() => {
+    if (!access.premiumExpiresAt) return;
+    const id = window.setInterval(() => {
+      void refresh({ showLoading: false });
+    }, 60_000);
+    return () => window.clearInterval(id);
+  }, [access.premiumExpiresAt, refresh]);
+
   return {
     userId,
     isPremium: access.canUsePremiumFeatures,
@@ -118,7 +135,7 @@ export function PremiumProvider({ children }: { children: ReactNode }) {
 
 /**
  * Carga el plan premium del usuario sin parpadeos.
- * isPremium = canUsePremiumFeatures (Premium de pago).
+ * isPremium = canUsePremiumFeatures (rol / Stripe / código 24h).
  * Requiere PremiumProvider en el árbol de componentes.
  */
 export function usePremium(): UsePremiumResult {
@@ -127,4 +144,9 @@ export function usePremium(): UsePremiumResult {
     throw new Error("usePremium debe usarse dentro de PremiumProvider.");
   }
   return context;
+}
+
+/** Alias solicitado: mismo contrato que usePremium. */
+export function usePremiumStatus(): UsePremiumResult {
+  return usePremium();
 }

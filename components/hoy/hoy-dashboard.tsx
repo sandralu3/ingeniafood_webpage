@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, ScanLine } from "lucide-react";
+import Image from "next/image";
+import { Camera, ScanLine } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { DailyChallenges } from "@/components/hoy/daily-challenges";
 import { HoyGreetingHeader } from "@/components/hoy/hoy-greeting-header";
 import { ProgressBoard } from "@/components/hoy/progress-board/progress-board";
+import { PromoClaimBanner } from "@/components/hoy/promo-claim-banner";
 import { TodayPlanNutrition } from "@/components/hoy/today-plan-nutrition";
 import {
   HoyDailyChallengesSkeleton,
@@ -13,34 +15,31 @@ import {
   HoyScanBannerSkeleton
 } from "@/components/skeletons/hoy-dashboard-skeleton";
 import { useHoyPageData } from "@/hooks/use-hoy-page-data";
-import { usePremium } from "@/hooks/use-premium";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
-import { cn } from "@/lib/utils";
+
+/** Ensalada / bowl — visual hero del mock. */
+const SCAN_HERO_IMAGE =
+  "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=800&q=80";
+
+function deriveLevelLabel(earnedPoints: number): string {
+  const level = Math.max(1, Math.floor(earnedPoints / 100) + 1);
+  return `Nivel ${level} / +${earnedPoints} pts`;
+}
 
 export function HoyDashboard() {
   const t = useTranslations("Hoy");
-  const { isPremium, isLoading: isPremiumLoading } = usePremium();
   const { data, userId, profile, isLoading, isProfileLoading, refresh } = useHoyPageData();
   const showPageSkeleton = isLoading && !data;
-  const premiumLayout = isPremium && !isPremiumLoading;
+  const earnedPoints = data?.metrics.earnedPoints ?? 0;
+  const levelLabel = data ? deriveLevelLabel(earnedPoints) : null;
 
   return (
-    <div
-      className={cn(
-        // Sin -mb-6: ese margen negativo anulaba pb-* y el scroll no llegaba a ver los retos.
-        "-mx-4 min-h-full px-4 pb-8 pt-0",
-        premiumLayout
-          ? "bg-gradient-to-b from-[#F7F8F4] via-emerald-50/20 to-sv-surface"
-          : "bg-gradient-to-b from-stone-50 via-emerald-50/15 to-sv-surface"
-      )}
-    >
-      <section className={cn(premiumLayout ? "space-y-4" : "space-y-2.5")}>
+    <div className="-mx-4 min-h-full bg-[#FAF7F2] px-4 pb-20 pt-2">
+      <section className="space-y-3.5">
         <HoyGreetingHeader
           displayName={profile?.displayName}
-          avatarUrl={profile?.avatarUrl}
-          initials={profile?.initials}
           isLoading={isProfileLoading}
-          className={premiumLayout ? "border-b-0 pb-0" : undefined}
+          levelLabel={levelLabel}
         />
 
         {showPageSkeleton ? (
@@ -48,20 +47,64 @@ export function HoyDashboard() {
         ) : (
           <Link
             href={APP_ROUTES.scanner}
-            className="group flex items-center justify-between gap-2.5 overflow-hidden rounded-2xl border border-[#556B2F]/10 bg-[#eef4e6]/80 px-3 py-2.5 shadow-sm transition hover:border-[#556B2F]/20 hover:bg-[#eef4e6] hover:shadow-md"
+            className="relative flex min-h-[148px] items-center overflow-hidden rounded-[22px] bg-gradient-to-r from-[#E8EDE3] via-[#E3E8DC] to-[#D5DFD0] p-4 shadow-sm shadow-stone-200/50 transition hover:brightness-[0.99]"
           >
-            <div className="flex items-center gap-2.5">
-              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-emerald-800 shadow-sm">
+            <div className="relative z-10 flex min-w-0 max-w-[58%] items-start gap-3 pr-2">
+              <span className="relative mt-0.5 inline-flex shrink-0 rounded-2xl bg-[#3E5A3A] p-2.5 text-white shadow-sm">
                 <ScanLine className="h-4 w-4" strokeWidth={1.75} />
+                <span
+                  className="pointer-events-none absolute -right-1 -top-1.5 text-[8px] leading-none text-[#F9A825]"
+                  aria-hidden
+                >
+                  ✦
+                </span>
+                <span
+                  className="pointer-events-none absolute -right-2.5 top-1 text-[6px] leading-none text-[#F9A825]/90"
+                  aria-hidden
+                >
+                  ✦
+                </span>
+                <span
+                  className="pointer-events-none absolute right-0 -top-2.5 text-[5px] leading-none text-[#F9A825]/80"
+                  aria-hidden
+                >
+                  ✦
+                </span>
               </span>
-              <div>
-                <p className="text-sm font-bold text-emerald-950">{t("scanBannerTitle")}</p>
-                <p className="text-[11px] text-emerald-800/70">{t("scanBannerSubtitle")}</p>
+
+              <div className="min-w-0 flex-1">
+                <p className="text-[15px] font-bold leading-snug text-stone-800">
+                  {t.has("scanHeroTitle")
+                    ? t("scanHeroTitle").replace(/📸\s*/, "")
+                    : "Escanea tu despensa"}
+                </p>
+                <p className="mt-1 text-[11px] leading-snug text-stone-600">
+                  {t.has("scanHeroSubtitle")
+                    ? t("scanHeroSubtitle")
+                    : "Sube foto de tus ingredientes y la IA creará tu receta al instante."}
+                </p>
+                <span className="mt-3 inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-gradient-to-br from-[#5C7A54] via-[#3E5A3A] to-[#2F452C] px-3 py-1.5 text-[11px] font-bold leading-none text-white shadow-sm shadow-[#3E5A3A]/25 transition hover:brightness-110">
+                  <Camera className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
+                  {t.has("scanHeroCta") ? t("scanHeroCta") : "Escanear ingredientes"}
+                </span>
               </div>
             </div>
-            <ArrowRight className="h-4 w-4 shrink-0 text-emerald-700 transition group-hover:translate-x-0.5" />
+
+            <div className="pointer-events-none absolute inset-y-0 right-0 w-[48%]">
+              <Image
+                src={SCAN_HERO_IMAGE}
+                alt=""
+                fill
+                className="object-cover object-[center_35%]"
+                sizes="200px"
+                priority
+              />
+              <div className="absolute inset-0 bg-gradient-to-r from-[#E3E8DC] via-[#E3E8DC]/55 to-transparent" />
+            </div>
           </Link>
         )}
+
+        <PromoClaimBanner />
 
         {showPageSkeleton ? (
           <HoyProgressBoardSkeleton showSectionLabel={false} />
@@ -74,7 +117,7 @@ export function HoyDashboard() {
         )}
 
         {showPageSkeleton ? (
-          <div className="h-28 animate-pulse rounded-2xl bg-stone-100/80" aria-hidden />
+          <div className="h-36 animate-pulse rounded-[22px] bg-stone-100/80" aria-hidden />
         ) : (
           <TodayPlanNutrition
             data={data}
@@ -82,11 +125,6 @@ export function HoyDashboard() {
             onPlanUpdated={() => {
               void refresh({ force: true });
             }}
-            className={
-              premiumLayout
-                ? "border-0 bg-transparent shadow-none ring-0"
-                : undefined
-            }
           />
         )}
 

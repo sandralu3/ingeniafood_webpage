@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
-import { canGenerateOpenAiDishPhoto } from "@/lib/recipes/can-generate-openai-dish-photo";
+import {
+  getOpenAiDishPhotoAccess,
+  REAL_PHOTO_USED_MESSAGE
+} from "@/lib/recipes/can-generate-openai-dish-photo";
 import { generatePremiumDishPhoto } from "@/lib/recipes/generate-recipe-image";
 import {
-  refundOpenAiPhotoCredit,
-  tryConsumeOpenAiPhotoCredit
-} from "@/lib/recipes/openai-photo-credits";
+  refundRealPhotoMark,
+  tryMarkRealPhotoGenerated
+} from "@/lib/recipes/real-photo-quota";
 import {
   FREE_DEFAULT_CUISINE_STYLE,
   FREE_DEFAULT_MEAL_TYPE,
@@ -26,10 +29,10 @@ type GenerateDishPhotoBody = {
 };
 
 /**
- * Foto OpenAI: tester + 1 crédito + Premium/Stripe + kill-switch.
+ * Foto OpenAI: Premium requerido; 1x lifetime salvo Stripe/admin/tester (ilimitado).
  */
 export async function POST(request: Request) {
-  let creditConsumed = false;
+  let markedOnce = false;
   let userId: string | null = null;
 
   try {
@@ -49,29 +52,31 @@ export async function POST(request: Request) {
 
     userId = user.id;
 
-    const allowed = await canGenerateOpenAiDishPhoto(supabase, user.id, user.email);
-    if (!allowed) {
-      return NextResponse.json(
-        {
-          error:
-            "No tienes créditos de foto OpenAI (máx. 1 por tester) o no cumples Premium/tester."
-        },
-        { status: 403 }
-      );
+    const access = await getOpenAiDishPhotoAccess(supabase, user.id, user.email);
+    if (!access.allowed) {
+      const error =
+        access.reason === "PHOTO_USED"
+          ? REAL_PHOTO_USED_MESSAGE
+          : access.reason === "DISABLED"
+            ? "La generación de fotos reales está desactivada."
+            : "La foto real del plato requiere Premium.";
+      return NextResponse.json({ error, code: access.reason }, { status: 403 });
     }
 
-    creditConsumed = await tryConsumeOpenAiPhotoCredit(user.id);
-    if (!creditConsumed) {
-      return NextResponse.json(
-        { error: "Ya usaste tu generación de foto OpenAI." },
-        { status: 403 }
-      );
+    if (access.mode === "once") {
+      markedOnce = await tryMarkRealPhotoGenerated(user.id);
+      if (!markedOnce) {
+        return NextResponse.json(
+          { error: REAL_PHOTO_USED_MESSAGE, code: "PHOTO_USED" },
+          { status: 403 }
+        );
+      }
     }
 
     const body = (await request.json()) as GenerateDishPhotoBody;
     const title = typeof body.title === "string" ? body.title.trim() : "";
     if (!title) {
-      await refundOpenAiPhotoCredit(user.id);
+      if (markedOnce) await refundRealPhotoMark(user.id);
       return NextResponse.json({ error: "Falta el título de la receta." }, { status: 400 });
     }
 
@@ -99,7 +104,7 @@ export async function POST(request: Request) {
     );
 
     if (result.provider !== "openai") {
-      await refundOpenAiPhotoCredit(user.id);
+      if (markedOnce) await refundRealPhotoMark(user.id);
     }
 
     return NextResponse.json({
@@ -108,8 +113,8 @@ export async function POST(request: Request) {
       ...(result.error ? { error: result.error } : {})
     });
   } catch (error) {
-    if (creditConsumed && userId) {
-      await refundOpenAiPhotoCredit(userId);
+    if (markedOnce && userId) {
+      await refundRealPhotoMark(userId);
     }
     console.error("[generate-dish-photo]", error);
     return NextResponse.json(

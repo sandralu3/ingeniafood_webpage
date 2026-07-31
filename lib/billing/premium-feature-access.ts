@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { hasValidSubscription } from "@/lib/billing/has-valid-subscription";
+import { getUserPremiumAccess } from "@/lib/auth/user-premium";
+import { getSubscriptionAccess } from "@/lib/billing/has-valid-subscription";
 import type { Database } from "@/types/database.types";
 
 type AppSupabaseClient = SupabaseClient<Database>;
@@ -10,11 +11,18 @@ export function isOpenAiDishPhotosEnabled(): boolean {
 }
 
 export type DishPhotoAccess =
-  | { allowed: false; reason: "DISABLED" | "NO_USER" | "PREMIUM_REQUIRED" }
-  | { allowed: true; mode: "unlimited" };
+  | {
+      allowed: false;
+      reason: "DISABLED" | "NO_USER" | "PREMIUM_REQUIRED" | "PHOTO_USED";
+    }
+  | { allowed: true; mode: "unlimited" | "once" };
 
 /**
- * Foto IA del plato: solo Premium de pago / Stripe válido (sin economía de créditos).
+ * Foto IA del plato:
+ * - Stripe / admin / tester → ilimitado
+ * - Premium por código (u otro Premium no-Stripe) → 1 foto lifetime
+ * - Free → paywall
+ * - Si has_generated_real_photo → bloqueo con mensaje de upgrade
  */
 export async function resolveDishPhotoAccess(
   supabase: AppSupabaseClient,
@@ -30,19 +38,31 @@ export async function resolveDishPhotoAccess(
     return { allowed: false, reason: "NO_USER" };
   }
 
-  if (await hasValidSubscription(supabase, trimmedUserId, email)) {
+  const { access, error } = await getUserPremiumAccess(supabase, trimmedUserId, email);
+  if (error) {
+    return { allowed: false, reason: "PREMIUM_REQUIRED" };
+  }
+
+  if (!access.canUsePremiumFeatures) {
+    return { allowed: false, reason: "PREMIUM_REQUIRED" };
+  }
+
+  const { access: subscription } = await getSubscriptionAccess(supabase, trimmedUserId);
+  const unlimited =
+    subscription.hasValidSubscription ||
+    access.role === "admin" ||
+    access.role === "tester";
+
+  if (unlimited) {
     return { allowed: true, mode: "unlimited" };
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("is_premium")
-    .eq("id", trimmedUserId)
-    .maybeSingle();
-
-  if (profile?.is_premium === true) {
-    return { allowed: true, mode: "unlimited" };
+  if (access.hasGeneratedRealPhoto) {
+    return { allowed: false, reason: "PHOTO_USED" };
   }
 
-  return { allowed: false, reason: "PREMIUM_REQUIRED" };
+  return { allowed: true, mode: "once" };
 }
+
+export const REAL_PHOTO_USED_MESSAGE =
+  "Ya has utilizado tu generación de foto real de prueba. Actualiza a la versión completa para generar fotos ilimitadas.";

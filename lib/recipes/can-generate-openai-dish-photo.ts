@@ -1,14 +1,15 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   isOpenAiDishPhotosEnabled,
-  resolveDishPhotoAccess
+  resolveDishPhotoAccess,
+  type DishPhotoAccess
 } from "@/lib/billing/premium-feature-access";
 import type { Database } from "@/types/database.types";
 
 type AppSupabaseClient = SupabaseClient<Database>;
 
 /**
- * True si el usuario puede generar foto OpenAI ahora (solo Premium / Stripe).
+ * True si el usuario puede generar foto OpenAI ahora.
  */
 export async function canGenerateOpenAiDishPhoto(
   supabase: AppSupabaseClient,
@@ -23,4 +24,12 @@ export async function canGenerateOpenAiDishPhoto(
   return access.allowed;
 }
 
-export { isOpenAiDishPhotosEnabled };
+export async function getOpenAiDishPhotoAccess(
+  supabase: AppSupabaseClient,
+  userId: string,
+  email?: string | null
+): Promise<DishPhotoAccess> {
+  return resolveDishPhotoAccess(supabase, userId, email);
+}
+
+export { isOpenAiDishPhotosEnabled, REAL_PHOTO_USED_MESSAGE } from "@/lib/billing/premium-feature-access";

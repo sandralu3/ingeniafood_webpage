@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { Loader2, Lock, Sparkles, X } from "lucide-react";
 import { PlanSectionDivider } from "@/components/plan/plan-section-divider";
+import { PremiumCodeRedeemForm } from "@/components/premium/premium-code-redeem-form";
 import { PremiumLabel, PremiumRichText } from "@/components/premium/premium-label";
 import { usePremium } from "@/hooks/use-premium";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
@@ -23,17 +24,22 @@ export function PremiumUpgradeDialog({
   onUpgraded,
   featureLabel = "Filtros avanzados"
 }: Props) {
-  const { userId, isPremium, isPaidPremium, refresh } = usePremium();
+  const { userId, isPremium, isCodePremium, refresh } = usePremium();
   const [isUpgrading, setIsUpgrading] = useState(false);
   const [upgradeError, setUpgradeError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [redeemFestivity, setRedeemFestivity] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setRedeemFestivity(null);
+      setUpgradeError(null);
+      return;
+    }
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
@@ -70,7 +76,7 @@ export function PremiumUpgradeDialog({
     }
   };
 
-  const title = isPaidPremium ? (
+  const title = isPremium ? (
     <>
       <PremiumLabel size="xs" /> activo
     </>
@@ -82,8 +88,10 @@ export function PremiumUpgradeDialog({
 
   const description = !userId ? (
     <PremiumRichText text="Inicia sesión para desbloquear Premium." size="xs" />
-  ) : isPaidPremium ? (
-    `${featureLabel} incluido en tu plan.`
+  ) : isPremium ? (
+    isCodePremium
+      ? "Acceso Premium temporal activo por código."
+      : `${featureLabel} incluido en tu plan.`
   ) : (
     <PremiumRichText text={`${featureLabel} requiere Premium.`} size="xs" />
   );
@@ -138,10 +146,16 @@ export function PremiumUpgradeDialog({
           </div>
         </div>
 
-        <div className="space-y-2 px-3 py-2.5">
+        <div className="space-y-2.5 px-3 py-2.5">
           {upgradeError ? (
             <p className="rounded-lg bg-red-50 px-2.5 py-1.5 text-[11px] text-red-700">
               <PremiumRichText text={upgradeError} size="xs" />
+            </p>
+          ) : null}
+
+          {redeemFestivity ? (
+            <p className="rounded-lg border border-[#556B2F]/20 bg-[#F0F4ED] px-2.5 py-2 text-center text-[12px] font-semibold text-[#3e5219]">
+              {redeemFestivity}
             </p>
           ) : null}
 
@@ -176,6 +190,15 @@ export function PremiumUpgradeDialog({
                 {isUpgrading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                 Desbloquear <PremiumLabel size="xs" />
               </button>
+
+              <PremiumCodeRedeemForm
+                compact
+                onRedeemed={(message) => {
+                  setRedeemFestivity(message);
+                  onUpgraded?.();
+                }}
+              />
+
               <p className="text-center text-[10px] text-stone-400">
                 <Link
                   href={APP_ROUTES.perfil}

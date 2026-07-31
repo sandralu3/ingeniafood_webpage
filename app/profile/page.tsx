@@ -8,6 +8,7 @@ import { AvatarCropModal } from "@/components/profile/avatar-crop-modal";
 import { LanguageSelector } from "@/components/profile/language-selector";
 import { NutritionGoalsForm, type NutritionGoalsFormHandle } from "@/components/profile/nutrition-goals-form";
 import { PremiumBillingActions } from "@/components/profile/premium-billing-actions";
+import { TesterPromoResetButton } from "@/components/profile/tester-promo-reset-button";
 import { PremiumLabel } from "@/components/premium/premium-label";
 import { usePremium } from "@/hooks/use-premium";
 import { isSandraAdmin } from "@/lib/auth/sandra-admin";
@@ -552,6 +553,8 @@ export default function ProfilePage() {
             />
 
             <PremiumBillingActions />
+
+            <TesterPromoResetButton />
 
             {userId ? (
               <NutritionGoalsForm apiRef={nutritionFormRef} userId={userId} />

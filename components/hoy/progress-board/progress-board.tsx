@@ -1,22 +1,19 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Crown, TrendingUp } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { ProgressBoardCard } from "@/components/hoy/progress-board/progress-board-card";
 import { IntelligentDoseModal } from "@/components/hoy/progress-board/IntelligentDoseModal";
 import { HoyProgressBoardSkeleton } from "@/components/skeletons/hoy-dashboard-skeleton";
 import { StreakCalendarModal } from "@/components/hoy/progress-board/progress-board-modals";
-import { StreakCardBody } from "@/components/hoy/progress-board/progress-board-visuals";
+import { NutritionCoachTeaserModal } from "@/components/hoy/nutrition-coach-teaser-modal";
 import { PremiumUpgradeDialog } from "@/components/premium/premium-upgrade-dialog";
-import { HoySectionHeader } from "@/components/hoy/hoy-section-header";
 import { useIntelligentDose } from "@/hooks/use-intelligent-dose";
 import { usePremium } from "@/hooks/use-premium";
 import { getBuiltinHealthyTips } from "@/lib/content/builtin-tips";
 import { pickDailyTipIndex } from "@/lib/content/daily-tip";
 import type { HoyPageData } from "@/lib/gamification/hoy-page-data";
 import type { WeeklyHealthMetrics } from "@/lib/gamification/weekly-metrics";
-import { buildWeekConsistencyDays } from "@/lib/gamification/week-consistency";
+import { buildWeekConsistencyDays, type WeekConsistencyDay } from "@/lib/gamification/week-consistency";
 import { computeDayBalanceLevel } from "@/lib/premium-stories/dose-suggested-recipe";
 import type { IntelligentDoseMealSnapshot } from "@/lib/premium-stories/intelligent-dose-context";
 import { parseAppLocale } from "@/i18n/config";
@@ -33,15 +30,93 @@ const EMPTY_METRICS: WeeklyHealthMetrics = {
   activeDaysThisWeek: 0
 };
 
-/** Altura compartida: par simétrico compacto. */
-const BOARD_CARD_CLASS = "h-full min-h-[9rem] self-stretch";
-
 type ProgressBoardProps = {
   data: HoyPageData | null;
   isLoading?: boolean;
   firstName?: string | null;
   className?: string;
 };
+
+function ConsistencyDotsWeek({ days }: { days: WeekConsistencyDay[] }) {
+  return (
+    <div className="flex w-full items-start justify-between gap-0.5 pt-2">
+      {days.map((day) => {
+        const done = day.active || day.inCurrentStreak;
+        return (
+          <div key={day.isoDate} className="flex min-w-0 flex-1 flex-col items-center gap-0.5">
+            <span
+              className={cn(
+                "flex h-[18px] w-[18px] items-center justify-center rounded-full sm:h-5 sm:w-5",
+                done
+                  ? "bg-[#F9A825] text-white"
+                  : "border border-stone-200 bg-white text-transparent",
+                day.isToday && !done && "ring-2 ring-[#F9A825]/30 ring-offset-1"
+              )}
+              title={day.label}
+            >
+              {done ? (
+                <svg viewBox="0 0 12 12" className="h-2.5 w-2.5" aria-hidden>
+                  <path
+                    d="M2.5 6.2 4.8 8.5 9.5 3.5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              ) : null}
+            </span>
+            <span className="text-[8px] font-medium uppercase leading-none text-stone-400">
+              {day.label}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Anillo con gradiente verde→dorado (mock). */
+function DoseRing({ score }: { score: number }) {
+  const clamped = Math.max(0, Math.min(100, score));
+  const radius = 15;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (clamped / 100) * circumference;
+
+  return (
+    <div className="relative h-9 w-9 shrink-0 sm:h-10 sm:w-10">
+      <svg className="h-full w-full -rotate-90" viewBox="0 0 36 36" aria-hidden>
+        <defs>
+          <linearGradient id="doseRingGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#3E5A3A" />
+            <stop offset="55%" stopColor="#88C34A" />
+            <stop offset="100%" stopColor="#F9A825" />
+          </linearGradient>
+        </defs>
+        <circle
+          cx="18"
+          cy="18"
+          r={radius}
+          fill="none"
+          stroke="#EDE8E0"
+          strokeWidth="3.5"
+        />
+        <circle
+          cx="18"
+          cy="18"
+          r={radius}
+          fill="none"
+          stroke="url(#doseRingGrad)"
+          strokeWidth="3.5"
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+        />
+      </svg>
+    </div>
+  );
+}
 
 function buildPlanRevision(data: HoyPageData | null): string | null {
   if (!data) return null;
@@ -93,81 +168,6 @@ function snapshotFromHoyPlan(data: HoyPageData | null): IntelligentDoseMealSnaps
   };
 }
 
-function DoseScoreBadge({
-  score,
-  labelKey,
-  emoji,
-  excellentLabel,
-  goodLabel,
-  improveLabel
-}: {
-  score: number;
-  labelKey: "excellent" | "good" | "improve";
-  emoji: string;
-  excellentLabel: string;
-  goodLabel: string;
-  improveLabel: string;
-}) {
-  const status =
-    labelKey === "excellent" ? excellentLabel : labelKey === "good" ? goodLabel : improveLabel;
-
-  return (
-    <span
-      className={cn(
-        "inline-flex max-w-full items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-bold leading-none",
-        labelKey === "excellent"
-          ? "bg-emerald-50 text-emerald-800 ring-1 ring-emerald-100"
-          : labelKey === "good"
-            ? "bg-amber-50 text-amber-900 ring-1 ring-amber-100"
-            : "bg-rose-50 text-rose-800 ring-1 ring-rose-100"
-      )}
-    >
-      <span className="tabular-nums">
-        {score}/100 {score >= 80 ? "🌟" : emoji}
-      </span>
-      <span className="max-w-[4.5rem] truncate font-semibold sm:max-w-none">{status}</span>
-    </span>
-  );
-}
-
-/** Chips conceptuales (sin kcal: esas viven en Menú de hoy). */
-function DoseConceptChips({
-  hasProtein,
-  hasVegetables,
-  proteinLabel,
-  fiberLabel
-}: {
-  hasProtein: boolean;
-  hasVegetables: boolean;
-  proteinLabel: string;
-  fiberLabel: string;
-}) {
-  return (
-    <div className="flex flex-wrap gap-1">
-      <span
-        className={cn(
-          "inline-flex items-center rounded-full px-1.5 py-0.5 text-[8px] font-semibold ring-1",
-          hasProtein
-            ? "bg-[#556B2F]/10 text-[#3e5219] ring-[#556B2F]/20"
-            : "bg-stone-50 text-stone-400 ring-stone-200/80"
-        )}
-      >
-        {proteinLabel} 🥩
-      </span>
-      <span
-        className={cn(
-          "inline-flex items-center rounded-full px-1.5 py-0.5 text-[8px] font-semibold ring-1",
-          hasVegetables
-            ? "bg-lime-50 text-lime-900 ring-lime-200/80"
-            : "bg-stone-50 text-stone-400 ring-stone-200/80"
-        )}
-      >
-        {fiberLabel} 🥗
-      </span>
-    </div>
-  );
-}
-
 export function ProgressBoard({
   data,
   isLoading = false,
@@ -184,6 +184,7 @@ export function ProgressBoard({
   } = usePremium();
   const [streakOpen, setStreakOpen] = useState(false);
   const [doseOpen, setDoseOpen] = useState(false);
+  const [coachTeaserOpen, setCoachTeaserOpen] = useState(false);
   const [paywallOpen, setPaywallOpen] = useState(false);
 
   const today = toISODateString(new Date());
@@ -238,181 +239,176 @@ export function ProgressBoard({
 
   const { streakDays, activeDaysThisWeek } = metrics;
 
-  const streakTitle = `${t("streak")} 🔥`;
-  // Siempre se identifica como Dosis nutricional; el contenido cambia por plan.
-  const insightTitle = t.has("smartDoseTitle")
-    ? t("smartDoseTitle")
-    : "Dosis nutricional 👑";
-
-  const freeDoseCta = t.has("smartDosePersonalizeCta")
-    ? t("smartDosePersonalizeCta")
-    : "✨ Personalizar este informe →";
-
-  const hasPlanData = Boolean(
-    planSnapshot || doseReport?.hasPlanData || (doseContext?.mealsPlannedToday.mealCount ?? 0) > 0
-  );
   const previewHeadline =
     doseReport?.highlight?.trim() ||
     doseReport?.previewHeadline ||
     (t.has("smartDoseEmpty")
       ? t("smartDoseEmpty")
-      : "Planifica tus comidas de hoy para recibir tu balance y consejos personalizados ✨");
+      : "Planifica tus comidas de hoy para recibir tu balance y consejos personalizados");
 
-  const todaySnapshot = planSnapshot ?? doseContext?.mealsPlannedToday;
-
-  const streakMotivation = useMemo(() => {
-    const todayDot = weekConsistency.find((day) => day.isToday);
-    if (streakDays === 0) {
-      return t.has("streakCardMotivateStart")
+  const streakMotivation =
+    streakDays === 0
+      ? t.has("streakCardMotivateStart")
         ? t("streakCardMotivateStart")
-        : "Completa un hábito hoy y enciende tu racha 🔥";
-    }
-    if (todayDot && !todayDot.active) {
-      return t.has("streakCardMotivateToday")
-        ? t("streakCardMotivateToday")
-        : "¡Hoy aún puedes sumar un día a tu racha!";
-    }
-    if (streakDays >= 7) {
-      return t.has("streakCardMotivateHot")
-        ? t("streakCardMotivateHot")
-        : "¡Racha en llamas! Sigue con este ritmo 🔥";
-    }
-    return t.has("streakCardMotivateKeep")
-      ? t("streakCardMotivateKeep", { count: streakDays })
-      : `¡Vas genial! Llevas ${streakDays} días seguidos.`;
-  }, [streakDays, t, weekConsistency]);
+        : "Completa un hábito hoy y enciende tu racha."
+      : t.has("streakCardMotivateKeep")
+        ? t("streakCardMotivateKeep", { count: streakDays })
+        : `¡Vas genial! Llevas ${streakDays} días alimentándote mejor.`;
 
-  const weekProgressLabel = t.has("streakWeekProgress")
-    ? t("streakWeekProgress", { count: activeDaysThisWeek })
-    : `${activeDaysThisWeek} activos esta semana`;
+  const doseScore = doseBalance?.score ?? (premiumReady ? 0 : 0);
+  const doseLabel =
+    doseScore >= 80 ? "Excelente" : doseScore >= 55 ? "Buen ritmo" : doseScore > 0 ? "Mejorable" : "Sin datos";
+  const hasProteinOk = Boolean(
+    planSnapshot?.hasProtein || doseContext?.mealsPlannedToday?.hasProtein
+  );
+  const hasFiberOk = Boolean(
+    planSnapshot?.hasVegetables || doseContext?.mealsPlannedToday?.hasVegetables
+  );
 
   const handleDoseCardClick = () => {
     if (premiumReady) {
       setDoseOpen(true);
       return;
     }
-    setPaywallOpen(true);
+    setCoachTeaserOpen(true);
   };
 
   return (
     <>
-      <section className={cn("space-y-2", className)}>
-        <HoySectionHeader title={t("progressBoard")} />
-
+      <section className={cn(className)}>
         {showSkeleton ? (
           <HoyProgressBoardSkeleton showSectionLabel={false} />
         ) : (
-          <div className="grid grid-cols-2 items-stretch gap-3 sm:gap-4 [grid-auto-rows:1fr]">
-            <ProgressBoardCard
-              title={streakTitle}
-              accentBarClass="bg-[#f0c9a8]"
-              accentTextClass="text-orange-800/90"
-              icon={TrendingUp}
-              className={BOARD_CARD_CLASS}
+          <div className="grid grid-cols-2 items-stretch rounded-[22px] border border-stone-100/80 bg-white shadow-sm shadow-stone-200/40">
+            {/* —— Racha —— */}
+            <button
+              type="button"
               onClick={() => setStreakOpen(true)}
+              className="flex min-w-0 flex-col gap-1 px-3.5 py-3 text-left transition hover:opacity-90 sm:px-4 sm:py-3.5"
             >
-              <StreakCardBody
-                days={streakDays}
-                activeDaysThisWeek={activeDaysThisWeek}
-                daysLabel={t("daysInARow", { count: streakDays })}
-                weekDays={weekConsistency}
-                motivation={streakMotivation}
-                weekProgressLabel={weekProgressLabel}
-              />
-            </ProgressBoardCard>
+              <p className="flex items-center gap-1 text-[12px] font-semibold text-stone-800">
+                <span aria-hidden>🔥</span>
+                {t("streak")}
+              </p>
+              <p className="flex flex-wrap items-baseline gap-x-1.5">
+                <span className="text-[24px] font-bold tabular-nums leading-none text-stone-800 sm:text-[26px]">
+                  {streakDays}
+                </span>
+                <span className="text-[11px] font-medium text-stone-600">
+                  {streakDays === 1 ? "día seguido" : "días seguidos"}
+                </span>
+              </p>
+              <p className="text-[10px] leading-snug text-stone-500">
+                {streakMotivation.replace(/🔥/g, "").trim()}
+              </p>
+              <ConsistencyDotsWeek days={weekConsistency} />
+            </button>
 
-            <ProgressBoardCard
-              title={insightTitle}
-              titleMeta={
-                premiumReady && doseBalance ? (
-                  <DoseScoreBadge
-                    score={doseBalance.score}
-                    labelKey={doseBalance.labelKey}
-                    emoji={doseBalance.emoji}
-                    excellentLabel={
-                      t.has("intelligentDoseBalanceExcellent")
-                        ? t("intelligentDoseBalanceExcellent")
-                        : "Excelente"
-                    }
-                    goodLabel={
-                      t.has("intelligentDoseBalanceGood")
-                        ? t("intelligentDoseBalanceGood")
-                        : "Buen ritmo"
-                    }
-                    improveLabel={
-                      t.has("intelligentDoseBalanceImprove")
-                        ? t("intelligentDoseBalanceImprove")
-                        : "Mejorable"
-                    }
-                  />
-                ) : null
-              }
-              accentBarClass={premiumReady ? "bg-[#d4c4a8]" : "bg-[#e8d9b8]"}
-              accentTextClass={premiumReady ? "text-amber-900/90" : "text-amber-800/90"}
-              icon={Crown}
-              className={BOARD_CARD_CLASS}
-              showChevron={!premiumReady}
+            {/* —— Dosis —— */}
+            <button
+              type="button"
               onClick={handleDoseCardClick}
+              className="flex min-w-0 flex-col border-l border-stone-100 px-3.5 py-3 text-left transition hover:opacity-90 sm:px-4 sm:py-3.5"
             >
-              {premiumReady ? (
-                <div className="flex min-h-0 flex-1 flex-col justify-between gap-2">
-                  <div className="space-y-1.5">
-                    <p className="line-clamp-2 text-[10px] font-bold leading-snug text-stone-800">
-                      {previewHeadline}
-                    </p>
-                    {hasPlanData && todaySnapshot ? (
-                      <DoseConceptChips
-                        hasProtein={todaySnapshot.hasProtein}
-                        hasVegetables={todaySnapshot.hasVegetables}
-                        proteinLabel={
-                          t.has("intelligentDoseChipProtein")
-                            ? t("intelligentDoseChipProtein")
-                            : "Proteína"
-                        }
-                        fiberLabel={
-                          t.has("intelligentDoseChipFiber")
-                            ? t("intelligentDoseChipFiber")
-                            : "Fibra"
-                        }
-                      />
-                    ) : null}
+              <p className="flex items-center gap-1 text-[12px] font-semibold text-stone-800">
+                <span className="shrink-0" aria-hidden>
+                  🥦
+                </span>
+                <span className="truncate">
+                  {t.has("smartDoseTitle")
+                    ? t("smartDoseTitle").replace(/👑/g, "").trim()
+                    : "Dosis nutricional"}
+                </span>
+              </p>
+
+              {premiumReady && doseBalance ? (
+                <>
+                  <div className="mt-1.5 flex items-center justify-between gap-1.5">
+                    <div className="min-w-0 flex items-center gap-1.5">
+                      <span className="flex items-baseline tabular-nums leading-none">
+                        <span className="text-[20px] font-bold text-stone-900 sm:text-[22px]">
+                          {doseScore}
+                        </span>
+                        <span className="text-[12px] font-semibold text-stone-400">
+                          /100
+                        </span>
+                      </span>
+                      <span className="shrink-0 rounded-full bg-[#FDF3E3] px-1.5 py-0.5 text-[9px] font-bold text-[#C27803]">
+                        {doseLabel}
+                      </span>
+                    </div>
+                    <DoseRing score={doseScore} />
                   </div>
-                  <span
-                    className={cn(
-                      "mt-auto inline-flex w-fit max-w-full items-center rounded-full px-2 py-0.5 text-[9px] font-semibold leading-none transition",
-                      hasPlanData
-                        ? "bg-[#556B2F]/12 text-[#3e5219] ring-1 ring-[#556B2F]/20 group-hover:bg-[#556B2F]/18"
-                        : "bg-amber-50 text-amber-900/80 ring-1 ring-amber-100"
-                    )}
-                  >
-                    {hasPlanData
-                      ? t.has("intelligentDoseCardCtaShort")
-                        ? t("intelligentDoseCardCtaShort")
-                        : "✨ Ver informe"
-                      : t.has("intelligentDoseOpenCta")
-                        ? t("intelligentDoseOpenCta")
-                        : "Ver tu análisis →"}
-                  </span>
-                </div>
+
+                  <div className="mt-2 flex flex-nowrap items-center justify-between gap-2">
+                    <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-[10px] text-stone-600">
+                      Proteína
+                      <span
+                        className={cn(
+                          "rounded-full px-1.5 py-0.5 text-[9px] font-bold",
+                          hasProteinOk
+                            ? "bg-[#E8F0E4] text-[#3E5A3A]"
+                            : "bg-stone-100 text-stone-500"
+                        )}
+                      >
+                        {hasProteinOk ? "Bien" : "Baja"}
+                      </span>
+                    </span>
+                    <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-[10px] text-stone-600">
+                      Fibra
+                      <span
+                        className={cn(
+                          "rounded-full px-1.5 py-0.5 text-[9px] font-bold",
+                          hasFiberOk
+                            ? "bg-[#E8F0E4] text-[#3E5A3A]"
+                            : "bg-stone-100 text-stone-500"
+                        )}
+                      >
+                        {hasFiberOk ? "Perfecto" : "Baja"}
+                      </span>
+                    </span>
+                  </div>
+                </>
               ) : (
-                <div className="flex min-h-0 flex-1 flex-col justify-between gap-2 pr-3">
-                  <div className="space-y-1">
-                    <p className="text-[8px] font-bold uppercase tracking-[0.12em] text-amber-800/70">
-                      {t.has("tipOfDayTitle") ? t("tipOfDayTitle") : "Tip del día 💡"}
-                    </p>
-                    <p className="text-[10px] leading-snug text-stone-600">
-                      {freeDailyTip ||
-                        (t.has("smartDoseEmpty")
-                          ? t("smartDoseEmpty")
-                          : "Consejos personalizados con Premium.")}
-                    </p>
-                  </div>
-                  <span className="mt-auto inline-flex w-fit max-w-full items-center rounded-full bg-[#556B2F]/10 px-2 py-0.5 text-[9px] font-semibold text-[#3e5219] ring-1 ring-[#556B2F]/15 transition group-hover:bg-[#556B2F]/16">
-                    {freeDoseCta}
-                  </span>
-                </div>
+                <p className="mt-1.5 line-clamp-3 flex-1 text-[10px] leading-snug text-stone-500">
+                  💡{" "}
+                  {(freeDailyTip || previewHeadline.replace(/✨/g, "").trim()).replace(
+                    /^💡\s*/,
+                    ""
+                  )}
+                </p>
               )}
-            </ProgressBoardCard>
+
+              <span className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-full bg-[#F3F0E8] px-2 py-1.5 text-[11px] font-semibold text-[#3E5A3A] transition hover:bg-[#EDE9E0]">
+                <svg
+                  viewBox="0 0 16 16"
+                  className="h-3.5 w-3.5 shrink-0"
+                  fill="none"
+                  aria-hidden
+                >
+                  <path
+                    d="M2.5 12.5V8.5M5.5 12.5V6M8.5 12.5V9M11.5 12.5V4.5"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                  />
+                  <path
+                    d="M10 3.5h3v3"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M13 3.5 9 7.5"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                  />
+                </svg>
+                Ver informe
+              </span>
+            </button>
           </div>
         )}
       </section>
@@ -432,6 +428,20 @@ export function ProgressBoard({
         context={doseContext}
         firstName={firstName}
         isLoading={isDoseLoading}
+      />
+
+      <NutritionCoachTeaserModal
+        open={coachTeaserOpen}
+        onClose={() => setCoachTeaserOpen(false)}
+        onActivated={() => {
+          setCoachTeaserOpen(false);
+          void refreshPremium();
+          setDoseOpen(true);
+        }}
+        onFallbackUnlock={() => {
+          setCoachTeaserOpen(false);
+          setPaywallOpen(true);
+        }}
       />
 
       <PremiumUpgradeDialog

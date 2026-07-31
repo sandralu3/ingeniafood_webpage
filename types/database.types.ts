@@ -19,6 +19,12 @@ export type Database = {
           is_premium: boolean;
           can_self_toggle_premium: boolean;
           is_tester: boolean;
+          role: "admin" | "tester" | "user";
+          premium_expires_at: string | null;
+          has_generated_real_photo: boolean;
+          redeemed_code: string | null;
+          has_promo_claimable: boolean;
+          promo_code_ref: string | null;
           openai_photo_credits: number;
           referral_code: string;
           generations_left: number;
@@ -54,6 +60,12 @@ export type Database = {
           is_premium?: boolean;
           can_self_toggle_premium?: boolean;
           is_tester?: boolean;
+          role?: "admin" | "tester" | "user";
+          premium_expires_at?: string | null;
+          has_generated_real_photo?: boolean;
+          redeemed_code?: string | null;
+          has_promo_claimable?: boolean;
+          promo_code_ref?: string | null;
           openai_photo_credits?: number;
           referral_code?: string;
           generations_left?: number;
@@ -89,6 +101,12 @@ export type Database = {
           is_premium?: boolean;
           can_self_toggle_premium?: boolean;
           is_tester?: boolean;
+          role?: "admin" | "tester" | "user";
+          premium_expires_at?: string | null;
+          has_generated_real_photo?: boolean;
+          redeemed_code?: string | null;
+          has_promo_claimable?: boolean;
+          promo_code_ref?: string | null;
           openai_photo_credits?: number;
           referral_code?: string;
           generations_left?: number;
@@ -122,6 +140,75 @@ export type Database = {
             isOneToOne: true;
             referencedRelation: "users";
             referencedColumns: ["id"];
+          }
+        ];
+      };
+      premium_access_codes: {
+        Row: {
+          code: string;
+          label: string | null;
+          duration_hours: number;
+          max_redemptions: number | null;
+          redemption_count: number;
+          is_active: boolean;
+          created_at: string;
+        };
+        Insert: {
+          code: string;
+          label?: string | null;
+          duration_hours?: number;
+          max_redemptions?: number | null;
+          redemption_count?: number;
+          is_active?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          code?: string;
+          label?: string | null;
+          duration_hours?: number;
+          max_redemptions?: number | null;
+          redemption_count?: number;
+          is_active?: boolean;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      premium_code_redemptions: {
+        Row: {
+          id: string;
+          user_id: string;
+          code: string;
+          redeemed_at: string;
+          expires_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          code: string;
+          redeemed_at?: string;
+          expires_at: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          code?: string;
+          redeemed_at?: string;
+          expires_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "premium_code_redemptions_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "premium_code_redemptions_code_fkey";
+            columns: ["code"];
+            isOneToOne: false;
+            referencedRelation: "premium_access_codes";
+            referencedColumns: ["code"];
           }
         ];
       };

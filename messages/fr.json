@@ -42,6 +42,7 @@
     "billingRedirecting": "Redirection vers Stripe...",
     "billingOpeningPortal": "Ouverture du portail...",
     "billingError": "Impossible de se connecter à Stripe. Réessayez.",
+    "codePremiumActive": "Premium par code actif jusqu’au {date}.",
     "photoCreditAvailable": "Vous avez {count, plural, one {# génération} other {# générations}} de vraie photo du plat. Elle s’utilise automatiquement à la création d’une recette.",
     "photoCreditExhausted": "Vous avez utilisé votre génération de vraie photo. Les prochaines recettes utiliseront une image de référence."
   },

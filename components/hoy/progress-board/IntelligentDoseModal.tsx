@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Loader2, Sparkles, X } from "lucide-react";
+import { Check, Loader2, Sparkles, Target, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
   computeDayBalanceLevel,
@@ -17,7 +17,6 @@ import type {
   IntelligentDoseUserContext
 } from "@/lib/premium-stories/intelligent-dose-context";
 import { NutritionProfileCallout } from "@/components/hoy/progress-board/nutrition-profile-callout";
-import { hoySectionLabelClass } from "@/components/hoy/hoy-section-header";
 import {
   hasDoseSuggestionGenerated,
   markDoseSuggestionGenerated
@@ -64,20 +63,19 @@ function resolveSuggestedRecipe(
 
 function MacroChip({ label }: { label: string }) {
   return (
-    <span className="inline-flex items-center rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-stone-600 shadow-sm ring-1 ring-stone-200/80">
+    <span className="inline-flex items-center rounded-xl border border-stone-100 bg-white px-2.5 py-1 text-[10px] font-semibold text-stone-600 shadow-sm shadow-stone-200/40">
       {label}
     </span>
   );
 }
 
-/** Resalta kcal, macros y palabras clave alimentarias. */
 function RichDoseBody({ text }: { text: string }) {
   const parts = text.split(
     /(\d+[\d.,]*\s*(?:kcal|g)\b|prote[ií]na(?:s)?|vegetales?|verduras?|fibra|infusiones?|comida s[oó]lida)/gi
   );
 
   return (
-    <p className="mt-1 text-[11px] leading-snug text-stone-600">
+    <p className="mt-1 text-[12px] leading-relaxed text-stone-600">
       {parts.map((part, index) => {
         if (!part) return null;
         const isKeyword =
@@ -100,24 +98,49 @@ function RichDoseBody({ text }: { text: string }) {
 function InsightCard({
   label,
   children,
-  emphasized = false
+  icon
 }: {
   label: string;
   children: React.ReactNode;
-  emphasized?: boolean;
+  icon?: string;
 }) {
   return (
-    <li
-      className={cn(
-        "rounded-2xl border px-3 py-2.5",
-        emphasized
-          ? "border-[#556B2F]/20 bg-gradient-to-br from-[#F7FAF2] to-white"
-          : "border-stone-100 bg-white/90"
-      )}
-    >
-      <p className={cn(hoySectionLabelClass, emphasized && "text-[#7A8F5C]")}>{label}</p>
+    <li className="rounded-2xl border border-stone-100 bg-white p-3.5 shadow-sm shadow-stone-200/40">
+      <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-stone-400">
+        {icon ? `${icon} ` : null}
+        {label.replace(/^[🌟💡🎯☀️]\s*/, "")}
+      </p>
       {children}
     </li>
+  );
+}
+
+function DoseRingMini({ score }: { score: number }) {
+  const clamped = Math.max(0, Math.min(100, score));
+  const radius = 18;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (clamped / 100) * circumference;
+
+  return (
+    <div className="relative h-11 w-11 shrink-0">
+      <svg className="h-11 w-11 -rotate-90" viewBox="0 0 48 48" aria-hidden>
+        <circle cx="24" cy="24" r={radius} fill="none" stroke="#F5F0E8" strokeWidth="5" />
+        <circle
+          cx="24"
+          cy="24"
+          r={radius}
+          fill="none"
+          stroke="#F9A825"
+          strokeWidth="5"
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+        />
+      </svg>
+      <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold tabular-nums text-stone-800">
+        {clamped}
+      </span>
+    </div>
   );
 }
 
@@ -217,20 +240,22 @@ export function IntelligentDoseModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[150] flex items-end justify-center bg-black/40 px-0 backdrop-blur-[2px] sm:items-center sm:px-4">
+    <div className="fixed inset-0 z-[150] flex items-end justify-center bg-stone-900/40 px-0 backdrop-blur-[2px] sm:items-center sm:px-4">
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="intelligent-dose-title"
-        className="flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-t-3xl border border-stone-100 bg-stone-50/95 shadow-2xl sm:rounded-3xl"
+        className="flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-t-[22px] border border-stone-100 bg-[#FFF8F1] shadow-2xl shadow-stone-300/40 sm:rounded-[22px]"
       >
-        <div className="shrink-0 border-b border-stone-100 bg-white/90 px-4 py-3.5 sm:px-5">
+        <div className="shrink-0 border-b border-stone-100/80 bg-white px-4 py-3.5">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className={hoySectionLabelClass}>{eyebrow}</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-stone-400">
+                {eyebrow}
+              </p>
               <h2
                 id="intelligent-dose-title"
-                className="mt-1 text-lg font-bold leading-tight tracking-tight text-stone-800"
+                className="mt-1 font-serif text-xl font-semibold leading-tight text-stone-800"
               >
                 {title}
               </h2>
@@ -245,42 +270,69 @@ export function IntelligentDoseModal({
               <X className="h-4 w-4" />
             </button>
           </div>
+        </div>
 
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain p-4">
           {balance ? (
-            <div
-              className={cn(
-                "mt-3 rounded-2xl px-3 py-2",
-                balance.labelKey === "excellent"
-                  ? "bg-emerald-50 ring-1 ring-emerald-100"
-                  : balance.labelKey === "good"
-                    ? "bg-amber-50 ring-1 ring-amber-100"
-                    : "bg-rose-50 ring-1 ring-rose-100"
-              )}
-            >
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                <span className={hoySectionLabelClass}>
-                  {t.has("intelligentDoseBalanceEyebrow")
-                    ? t("intelligentDoseBalanceEyebrow")
-                    : "Balance del día"}
-                </span>
-                <span className="text-[11px] font-bold tabular-nums text-stone-800">
-                  {t.has("intelligentDoseBalanceScore")
-                    ? t("intelligentDoseBalanceScore", { score: balance.score })
-                    : `Nivel de balance: ${balance.score}/100`}{" "}
-                  {balance.score >= 80 ? "🌟" : balance.emoji}
-                </span>
-                <span className="text-[10px] font-semibold text-stone-600">
-                  {balanceLabel} {balance.emoji}
-                </span>
+            <div className="rounded-2xl border border-stone-100 bg-white p-3.5 shadow-sm shadow-stone-200/40">
+              <div className="flex items-center gap-3">
+                <DoseRingMini score={balance.score} />
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-stone-400">
+                    {t.has("intelligentDoseBalanceEyebrow")
+                      ? t("intelligentDoseBalanceEyebrow")
+                      : "Balance del día"}
+                  </p>
+                  <p className="mt-0.5 text-sm font-bold text-stone-800">
+                    {balance.score}/100
+                    <span className="ml-2 rounded-full bg-[#FDF3E3] px-2 py-0.5 text-[10px] font-bold text-[#8A6A1F]">
+                      {balanceLabel}
+                    </span>
+                  </p>
+                  {context?.nutritionGoals?.isComplete ? (
+                    <p className="mt-0.5 text-[11px] text-stone-500">
+                      {t.has("intelligentDoseVsTarget")
+                        ? t("intelligentDoseVsTarget", {
+                            consumed: macros?.totalCalories ?? 0,
+                            target: balance.calorieTarget
+                          })
+                        : `${macros?.totalCalories ?? 0} / ${balance.calorieTarget} kcal meta`}
+                    </p>
+                  ) : null}
+                </div>
               </div>
-              {context?.nutritionGoals?.isComplete ? (
-                <p className="mt-1 text-[10px] font-medium text-stone-500">
-                  {t.has("intelligentDoseVsTarget")
-                    ? t("intelligentDoseVsTarget", {
-                        consumed: macros?.totalCalories ?? 0,
-                        target: balance.calorieTarget
-                      })
-                    : `${macros?.totalCalories ?? 0} / ${balance.calorieTarget} kcal meta`}
+
+              {balance.calorieWarning ? (
+                <p className="mt-2.5 rounded-xl border border-stone-100 bg-stone-50 px-2.5 py-2 text-[10px] font-medium leading-snug text-stone-600">
+                  {balance.calorieWarning === "low"
+                    ? t.has("intelligentDoseCalorieWarnLow")
+                      ? t("intelligentDoseCalorieWarnLow", {
+                          target: balance.calorieTarget
+                        })
+                      : `Vas por debajo del 60% de tu meta (~${balance.calorieTarget} kcal). Suma comida sólida.`
+                    : balance.calorieWarning === "below"
+                      ? t.has("intelligentDoseCalorieWarnBelow")
+                        ? t("intelligentDoseCalorieWarnBelow", {
+                            consumed: macros?.totalCalories ?? 0,
+                            target: balance.calorieTarget,
+                            remaining: Math.max(
+                              0,
+                              balance.calorieTarget - (macros?.totalCalories ?? 0)
+                            )
+                          })
+                        : `Estás por debajo de tu meta (~${macros?.totalCalories ?? 0} / ${balance.calorieTarget} kcal). Te faltan ~${Math.max(0, balance.calorieTarget - (macros?.totalCalories ?? 0))} kcal.`
+                      : balance.calorieWarning === "above"
+                        ? t.has("intelligentDoseCalorieWarnAbove")
+                          ? t("intelligentDoseCalorieWarnAbove", {
+                              consumed: macros?.totalCalories ?? 0,
+                              target: balance.calorieTarget
+                            })
+                          : `Estás por encima de tu meta (~${macros?.totalCalories ?? 0} / ${balance.calorieTarget} kcal).`
+                        : t.has("intelligentDoseCalorieWarnHigh")
+                          ? t("intelligentDoseCalorieWarnHigh", {
+                              target: balance.calorieTarget
+                            })
+                          : `Superaste el 130% de tu meta (~${balance.calorieTarget} kcal). Revisa porciones.`}
                 </p>
               ) : null}
             </div>
@@ -290,74 +342,31 @@ export function IntelligentDoseModal({
             <NutritionProfileCallout variant="modal" onNavigate={onClose} />
           ) : null}
 
-          {balance?.calorieWarning ? (
-            <p
-              className={cn(
-                "mt-2 rounded-xl px-2.5 py-1.5 text-[10px] font-medium leading-snug",
-                balance.calorieWarning === "low" || balance.calorieWarning === "below"
-                  ? "bg-amber-50 text-amber-950 ring-1 ring-amber-100"
-                  : "bg-rose-50 text-rose-900 ring-1 ring-rose-100"
-              )}
-            >
-              {balance.calorieWarning === "low"
-                ? t.has("intelligentDoseCalorieWarnLow")
-                  ? t("intelligentDoseCalorieWarnLow", {
-                      target: balance.calorieTarget
-                    })
-                  : `Vas por debajo del 60% de tu meta (~${balance.calorieTarget} kcal). Suma comida sólida.`
-                : balance.calorieWarning === "below"
-                  ? t.has("intelligentDoseCalorieWarnBelow")
-                    ? t("intelligentDoseCalorieWarnBelow", {
-                        consumed: macros?.totalCalories ?? 0,
-                        target: balance.calorieTarget,
-                        remaining: Math.max(
-                          0,
-                          balance.calorieTarget - (macros?.totalCalories ?? 0)
-                        )
-                      })
-                    : `Estás por debajo de tu meta (~${macros?.totalCalories ?? 0} / ${balance.calorieTarget} kcal). Te faltan ~${Math.max(0, balance.calorieTarget - (macros?.totalCalories ?? 0))} kcal.`
-                  : balance.calorieWarning === "above"
-                    ? t.has("intelligentDoseCalorieWarnAbove")
-                      ? t("intelligentDoseCalorieWarnAbove", {
-                          consumed: macros?.totalCalories ?? 0,
-                          target: balance.calorieTarget
-                        })
-                      : `Estás por encima de tu meta (~${macros?.totalCalories ?? 0} / ${balance.calorieTarget} kcal).`
-                    : t.has("intelligentDoseCalorieWarnHigh")
-                      ? t("intelligentDoseCalorieWarnHigh", {
-                          target: balance.calorieTarget
-                        })
-                      : `Superaste el 130% de tu meta (~${balance.calorieTarget} kcal). Revisa porciones.`}
-            </p>
-          ) : null}
-
           {macros && macros.mealCount > 0 ? (
-            <div className="mt-2 flex flex-wrap gap-1">
-              <MacroChip label={`${macros.totalCalories} kcal 🔥`} />
-              <MacroChip label={`${macros.totalProtein}g Prot 🥩`} />
+            <div className="flex flex-wrap gap-1.5">
+              <MacroChip label={`🔥 ${macros.totalCalories} kcal`} />
+              <MacroChip label={`🥩 ${macros.totalProtein}g Prot`} />
               {macros.totalCarbs > 0 ? (
                 <MacroChip label={`${macros.totalCarbs}g Carb`} />
               ) : null}
               {macros.totalFat > 0 ? <MacroChip label={`${macros.totalFat}g Grasas`} /> : null}
             </div>
           ) : null}
-        </div>
 
-        <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain px-4 py-3 sm:px-5">
           {isLoading && !report ? (
             <div className="flex items-center justify-center gap-2 py-8 text-[11px] text-stone-500">
-              <Loader2 className="h-3.5 w-3.5 animate-spin text-[#556B2F]" />
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-[#3E5A3A]" />
               {t.has("smartDoseLoading") ? t("smartDoseLoading") : "Preparando tu dosis…"}
             </div>
           ) : null}
 
           {report && !report.hasPlanData ? (
-            <div className="space-y-3 rounded-2xl border border-dashed border-amber-200/80 bg-amber-50/50 px-3.5 py-4 text-center">
-              <p className="text-[11px] leading-snug text-stone-600">{report.previewHeadline}</p>
+            <div className="space-y-3 rounded-2xl border border-dashed border-stone-200 bg-white px-3.5 py-4 text-center shadow-sm">
+              <p className="text-[12px] leading-snug text-stone-600">{report.previewHeadline}</p>
               <Link
                 href={APP_ROUTES.plan}
                 onClick={onClose}
-                className="inline-flex items-center justify-center rounded-full bg-[#556B2F] px-3.5 py-2 text-[11px] font-semibold text-white transition hover:brightness-105"
+                className="inline-flex items-center justify-center rounded-xl bg-[#3E5A3A] px-3.5 py-2 text-[11px] font-semibold text-white transition hover:bg-[#2D432A]"
               >
                 {t.has("intelligentDoseAddMealsCta")
                   ? t("intelligentDoseAddMealsCta")
@@ -367,38 +376,40 @@ export function IntelligentDoseModal({
           ) : null}
 
           {report?.hasPlanData ? (
-            <ul className="space-y-2">
+            <ul className="space-y-2.5">
               <InsightCard
+                icon="☀️"
                 label={
                   t.has("intelligentDoseHighlightFriendly")
                     ? t("intelligentDoseHighlightFriendly")
-                    : "🌟 Tu estrella de hoy"
+                    : "Tu estrella de hoy"
                 }
               >
                 <RichDoseBody text={report.highlight} />
               </InsightCard>
               <InsightCard
+                icon="💡"
                 label={
                   t.has("intelligentDoseImproveFriendly")
                     ? t("intelligentDoseImproveFriendly")
-                    : "💡 Oportunidad para crecer"
+                    : "Oportunidad para crecer"
                 }
               >
                 <RichDoseBody text={report.improve} />
               </InsightCard>
               <InsightCard
-                emphasized
+                icon="🎯"
                 label={
                   t.has("intelligentDoseActionFriendly")
                     ? t("intelligentDoseActionFriendly")
-                    : "🎯 Tu reto para mañana"
+                    : "Tu reto para mañana"
                 }
               >
                 <RichDoseBody text={report.action} />
                 {resolveSuggestedRecipe(report, context) ? (
                   alreadyGenerated ? (
-                    <p className="mt-2.5 inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-emerald-50 px-3 py-2 text-[10px] font-semibold text-emerald-800 ring-1 ring-emerald-100">
-                      <Check className="h-3 w-3" />
+                    <p className="mt-2.5 inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-stone-100 bg-stone-50 px-3 py-2 text-[10px] font-semibold text-stone-600">
+                      <Check className="h-3 w-3 text-[#3E5A3A]" />
                       {t.has("intelligentDoseGenerateDone")
                         ? t("intelligentDoseGenerateDone")
                         : "Ya generaste la receta sugerida para mañana"}
@@ -407,12 +418,13 @@ export function IntelligentDoseModal({
                     <button
                       type="button"
                       onClick={handleGenerateSuggested}
-                      className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-full bg-[#556B2F] px-3.5 py-2.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-[#3e5219]"
+                      className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#3E5A3A] px-3.5 py-2.5 text-[11px] font-bold text-white shadow-sm transition hover:bg-[#2D432A]"
                     >
-                      <Sparkles className="h-3.5 w-3.5" />
+                      <Target className="h-3.5 w-3.5" strokeWidth={1.75} />
+                      <Sparkles className="h-3.5 w-3.5" strokeWidth={1.75} />
                       {t.has("intelligentDoseGenerateCta")
-                        ? t("intelligentDoseGenerateCta")
-                        : "✨ Generar receta sugerida para mañana"}
+                        ? t("intelligentDoseGenerateCta").replace(/✨/g, "").trim()
+                        : "Generar receta sugerida para mañana"}
                     </button>
                   )
                 ) : null}

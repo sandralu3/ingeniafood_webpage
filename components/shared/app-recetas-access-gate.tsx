@@ -15,7 +15,8 @@ import { APP_ROUTES } from "@/lib/navigation/app-routes";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import {
   clearStashedReferralCode,
-  readStashedReferralCode
+  readStashedReferralCode,
+  stashReferralCodeFromUrl
 } from "@/lib/referral/referral";
 import { Header } from "@/components/shared/header";
 import { BottomNav } from "@/components/shared/bottom-nav";
@@ -220,11 +221,45 @@ export function AppRecetasAccessGate({ children }: { children: React.ReactNode }
     void prefetchHoyPageData({ userId: authenticatedUserId });
     void prefetchInstagramCatalog();
 
-    const referralCode = readStashedReferralCode();
-    if (!referralCode) return;
-    // Referral stash cleared without credit awards (subscription model).
-    clearStashedReferralCode();
-  }, [authState, authenticatedUserId]);
+    let cancelled = false;
+
+    const captureReferralFromUrl = async () => {
+      // Captura ?ref= también con sesión ya iniciada (usuarios existentes / testers).
+      if (typeof window !== "undefined" && window.location.search.includes("ref=")) {
+        stashReferralCodeFromUrl(window.location.search);
+        const params = new URLSearchParams(window.location.search);
+        params.delete("ref");
+        const nextQuery = params.toString();
+        const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}${window.location.hash}`;
+        window.history.replaceState({}, "", nextUrl);
+      }
+
+      const referralCode = readStashedReferralCode();
+      if (!referralCode) return;
+
+      try {
+        const response = await fetch("/api/premium/attach-referral", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ref: referralCode })
+        });
+        if (!cancelled && response.ok) {
+          window.dispatchEvent(new Event("ingeniafood:premium-changed"));
+        }
+      } catch {
+        // El stash se limpia igual.
+      } finally {
+        if (!cancelled) clearStashedReferralCode();
+      }
+    };
+
+    void captureReferralFromUrl();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authState, authenticatedUserId, pathname]);
 
   useEffect(() => {
     if (authState !== "authenticated" || !authenticatedUserId) return;

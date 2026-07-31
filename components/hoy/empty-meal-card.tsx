@@ -1,11 +1,27 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type MouseEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type MouseEvent,
+  type ReactNode
+} from "react";
 import Link from "next/link";
-import { Loader2, Plus, Sparkles, UtensilsCrossed } from "lucide-react";
+import {
+  Coffee,
+  Leaf,
+  Loader2,
+  Moon,
+  Plus,
+  Sparkles,
+  UtensilsCrossed,
+  type LucideIcon
+} from "lucide-react";
 import { useTranslations } from "next-intl";
 import { SuggestionRecipeDetailModal } from "@/components/hoy/suggestion-recipe-detail-modal";
-import { PremiumUpgradeDialog } from "@/components/premium/premium-upgrade-dialog";
 import { usePremium } from "@/hooks/use-premium";
 import type { MealType } from "@/lib/plan/constants";
 import { assignRecipeToPlan } from "@/lib/plan/plan-service";
@@ -23,25 +39,10 @@ import {
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
 import { cn } from "@/lib/utils";
 
-const SLOT_STYLE: Record<
-  MealType,
-  { emoji: string; gradient: string; accent: string }
-> = {
-  Desayuno: {
-    emoji: "🥣",
-    gradient: "from-amber-50 via-orange-50/80 to-amber-100/60",
-    accent: "text-amber-900"
-  },
-  Almuerzo: {
-    emoji: "🥗",
-    gradient: "from-emerald-50 via-lime-50/70 to-teal-50/80",
-    accent: "text-emerald-950"
-  },
-  Cena: {
-    emoji: "🍲",
-    gradient: "from-stone-50 via-orange-50/50 to-rose-50/60",
-    accent: "text-stone-800"
-  }
+const SLOT_ICON: Record<MealType, LucideIcon> = {
+  Desayuno: Coffee,
+  Almuerzo: Leaf,
+  Cena: Moon
 };
 
 type EmptyMealCardProps = {
@@ -86,75 +87,108 @@ async function fetchSuggestion(params: {
   return payload.suggestion;
 }
 
-function FreeEmptyMealCard({
+function MealSlotShell({
   mealType,
   slotLabel,
   className,
-  onUnlockPremium
+  children,
+  as: Comp = "div",
+  href,
+  onClick,
+  role,
+  tabIndex,
+  onKeyDown
 }: {
   mealType: MealType;
   slotLabel: string;
   className?: string;
-  onUnlockPremium: () => void;
+  children: ReactNode;
+  as?: "div" | typeof Link;
+  href?: string;
+  onClick?: () => void;
+  role?: string;
+  tabIndex?: number;
+  onKeyDown?: (event: KeyboardEvent) => void;
 }) {
-  const t = useTranslations("Hoy");
-  const style = SLOT_STYLE[mealType];
-  const fallbackPrompt = t.has("emptyMealPrompt")
-    ? t("emptyMealPrompt", { meal: slotLabel })
-    : `¿Qué comerás en el ${slotLabel}?`;
-  const hint = t.has("emptyMealHint") ? t("emptyMealHint") : "Toca para planificar";
-  const addChip = t.has("emptyMealAddSlotCta")
-    ? t("emptyMealAddSlotCta", { meal: slotLabel })
-    : `+ Añadir ${slotLabel}`;
-  const aiBadge = t.has("emptyMealAiBadge")
-    ? t("emptyMealAiBadge")
-    : "Idea Pro 👑";
+  const Icon = SLOT_ICON[mealType];
+  const shared = cn(
+    "relative flex h-full w-full flex-col rounded-2xl border border-slate-100 bg-white p-3 shadow-sm transition hover:border-slate-200 hover:shadow-md",
+    className
+  );
 
-  return (
-    <div
-      className={cn(
-        "relative flex h-full w-full flex-col overflow-hidden rounded-lg border border-white/70 bg-gradient-to-br p-1.5 shadow-sm",
-        style.gradient,
-        className
-      )}
-    >
-      <div className="flex items-center justify-between gap-1">
-        <span className="text-base leading-none" aria-hidden>
-          {style.emoji}
-        </span>
-        <span className="rounded bg-white/80 px-1 py-0.5 text-[7px] font-bold uppercase tracking-[0.08em] text-stone-600">
+  const body = (
+    <>
+      <div className="flex items-center gap-1.5">
+        <Icon className="h-4 w-4 shrink-0 text-slate-400" strokeWidth={1.75} aria-hidden />
+        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
           {slotLabel}
         </span>
       </div>
+      <div className="mt-2 flex min-h-0 flex-1 flex-col">{children}</div>
+    </>
+  );
 
-      <p className={cn("mt-1 line-clamp-2 text-[10px] font-bold leading-snug", style.accent)}>
-        {fallbackPrompt}
-      </p>
-      <p className="mt-0.5 line-clamp-1 text-[9px] font-medium text-stone-500">{hint}</p>
+  if (Comp === Link && href) {
+    return (
+      <Link href={href} className={shared}>
+        {body}
+      </Link>
+    );
+  }
 
-      <div className="mt-auto flex flex-wrap items-center gap-1 pt-1">
-        <Link
-          href={APP_ROUTES.plan}
-          className="inline-flex w-fit items-center gap-0.5 rounded-md bg-white/90 px-1.5 py-0.5 text-[9px] font-semibold text-[#3e5219] ring-1 ring-[#556B2F]/15 transition hover:bg-white"
-        >
-          <Plus className="h-2.5 w-2.5" strokeWidth={2.5} />
-          {addChip}
-        </Link>
-        <button
-          type="button"
-          onClick={onUnlockPremium}
-          className="inline-flex w-fit items-center gap-0.5 rounded-md bg-amber-50/95 px-1.5 py-0.5 text-[8px] font-bold text-amber-900 ring-1 ring-amber-100 transition hover:bg-amber-100/90"
-          aria-label={
-            t.has("emptyMealAiBadgeAria")
-              ? t("emptyMealAiBadgeAria")
-              : "Desbloquear sugerencias inteligentes con Premium"
-          }
-        >
-          <Sparkles className="h-2.5 w-2.5" />
-          {aiBadge}
-        </button>
-      </div>
+  return (
+    <div
+      role={role}
+      tabIndex={tabIndex}
+      onClick={onClick}
+      onKeyDown={onKeyDown}
+      className={shared}
+    >
+      {body}
     </div>
+  );
+}
+
+function PlanificarButton({
+  label,
+  className
+}: {
+  label: string;
+  className?: string;
+}) {
+  return (
+    <span
+      className={cn(
+        "inline-flex w-fit items-center gap-1 rounded-xl bg-[#2D3A20] px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm",
+        className
+      )}
+    >
+      <Plus className="h-3 w-3" strokeWidth={2.5} />
+      {label}
+    </span>
+  );
+}
+
+function FreeEmptyMealCard({
+  mealType,
+  slotLabel,
+  className
+}: {
+  mealType: MealType;
+  slotLabel: string;
+  className?: string;
+}) {
+  const t = useTranslations("Hoy");
+  const planLabel = t.has("emptyMealPlanChip") ? t("emptyMealPlanChip") : "Planificar";
+
+  return (
+    <MealSlotShell mealType={mealType} slotLabel={slotLabel} className={className}>
+      <div className="mt-auto">
+        <Link href={APP_ROUTES.plan} className="w-fit">
+          <PlanificarButton label={planLabel} />
+        </Link>
+      </div>
+    </MealSlotShell>
   );
 }
 
@@ -171,17 +205,14 @@ export function EmptyMealCard({
   const t = useTranslations("Hoy");
   const {
     isPremium,
-    isLoading: isPremiumLoading,
-    refresh: refreshPremium
+    isLoading: isPremiumLoading
   } = usePremium();
   const premiumReady = Boolean(isPremium && !isPremiumLoading);
-  const style = SLOT_STYLE[mealType];
   const [suggestion, setSuggestion] = useState<MealSuggestion | null>(null);
   const [isLoading, setIsLoading] = useState(Boolean(userId) && premiumReady);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
-  const [paywallOpen, setPaywallOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const seenIdsRef = useRef<string[]>([...excludeRecipeIds]);
   const remainingMacrosRef = useRef(remainingMacros);
@@ -193,7 +224,7 @@ export function EmptyMealCard({
   const notifyAdded = useCallback(() => {
     const message = t.has("emptyMealAddedToast")
       ? t("emptyMealAddedToast", { meal: slotLabel })
-      : `¡Añadido a tu ${slotLabel} de hoy! 🎉`;
+      : `¡Añadido a tu ${slotLabel} de hoy!`;
     onAddSuccess?.(message);
   }, [onAddSuccess, slotLabel, t]);
 
@@ -365,40 +396,22 @@ export function EmptyMealCard({
     setDetailOpen(true);
   };
 
-  const addLabel = t.has("emptyMealAddCta") ? t("emptyMealAddCta") : "Añadir al plan";
-  const planChip = t.has("emptyMealPlanChip") ? t("emptyMealPlanChip") : "Planificar";
-  const fallbackPrompt = t.has("emptyMealPrompt")
-    ? t("emptyMealPrompt", { meal: slotLabel })
-    : `¿Qué comerás en el ${slotLabel}?`;
-  const hint = t.has("emptyMealHint") ? t("emptyMealHint") : "Toca para planificar";
+  const addLabel = t.has("emptyMealAddCta") ? t("emptyMealAddCta") : "Añadir";
+  const planLabel = t.has("emptyMealPlanChip") ? t("emptyMealPlanChip") : "Planificar";
 
   if (!userId) {
     return (
-      <Link
+      <MealSlotShell
+        mealType={mealType}
+        slotLabel={slotLabel}
+        className={className}
+        as={Link}
         href={APP_ROUTES.plan}
-        className={cn(
-          "group flex h-full w-full flex-col overflow-hidden rounded-lg border border-white/70 bg-gradient-to-br p-1.5 shadow-sm transition hover:shadow-md",
-          style.gradient,
-          className
-        )}
       >
-        <div className="flex items-center justify-between gap-1">
-          <span className="text-base leading-none" aria-hidden>
-            {style.emoji}
-          </span>
-          <span className="rounded bg-white/80 px-1 py-0.5 text-[7px] font-bold uppercase tracking-[0.08em] text-stone-600">
-            {slotLabel}
-          </span>
+        <div className="mt-auto">
+          <PlanificarButton label={planLabel} />
         </div>
-        <p className={cn("mt-1 line-clamp-2 text-[10px] font-bold leading-snug", style.accent)}>
-          {fallbackPrompt}
-        </p>
-        <p className="mt-0.5 line-clamp-1 text-[9px] font-medium text-stone-500">{hint}</p>
-        <span className="mt-auto inline-flex w-fit items-center gap-0.5 rounded-md bg-white/90 px-1.5 py-0.5 text-[9px] font-semibold text-[#3e5219] ring-1 ring-[#556B2F]/15">
-          <Plus className="h-2.5 w-2.5" strokeWidth={2.5} />
-          {planChip}
-        </span>
-      </Link>
+      </MealSlotShell>
     );
   }
 
@@ -406,50 +419,33 @@ export function EmptyMealCard({
     return (
       <div
         className={cn(
-          "flex h-full w-full flex-col overflow-hidden rounded-lg border border-white/70 bg-gradient-to-br p-1 shadow-sm",
-          style.gradient,
+          "flex h-full w-full animate-pulse flex-col rounded-2xl border border-slate-100 bg-white p-3 shadow-sm",
           className
         )}
       >
-        <div className="flex flex-1 flex-col gap-1 animate-pulse">
-          <div className="h-3.5 w-12 rounded bg-white/55" />
-          <div className="h-12 rounded-md bg-white/55" />
-          <div className="h-2.5 w-4/5 rounded bg-white/60" />
-          <div className="mt-auto h-5 w-16 rounded bg-white/70" />
-        </div>
+        <div className="h-3 w-16 rounded bg-slate-100" />
+        <div className="mt-3 h-8 rounded bg-slate-100" />
+        <div className="mt-auto h-7 w-20 rounded-xl bg-slate-100" />
       </div>
     );
   }
 
   if (!premiumReady) {
     return (
-      <>
-        <FreeEmptyMealCard
-          mealType={mealType}
-          slotLabel={slotLabel}
-          className={className}
-          onUnlockPremium={() => setPaywallOpen(true)}
-        />
-        <PremiumUpgradeDialog
-          open={paywallOpen}
-          onClose={() => setPaywallOpen(false)}
-          onUpgraded={() => {
-            setPaywallOpen(false);
-            void refreshPremium();
-          }}
-          featureLabel={
-            t.has("emptyMealPaywallFeature")
-              ? t("emptyMealPaywallFeature")
-              : "Desbloquea sugerencias inteligentes de recetas"
-          }
-        />
-      </>
+      <FreeEmptyMealCard
+        mealType={mealType}
+        slotLabel={slotLabel}
+        className={className}
+      />
     );
   }
 
   return (
     <>
-      <div
+      <MealSlotShell
+        mealType={mealType}
+        slotLabel={slotLabel}
+        className={cn(suggestion && "cursor-pointer", className)}
         role={suggestion ? "button" : undefined}
         tabIndex={suggestion ? 0 : undefined}
         onClick={suggestion ? handleOpenDetail : undefined}
@@ -463,19 +459,13 @@ export function EmptyMealCard({
               }
             : undefined
         }
-        className={cn(
-          "relative flex h-full w-full flex-col overflow-hidden rounded-lg border border-white/70 bg-gradient-to-br p-1 shadow-sm outline-none",
-          style.gradient,
-          suggestion && "cursor-pointer transition hover:shadow-md",
-          className
-        )}
       >
-        <div className="absolute right-1 top-1 z-10">
+        <div className="absolute right-2.5 top-2.5 z-10">
           <button
             type="button"
             onClick={(event) => void handleRefresh(event)}
             disabled={isRefreshing || isLoading || isAdding}
-            className="flex h-5 w-5 items-center justify-center rounded-full bg-white/95 text-[#556B2F] shadow-sm ring-1 ring-[#556B2F]/15 transition hover:bg-white disabled:opacity-60"
+            className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-50 text-[#556B2F] transition hover:bg-slate-100 disabled:opacity-60"
             aria-label={
               t.has("emptyMealRefreshAria")
                 ? t("emptyMealRefreshAria")
@@ -483,110 +473,73 @@ export function EmptyMealCard({
             }
           >
             {isRefreshing ? (
-              <Loader2 className="h-2.5 w-2.5 animate-spin" />
+              <Loader2 className="h-3 w-3 animate-spin" />
             ) : (
-              <Sparkles className="h-2.5 w-2.5" />
+              <Sparkles className="h-3 w-3" strokeWidth={1.75} />
             )}
           </button>
         </div>
 
         {isLoading || (isRefreshing && !suggestion) ? (
-          <div className="flex flex-1 flex-col gap-1 animate-pulse">
-            <div className="h-12 rounded-md bg-white/55" />
-            <div className="h-2.5 w-4/5 rounded bg-white/60" />
-            <div className="mt-auto h-5 w-full rounded bg-white/70" />
+          <div className="flex flex-1 animate-pulse flex-col gap-2">
+            <div className="h-4 w-4/5 rounded bg-slate-100" />
+            <div className="mt-auto h-7 w-16 rounded-xl bg-slate-100" />
           </div>
         ) : suggestion ? (
-          <>
-            <div className="relative h-12 shrink-0 overflow-hidden rounded-md bg-white/40">
-              {suggestion.imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={suggestion.imageUrl}
-                  alt={suggestion.title}
-                  className={cn(
-                    "h-full w-full object-cover transition duration-300",
-                    isRefreshing && "opacity-50"
-                  )}
-                  loading="lazy"
-                />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center">
-                  <span className="text-lg" aria-hidden>
-                    {style.emoji}
-                  </span>
-                </div>
+          <div className="flex min-h-0 flex-1 flex-col justify-between gap-2 pr-5">
+            <p
+              className={cn(
+                "line-clamp-2 text-[13px] font-semibold leading-snug text-slate-800",
+                isRefreshing && "opacity-60"
               )}
-              <span className="absolute left-1 top-1 rounded bg-white/90 px-1 py-0.5 text-[7px] font-bold uppercase tracking-[0.08em] text-stone-700 shadow-sm">
-                {slotLabel}
-              </span>
-              {isRefreshing ? (
-                <div className="absolute inset-0 flex items-center justify-center bg-white/35 backdrop-blur-[1px]">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin text-[#556B2F]" />
-                </div>
-              ) : null}
-            </div>
-
-            <div className="flex min-h-0 flex-1 flex-col justify-between gap-0.5 px-0.5 pt-1">
-              <p
-                className={cn(
-                  "line-clamp-2 text-[10px] font-bold leading-snug",
-                  style.accent,
-                  isRefreshing && "opacity-60"
-                )}
-              >
-                {suggestion.title}
-              </p>
-
-              <div className="flex items-center gap-1">
-                {suggestion.kcal != null ? (
-                  <span className="text-[8px] font-semibold tabular-nums text-stone-500">
-                    {suggestion.kcal} kcal
-                  </span>
-                ) : null}
-                <button
-                  type="button"
-                  onClick={(event) => void handleAddToPlan(event)}
-                  disabled={isAdding || isRefreshing}
-                  className="ml-auto inline-flex shrink-0 items-center gap-0.5 rounded-md bg-[#556B2F] px-1.5 py-0.5 text-[9px] font-semibold text-white shadow-sm transition hover:bg-[#3e5219] disabled:opacity-60"
-                >
-                  {isAdding ? (
-                    <Loader2 className="h-2.5 w-2.5 animate-spin" />
-                  ) : (
-                    <Plus className="h-2.5 w-2.5" strokeWidth={2.5} />
-                  )}
-                  {isAdding
-                    ? t.has("emptyMealAdding")
-                      ? t("emptyMealAdding")
-                      : "…"
-                    : addLabel}
-                </button>
-              </div>
-            </div>
-          </>
-        ) : (
-          <div className="flex flex-1 flex-col">
-            <div className="flex h-12 items-center justify-center rounded-md bg-white/45">
-              <UtensilsCrossed className="h-4 w-4 text-stone-400" />
-            </div>
-            <p className={cn("mt-1 line-clamp-2 px-0.5 text-[10px] font-bold leading-snug", style.accent)}>
-              {fallbackPrompt}
+            >
+              {suggestion.title}
             </p>
+            <div className="flex items-center gap-2">
+              {suggestion.kcal != null ? (
+                <span className="text-[10px] font-medium tabular-nums text-slate-400">
+                  {suggestion.kcal} kcal
+                </span>
+              ) : null}
+              <button
+                type="button"
+                onClick={(event) => void handleAddToPlan(event)}
+                disabled={isAdding || isRefreshing}
+                className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-xl bg-[#2D3A20] px-2.5 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-[#243018] disabled:opacity-60"
+              >
+                {isAdding ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Plus className="h-3 w-3" strokeWidth={2.5} />
+                )}
+                {isAdding
+                  ? t.has("emptyMealAdding")
+                    ? t("emptyMealAdding")
+                    : "…"
+                  : addLabel}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-auto flex flex-col gap-2">
+            <div className="flex items-center gap-1.5 text-slate-400">
+              <UtensilsCrossed className="h-3.5 w-3.5" strokeWidth={1.5} />
+              <span className="text-[11px] text-slate-500">Sin sugerencia</span>
+            </div>
             <Link
               href={APP_ROUTES.plan}
               onClick={(event) => event.stopPropagation()}
-              className="mt-auto inline-flex w-fit items-center gap-0.5 rounded-md bg-white/90 px-1.5 py-0.5 text-[9px] font-semibold text-[#3e5219] ring-1 ring-[#556B2F]/15"
+              className="w-fit"
             >
-              <Plus className="h-2.5 w-2.5" strokeWidth={2.5} />
-              {planChip}
+              <PlanificarButton label={planLabel} />
             </Link>
           </div>
         )}
 
         {error ? (
-          <p className="line-clamp-1 px-0.5 text-[8px] font-medium text-rose-700">{error}</p>
+          <p className="mt-1 line-clamp-1 text-[10px] font-medium text-rose-600">{error}</p>
         ) : null}
-      </div>
+      </MealSlotShell>
 
       <SuggestionRecipeDetailModal
         open={detailOpen}

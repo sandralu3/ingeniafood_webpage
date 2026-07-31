@@ -90,6 +90,7 @@ type ApiPayload = {
   imageUrl?: string | null;
   imageGenerationError?: string;
   dishPhotoPending?: boolean;
+  dishPhotoBlockedReason?: string;
   savedRecipeId?: string | null;
   savedRecipe?: { id: string } | null;
   mealTypeAdvisory?: string;
@@ -987,6 +988,11 @@ export default function ScannerPage() {
       setRecipe(primary);
       setImageGenerationError(null);
       setIsGeneratingDishPhoto(Boolean(payload.dishPhotoPending));
+      if (payload.dishPhotoBlockedReason === "PHOTO_USED") {
+        setImageGenerationError(
+          "Ya has utilizado tu generación de foto real de prueba. Actualiza a la versión completa para generar fotos ilimitadas."
+        );
+      }
       setAppliedRecipeFilters(
         payload.appliedFilters ?? {
           mealType: mealTypeFilter,
