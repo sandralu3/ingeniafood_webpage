@@ -122,9 +122,7 @@ export function PantrySearchView({
   const hasBottomNav = pathname.startsWith("/app-recetas");
   const selectedCount = selectedIngredients.length;
   const hasSelection = selectedCount > 0;
-  const scrollBottomPaddingClass = hasBottomNav
-    ? "pb-[calc(var(--app-scan-footer-height)+0.75rem)]"
-    : "pb-28";
+  const scrollBottomPaddingClass = hasBottomNav ? "pb-3" : "pb-6";
 
   useEffect(() => {
     setIsMounted(true);
@@ -346,7 +344,7 @@ export function PantrySearchView({
       >
         {/* Hero Card Dual — compacto */}
         <section className="mb-3 overflow-hidden rounded-[20px] border border-stone-100/80 bg-[#FAF7F2] shadow-sm shadow-stone-200/50">
-          <div className="relative flex min-h-[128px] items-stretch sm:min-h-[136px]">
+          <div className="relative flex min-h-[148px] items-stretch sm:min-h-[156px]">
             <div className="relative z-10 flex w-[48%] min-w-0 flex-col justify-center p-3.5 sm:w-[46%] sm:p-4">
               <h2 className="text-sm font-bold leading-snug tracking-tight text-[#3E5A3A] sm:text-base">
                 <span aria-hidden className="mr-0.5 text-[#C49520]">
@@ -377,12 +375,12 @@ export function PantrySearchView({
                 type="button"
                 onClick={openSourceModal}
                 disabled={isBusy}
-                className="relative mt-2 inline-flex w-fit items-center gap-1.5 rounded-full bg-gradient-to-br from-[#5C7A54] via-[#3E5A3A] to-[#2F452C] px-3 py-1.5 text-xs font-bold leading-none text-white shadow-sm shadow-[#3E5A3A]/25 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:brightness-100"
+                className="relative mt-3 inline-flex w-fit items-center gap-2 rounded-full bg-gradient-to-br from-[#5C7A54] via-[#3E5A3A] to-[#2F452C] px-4 py-2.5 text-sm font-bold leading-none text-white shadow-md shadow-[#3E5A3A]/30 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:brightness-100"
               >
-                <Camera className="h-3 w-3" strokeWidth={2.25} aria-hidden />
+                <Camera className="h-4 w-4" strokeWidth={2.25} aria-hidden />
                 {t.has("scanNowCta") ? t("scanNowCta") : "Escanear ahora"}
                 <Sparkles
-                  className="absolute -right-1 -top-1 h-3 w-3 text-[#C49520]"
+                  className="absolute -right-1.5 -top-1.5 h-3.5 w-3.5 text-[#C49520]"
                   strokeWidth={2.25}
                   aria-hidden
                 />
@@ -407,7 +405,7 @@ export function PantrySearchView({
             </div>
           </div>
 
-          <div className="grid grid-cols-3 divide-x divide-stone-200/80 border-t border-stone-100 bg-white px-0.5 py-1">
+          <div className="grid grid-cols-3 divide-x divide-stone-200/80 border-t border-stone-100 bg-white px-0.5 py-2.5">
             {(
               [
                 { key: "detect", Icon: Leaf, label: "Detecta ingredientes" },
@@ -417,10 +415,10 @@ export function PantrySearchView({
             ).map((item) => (
               <div
                 key={item.key}
-                className="flex flex-col items-center justify-center gap-0.5 px-0.5 text-center"
+                className="flex flex-col items-center justify-center gap-1 px-0.5 text-center"
               >
-                <item.Icon className="h-2.5 w-2.5 text-stone-500" strokeWidth={2} aria-hidden />
-                <span className="whitespace-nowrap text-[10px] font-medium leading-none text-stone-500">
+                <item.Icon className="h-3.5 w-3.5 text-stone-500" strokeWidth={2} aria-hidden />
+                <span className="whitespace-nowrap text-[11px] font-medium leading-none text-stone-500">
                   {item.label}
                 </span>
               </div>
@@ -564,6 +562,15 @@ export function PantrySearchView({
             </button>
           </div>
         ) : null}
+
+        {/* Reserva scroll bajo el CTA fijo (créditos + botón) */}
+        <div
+          aria-hidden
+          className="pointer-events-none w-full shrink-0"
+          style={{
+            height: "calc(var(--app-scan-footer-height) + 1.25rem)"
+          }}
+        />
       </div>
 
       {isMounted && scanFooter ? createPortal(scanFooter, document.body) : null}
