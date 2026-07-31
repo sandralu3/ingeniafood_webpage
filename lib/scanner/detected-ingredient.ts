@@ -37,7 +37,9 @@ const EMOJI_BY_KEYWORD: Array<{ match: RegExp; emoji: string }> = [
   { match: /ma[ií]z|corn/, emoji: "🌽" },
   { match: /champi|seta|mushroom/, emoji: "🍄" },
   { match: /aceite|oil/, emoji: "🫒" },
-  { match: /sal\b|salt/, emoji: "🧂" }
+  { match: /sal\b|salt/, emoji: "🧂" },
+  { match: /sopa|soup|caldo/, emoji: "🍲" },
+  { match: /prote[ií]na/, emoji: "🥩" }
 ];
 
 export function emojiForIngredientName(name: string): string {

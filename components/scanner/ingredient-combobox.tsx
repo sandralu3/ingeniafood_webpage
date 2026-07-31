@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { MasterIngredient, PantryCategoryDb } from "@/lib/pantry/types";
 import { isValidCustomIngredientName } from "@/lib/pantry/validation";
@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 type Props = {
   ingredients: MasterIngredient[];
   disabled?: boolean;
+  variant?: "default" | "pantry";
   onSelectIngredient: (ingredient: MasterIngredient) => void;
   onCreateCustomIngredient: (
     name: string,
@@ -26,6 +27,7 @@ const CATEGORY_OPTIONS: { labelKey: "customCategoryProtein" | "customCategoryVeg
 export function IngredientCombobox({
   ingredients,
   disabled = false,
+  variant = "default",
   onSelectIngredient,
   onCreateCustomIngredient
 }: Props) {
@@ -130,6 +132,13 @@ export function IngredientCombobox({
 
   return (
     <div ref={containerRef} className="relative">
+      {variant === "pantry" ? (
+        <Search
+          className="pointer-events-none absolute left-3.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-stone-400"
+          strokeWidth={2}
+          aria-hidden
+        />
+      ) : null}
       <input
         type="text"
         value={query}
@@ -176,17 +185,23 @@ export function IngredientCombobox({
           }
         }}
         placeholder={t("addMorePlaceholder")}
-        className="w-full rounded-xl border border-slate-200/80 bg-white px-3 py-2.5 pr-11 text-xs text-slate-800 shadow-none placeholder:text-slate-400 transition focus:border-[#4D6638]/40 focus:outline-none focus:ring-1 focus:ring-[#4D6638] disabled:opacity-60"
+        className={cn(
+          "w-full text-xs text-stone-800 shadow-none placeholder:text-stone-400 transition focus:outline-none disabled:opacity-60",
+          variant === "pantry"
+            ? "rounded-xl border border-stone-200/60 bg-stone-50 py-2 pl-10 pr-12 focus:border-[#3E5A3A] focus:bg-white focus:ring-1 focus:ring-[#3E5A3A]/25"
+            : "rounded-xl border border-stone-100 bg-[#FAF7F2] px-3 py-2.5 pr-11 focus:border-[#3E5A3A]/40 focus:bg-white focus:ring-1 focus:ring-[#3E5A3A]"
+        )}
       />
       <button
         type="button"
         onClick={handleAddExisting}
         disabled={disabled || isCreating || !canAddExisting}
         className={cn(
-          "absolute right-1 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg transition",
+          "absolute right-1.5 top-1/2 flex -translate-y-1/2 items-center justify-center transition",
+          variant === "pantry" ? "h-7 w-7 rounded-lg" : "h-8 w-8 rounded-lg",
           canAddExisting
-            ? "bg-[#4D6638] text-white hover:bg-[#42572f]"
-            : "cursor-not-allowed bg-slate-100 text-slate-400"
+            ? "bg-[#3E5A3A] text-white hover:bg-[#2D432A]"
+            : "cursor-not-allowed bg-stone-100 text-stone-400"
         )}
         aria-label={t("addValidatedIngredientAria")}
       >

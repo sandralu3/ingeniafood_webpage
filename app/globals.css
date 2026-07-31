@@ -8,7 +8,7 @@
   :root {
     /* Altura visual de BottomNav (sin safe-area; sumar env() en el shell). */
     --app-bottom-nav-height: 5rem;
-    --app-scan-footer-height: 6rem;
+    --app-scan-footer-height: 4.5rem;
   }
 }
 

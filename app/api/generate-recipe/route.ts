@@ -65,6 +65,21 @@ const HEALTHY_NUTRITION_RULE =
   "Si los ingredientes del usuario no permiten un plato tradicional con harina, propón una versión saludable alternativa con lo que SÍ tienen (ej. queso al horno con verduras, tortilla, bowl proteico), sin inventar masas fritas ni rebozados. " +
   "Evita recetas tipo empanada, tequeños, buñuelos o frituras con harina si el usuario no aportó harina.\n\n";
 
+/**
+ * Obliga pasos accionables (tiempos, fuego, técnica) frente a frases genéricas.
+ */
+const DETAILED_STEPS_RULE =
+  "PASOS DE PREPARACIÓN (obligatorio, calidad alta): en pasos_ordenados escribe instrucciones que una persona pueda seguir sin improvisar. " +
+  "PROHIBIDO pasos vagos de una sola frase genérica (ej. \"Cocinar el arroz hasta que esté tierno\", \"Mezclar e integrar\", \"Servir caliente\"). " +
+  "Cada paso DEBE incluir, cuando aplique: (1) utensilio o superficie (olla, sartén, horno, airfryer, bowl); " +
+  "(2) fuego o temperatura (ej. fuego medio, 180 °C, 190 °C airfryer); " +
+  "(3) tiempo aproximado (ej. 8-10 min, 12-15 min); " +
+  "(4) señal de punto o textura (ej. \"hasta que doren\", \"hasta que el arroz absorba el agua y quede al dente\", \"hasta que cuajen sin resecarse\"). " +
+  "Incluye también cortes/preparación previa (lavar, picar en..., escurrir, reservar) y cómo ensamblar/emplatar al final. " +
+  "Usa cantidades concretas del listado de ingredientes cuando ayuden (ej. \"añade 1 cda de pasta de tomate\"). " +
+  "Cada paso: 1-3 oraciones claras en tono imperativo; mínimo 4 pasos por receta salvo que el nivel Fácil indique otro rango, " +
+  "pero incluso en Fácil cada paso debe ser detallado (nunca un resumen superficial).\n\n";
+
 const INGREDIENT_VALIDATION_RULE =
   'Antes de generar cualquier receta, analiza minuciosamente la lista de ingredientes que te envía el usuario. Si detectas que alguno de los textos enviados NO es un ingrediente, condimento, bebida o alimento comestible real (por ejemplo: frases como "esto no es un ingrediente", "eres feo", "zapatos", etc.), debes abortar inmediatamente la creación de la receta y responder ÚNICAMENTE con este objeto JSON: {"error":"ingrediente_invalido","mensaje":"Parece que hay algo en tu despensa que no es un alimento válido. ¡Revisa tus ingredientes seleccionados e inténtalo de nuevo!"}. Si todos los ingredientes son válidos, procede a generar la estructura habitual de la receta en formato JSON.\n\n';
 
@@ -611,6 +626,7 @@ export async function POST(request: Request) {
       languagePromptClause +
       PANTRY_PRIORITY_RULE +
       HEALTHY_NUTRITION_RULE +
+      DETAILED_STEPS_RULE +
       ingredientQuantityRule +
       MACRO_ESTIMATION_RULE +
       `${filtersPromptClause}\n\n${mealTypeCompatibilityClause}\n\n${mealTypePantryClause}\n\n` +

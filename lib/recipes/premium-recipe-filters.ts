@@ -275,21 +275,22 @@ export function buildComplexityPromptClause(complexity: RecipeComplexity): strin
     case "intermedio":
       return (
         "NIVEL DE COMPLEJIDAD (obligatorio): Intermedio. " +
-        "La receta debe exigir algo más de técnica o atención: 4-6 pasos claros, 1-2 técnicas moderadas (saltear, hornear, reducir, montar), " +
+        "La receta debe exigir algo más de técnica o atención: 5-7 pasos detallados (con tiempos, fuego/temperatura y señales de punto), " +
+        "1-2 técnicas moderadas (saltear, hornear, reducir, montar), " +
         "y un tiempo razonable (aprox. 20-40 min). No la hagas trivial ni de chef profesional."
       );
     case "avanzado":
       return (
         "NIVEL DE COMPLEJIDAD (obligatorio): Avanzado. " +
-        "La receta debe ser exigente: 6-9 pasos bien estructurados, técnicas más precisas (temperatura, tiempos, texturas, emplatado), " +
+        "La receta debe ser exigente: 7-10 pasos bien estructurados y muy específicos (temperatura exacta, tiempos, texturas, emplatado), " +
         "y mayor control del proceso. Mantén ingredientes realistas con lo disponible; la dificultad viene de la técnica, no de inventar productos."
       );
     case "facil":
     default:
       return (
         "NIVEL DE COMPLEJIDAD (obligatorio): Fácil. " +
-        "Receta sencilla para cocinar rápido: máximo 3-4 pasos, técnicas básicas (mezclar, saltear ligero, hervir, hornear simple), " +
-        "pocos utensilios y tiempo corto. Evita procesos largos o técnicas avanzadas."
+        "Receta sencilla para cocinar rápido: 4-5 pasos DETALLADOS (no resúmenes), técnicas básicas (mezclar, saltear ligero, hervir, hornear simple), " +
+        "pocos utensilios y tiempo corto. Cada paso sigue incluyendo tiempo, fuego y punto de cocción; evita solo frases genéricas."
       );
   }
 }

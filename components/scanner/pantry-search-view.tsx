@@ -6,23 +6,18 @@ import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { isUnlimitedGenerationsCount } from "@/lib/generations/admin-unlimited";
 import {
-  X,
-  Plus,
-  Check,
-  Egg,
-  Leaf,
   Beef,
   Carrot,
-  Sparkles,
   Package,
-  Bookmark,
-  BookmarkCheck,
-  ChevronRight,
-  Camera
+  Camera,
+  Sparkles,
+  SlidersHorizontal,
+  Leaf,
+  Lightbulb,
+  Clock
 } from "lucide-react";
 import { AdvancedRecipeFilters } from "@/components/scanner/advanced-recipe-filters";
 import { IngredientCombobox } from "@/components/scanner/ingredient-combobox";
-import { PremiumUpgradeDialog } from "@/components/premium/premium-upgrade-dialog";
 import type {
   RecipeCuisineStyle,
   RecipeMealType,
@@ -31,14 +26,21 @@ import type {
 } from "@/lib/recipes/premium-recipe-filters";
 
 import { usePantryData } from "@/hooks/use-pantry-data";
-import { usePremium } from "@/hooks/use-premium";
 import { cn } from "@/lib/utils";
+import { emojiForIngredientName } from "@/lib/scanner/detected-ingredient";
 import {
-  CATEGORY_DB_TO_UI,
+  buildFrequentIngredientCards,
+  getIngredientUsageMap,
+  recordIngredientUsage
+} from "@/lib/pantry/frequent-ingredients";
+import {
   type CategoryKey,
   type MasterIngredient,
   type PantryCategoryDb
 } from "@/lib/pantry/types";
+
+/** Nevera con alimentos — asset local (hero escáner). */
+const PANTRY_HERO_IMAGE = "/images/scanner/pantry-hero-fridge.png";
 
 export type { CategoryKey };
 
@@ -62,34 +64,6 @@ export const PANTRY_CATEGORIES: Record<
     dbCategory: "basicos_despensa"
   }
 };
-
-const CATEGORY_KEYS: CategoryKey[] = ["Proteinas", "Vegetales", "Basicos de Despensa"];
-
-const CATEGORY_TAB_META: Record<
-  CategoryKey,
-  { labelKey: "categoryProteins" | "categoryVegetables" | "categoryBasics"; emoji: string }
-> = {
-  Proteinas: { labelKey: "categoryProteins", emoji: "🥩" },
-  Vegetales: { labelKey: "categoryVegetables", emoji: "🥦" },
-  "Basicos de Despensa": { labelKey: "categoryBasics", emoji: "🌾" }
-};
-
-const QUICK_SUGGESTIONS = [
-  { key: "huevos", label: "Huevos", emoji: "🥚" },
-  { key: "pollo", label: "Pollo", emoji: "🍗" },
-  { key: "tomate", label: "Tomate", emoji: "🍅" },
-  { key: "queso", label: "Queso", emoji: "🧀" },
-  { key: "arroz", label: "Arroz", emoji: "🍚" }
-] as const;
-
-function pillIconFor(name: string) {
-  const n = name.toLowerCase();
-  if (n.includes("egg") || n.includes("huevo")) return Egg;
-  if (n.includes("spinach") || n.includes("espinaca")) return Leaf;
-  if (n.includes("chicken") || n.includes("pollo")) return Beef;
-  if (n.includes("avocado") || n.includes("palta")) return Sparkles;
-  return Leaf;
-}
 
 type Props = {
   selectedIngredients: string[];
@@ -120,7 +94,7 @@ export function PantrySearchView({
   pantryImageFile: _pantryImageFile,
   onPantryImageChange,
   onAddIngredient,
-  onRemoveIngredient,
+  onRemoveIngredient: _onRemoveIngredient,
   onToggleFromCategory,
   onFindRecipes,
   errorMessage,
@@ -139,26 +113,18 @@ export function PantrySearchView({
   onComplexityChange
 }: Props) {
   const t = useTranslations("Scanner");
-  const { isPremium, isPaidPremium, isLoading: isPremiumLoading, refresh: refreshPremium } =
-    usePremium();
-  const [showPremiumPaywall, setShowPremiumPaywall] = useState(false);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const [showSourceModal, setShowSourceModal] = useState(false);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const pathname = usePathname();
   const hasBottomNav = pathname.startsWith("/app-recetas");
   const selectedCount = selectedIngredients.length;
   const hasSelection = selectedCount > 0;
   const scrollBottomPaddingClass = hasBottomNav
-    ? hasSelection
-      ? "pb-[calc(var(--app-scan-footer-height)+0.75rem)]"
-      : "pb-6"
-    : hasSelection
-      ? "pb-28"
-      : "pb-6";
-
-  const canUseDishPhoto = isPaidPremium;
+    ? "pb-[calc(var(--app-scan-footer-height)+0.75rem)]"
+    : "pb-28";
 
   useEffect(() => {
     setIsMounted(true);
@@ -167,34 +133,50 @@ export function PantrySearchView({
   const {
     masterIngredients,
     favorites,
-    favoriteIngredientIds,
     isLoading: isPantryLoading,
     error: pantryError,
-    addFavorite,
-    createCustomIngredient,
-    removeFavorite
+    createCustomIngredient
   } = usePantryData();
 
-  const [activeCategory, setActiveCategory] = useState<CategoryKey | null>(null);
+  const [ingredientUsage, setIngredientUsage] = useState<Record<string, number>>({});
 
-  const masterByName = useMemo(() => {
-    const map = new Map<string, MasterIngredient>();
-    masterIngredients.forEach((item) => map.set(item.name.toLowerCase(), item));
-    return map;
-  }, [masterIngredients]);
+  useEffect(() => {
+    setIngredientUsage(getIngredientUsageMap());
+  }, []);
 
-  const favoritesByCategory = useMemo(() => {
-    const grouped: Record<CategoryKey, typeof favorites> = {
-      Proteinas: [],
-      Vegetales: [],
-      "Basicos de Despensa": []
-    };
-    favorites.forEach((fav) => {
-      const uiCategory = CATEGORY_DB_TO_UI[fav.category];
-      grouped[uiCategory].push(fav);
-    });
-    return grouped;
-  }, [favorites]);
+  const frequentIngredients = useMemo(
+    () =>
+      buildFrequentIngredientCards({
+        favorites,
+        masterIngredients,
+        usage: ingredientUsage,
+        limit: 6
+      }),
+    [favorites, masterIngredients, ingredientUsage]
+  );
+
+  /** Seleccionados (cualquier origen) vs frecuentes aún disponibles (máx. 6). */
+  const selectedChips = useMemo(
+    () =>
+      selectedIngredients.map((name) => ({
+        key: `selected:${name.toLowerCase()}`,
+        name,
+        emoji: emojiForIngredientName(name)
+      })),
+    [selectedIngredients]
+  );
+
+  const availableFrequentChips = useMemo(() => {
+    const selectedKeys = new Set(selectedIngredients.map((n) => n.toLowerCase()));
+    return frequentIngredients
+      .filter((item) => !selectedKeys.has(item.name.toLowerCase()))
+      .slice(0, 6)
+      .map((item) => ({
+        key: item.id,
+        name: item.name,
+        emoji: item.emoji
+      }));
+  }, [frequentIngredients, selectedIngredients]);
 
   const scansExhausted = generationsLeft !== null && generationsLeft <= 0;
 
@@ -246,83 +228,81 @@ export function PantrySearchView({
     [onPantryImageChange]
   );
 
-  const resolveQuickName = useCallback(
-    (suggestion: (typeof QUICK_SUGGESTIONS)[number]) => {
-      const match = masterIngredients.find((item) => {
-        const n = item.name.toLowerCase();
-        return n === suggestion.key || n.includes(suggestion.key);
-      });
-      return match?.name ?? suggestion.label;
-    },
-    [masterIngredients]
-  );
-
-  const handleQuickAdd = useCallback(
-    (suggestion: (typeof QUICK_SUGGESTIONS)[number]) => {
-      const name = resolveQuickName(suggestion);
-      if (!selectedIngredients.some((item) => item.toLowerCase() === name.toLowerCase())) {
-        onAddIngredient(name);
-      }
-    },
-    [onAddIngredient, resolveQuickName, selectedIngredients]
-  );
-
   const handlePrimaryAction = useCallback(() => {
     if (scansExhausted) {
       onGenerationsExhausted?.();
       return;
     }
+    if (selectedIngredients.length > 0) {
+      recordIngredientUsage(selectedIngredients);
+      setIngredientUsage(getIngredientUsageMap());
+    }
     onFindRecipes();
-  }, [onFindRecipes, onGenerationsExhausted, scansExhausted]);
+  }, [onFindRecipes, onGenerationsExhausted, scansExhausted, selectedIngredients]);
 
   const primaryLabel = scansExhausted
     ? "Pruebas gratuitas agotadas"
     : rateLimitSecondsLeft > 0
       ? `Reintentar en ${rateLimitSecondsLeft}s`
-      : t.has("generateWithCount")
-        ? t("generateWithCount", { count: selectedCount })
-        : `✨ Generar Recetas (${selectedCount} ingredientes)`;
+      : t.has("generateWithPantryCta")
+        ? t("generateWithPantryCta")
+        : "Generar receta con mi despensa";
 
-  const scanFooter = hasSelection ? (
+  const scanFooter = (
     <div
       className={cn(
-        "fixed inset-x-0 z-[45] border-t border-stone-200/70 bg-[#FAF9F6]/95 pt-2 shadow-[0_-6px_20px_rgba(0,0,0,0.06)] backdrop-blur-md animate-slide-up",
+        "fixed inset-x-0 z-[45] border-t border-stone-100/60 bg-[#FFF8F1]/95 py-1.5 shadow-[0_-4px_16px_rgba(0,0,0,0.04)] backdrop-blur-md",
         hasBottomNav ? "bottom-[var(--app-bottom-nav-height)]" : "bottom-0"
       )}
     >
-      <div className="mx-auto w-full max-w-md px-4 pb-3">
+      <div className="mx-auto w-full max-w-md px-4">
         {isUnlimitedGenerationsCount(generationsLeft) ? (
-          <span className="mb-1.5 block text-center text-[10px] text-stone-400">
+          <p className="mb-1.5 text-center text-[11px] font-medium text-stone-400">
             {t("unlimitedScansAdmin")}
-          </span>
+          </p>
         ) : generationsLeft !== null && generationsLeft > 0 ? (
-          <span className="mb-1.5 block text-center text-[10px] text-stone-400">
+          <p className="mb-1.5 text-center text-[11px] font-medium text-stone-400">
             {t("scansLeftToday", { count: generationsLeft })}
-          </span>
-        ) : (
-          <span className="mb-1.5 block" />
-        )}
+          </p>
+        ) : null}
 
         <button
           type="button"
           onClick={handlePrimaryAction}
-          disabled={isBusy}
+          disabled={isBusy || !hasSelection || scansExhausted || rateLimitSecondsLeft > 0}
           aria-label={primaryLabel}
-          className="w-full rounded-2xl bg-[#4D6638] py-3 text-center text-sm font-semibold text-white shadow-sm transition hover:bg-[#42572f] disabled:cursor-not-allowed disabled:opacity-60"
+          className="flex h-11 w-full items-center justify-center gap-2 rounded-full bg-gradient-to-br from-[#5C7A54] via-[#3E5A3A] to-[#2F452C] px-5 text-[13px] font-bold leading-none text-white shadow-sm shadow-[#3E5A3A]/25 transition hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100 disabled:hover:brightness-100"
         >
-          {primaryLabel}
+          <Sparkles className="h-4 w-4 shrink-0" strokeWidth={2} aria-hidden />
+          <span className="truncate">{primaryLabel}</span>
         </button>
       </div>
     </div>
-  ) : null;
+  );
 
   const handleComboboxSelect = useCallback(
     (ingredient: MasterIngredient) => {
       if (!selectedIngredients.includes(ingredient.name)) {
         onAddIngredient(ingredient.name);
+        recordIngredientUsage([ingredient.name]);
+        setIngredientUsage(getIngredientUsageMap());
       }
     },
     [onAddIngredient, selectedIngredients]
+  );
+
+  const handleToggleFrequent = useCallback(
+    (name: string) => {
+      const already = selectedIngredients.some(
+        (item) => item.toLowerCase() === name.toLowerCase()
+      );
+      onToggleFromCategory(name);
+      if (!already) {
+        recordIngredientUsage([name]);
+        setIngredientUsage(getIngredientUsageMap());
+      }
+    },
+    [onToggleFromCategory, selectedIngredients]
   );
 
   const handleCreateCustomIngredient = useCallback(
@@ -336,26 +316,8 @@ export function PantrySearchView({
     [createCustomIngredient, handleComboboxSelect]
   );
 
-  const handleToggleFavorite = useCallback(
-    async (ingredientName: string) => {
-      const ingredient = masterByName.get(ingredientName.toLowerCase());
-      if (!ingredient) return;
-
-      if (favoriteIngredientIds.has(ingredient.id)) {
-        const favorite = favorites.find((fav) => fav.ingredientId === ingredient.id);
-        if (favorite) {
-          await removeFavorite(favorite.favoriteId);
-        }
-        return;
-      }
-
-      await addFavorite(ingredient.id);
-    },
-    [addFavorite, favoriteIngredientIds, favorites, masterByName, removeFavorite]
-  );
-
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-[#FAF9F6]">
+    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-[#FFF8F1]">
       <input
         ref={cameraInputRef}
         id="cameraInput"
@@ -382,254 +344,206 @@ export function PantrySearchView({
           scrollBottomPaddingClass
         )}
       >
-        {/* Hero CTA: Escanear Nevera / Despensa */}
-        <button
-          type="button"
-          onClick={openSourceModal}
-          disabled={isBusy}
-          className="mb-3 flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-gradient-to-r from-[#4D6638] via-[#435931] to-[#384B29] p-4 text-left text-white shadow-lg shadow-[#4D6638]/25 transition-all hover:scale-[1.01] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
-        >
-          <span
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/25 bg-white/15 text-white shadow-inner backdrop-blur-md"
-            aria-hidden
-          >
-            <Camera className="h-[1.125rem] w-[1.125rem] text-lg text-white" strokeWidth={1.75} />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="mb-1 inline-flex items-center rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-medium text-white/95">
-              {t.has("visionAiBadge") ? t("visionAiBadge") : "✨ Escáner Inteligente"}
-            </span>
-            <span className="block text-sm font-semibold leading-snug text-white">
-              {t.has("scanPantryBannerTitle")
-                ? t("scanPantryBannerTitle")
-                : "Escanear Nevera o Despensa"}
-            </span>
-            <span className="mt-0.5 block text-xs font-normal leading-snug text-white/80">
-              {t.has("scanPantryHeroSubtitle")
-                ? t("scanPantryHeroSubtitle")
-                : "Toma una foto y detectaremos tus ingredientes al instante"}
-            </span>
-          </span>
-          <span
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs text-white/90"
-            aria-hidden
-          >
-            <ChevronRight className="h-3.5 w-3.5" strokeWidth={2} />
-          </span>
-        </button>
+        {/* Hero Card Dual — compacto */}
+        <section className="mb-3 overflow-hidden rounded-[20px] border border-stone-100/80 bg-[#FAF7F2] shadow-sm shadow-stone-200/50">
+          <div className="relative flex min-h-[128px] items-stretch sm:min-h-[136px]">
+            <div className="relative z-10 flex w-[48%] min-w-0 flex-col justify-center p-3.5 sm:w-[46%] sm:p-4">
+              <h2 className="text-sm font-bold leading-snug tracking-tight text-[#3E5A3A] sm:text-base">
+                <span aria-hidden className="mr-0.5 text-[#C49520]">
+                  ✨
+                </span>
+                {(() => {
+                  const title = t.has("chefReadyTitle")
+                    ? t("chefReadyTitle").replace(/✨/g, "").trim()
+                    : "Ingenia tu próxima comida";
+                  const [brand, ...rest] = title.split(/\s+/);
+                  return (
+                    <>
+                      <span className="text-[#C49520]">{brand}</span>
+                      {rest.length > 0 ? ` ${rest.join(" ")}` : null}
+                    </>
+                  );
+                })()}
+                <span aria-hidden className="ml-0.5 text-[#C49520]">
+                  ✨
+                </span>
+              </h2>
+              <p className="mt-1 max-w-[180px] text-[11px] leading-tight text-stone-600">
+                {t.has("chefReadySubtitle")
+                  ? t("chefReadySubtitle")
+                  : "Escanea tu nevera o despensa y crea recetas deliciosas al instante."}
+              </p>
+              <button
+                type="button"
+                onClick={openSourceModal}
+                disabled={isBusy}
+                className="relative mt-2 inline-flex w-fit items-center gap-1.5 rounded-full bg-gradient-to-br from-[#5C7A54] via-[#3E5A3A] to-[#2F452C] px-3 py-1.5 text-xs font-bold leading-none text-white shadow-sm shadow-[#3E5A3A]/25 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:brightness-100"
+              >
+                <Camera className="h-3 w-3" strokeWidth={2.25} aria-hidden />
+                {t.has("scanNowCta") ? t("scanNowCta") : "Escanear ahora"}
+                <Sparkles
+                  className="absolute -right-1 -top-1 h-3 w-3 text-[#C49520]"
+                  strokeWidth={2.25}
+                  aria-hidden
+                />
+              </button>
+            </div>
 
-        {/* Añadir a mano + sugerencias (bloque unificado) */}
-        <section className="mb-3 space-y-2">
+            <div className="relative w-[52%] shrink-0 sm:w-[54%]">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={PANTRY_HERO_IMAGE}
+                alt=""
+                className="absolute inset-0 h-full w-full object-cover"
+              />
+              <div className="pointer-events-none absolute inset-y-0 left-0 w-10 bg-gradient-to-r from-[#FAF7F2] via-[#FAF7F2]/70 to-transparent sm:w-12" />
+              <span className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 border-l-2 border-t-2 border-white/95" />
+              <span className="pointer-events-none absolute right-2.5 top-2.5 h-3.5 w-3.5 border-r-2 border-t-2 border-white/95" />
+              <span className="pointer-events-none absolute bottom-2.5 left-2.5 h-3.5 w-3.5 border-b-2 border-l-2 border-white/95" />
+              <span className="pointer-events-none absolute bottom-2.5 right-2.5 h-3.5 w-3.5 border-b-2 border-r-2 border-white/95" />
+              <span className="pointer-events-none absolute left-1/2 top-1/2 flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-[#3E5A3A] shadow-md ring-2 ring-white/80">
+                <Camera className="h-3.5 w-3.5 text-white" strokeWidth={2.25} aria-hidden />
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 divide-x divide-stone-200/80 border-t border-stone-100 bg-white px-0.5 py-1">
+            {(
+              [
+                { key: "detect", Icon: Leaf, label: "Detecta ingredientes" },
+                { key: "suggest", Icon: Lightbulb, label: "Sugiere recetas" },
+                { key: "time", Icon: Clock, label: "Ahorra tiempo" }
+              ] as const
+            ).map((item) => (
+              <div
+                key={item.key}
+                className="flex flex-col items-center justify-center gap-0.5 px-0.5 text-center"
+              >
+                <item.Icon className="h-2.5 w-2.5 text-stone-500" strokeWidth={2} aria-hidden />
+                <span className="whitespace-nowrap text-[10px] font-medium leading-none text-stone-500">
+                  {item.label}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Ingredientes a la mano */}
+        <section className="mb-3 space-y-2 rounded-[20px] border border-stone-100 bg-white p-3 shadow-sm shadow-stone-200/50">
+          <div className="mb-2">
+            <h2 className="text-sm font-bold text-stone-800">
+              {t.has("livePantryTitle") ? t("livePantryTitle") : "Ingredientes a la mano"}
+            </h2>
+            <p className="mt-0.5 text-[11px] text-stone-500">
+              {t.has("livePantrySubtitle")
+                ? t("livePantrySubtitle")
+                : "Elige ingredientes frecuentes o busca nuevos"}
+            </p>
+          </div>
+
+          {selectedChips.length > 0 ? (
+            <div className="space-y-1.5">
+              <p className="text-[11px] font-semibold text-stone-500">
+                {t.has("selectedIngredientsLabel")
+                  ? t("selectedIngredientsLabel", { count: selectedChips.length })
+                  : `Seleccionados (${selectedChips.length})`}
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {selectedChips.map((chip) => (
+                  <button
+                    key={chip.key}
+                    type="button"
+                    disabled={isBusy}
+                    onClick={() => handleToggleFrequent(chip.name)}
+                    aria-label={t("removeIngredientAria", { name: chip.name })}
+                    className="flex items-center gap-1 rounded-full border border-[#3E5A3A]/30 bg-[#3E5A3A]/10 px-2.5 py-1 text-xs font-semibold text-[#3E5A3A] transition hover:bg-[#3E5A3A]/15"
+                  >
+                    <span aria-hidden className="text-sm leading-none">
+                      {chip.emoji}
+                    </span>
+                    <span className="capitalize">{chip.name.toLocaleLowerCase("es")}</span>
+                    <span className="text-[10px] text-[#3E5A3A] hover:opacity-80" aria-hidden>
+                      ✕
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {availableFrequentChips.length > 0 ? (
+            <div className="grid grid-cols-3 gap-2">
+              {availableFrequentChips.map((chip) => (
+                <button
+                  key={chip.key}
+                  type="button"
+                  disabled={isBusy}
+                  onClick={() => handleToggleFrequent(chip.name)}
+                  aria-label={`Añadir ${chip.name}`}
+                  className="flex min-h-[2.5rem] w-full min-w-0 items-center justify-between gap-1 rounded-xl border border-stone-200/70 bg-stone-50 px-3 py-1.5 text-left text-xs text-stone-700 transition hover:bg-stone-100"
+                >
+                  <span className="flex min-w-0 items-center gap-1">
+                    <span aria-hidden className="shrink-0 text-sm leading-none">
+                      {chip.emoji}
+                    </span>
+                    <span className="min-w-0 flex-1 text-[10px] font-medium leading-tight capitalize">
+                      {chip.name.toLocaleLowerCase("es")}
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-sm leading-none text-stone-400" aria-hidden>
+                    +
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : null}
+
           {isPantryLoading ? (
-            <div className="h-10 animate-pulse rounded-xl border border-slate-200/80 bg-white" />
+            <div className="h-10 animate-pulse rounded-xl border border-stone-200/60 bg-stone-50" />
           ) : (
             <IngredientCombobox
               ingredients={masterIngredients}
               disabled={isBusy}
+              variant="pantry"
               onSelectIngredient={handleComboboxSelect}
               onCreateCustomIngredient={handleCreateCustomIngredient}
             />
           )}
           {pantryError ? <p className="text-xs text-red-600">{pantryError}</p> : null}
 
-          <div className="flex flex-wrap gap-1.5">
-            {QUICK_SUGGESTIONS.map((suggestion) => {
-              const name = resolveQuickName(suggestion);
-              const alreadyAdded = selectedIngredients.some(
-                (item) => item.toLowerCase() === name.toLowerCase()
-              );
-              return (
-                <button
-                  key={suggestion.key}
-                  type="button"
-                  disabled={isBusy || alreadyAdded}
-                  onClick={() => handleQuickAdd(suggestion)}
-                  className={cn(
-                    "inline-flex items-center gap-1 rounded-lg border-0 px-2.5 py-1 text-[11px] font-medium transition",
-                    alreadyAdded
-                      ? "bg-[#4D6638]/15 text-[#4D6638]"
-                      : "bg-slate-100/80 text-slate-700 hover:bg-slate-200/80"
-                  )}
-                >
-                  <span aria-hidden>{suggestion.emoji}</span>
-                  {suggestion.label}
-                </button>
-              );
-            })}
-          </div>
-        </section>
-
-        {/* Tu Despensa — sin cajas anidadas */}
-        <section className="mb-3">
-          <h2 className="mb-1 mt-2 text-xs font-bold uppercase tracking-wider text-slate-400">
-            {t.has("yourPantryTitle") ? t("yourPantryTitle") : "Tu Despensa"} ({selectedCount})
-          </h2>
-
-          {selectedIngredients.length > 0 ? (
-            <div className="mb-2 flex flex-wrap gap-1.5">
-              {selectedIngredients.map((name) => {
-                const Icon = pillIconFor(name);
-                const ingredient = masterByName.get(name.toLowerCase());
-                const isFavorite = ingredient ? favoriteIngredientIds.has(ingredient.id) : false;
-                return (
-                  <div
-                    key={name}
-                    className="flex items-center gap-0.5 rounded-lg bg-[#4D6638]/10 py-1 pl-2 pr-0.5 text-[11px] font-medium text-[#4D6638]"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => onRemoveIngredient(name)}
-                      className="flex items-center gap-1"
-                    >
-                      <Icon className="h-3 w-3 shrink-0 opacity-70" />
-                      {name}
-                    </button>
-                    {ingredient ? (
-                      <button
-                        type="button"
-                        onClick={() => void handleToggleFavorite(name)}
-                        className="rounded-md p-1 transition hover:bg-white/60"
-                        aria-label={
-                          isFavorite
-                            ? "Quitar de favoritos de despensa"
-                            : "Guardar en favoritos de despensa"
-                        }
-                      >
-                        {isFavorite ? (
-                          <BookmarkCheck className="h-3 w-3 text-[#4D6638]" />
-                        ) : (
-                          <Bookmark className="h-3 w-3 opacity-60" />
-                        )}
-                      </button>
-                    ) : null}
-                    <button
-                      type="button"
-                      onClick={() => onRemoveIngredient(name)}
-                      className="rounded-md p-1 text-slate-400 transition hover:bg-white/60 hover:text-slate-600"
-                      aria-label={t("removeIngredientAria", { name })}
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          ) : null}
-
-          <div className="mb-2 flex gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {CATEGORY_KEYS.map((key) => {
-              const isActive = activeCategory === key;
-              const meta = CATEGORY_TAB_META[key];
-              const categoryLabel = t(meta.labelKey);
-              const count = favoritesByCategory[key].length;
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => setActiveCategory((current) => (current === key ? null : key))}
-                  aria-pressed={isActive}
-                  aria-label={t("viewFavoritesAria", { category: categoryLabel })}
-                  className={cn(
-                    "inline-flex shrink-0 items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium transition",
-                    isActive
-                      ? "border-[#4D6638] bg-[#4D6638]/10 text-[#4D6638]"
-                      : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
-                  )}
-                >
-                  <span aria-hidden className="text-[11px] leading-none">
-                    {meta.emoji}
-                  </span>
-                  <span>{categoryLabel}</span>
-                  {count > 0 ? (
-                    <span className="text-[10px] opacity-70">{count}</span>
-                  ) : null}
-                </button>
-              );
-            })}
-          </div>
-
-          {activeCategory === null ? null : favoritesByCategory[activeCategory].length > 0 ? (
-            <div className="grid grid-cols-2 gap-1.5">
-              {favoritesByCategory[activeCategory].map((fav) => {
-                const isSelected = selectedIngredients.includes(fav.name);
-                return (
-                  <button
-                    key={fav.favoriteId}
-                    type="button"
-                    onClick={() => onToggleFromCategory(fav.name)}
-                    aria-pressed={isSelected}
-                    aria-label={
-                      isSelected
-                        ? `Quitar ${fav.name} de la selección`
-                        : `Añadir ${fav.name} al escaneo`
-                    }
-                    className={cn(
-                      "flex items-center justify-between rounded-lg px-2 py-1.5 text-left text-[11px] font-medium transition",
-                      isSelected
-                        ? "bg-[#4D6638]/10 text-[#4D6638]"
-                        : "bg-slate-50 text-slate-700 hover:bg-slate-100"
-                    )}
-                  >
-                    <span className="min-w-0 truncate pr-2">{fav.name}</span>
-                    <span
-                      className={cn(
-                        "flex h-5 w-5 shrink-0 items-center justify-center rounded-full",
-                        isSelected ? "bg-[#4D6638] text-white" : "bg-white text-[#4D6638]"
-                      )}
-                      aria-hidden
-                    >
-                      {isSelected ? (
-                        <Check className="h-3 w-3" strokeWidth={2.5} />
-                      ) : (
-                        <Plus className="h-3 w-3" strokeWidth={2.5} />
-                      )}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          ) : (
-            <p className="text-[11px] leading-relaxed text-slate-500">
-              {t("noFavoritesInCategory", {
-                category: t(CATEGORY_TAB_META[activeCategory].labelKey).toLowerCase()
-              })}
-            </p>
-          )}
-        </section>
-
-        <AdvancedRecipeFilters
-          mealType={mealType}
-          cuisineStyle={cuisineStyle}
-          servings={servings}
-          complexity={complexity}
-          onMealTypeChange={onMealTypeChange}
-          onCuisineStyleChange={onCuisineStyleChange}
-          onServingsChange={onServingsChange}
-          onComplexityChange={onComplexityChange}
-          disabled={isBusy}
-          selectedIngredientNames={selectedIngredients}
-        />
-
-        {!isPremiumLoading && canUseDishPhoto ? (
-          <p
-            role="status"
-            className="mb-3 mt-1 flex items-center justify-center gap-1.5 rounded-xl border border-amber-200/50 bg-amber-50/80 px-3 py-1.5 text-center text-[11px] font-medium text-amber-800"
-          >
-            {t.has("proBenefitChip")
-              ? t("proBenefitChip")
-              : "✨ Beneficio PRO: Fotos reales ilimitadas de tus platos"}
-          </p>
-        ) : !isPremiumLoading && !isPremium ? (
           <button
             type="button"
-            onClick={() => setShowPremiumPaywall(true)}
-            className="mb-3 mt-1 flex w-full items-center justify-center gap-1.5 rounded-xl border border-amber-200/60 bg-amber-50/70 px-3 py-1.5 text-center text-[11px] font-semibold text-amber-900 transition hover:bg-amber-50"
+            onClick={() => setShowAdvancedFilters((v) => !v)}
+            aria-pressed={showAdvancedFilters}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all",
+              showAdvancedFilters
+                ? "border-[#3E5A3A] bg-[#3E5A3A] text-white shadow-sm"
+                : "border-stone-200 bg-stone-50 text-stone-700 hover:bg-stone-100"
+            )}
           >
-            {t.has("premiumRealPhotoPrompt")
-              ? t("premiumRealPhotoPrompt")
-              : "¿Quieres ver la foto real de tu plato? Activa Premium"}
-            <span aria-hidden>👑</span>
+            <SlidersHorizontal className="h-3 w-3 shrink-0" strokeWidth={2.25} aria-hidden />
+            <span className="whitespace-nowrap">
+              {t.has("moreFilters") ? t("moreFilters") : "Más filtros"}
+            </span>
           </button>
+        </section>
+
+        {showAdvancedFilters ? (
+          <div className="mb-3">
+            <AdvancedRecipeFilters
+              mealType={mealType}
+              cuisineStyle={cuisineStyle}
+              servings={servings}
+              complexity={complexity}
+              onMealTypeChange={onMealTypeChange}
+              onCuisineStyleChange={onCuisineStyleChange}
+              onServingsChange={onServingsChange}
+              onComplexityChange={onComplexityChange}
+              disabled={isBusy}
+              selectedIngredientNames={selectedIngredients}
+            />
+          </div>
         ) : null}
 
         {errorMessage ? (
@@ -678,7 +592,7 @@ export function PantrySearchView({
               <button
                 type="button"
                 onClick={openCameraInput}
-                className="flex w-full items-center gap-3 rounded-2xl border border-stone-100 bg-stone-50 px-4 py-3.5 text-left text-sm font-semibold text-stone-800 transition hover:border-[#4C6B3F]/30 hover:bg-[#F4F7F2]"
+                className="flex w-full items-center gap-3 rounded-2xl border border-stone-100 bg-stone-50 px-4 py-3.5 text-left text-sm font-semibold text-stone-800 transition hover:border-[#3E5A3A]/30 hover:bg-[#F4F7F2]"
               >
                 <span className="text-xl" aria-hidden>
                   📸
@@ -688,7 +602,7 @@ export function PantrySearchView({
               <button
                 type="button"
                 onClick={openGalleryInput}
-                className="flex w-full items-center gap-3 rounded-2xl border border-stone-100 bg-stone-50 px-4 py-3.5 text-left text-sm font-semibold text-stone-800 transition hover:border-[#4C6B3F]/30 hover:bg-[#F4F7F2]"
+                className="flex w-full items-center gap-3 rounded-2xl border border-stone-100 bg-stone-50 px-4 py-3.5 text-left text-sm font-semibold text-stone-800 transition hover:border-[#3E5A3A]/30 hover:bg-[#F4F7F2]"
               >
                 <span className="text-xl" aria-hidden>
                   🖼️
@@ -706,20 +620,6 @@ export function PantrySearchView({
           </div>
         </>
       ) : null}
-
-      <PremiumUpgradeDialog
-        open={showPremiumPaywall}
-        onClose={() => setShowPremiumPaywall(false)}
-        onUpgraded={() => {
-          setShowPremiumPaywall(false);
-          void refreshPremium();
-        }}
-        featureLabel={
-          t.has("premiumRealPhoto")
-            ? t("premiumRealPhoto")
-            : "La foto real de tu plato es una función Premium"
-        }
-      />
     </div>
   );
 }
