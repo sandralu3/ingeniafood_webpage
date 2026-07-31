@@ -63,7 +63,7 @@ const PROTEIN_TITLE_PATTERN =
 const PROTEIN_INGREDIENT_PATTERN =
   /huevo|clara|yogur|reques|atun|salmon|pollo|ternera|cerdo|pavo|lenteja|garbanzo|tofu|tempeh|seitan|prote|pescado|caballa|sardina|queso|jam[oó]n/i;
 const LIQUID_MEAL_PATTERN =
-  /infusi[oó]n|tisana|t[eé]\b|t[eé]\s|caf[eé]|mate\b|caldo|consom[eé]|agua de|bebida|smoothie\b|batido\b|jugo\b|zumo\b/i;
+  /infusi[oó]n|tisana|\bt[eé]\b|\bt[eé]\s|caf[eé]|\bmate\b|\bcaldo\b|consom[eé]|agua de|bebida|smoothie\b|batido\b|jugo\b|zumo\b/i;
 /** Hierbas/condimentos que no cuentan como “verdura significativa”. */
 const GARNISH_VEGETABLE_PATTERN =
   /cilantro|perejil|hierbabuena|menta|albahaca|oregano|or[eé]gano|laurel|tomillo|romero|especias?|semillas? de|lim[oó]n|lima|jengibre/i;

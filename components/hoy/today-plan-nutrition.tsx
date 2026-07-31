@@ -10,8 +10,7 @@ import {
   Loader2,
   Moon,
   Plus,
-  Sparkles,
-  type LucideIcon
+  Sparkles
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { HoyPageData } from "@/lib/gamification/hoy-page-data";
@@ -56,10 +55,10 @@ function orderMealSlots(slots: MealSlot[]): MealSlot[] {
   return MEAL_TYPES.map((mealType) => byType.get(mealType) ?? { mealType, meal: null });
 }
 
-const SLOT_ICON: Record<MealType, LucideIcon> = {
-  Desayuno: Coffee,
-  Almuerzo: Leaf,
-  Cena: Moon
+const SLOT_BADGE: Record<MealType, string> = {
+  Desayuno: "bg-[#E8F0E4] text-[#3E5A3A]",
+  Almuerzo: "bg-[#E8F0E4] text-[#3E5A3A]",
+  Cena: "bg-[#EDE8F8] text-[#5B4B9A]"
 };
 
 function GenerateFullDayBanner({
@@ -89,7 +88,7 @@ function GenerateFullDayBanner({
     onGenerate();
   };
 
-  const label = isGenerating
+  const title = isGenerating
     ? t.has("todayMenuGenerating")
       ? t("todayMenuGenerating")
       : "Generando tu menú…"
@@ -98,20 +97,51 @@ function GenerateFullDayBanner({
       : "Proponer menú del día";
 
   const sharedClass =
-    "flex w-full items-center justify-center gap-1.5 rounded-xl border border-stone-200/60 bg-white py-2.5 px-3 text-center text-xs font-semibold text-stone-700 shadow-sm shadow-stone-200/50 transition hover:bg-stone-50 disabled:cursor-wait disabled:opacity-70";
+    "flex w-full items-center gap-2 rounded-[18px] bg-[#F6E2C3] px-3 py-2 text-left transition hover:brightness-[0.98] disabled:cursor-wait disabled:opacity-70";
+
+  const body = (
+    <>
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#FDF3E3]">
+        {isGenerating ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin text-[#C27803]" />
+        ) : (
+          <Sparkles className="h-3.5 w-3.5 text-[#C27803]" strokeWidth={2} />
+        )}
+      </span>
+
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] leading-none text-[#C27803]" aria-hidden>
+            ✨
+          </span>
+          <p className="truncate text-[11px] font-bold leading-tight text-[#3D2E1F]">
+            {title}
+          </p>
+          {!premiumReady && !isGenerating ? (
+            <span className="shrink-0 rounded-md bg-[#EDE5D4] px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wide text-[#5C4A32]">
+              Pro
+            </span>
+          ) : null}
+        </div>
+      </div>
+
+      <span className="flex shrink-0 items-center gap-1.5">
+        <span className="flex flex-col gap-[2px]" aria-hidden>
+          <span className="h-px w-2 bg-[#C4B49A]/70" />
+          <span className="h-px w-2 bg-[#C4B49A]/70" />
+          <span className="h-px w-2 bg-[#C4B49A]/70" />
+        </span>
+        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-[#5C7A54] via-[#3E5A3A] to-[#2F452C] text-white shadow-sm shadow-[#3E5A3A]/20">
+          <ArrowRight className="h-3.5 w-3.5" strokeWidth={2.25} />
+        </span>
+      </span>
+    </>
+  );
 
   if (!userId) {
     return (
       <Link href={APP_ROUTES.plan} className={sharedClass}>
-        <Sparkles className="h-3.5 w-3.5 text-[#F9A825]" strokeWidth={1.75} />
-        <span>
-          {t.has("todayMenuGenerateCta")
-            ? t("todayMenuGenerateCta").replace(/✨/g, "").trim()
-            : "Proponer menú del día"}
-        </span>
-        <span className="text-[10px] font-bold uppercase tracking-wide text-stone-400">
-          Pro
-        </span>
+        {body}
       </Link>
     );
   }
@@ -123,17 +153,7 @@ function GenerateFullDayBanner({
       disabled={isGenerating || isPremiumLoading}
       className={sharedClass}
     >
-      {isGenerating ? (
-        <Loader2 className="h-3.5 w-3.5 animate-spin text-stone-500" />
-      ) : (
-        <Sparkles className="h-3.5 w-3.5 text-[#F9A825]" strokeWidth={1.75} />
-      )}
-      <span>{label}</span>
-      {!premiumReady && !isGenerating ? (
-        <span className="text-[10px] font-bold uppercase tracking-wide text-stone-400">
-          Pro
-        </span>
-      ) : null}
+      {body}
     </button>
   );
 }
@@ -155,19 +175,47 @@ function MealPhotoCard({
 }) {
   const t = useTranslations("Hoy");
   const slotLabel = t.has(mealLabelKey(mealType)) ? t(mealLabelKey(mealType)) : mealType;
-  const Icon = SLOT_ICON[mealType];
+  const PlannedIcon = mealType === "Desayuno" ? Coffee : mealType === "Cena" ? Moon : Leaf;
   const href = meal?.recipeId
     ? `/app-recetas/recipes/${meal.recipeId}`
     : APP_ROUTES.plan;
   const unplanned = t.has("mealUnplanned") ? t("mealUnplanned") : "Sin planificar";
+  const addLabel = t.has("addMeal") ? t("addMeal") : "Añadir";
 
+  /* —— Slot vacío compacto (misma altura que foto planificada) —— */
+  if (!meal && !isGenerating) {
+    return (
+      <Link
+        href={href}
+        className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-stone-100 bg-white shadow-sm shadow-stone-200/40 transition hover:shadow-md"
+        role="listitem"
+      >
+        <div className="m-1.5 flex flex-1 flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-stone-200 bg-stone-50/60 p-3 text-center transition-all hover:bg-stone-100/70">
+          <span
+            className={cn(
+              "rounded-full px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wide",
+              SLOT_BADGE[mealType]
+            )}
+          >
+            {slotLabel}
+          </span>
+          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-sm font-bold text-stone-600 shadow-sm">
+            <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
+          </span>
+          <span className="text-[10px] font-semibold text-stone-600">{addLabel}</span>
+        </div>
+      </Link>
+    );
+  }
+
+  /* —— Con comida / generando —— */
   return (
     <Link
       href={href}
-      className="overflow-hidden rounded-2xl border border-stone-100 bg-white shadow-sm shadow-stone-200/40 transition hover:shadow-md"
+      className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-stone-100 bg-white shadow-sm shadow-stone-200/40 transition hover:shadow-md"
       role="listitem"
     >
-      <div className="relative aspect-[4/3] w-full overflow-hidden bg-stone-100">
+      <div className="relative aspect-[4/3] w-full shrink-0 overflow-hidden bg-stone-100">
         {meal?.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -186,7 +234,7 @@ function MealPhotoCard({
             {isGenerating ? (
               <Loader2 className="h-4 w-4 animate-spin text-[#3E5A3A]" />
             ) : (
-              <Icon className="h-6 w-6 text-stone-400/70" strokeWidth={1.4} />
+              <PlannedIcon className="h-6 w-6 text-stone-400/70" strokeWidth={1.4} />
             )}
           </div>
         )}
@@ -195,7 +243,7 @@ function MealPhotoCard({
         </span>
       </div>
 
-      <div className="px-2 pb-2 pt-1.5">
+      <div className="mt-auto px-2 pb-2 pt-1.5">
         <p className="line-clamp-2 min-h-[2rem] text-[11px] font-bold leading-snug text-stone-800">
           {meal
             ? meal.title
@@ -210,11 +258,6 @@ function MealPhotoCard({
             <Flame className="h-3 w-3 text-[#F9A825]" strokeWidth={2} />
             {meal.kcal} kcal
           </p>
-        ) : !isGenerating ? (
-          <span className="mt-1.5 inline-flex items-center gap-0.5 rounded-lg bg-stone-100 px-2 py-1 text-[10px] font-semibold text-stone-700">
-            <Plus className="h-2.5 w-2.5" strokeWidth={2.5} />
-            Añadir
-          </span>
         ) : null}
       </div>
     </Link>
@@ -233,7 +276,7 @@ function TodayMealGrid({
 
   return (
     <div
-      className="grid grid-cols-3 gap-2 sm:gap-3"
+      className="grid grid-cols-3 items-stretch gap-3"
       role="list"
       aria-label={t.has("todayMenuTitle") ? t("todayMenuTitle") : t("todayPlan")}
     >
@@ -333,15 +376,15 @@ function TodayMenuSection({
   return (
     <section className={cn("space-y-2.5", className)}>
       <div className="flex items-center justify-between gap-2 px-0.5">
-        <h2 className="text-base font-bold text-stone-800">{title}</h2>
+        <h2 className="text-base font-bold text-[#3E5A3A]">{title}</h2>
         <Link
           href={APP_ROUTES.plan}
-          className="inline-flex items-center gap-1 text-xs font-semibold text-stone-600 transition hover:text-[#3E5A3A]"
+          className="inline-flex items-center gap-1 text-xs font-semibold text-stone-500 transition hover:text-[#3E5A3A]"
         >
           <Flame className="h-3.5 w-3.5 text-[#F9A825]" strokeWidth={2} />
           {displayKcal} kcal
-          <ArrowRight className="h-3.5 w-3.5 text-stone-400" />
           <span className="text-[#3E5A3A]">{t("viewPlan")}</span>
+          <ArrowRight className="h-3.5 w-3.5 text-[#3E5A3A]" />
         </Link>
       </div>
 

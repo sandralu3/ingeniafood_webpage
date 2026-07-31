@@ -16,6 +16,7 @@ import type { WeeklyHealthMetrics } from "@/lib/gamification/weekly-metrics";
 import { buildWeekConsistencyDays, type WeekConsistencyDay } from "@/lib/gamification/week-consistency";
 import { computeDayBalanceLevel } from "@/lib/premium-stories/dose-suggested-recipe";
 import type { IntelligentDoseMealSnapshot } from "@/lib/premium-stories/intelligent-dose-context";
+import { isLikelyLiquidMealTitle } from "@/lib/plan/plan-nutrition";
 import { parseAppLocale } from "@/i18n/config";
 import { toISODateString } from "@/lib/plan/week-utils";
 import { cn } from "@/lib/utils";
@@ -137,12 +138,41 @@ function buildPlanRevision(data: HoyPageData | null): string | null {
 }
 
 /** Snapshot ligero desde el plan de Hoy para actualizar score/chips al instante. */
-function snapshotFromHoyPlan(data: HoyPageData | null): IntelligentDoseMealSnapshot | null {
+function snapshotFromHoyPlan(
+  data: HoyPageData | null,
+  calorieTarget?: number | null
+): IntelligentDoseMealSnapshot | null {
   const nutrition = data?.todayPlanNutrition;
   if (!nutrition || nutrition.plannedMealCount <= 0) return null;
 
   const totalCalories = nutrition.totalKcal;
   const mealCount = nutrition.plannedMealCount;
+  const mealTitles = (data?.todayPlanMeals ?? [])
+    .map((slot) => slot.meal?.title)
+    .filter((title): title is string => Boolean(title))
+    .slice(0, 8);
+  const dishes = (data?.todayPlanMeals ?? [])
+    .filter((slot) => slot.meal)
+    .map((slot) => {
+      const title = slot.meal!.title?.trim() || "Sin título";
+      return {
+        mealType: slot.mealType,
+        title,
+        kcal: Math.max(0, Math.round(slot.meal!.kcal ?? 0)),
+        proteinGrams: 0,
+        carbsGrams: 0,
+        fatGrams: 0,
+        ingredientNames: [] as string[],
+        isLikelyLiquidOnly: isLikelyLiquidMealTitle(title)
+      };
+    });
+  const solidDishes = dishes.filter((d) => !d.isLikelyLiquidOnly);
+  const isLikelyLiquidOnly = dishes.length > 0 && solidDishes.length === 0;
+  const lowCalorieThreshold =
+    typeof calorieTarget === "number" && calorieTarget > 0
+      ? Math.max(600, Math.round(calorieTarget * 0.6))
+      : 800;
+  const isLowCalorieDay = totalCalories < lowCalorieThreshold;
 
   return {
     mealCount,
@@ -151,20 +181,18 @@ function snapshotFromHoyPlan(data: HoyPageData | null): IntelligentDoseMealSnaps
     totalProtein: nutrition.totalProteinGrams,
     totalCarbs: nutrition.totalCarbsGrams,
     totalFat: nutrition.totalFatGrams,
-    hasVegetables: nutrition.hasVegetables,
-    hasProtein: nutrition.hasProtein,
-    mealTitles: (data?.todayPlanMeals ?? [])
-      .map((slot) => slot.meal?.title)
-      .filter((title): title is string => Boolean(title))
-      .slice(0, 8),
+    hasVegetables: !isLikelyLiquidOnly && nutrition.hasVegetables,
+    hasProtein: !isLikelyLiquidOnly && nutrition.hasProtein,
+    mealTitles,
     mealTypesFilled: (data?.todayPlanMeals ?? [])
       .filter((slot) => slot.meal)
       .map((slot) => slot.mealType),
-    dishes: [],
+    dishes,
     ingredientNames: [],
-    isLowCalorieDay: totalCalories < 900,
-    isLikelyLiquidOnly: false,
-    isIncompleteMenu: mealCount < 3 || totalCalories < 900
+    isLowCalorieDay,
+    isLikelyLiquidOnly,
+    isIncompleteMenu:
+      mealCount < 3 || isLowCalorieDay || isLikelyLiquidOnly
   };
 }
 
@@ -191,17 +219,6 @@ export function ProgressBoard({
   const metrics = data?.metrics ?? EMPTY_METRICS;
   const premiumReady = isPremium && !isPremiumLoading;
   const planRevision = useMemo(() => buildPlanRevision(data), [data]);
-  const planSnapshot = useMemo(() => snapshotFromHoyPlan(data), [data]);
-
-  const weekConsistency = useMemo(
-    () =>
-      buildWeekConsistencyDays(
-        data?.weekCompletions ?? [],
-        today,
-        data?.streakCompletions ?? data?.weekCompletions ?? []
-      ),
-    [data?.weekCompletions, data?.streakCompletions, today]
-  );
 
   const {
     report: doseReport,
@@ -214,6 +231,22 @@ export function ProgressBoard({
     planRevision
   });
 
+  const calorieTarget = doseContext?.nutritionGoals?.calorieTarget ?? null;
+  const planSnapshot = useMemo(
+    () => snapshotFromHoyPlan(data, calorieTarget),
+    [data, calorieTarget]
+  );
+
+  const weekConsistency = useMemo(
+    () =>
+      buildWeekConsistencyDays(
+        data?.weekCompletions ?? [],
+        today,
+        data?.streakCompletions ?? data?.weekCompletions ?? []
+      ),
+    [data?.weekCompletions, data?.streakCompletions, today]
+  );
+
   const freeDailyTip = useMemo(() => {
     const tips = getBuiltinHealthyTips(locale);
     if (tips.length === 0) return "";
@@ -221,8 +254,9 @@ export function ProgressBoard({
     return tips[index]?.contenido ?? tips[0]?.contenido ?? "";
   }, [locale, userId, today]);
 
+  // Misma fuente de verdad que IntelligentDoseModal: context completo cuando existe.
   const doseBalance = useMemo(() => {
-    const live = planSnapshot ?? doseContext?.mealsPlannedToday;
+    const live = doseContext?.mealsPlannedToday ?? planSnapshot;
     if (!live || live.mealCount <= 0) return null;
     return computeDayBalanceLevel(live, {
       calorieTarget:
