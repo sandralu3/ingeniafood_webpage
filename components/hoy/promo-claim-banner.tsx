@@ -12,7 +12,7 @@ type Props = {
 };
 
 /**
- * Píldora dorada: activa las 24h Premium del referido.
+ * Banner compacto: activa las 24h Premium del referido (mock cream + CTA con fondo).
  */
 export function PromoClaimBanner({ className, onClaimed }: Props) {
   const t = useTranslations("Hoy");
@@ -29,7 +29,7 @@ export function PromoClaimBanner({ className, onClaimed }: Props) {
     return success ? (
       <div
         className={cn(
-          "rounded-2xl border border-[#F6E2C3] bg-[#FDF3E3] px-3.5 py-2.5 text-xs font-bold text-stone-800 shadow-sm shadow-stone-200/50",
+          "rounded-[18px] bg-[#F6E2C3] px-3.5 py-2 text-xs font-bold text-stone-800",
           className
         )}
         role="status"
@@ -77,21 +77,25 @@ export function PromoClaimBanner({ className, onClaimed }: Props) {
     }
   };
 
+  const ctaLabel = t.has("promoClaimCtaShort")
+    ? t("promoClaimCtaShort").replace(/\s*✨\s*/g, "").trim()
+    : "Activar 24H";
+
   return (
     <div className={cn("space-y-1.5", className)}>
-      <div className="flex items-center justify-between gap-3 rounded-2xl border border-[#F6E2C3] bg-[#FDF3E3] px-3.5 py-2.5 shadow-sm shadow-stone-200/50">
-        <div className="flex min-w-0 items-start gap-2">
-          <Crown className="mt-0.5 h-4 w-4 shrink-0 text-[#F9A825]" strokeWidth={1.75} />
-          <div className="min-w-0">
-            <p className="text-xs font-bold text-stone-800">
+      <div className="flex items-center gap-2 rounded-[18px] bg-[#F6E2C3] px-3 py-2">
+        <div className="flex min-w-0 flex-1 items-center gap-1.5">
+          <Crown className="h-3.5 w-3.5 shrink-0 text-[#C27803]" strokeWidth={2} />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[11px] font-bold leading-tight text-[#3D2E1F]">
               {t.has("promoClaimTitle")
                 ? t("promoClaimTitle")
                 : "Pase Premium de 24 horas disponible"}
             </p>
-            <p className="mt-0.5 text-[11px] leading-snug text-stone-500">
+            <p className="mt-0.5 truncate text-[10px] leading-tight text-[#5C4A32]">
               {t.has("promoClaimDescription")
                 ? t("promoClaimDescription")
-                : "Actívalo ahora y desbloquea la IA + foto real del plato."}
+                : "Actívalo ahora y desbloquea IA + foto real del plato."}
             </p>
           </div>
         </div>
@@ -99,10 +103,13 @@ export function PromoClaimBanner({ className, onClaimed }: Props) {
           type="button"
           onClick={() => void handleClaim()}
           disabled={isClaiming}
-          className="inline-flex shrink-0 items-center justify-center gap-1 rounded-xl bg-[#3E5A3A] px-3.5 py-2 text-xs font-bold text-white transition hover:bg-[#2D432A] disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex shrink-0 items-center justify-center gap-0.5 rounded-full bg-gradient-to-br from-[#5C7A54] via-[#3E5A3A] to-[#2F452C] px-2.5 py-1.5 text-[10px] font-bold leading-none text-white shadow-sm shadow-[#3E5A3A]/20 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isClaiming ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
-          {t.has("promoClaimCtaShort") ? t("promoClaimCtaShort") : "Activar 24H ✨"}
+          <span>{ctaLabel}</span>
+          <span className="text-[9px] text-[#F9A825]" aria-hidden>
+            ✦
+          </span>
         </button>
       </div>
       {error ? (
