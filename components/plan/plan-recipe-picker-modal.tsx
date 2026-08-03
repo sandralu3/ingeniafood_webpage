@@ -68,6 +68,7 @@ export function PlanRecipePickerModal({
   const [activeFilter, setActiveFilter] = useState<SavedRecipeFilter>("Todas");
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
   const [externalMode, setExternalMode] = useState<"photo" | "text" | null>(null);
+  const [externalBusy, setExternalBusy] = useState(false);
   const [showPremiumPaywall, setShowPremiumPaywall] = useState(false);
   const filterMenuRef = useRef<HTMLDivElement>(null);
 
@@ -78,13 +79,18 @@ export function PlanRecipePickerModal({
   const mealDisplay = t(`meals.${mealType}`);
 
   useEffect(() => {
-    if (!open) {
-      setSearchTerm("");
-      setActiveFilter("Todas");
-      setIsFilterMenuOpen(false);
-      setExternalMode(null);
-    }
+    if (open) return;
+    // Al cerrar el picker solo limpiamos filtros; el modal de comida fuera
+    // se cierra solo con su propio onClose (no al terminar de analizar).
+    setSearchTerm("");
+    setActiveFilter("Todas");
+    setIsFilterMenuOpen(false);
   }, [open]);
+
+  const requestClose = () => {
+    if (externalBusy || isAssigning) return;
+    onClose();
+  };
 
   useEffect(() => {
     if (!isFilterMenuOpen) return;
@@ -135,36 +141,38 @@ export function PlanRecipePickerModal({
     setExternalMode(mode);
   };
 
-  if (!open) return null;
+  if (!open && externalMode === null) return null;
 
   return (
-    <div className="fixed inset-0 z-[160] flex items-end justify-center bg-black/45 px-0 backdrop-blur-[2px] sm:items-center sm:px-4">
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="plan-picker-title"
-        className="flex max-h-[88vh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border border-neutral-100 bg-white shadow-2xl sm:rounded-3xl"
-      >
-        <div className="flex items-start justify-between gap-3 border-b border-stone-100 bg-white px-5 py-4">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-amber-700/80">
-              {dayDisplay} · {mealDisplay}
-            </p>
-            <h2 id="plan-picker-title" className="mt-1 font-serif text-xl font-semibold text-stone-900">
-              {t("pickerTitle")}
-            </h2>
-            <p className="mt-1 text-xs text-stone-500">{t("pickerSubtitle")}</p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={isAssigning}
-            className="rounded-full p-2 text-stone-400 transition hover:bg-stone-100 hover:text-stone-700 disabled:opacity-50"
-            aria-label={tCommon("close")}
+    <>
+      {open ? (
+        <div className="fixed inset-0 z-[160] flex items-end justify-center bg-black/45 px-0 backdrop-blur-[2px] sm:items-center sm:px-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="plan-picker-title"
+            className="flex max-h-[88vh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border border-neutral-100 bg-white shadow-2xl sm:rounded-3xl"
           >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
+            <div className="flex items-start justify-between gap-3 border-b border-stone-100 bg-white px-5 py-4">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-amber-700/80">
+                  {dayDisplay} · {mealDisplay}
+                </p>
+                <h2 id="plan-picker-title" className="mt-1 font-serif text-xl font-semibold text-stone-900">
+                  {t("pickerTitle")}
+                </h2>
+                <p className="mt-1 text-xs text-stone-500">{t("pickerSubtitle")}</p>
+              </div>
+              <button
+                type="button"
+                onClick={requestClose}
+                disabled={isAssigning || externalBusy}
+                className="rounded-full p-2 text-stone-400 transition hover:bg-stone-100 hover:text-stone-700 disabled:opacity-50"
+                aria-label={tCommon("close")}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
 
         <div className="relative z-20 border-b border-stone-100 bg-white px-5 py-3">
           {canRegisterExternal ? (
@@ -358,9 +366,11 @@ export function PlanRecipePickerModal({
           </div>
         ) : null}
       </div>
+      </div>
+      ) : null}
 
       <ExternalMealRegisterModal
-        open={externalMode !== null && canRegisterExternal && isPremium}
+        open={externalMode !== null}
         mode={externalMode ?? "text"}
         dayLabel={
           (WEEK_DAYS as readonly string[]).includes(dayLabel)
@@ -369,8 +379,13 @@ export function PlanRecipePickerModal({
         }
         mealType={mealType}
         weekStartISO={weekStartISO}
-        onClose={() => setExternalMode(null)}
+        onBusyChange={setExternalBusy}
+        onClose={() => {
+          if (externalBusy) return;
+          setExternalMode(null);
+        }}
         onRegistered={(meal) => {
+          setExternalBusy(false);
           setExternalMode(null);
           onExternalMealRegistered?.(meal);
           onClose();
@@ -390,6 +405,6 @@ export function PlanRecipePickerModal({
             : "Registrar comida fuera (escaneo o escritura)"
         }
       />
-    </div>
+    </>
   );
 }

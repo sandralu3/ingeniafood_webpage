@@ -486,11 +486,11 @@ export default function RecipesPage() {
             </div>
 
             {activeRecipes.length > 5 ? (
-              <div className="flex justify-center pt-1">
+              <div className="flex justify-center pb-2 pt-3">
                 <button
                   type="button"
                   onClick={() => setMostrarTodas((previous) => !previous)}
-                  className="inline-flex items-center justify-center rounded-full border border-stone-200/60 bg-white px-6 py-2.5 text-sm font-medium text-[#4C6B3F] shadow-sm transition hover:border-stone-300 hover:bg-stone-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#4C6B3F]"
+                  className="inline-flex w-full max-w-sm items-center justify-center rounded-full border border-[#4C6B3F]/25 bg-[#F0F4ED] px-6 py-3 text-sm font-semibold text-[#3e5219] shadow-sm transition hover:border-[#4C6B3F]/40 hover:bg-[#E4ECDC] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4C6B3F]/40"
                 >
                   {mostrarTodas
                     ? t("viewLess")
@@ -524,7 +524,7 @@ export default function RecipesPage() {
   ]);
 
   return (
-    <div className="-mx-4 min-h-full bg-gradient-to-b from-stone-50 via-amber-50/20 to-sv-surface px-4 pb-2 pt-1">
+    <div className="-mx-4 min-h-full bg-gradient-to-b from-stone-50 via-amber-50/20 to-sv-surface px-4 pb-6 pt-1">
       <section className="space-y-3">
         <RecipeShareCaptureHost captureRef={captureRef} recipe={captureRecipe} mode="offscreen" />
 
@@ -592,9 +592,7 @@ export default function RecipesPage() {
           </div>
         </div>
 
-        <div className="max-h-[68vh] overflow-y-auto pr-0.5">
-          {pageContent}
-        </div>
+        {pageContent}
 
       {shareErrorMessage ? (
         <p className="rounded-2xl border border-red-100 bg-red-50/80 px-4 py-3 text-sm text-red-700">

@@ -15,6 +15,12 @@ import {
   type ExternalMealFoodItem
 } from "@/lib/plan/external-meal";
 import { compressImageForUpload } from "@/lib/images/compress-image-for-upload";
+import {
+  commaSeparationErrorMessage,
+  descriptionNeedsCommaSeparation,
+  foodDescriptionRejectionMessage,
+  isLikelyFoodOrDrinkDescription
+} from "@/lib/plan/food-description-validation";
 import { registerExternalMealToPlan } from "@/lib/plan/register-external-meal";
 import { uploadExternalMealPhoto } from "@/lib/plan/upload-external-meal-photo";
 import { canRegisterExternalMealForPlanDay } from "@/lib/plan/week-utils";
@@ -32,6 +38,8 @@ type Props = {
   weekStartISO: string;
   onClose: () => void;
   onRegistered: (meal: PlanMeal) => void;
+  /** true mientras analiza o guarda: el padre no debe desmontar el modal. */
+  onBusyChange?: (busy: boolean) => void;
 };
 
 type EstimateApiResponse = {
@@ -48,7 +56,8 @@ export function ExternalMealRegisterModal({
   mealType,
   weekStartISO,
   onClose,
-  onRegistered
+  onRegistered,
+  onBusyChange
 }: Props) {
   const t = useTranslations("Plan");
   const locale = useLocale();
@@ -85,10 +94,32 @@ export function ExternalMealRegisterModal({
 
   useEffect(() => {
     if (!open) {
+      // Si cerraron el padre por error mientras analizábamos, no perder el draft
+      // hasta que deje de estar busy — el padre ya bloquea close; aquí solo reset limpio.
+      if (isAnalyzing || isSaving) return;
       resetState();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only when closing/opening
   }, [open]);
+
+  useEffect(() => {
+    onBusyChange?.(isAnalyzing || isSaving);
+  }, [isAnalyzing, isSaving, onBusyChange]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      if (isAnalyzing || isSaving) {
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
+      onClose();
+    };
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
+  }, [isAnalyzing, isSaving, onClose, open]);
 
   useEffect(() => {
     return () => {
@@ -106,6 +137,11 @@ export function ExternalMealRegisterModal({
   }, [dishName, estimate, foodItems]);
 
   if (!open) return null;
+
+  const requestClose = () => {
+    if (isAnalyzing || isSaving) return;
+    onClose();
+  };
 
   const title =
     mode === "photo"
@@ -141,7 +177,20 @@ export function ExternalMealRegisterModal({
   const estimateMeal = async (): Promise<ExternalMealEstimate | null> => {
     const payload: Record<string, unknown> = { mode, locale };
     if (mode === "text") {
-      payload.description = description.trim();
+      const trimmed = description.trim();
+      if (!isLikelyFoodOrDrinkDescription(trimmed)) {
+        setError(foodDescriptionRejectionMessage("meal"));
+        return null;
+      }
+      if (descriptionNeedsCommaSeparation(trimmed)) {
+        setError(
+          t.has("externalMealDescriptionCommaError")
+            ? t("externalMealDescriptionCommaError")
+            : commaSeparationErrorMessage()
+        );
+        return null;
+      }
+      payload.description = trimmed;
     } else {
       if (!selectedFile) {
         setError(
@@ -164,12 +213,16 @@ export function ExternalMealRegisterModal({
     });
     const data = (await response.json()) as EstimateApiResponse;
     if (!response.ok || !data.estimate) {
+      const isNotFood = data.code === "NOT_FOOD" || data.error === "NOT_FOOD";
       setError(
         data.message ??
-          data.error ??
-          (t.has("externalMealEstimateError")
-            ? t("externalMealEstimateError")
-            : "No pudimos estimar la comida.")
+          (isNotFood
+            ? foodDescriptionRejectionMessage("meal")
+            : data.error && data.error !== "NOT_FOOD"
+              ? data.error
+              : t.has("externalMealEstimateError")
+                ? t("externalMealEstimateError")
+                : "No pudimos estimar la comida.")
       );
       return null;
     }
@@ -360,12 +413,19 @@ export function ExternalMealRegisterModal({
     mode === "text" ? description.trim().length >= 3 : Boolean(selectedFile);
 
   return (
-    <div className="fixed inset-0 z-[170] flex items-end justify-center bg-black/50 px-0 backdrop-blur-[2px] sm:items-center sm:px-4">
+    <div
+      className="fixed inset-0 z-[170] flex items-end justify-center bg-black/50 px-0 backdrop-blur-[2px] sm:items-center sm:px-4"
+      onClick={(event) => {
+        if (event.target !== event.currentTarget) return;
+        requestClose();
+      }}
+    >
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="external-meal-title"
         className="flex h-[90dvh] max-h-[90dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border border-stone-100 bg-white shadow-2xl sm:h-auto sm:max-h-[85vh] sm:rounded-3xl"
+        onClick={(event) => event.stopPropagation()}
       >
         <div className="flex shrink-0 items-start justify-between gap-3 border-b border-stone-100 px-5 py-4">
           <div>
@@ -388,7 +448,7 @@ export function ExternalMealRegisterModal({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={requestClose}
             disabled={isAnalyzing || isSaving}
             className="rounded-full p-2 text-stone-400 transition hover:bg-stone-100 disabled:opacity-50"
             aria-label="Cerrar"
@@ -512,11 +572,21 @@ export function ExternalMealRegisterModal({
                   setEstimate(null);
                   setFoodItems([]);
                   setQuantityDrafts({});
+                  setError(null);
                 }}
                 rows={3}
-                placeholder='Ej. "Pizza margherita y ensalada verde"'
+                placeholder={
+                  t.has("externalMealDescriptionPlaceholder")
+                    ? t("externalMealDescriptionPlaceholder")
+                    : 'Ej.: 200 g pechuga, arroz, ensalada'
+                }
                 className="w-full resize-none rounded-2xl border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-800 outline-none focus:border-[#4D6638] focus:ring-1 focus:ring-[#4D6638]"
               />
+              <p className="text-[11px] leading-snug text-stone-500">
+                {t.has("externalMealDescriptionCommaHint")
+                  ? t("externalMealDescriptionCommaHint")
+                  : "Si son varios alimentos, sepáralos por comas para identificarlos mejor."}
+              </p>
             </label>
           ) : null}
 

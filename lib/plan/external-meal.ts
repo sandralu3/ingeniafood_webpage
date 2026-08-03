@@ -242,6 +242,78 @@ export function evaluateExternalMealBalance(input: {
   };
 }
 
+/**
+ * Evalúa un tentempié (no una comida completa).
+ * No exige verdura ni proteína de plato principal.
+ */
+export function evaluateSnackBalance(input: {
+  calorias_est: number;
+  proteinas_est_g: number;
+  tiene_vegetales?: boolean;
+  alimentos?: ExternalMealFoodItem[];
+}): Pick<ExternalMealEstimate, "balance" | "recomendaciones" | "tiene_vegetales"> {
+  const alimentos = input.alimentos ?? [];
+  const names = alimentos.map((item) => item.nombre).join(" ");
+  const hasVeggies =
+    Boolean(input.tiene_vegetales) ||
+    alimentos.some((item) => VEGGIE_NAME_RE.test(item.nombre));
+  const looksHeavy = HEAVY_NAME_RE.test(names);
+  const sugary = /galleta|cookie|boll|croissant|donut|helado|chuche|caramelo|refresco|cola|batido dulce|muffin|brownie|tarta|pastel/i.test(
+    names
+  );
+
+  const kcal = input.calorias_est;
+  const protein = input.proteinas_est_g;
+  const tips: string[] = [];
+
+  if (kcal >= 400) {
+    tips.push(
+      "Es un snack bastante calórico: reduce un poco la porción o elige una opción más ligera entre comidas."
+    );
+  } else if (kcal >= 280 && protein < 8) {
+    tips.push(
+      "Hay bastantes calorías y poca proteína: combina con yogur, un puñado de frutos secos o un poco de queso para más saciedad."
+    );
+  } else if (protein < 5 && kcal >= 120) {
+    tips.push(
+      "Si te quedas con hambre pronto, añade un toque de proteína (yogur, huevo, frutos secos o queso)."
+    );
+  }
+
+  if (looksHeavy || sugary) {
+    tips.push(
+      "Es un tentempié indulgente: disfrútalo con moderación y equilibra el resto del día con comidas más ligeras."
+    );
+  }
+
+  if (kcal > 0 && kcal < 60 && protein < 3) {
+    tips.push(
+      "Es muy ligero: perfecto si solo quieres un bocado, o súmale fruta/yogur si necesitas más energía."
+    );
+  }
+
+  let balance: ExternalMealBalance = "equilibrado";
+  if ((looksHeavy || sugary) && kcal >= 300) {
+    balance = "poco_saludable";
+  } else if (tips.length >= 2 || kcal >= 350 || looksHeavy || sugary) {
+    balance = "mejorable";
+  } else if (tips.length >= 1) {
+    balance = "mejorable";
+  }
+
+  if (balance === "equilibrado") {
+    tips.push(
+      "Buen snack entre horas: tamaño razonable y encaja bien como tentempié."
+    );
+  }
+
+  return {
+    tiene_vegetales: hasVeggies,
+    balance,
+    recomendaciones: tips.slice(0, 3)
+  };
+}
+
 /** Combina consejo de la IA con evaluación local (prioridad a la IA si trae tips). */
 export function applyExternalMealAdvice(
   estimate: ExternalMealEstimate,
@@ -260,6 +332,47 @@ export function applyExternalMealAdvice(
     tiene_vegetales: estimate.tiene_vegetales || local.tiene_vegetales,
     balance: preferAi && aiBalance ? aiBalance : local.balance,
     recomendaciones: preferAi ? aiTips : local.recomendaciones
+  };
+}
+
+/** Igual que applyExternalMealAdvice, pero con criterios de tentempié. */
+export function applySnackAdvice(
+  estimate: ExternalMealEstimate,
+  options?: { preferAi?: boolean }
+): ExternalMealEstimate {
+  const local = evaluateSnackBalance(estimate);
+  const mealCentricRe =
+    /ensalada|plato completo|falta verdura|acompaña.*vegetal|men[uú] equilibrado|comida principal|equilibrar el plato/i;
+  const aiTips = (estimate.recomendaciones ?? [])
+    .map((tip) => tip.trim())
+    .filter((tip) => tip.length >= 8 && !mealCentricRe.test(tip))
+    .slice(0, 3);
+  const preferAi = options?.preferAi !== false && aiTips.length > 0;
+  const aiBalance = estimate.balance;
+
+  return {
+    ...estimate,
+    tiene_vegetales: estimate.tiene_vegetales || local.tiene_vegetales,
+    balance: preferAi && aiBalance ? aiBalance : local.balance,
+    recomendaciones: preferAi ? aiTips : local.recomendaciones
+  };
+}
+
+/** Aplica ediciones de alimentos y recalcula totales + consejo de snack. */
+export function withEditedSnackFoods(
+  estimate: ExternalMealEstimate,
+  alimentos: ExternalMealFoodItem[]
+): ExternalMealEstimate {
+  const totals = sumExternalMealFoodMacros(alimentos);
+  const next: ExternalMealEstimate = {
+    ...estimate,
+    alimentos,
+    calorias_est: Math.min(1200, Math.max(20, totals.calorias || estimate.calorias_est)),
+    proteinas_est_g: Math.min(80, Math.max(0, totals.proteinas_g))
+  };
+  return {
+    ...next,
+    ...evaluateSnackBalance(next)
   };
 }
 

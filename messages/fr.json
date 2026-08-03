@@ -168,6 +168,8 @@
     "generatingShoppingList": "Préparation de votre liste de courses...",
     "emptyShoppingList": "Aucune recette n'est encore assignée à votre plan hebdomadaire.",
     "shoppingListEmptyCopy": "Votre liste de courses est vide pour cette semaine.",
+    "shoppingListAllRemoved": "Vous avez retiré tous les ingrédients de la liste.",
+    "removeShoppingItemAria": "Retirer de la liste",
     "usedInMeals": "dans {count} repas",
     "copyList": "Copier la liste",
     "copying": "Copie...",

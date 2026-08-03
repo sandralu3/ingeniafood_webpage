@@ -6,6 +6,7 @@ import { getUserIsPremium } from "@/lib/auth/user-premium";
 import {
   EXTERNAL_MEAL_BADGE,
   applyExternalMealAdvice,
+  applySnackAdvice,
   createExternalMealFoodItem,
   evaluateExternalMealBalance,
   isExternalMealBadge,
@@ -14,6 +15,17 @@ import {
   type ExternalMealEstimate,
   type ExternalMealFoodItem
 } from "@/lib/plan/external-meal";
+import {
+  commaSeparationErrorMessage,
+  foodDescriptionRejectionMessage,
+  descriptionNeedsCommaSeparation,
+  isLikelyFoodOrDrinkDescription
+} from "@/lib/plan/food-description-validation";
+import {
+  countCommaSeparatedFoods,
+  descriptionHasExplicitQuantities,
+  estimateMealFromOpenText
+} from "@/lib/plan/text-meal-estimate";
 
 export const maxDuration = 60;
 export const runtime = "nodejs";
@@ -29,6 +41,8 @@ const ALLOWED_IMAGE_MIME = new Set([
 
 type EstimatePayload = {
   mode?: "photo" | "text";
+  /** meal = plato principal / comida fuera; snack = tentempié */
+  context?: "meal" | "snack";
   description?: string;
   imageBase64?: string;
   mimeType?: string;
@@ -42,9 +56,9 @@ function jsonResponse(payload: unknown, status = 200) {
 function buildModelCandidates(configured?: string): string[] {
   const defaults = [
     "gemini-2.0-flash",
-    "gemini-2.5-flash",
-    "gemini-3.1-flash-lite",
-    "gemini-1.5-flash"
+    "gemini-2.0-flash-lite",
+    "gemini-1.5-flash",
+    "gemini-1.5-flash-8b"
   ];
   const all = configured?.trim() ? [configured.trim(), ...defaults] : defaults;
   return Array.from(new Set(all.filter((model) => model.length > 0)));
@@ -63,7 +77,22 @@ function isRetryableModelError(error: unknown): boolean {
     message.includes("404") ||
     lower.includes("is not found") ||
     lower.includes("not supported for generatecontent") ||
-    lower.includes("not found for api version")
+    lower.includes("not found for api version") ||
+    lower.includes("no longer available")
+  );
+}
+
+/** Cuota/rate-limit: no tiene sentido seguir probando más modelos free-tier. */
+function isQuotaExhaustedError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  const lower = message.toLowerCase();
+  return (
+    message.includes("429") ||
+    lower.includes("quota") ||
+    lower.includes("too many requests") ||
+    message.includes("RESOURCE_EXHAUSTED") ||
+    lower.includes("rate-limit") ||
+    lower.includes("rate limit")
   );
 }
 
@@ -280,8 +309,11 @@ function normalizeEstimate(
   return applyExternalMealAdvice(base, { preferAi: recomendaciones.length > 0 });
 }
 
-/** Último recurso si la IA falla: no bloquea el registro por texto. */
+/** Último recurso si la IA falla: parsea cantidades (p. ej. 200 g pechuga) y densidades. */
 function fallbackTextEstimate(description: string): ExternalMealEstimate {
+  const parsed = estimateMealFromOpenText(description);
+  if (parsed) return parsed;
+
   const lower = description.toLowerCase();
   const looksHeavy =
     /pizza|burger|hamburg|pasta|risotto|tacos|burrito|fritura|frito|helado|rollo de canela|croissant|donut|pastel/.test(
@@ -302,7 +334,6 @@ function fallbackTextEstimate(description: string): ExternalMealEstimate {
     calorias = 280;
     proteinas = 8;
   }
-  // Bebida + dulce típico
   if (/matcha|latte|caf[eé]|t[eé]/.test(lower) && /rollo|canela|croissant|pastel|galleta/.test(lower)) {
     calorias = 480;
     proteinas = 10;
@@ -336,30 +367,138 @@ function fallbackTextEstimate(description: string): ExternalMealEstimate {
   };
 }
 
-function buildPrompt(mode: "photo" | "text", description: string, locale?: string): string {
+/**
+ * Si el usuario escribió gramos/ml o varios alimentos por coma y la IA
+ * devolvió un desglose pobre, preferimos el parseo local.
+ */
+function preferParsedTextWhenAiUndershoots(
+  description: string,
+  aiEstimate: ExternalMealEstimate
+): ExternalMealEstimate {
+  const parsed = estimateMealFromOpenText(description);
+  if (!parsed || parsed.alimentos.length === 0) return aiEstimate;
+
+  const commaFoods = countCommaSeparatedFoods(description);
+  // "te matcha, café" → la IA a veces solo devuelve 1 ítem
+  if (commaFoods >= 2 && parsed.alimentos.length > aiEstimate.alimentos.length) {
+    return {
+      ...parsed,
+      badge: aiEstimate.badge,
+      nombre_plato: description.trim().slice(0, 120) || parsed.nombre_plato,
+      recomendaciones:
+        aiEstimate.recomendaciones.length > 0
+          ? aiEstimate.recomendaciones
+          : parsed.recomendaciones
+    };
+  }
+
+  if (!descriptionHasExplicitQuantities(description)) return aiEstimate;
+
+  const aiLooksGeneric =
+    aiEstimate.alimentos.length <= 1 &&
+    aiEstimate.alimentos.every(
+      (item) =>
+        item.unidad === "porción" ||
+        (item.cantidad <= 2 && !/^(g|ml)$/i.test(item.unidad))
+    );
+
+  const proteinGap = parsed.proteinas_est_g - aiEstimate.proteinas_est_g;
+  const kcalGap = parsed.calorias_est - aiEstimate.calorias_est;
+
+  if (aiLooksGeneric && (proteinGap >= 10 || kcalGap >= 120)) {
+    return {
+      ...parsed,
+      badge: aiEstimate.badge,
+      recomendaciones:
+        aiEstimate.recomendaciones.length > 0
+          ? aiEstimate.recomendaciones
+          : parsed.recomendaciones
+    };
+  }
+
+  if (proteinGap >= 15 && parsed.proteinas_est_g >= aiEstimate.proteinas_est_g * 1.6) {
+    return {
+      ...parsed,
+      badge: aiEstimate.badge,
+      recomendaciones:
+        aiEstimate.recomendaciones.length > 0
+          ? aiEstimate.recomendaciones
+          : parsed.recomendaciones
+    };
+  }
+
+  return aiEstimate;
+}
+
+function buildPrompt(
+  mode: "photo" | "text",
+  description: string,
+  locale?: string,
+  context: "meal" | "snack" = "meal"
+): string {
+  const isSnack = context === "snack";
   const lang =
     locale === "en"
-      ? "Respond with dish, foods and recommendations in English."
-      : "Responde con el nombre del plato, alimentos y recomendaciones en español.";
+      ? isSnack
+        ? "Respond with snack name, foods and recommendations in English."
+        : "Respond with dish, foods and recommendations in English."
+      : isSnack
+        ? "Responde con el nombre del snack, alimentos y recomendaciones en español."
+        : "Responde con el nombre del plato, alimentos y recomendaciones en español.";
 
-  const source =
-    mode === "photo"
+  const source = isSnack
+    ? mode === "photo"
+      ? "Analiza la foto de un SNACK / TENTEMPIÉ (no una comida principal). Identifica el snack y cada alimento visible."
+      : `El usuario describe un snack / tentempié:\n"""${description.replace(/"/g, "'")}"""\n` +
+        "Primero valida si el texto describe un alimento o bebida real. " +
+        "Si es un saludo, nombre de persona, objeto, aparato, frase sin comida o basura, responde SOLO {\"error\":\"NOT_FOOD\"}. " +
+        "Si SÍ es comida/bebida, estima el snack y desglosa los alimentos. Incluye bebidas pequeñas si las hay. " +
+        "Si el texto usa comas, cada fragmento es un alimento distinto (ej. \"galletas, café con leche\"). " +
+        "IMPORTANTE: respeta cantidades explícitas (ej. 200 g, 2 unidades). " +
+        "Cada alimento debe tener su propia cantidad/unidad y macros coherentes con ESA cantidad " +
+        "(ej. 200 g de pechuga ≈ 220 kcal y ≈ 46 g proteína; NUNCA lo trates como 1 porción de 8 g proteína)."
+    : mode === "photo"
       ? "Analiza la foto de un plato ya servido (restaurante, evento o casa). Identifica el plato y cada alimento visible."
-      : `El usuario describe una comida consumida fuera:\n"""${description.replace(/"/g, "'")}"""\nEstima el plato y desglosa los alimentos típicos. Incluye bebidas, postres y snacks: SÍ son comida.`;
+      : `El usuario describe una comida consumida fuera:\n"""${description.replace(/"/g, "'")}"""\n` +
+        "Primero valida si el texto describe un alimento o bebida real. " +
+        "Si es un saludo, nombre de persona, objeto, aparato, frase sin comida o basura, responde SOLO {\"error\":\"NOT_FOOD\"}. " +
+        "Si SÍ es comida/bebida (incluidos postres, snacks y bebidas), desglosa CADA alimento por separado. " +
+        "Si el texto usa comas, cada fragmento es un alimento distinto (ej. \"200 g pechuga, arroz, ensalada\"). " +
+        "IMPORTANTE: respeta cantidades explícitas del texto (g, ml, unidades, rebanadas). " +
+        "Ejemplo: \"200 gr de pechuga, arroz\" → alimentos: Pechuga 200 g (~220 kcal, ~46 g prot) + Arroz (porción típica si no indica gramos). " +
+        "NUNCA conviertas un peso en gramos en \"1 porción\" genérica con macros bajas.";
+
+  const advice = isSnack
+    ? "IMPORTANTE: esto es un TENTEMPIÉ entre horas, NO una comida principal. " +
+      "NO pidas verdura ni equilibrar como si fuera un plato completo. " +
+      "Evalúa tamaño razonable, saciedad, azúcares/ultraprocesados y si encaja como snack. " +
+      "Sugiere 1-3 tips prácticos de snack (p. ej. reducir porción, añadir yogur/frutos secos para saciedad, disfrutarlo con moderación).\n"
+    : "Evalúa si el menú está equilibrado. Si falta verdura, proteína o es muy calórico/poco saludable, dilo con claridad y sugiere 1-3 recomendaciones prácticas (p. ej. añadir ensalada, yogur, reducir porción).\n";
+
+  const exampleTip = isSnack
+    ? "Si te quedas con hambre, añade yogur o un puñado de frutos secos."
+    : "Añade una ensalada para equilibrar el plato.";
+
+  const foodRange = isSnack
+    ? "Incluye entre 1 y 5 alimentos cuando sea posible.\n"
+    : "Incluye entre 2 y 8 alimentos cuando sea posible.\n";
 
   return (
     `${source} ${lang}\n` +
-    "Lista cada alimento del plato con cantidad estimada (peso en g/ml o unidades) y sus calorías/proteínas para ESA cantidad.\n" +
-    "Los totales del plato deben coincidir con la suma de los alimentos.\n" +
+    "Lista cada alimento con cantidad estimada (peso en g/ml o unidades) y sus calorías/proteínas para ESA cantidad.\n" +
+    "Los totales deben coincidir con la suma de los alimentos.\n" +
     "Indica si incluye vegetales/verdura significativa.\n" +
-    "Evalúa si el menú está equilibrado. Si falta verdura, proteína o es muy calórico/poco saludable, dilo con claridad y sugiere 1-3 recomendaciones prácticas (p. ej. añadir ensalada, yogur, reducir porción).\n" +
+    advice +
     "Responde SOLO un objeto JSON válido (sin markdown, sin texto extra) con exactamente estas claves:\n" +
-    '{"nombre_plato":"string","calorias_est":350,"proteinas_est_g":12,"tiene_vegetales":false,"badge":"comida_fuera","alimentos":[{"nombre":"Pollo","cantidad":150,"unidad":"g","calorias":180,"proteinas_g":35}],"balance":"mejorable","recomendaciones":["Añade una ensalada para equilibrar el plato."]}\n' +
+    `{"nombre_plato":"string","calorias_est":350,"proteinas_est_g":12,"tiene_vegetales":false,"badge":"comida_fuera","alimentos":[{"nombre":"Pollo","cantidad":150,"unidad":"g","calorias":180,"proteinas_g":35}],"balance":"mejorable","recomendaciones":["${exampleTip}"]}\n` +
     `badge debe ser "${mode === "photo" ? "escaneado" : "comida_fuera"}".\n` +
     'balance debe ser "equilibrado", "mejorable" o "poco_saludable".\n' +
     'unidad preferida: g, ml, unidad, rebanada, cda, cdta, taza o porción.\n' +
-    "Incluye entre 2 y 8 alimentos cuando sea posible.\n" +
-    'Si la imagen NO es comida, responde {"error":"NOT_FOOD"}. Nunca uses NOT_FOOD para descripciones de texto con alimentos o bebidas.'
+    foodRange +
+    (mode === "photo"
+      ? 'Si la imagen NO es comida, responde {"error":"NOT_FOOD"}.'
+      : 'Si el texto NO describe un alimento o bebida, responde {"error":"NOT_FOOD"}. ' +
+        "Nunca inventes un plato a partir de texto que no sea comida.")
   );
 }
 
@@ -410,6 +549,7 @@ export async function POST(request: Request) {
       );
     }
     const mode = body.mode === "photo" ? "photo" : "text";
+    const context = body.context === "snack" ? "snack" : "meal";
     const description = typeof body.description === "string" ? body.description.trim() : "";
     const imageBase64 =
       typeof body.imageBase64 === "string"
@@ -421,11 +561,44 @@ export async function POST(request: Request) {
         : "image/jpeg";
 
     if (mode === "text" && description.length < 3) {
-      return jsonResponse({ error: "Escribe al menos una descripción corta de la comida." }, 400);
+      return jsonResponse(
+        {
+          error:
+            context === "snack"
+              ? "Escribe al menos una descripción corta del snack."
+              : "Escribe al menos una descripción corta de la comida."
+        },
+        400
+      );
+    }
+    if (mode === "text" && !isLikelyFoodOrDrinkDescription(description)) {
+      return jsonResponse(
+        {
+          error: "NOT_FOOD",
+          code: "NOT_FOOD",
+          message: foodDescriptionRejectionMessage(context)
+        },
+        422
+      );
+    }
+    if (mode === "text" && descriptionNeedsCommaSeparation(description)) {
+      return jsonResponse(
+        {
+          error: "COMMA_SEPARATION_REQUIRED",
+          code: "COMMA_SEPARATION_REQUIRED",
+          message: commaSeparationErrorMessage()
+        },
+        400
+      );
     }
     if (mode === "photo") {
       if (!imageBase64) {
-        return jsonResponse({ error: "Falta la imagen del plato." }, 400);
+        return jsonResponse(
+          {
+            error: context === "snack" ? "Falta la imagen del snack." : "Falta la imagen del plato."
+          },
+          400
+        );
       }
       if (!ALLOWED_IMAGE_MIME.has(mimeType)) {
         return jsonResponse({ error: "Formato de imagen no soportado." }, 400);
@@ -441,7 +614,7 @@ export async function POST(request: Request) {
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const prompt = buildPrompt(mode, description, body.locale);
+    const prompt = buildPrompt(mode, description, body.locale, context);
     const parts: Part[] =
       mode === "photo"
         ? [{ text: prompt }, { inlineData: { data: imageBase64, mimeType } }]
@@ -482,18 +655,19 @@ export async function POST(request: Request) {
           typeof parsed === "object" &&
           (parsed as { error?: string }).error === "NOT_FOOD"
         ) {
-          if (mode === "photo") {
-            return jsonResponse(
-              {
-                error: "NOT_FOOD",
-                message: "No detectamos un plato de comida en la imagen."
-              },
-              422
-            );
-          }
-          // Texto: no aceptar NOT_FOOD; probar otro modelo / fallback
-          lastError = new Error("Modelo marcó NOT_FOOD en modo texto");
-          continue;
+          return jsonResponse(
+            {
+              error: "NOT_FOOD",
+              code: "NOT_FOOD",
+              message:
+                mode === "photo"
+                  ? context === "snack"
+                    ? "No detectamos un snack o alimento en la imagen."
+                    : "No detectamos un plato de comida en la imagen."
+                  : foodDescriptionRejectionMessage(context)
+            },
+            422
+          );
         }
 
         const normalized = normalizeEstimate(parsed, fallbackBadge);
@@ -510,19 +684,34 @@ export async function POST(request: Request) {
         );
       } catch (error) {
         lastError = error;
-        console.warn(`[estimate-external-meal] modelo ${modelName}:`, error);
+        const message = error instanceof Error ? error.message : String(error ?? "");
+        // Loguear como string: pasar el Error completo hace que Next.js lo trate
+        // como fallo de ruta y puede remountar el cliente (cierra el modal).
+        console.warn(`[estimate-external-meal] modelo ${modelName}: ${message.slice(0, 280)}`);
+        // Sin cuota: para texto ya validado como comida, usar fallback ya.
+        if (
+          mode === "text" &&
+          isQuotaExhaustedError(error) &&
+          isLikelyFoodOrDrinkDescription(description)
+        ) {
+          break;
+        }
         if (isRetryableModelError(error)) continue;
-        // Otros errores: aún así probar siguiente modelo
         continue;
       }
     }
 
-    if (!estimate && mode === "text" && description.length >= 3) {
+    // Fallback solo si el texto ya pasó validación de alimento y la IA falló técnicamente.
+    if (
+      !estimate &&
+      mode === "text" &&
+      description.length >= 3 &&
+      isLikelyFoodOrDrinkDescription(description)
+    ) {
+      const fallbackReason =
+        lastError instanceof Error ? lastError.message : String(lastError ?? "unknown");
       console.warn(
-        "[estimate-external-meal] usando fallback texto. lastError:",
-        lastError,
-        "raw:",
-        lastRawText.slice(0, 300)
+        `[estimate-external-meal] usando fallback texto. reason: ${fallbackReason.slice(0, 280)}`
       );
       estimate = fallbackTextEstimate(description);
     }
@@ -551,7 +740,11 @@ export async function POST(request: Request) {
       ];
     }
 
-    estimate = applyExternalMealAdvice(estimate, {
+    if (mode === "text") {
+      estimate = preferParsedTextWhenAiUndershoots(description, estimate);
+    }
+
+    estimate = (context === "snack" ? applySnackAdvice : applyExternalMealAdvice)(estimate, {
       preferAi: estimate.recomendaciones.length > 0
     });
 

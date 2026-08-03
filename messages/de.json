@@ -168,6 +168,8 @@
     "generatingShoppingList": "Einkaufsliste wird erstellt...",
     "emptyShoppingList": "In deinem Wochenplan sind noch keine Rezepte zugewiesen.",
     "shoppingListEmptyCopy": "Deine Einkaufsliste ist für diese Woche leer.",
+    "shoppingListAllRemoved": "Du hast alle Zutaten von der Liste entfernt.",
+    "removeShoppingItemAria": "Von der Liste entfernen",
     "usedInMeals": "in {count} Mahlzeiten",
     "copyList": "Liste kopieren",
     "copying": "Wird kopiert...",

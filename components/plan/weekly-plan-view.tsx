@@ -766,6 +766,7 @@ export function WeeklyPlanView() {
         isLoading={isShoppingListLoading}
         errorMessage={shoppingListError}
         onClose={() => setShoppingListOpen(false)}
+        onItemsChange={setShoppingListItems}
       />
 
       <PremiumUpgradeDialog

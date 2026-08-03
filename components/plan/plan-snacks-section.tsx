@@ -64,11 +64,22 @@ function HoySnacksLayout({
             className="min-w-[calc(33.333%-0.375rem)] flex-1"
           >
             <span className="flex w-full items-center justify-center gap-1 rounded-full bg-[#F3F0E8]/90 px-2.5 py-1.5 text-[11px] text-stone-700">
-              <span className="shrink-0 text-[12px] leading-none" aria-hidden>
-                {snack.emoji?.trim() || (
-                  <Cookie className="h-3 w-3 text-[#C27803]" strokeWidth={1.75} />
-                )}
-              </span>
+              {snack.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={snack.imageUrl}
+                  alt=""
+                  className="h-5 w-5 shrink-0 rounded-full object-cover ring-1 ring-stone-200/80"
+                  loading="lazy"
+                  draggable={false}
+                />
+              ) : (
+                <span className="shrink-0 text-[12px] leading-none" aria-hidden>
+                  {snack.emoji?.trim() || (
+                    <Cookie className="h-3 w-3 text-[#C27803]" strokeWidth={1.75} />
+                  )}
+                </span>
+              )}
               <span className="truncate font-medium">{snack.title}</span>
             </span>
           </li>
@@ -93,6 +104,7 @@ export function PlanSnacksSection({
 }: Props) {
   const t = useTranslations("Plan");
   const [modalOpen, setModalOpen] = useState(false);
+  const [modalBusy, setModalBusy] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [quickBusyId, setQuickBusyId] = useState<string | null>(null);
 
@@ -198,14 +210,25 @@ export function PlanSnacksSection({
               >
                 <span
                   className={cn(
-                    "flex shrink-0 items-center justify-center rounded-full ring-1",
-                    compact ? "h-6 w-6 text-xs" : "h-7 w-7 text-sm",
+                    "relative flex shrink-0 items-center justify-center overflow-hidden rounded-full ring-1",
+                    compact ? "h-7 w-7 text-xs" : "h-9 w-9 text-sm",
                     SNACK_ACCENT.iconCircleBg,
                     SNACK_ACCENT.iconRing
                   )}
                   aria-hidden
                 >
-                  {snack.emoji?.trim() || (
+                  {snack.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={snack.imageUrl}
+                      alt=""
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                      draggable={false}
+                    />
+                  ) : snack.emoji?.trim() ? (
+                    snack.emoji
+                  ) : (
                     <Cookie
                       className={cn(
                         compact ? "h-3 w-3" : "h-3.5 w-3.5",
@@ -310,8 +333,13 @@ export function PlanSnacksSection({
           open={modalOpen}
           dayLabel={dayLabel}
           weekStartISO={weekStartISO}
-          onClose={() => setModalOpen(false)}
+          onBusyChange={setModalBusy}
+          onClose={() => {
+            if (modalBusy) return;
+            setModalOpen(false);
+          }}
           onRegistered={(snack) => {
+            setModalBusy(false);
             onSnackAdded?.(snack);
             setModalOpen(false);
           }}
