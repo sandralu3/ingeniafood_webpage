@@ -53,6 +53,8 @@ export type TodayPlanMealSummary = {
   hasProtein: boolean;
   imageUrl: string | null;
   recipeId?: string | null;
+  /** Id de la fila en plan_semanal (para mover/arrastrar). */
+  planEntryId?: string | null;
 };
 
 const PROTEIN_TAG_PATTERN = /alto en prote/i;
@@ -223,7 +225,8 @@ export function buildTodayPlanMealSummaries(slots: PlanDaySlots): TodayPlanMealS
         hasVegetables: Boolean(meal.hasVegetables),
         hasProtein: Boolean(meal.hasProtein),
         imageUrl: meal.imageUrl?.trim() || null,
-        recipeId: meal.recipeId ?? null
+        recipeId: meal.recipeId ?? null,
+        planEntryId: meal.id ?? null
       }
     ];
   });

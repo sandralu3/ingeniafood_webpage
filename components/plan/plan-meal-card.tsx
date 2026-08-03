@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type HTMLAttributes } from "react";
 import Link from "next/link";
-import { Coffee, Clock3, Loader2, RefreshCw, Soup, Trash2, Utensils } from "lucide-react";
+import { Coffee, Clock3, GripVertical, Loader2, RefreshCw, Soup, Trash2, Utensils } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { RecipeInstagramLink } from "@/components/recipes/recipe-instagram-link";
 import { RecipeMedia } from "@/components/recipes/recipe-media";
@@ -51,6 +51,10 @@ type PlanMealCardProps = {
   onRemoveError?: (message: string) => void;
   variant?: "default" | "slot" | "panel";
   className?: string;
+  /** Ref del asa de arrastre (imagen). */
+  dragHandleRef?: (node: HTMLElement | null) => void;
+  /** Listeners de @dnd-kit para arrastrar desde la imagen/miniatura. */
+  dragHandleProps?: HTMLAttributes<HTMLElement>;
 };
 
 function ExternalMealBadgePill({ badge }: { badge: ExternalMealBadge }) {
@@ -142,6 +146,7 @@ function MealThumbnail({
         alt={title ? imageAlt : imageAltFallback}
         className={cn("shrink-0 object-cover ring-1 ring-stone-100", sizeClass)}
         loading="lazy"
+        draggable={false}
       />
     );
   }
@@ -296,7 +301,9 @@ function HorizontalMealCard({
   viewRecipeAria,
   imageAlt,
   imageAltFallback,
-  nutritionPills
+  nutritionPills,
+  dragHandleRef,
+  dragHandleProps
 }: {
   meal: PlanMeal;
   isFading: boolean;
@@ -316,7 +323,24 @@ function HorizontalMealCard({
   imageAlt: string;
   imageAltFallback: string;
   nutritionPills: string[];
+  dragHandleRef?: (node: HTMLElement | null) => void;
+  dragHandleProps?: HTMLAttributes<HTMLElement>;
 }) {
+  const thumbnail = (
+    <MealThumbnail
+      imageUrl={meal.imageUrl}
+      title={meal.title}
+      mealType={meal.mealType}
+      compact={compact}
+      imageAlt={imageAlt}
+      imageAltFallback={imageAltFallback}
+    />
+  );
+
+  // En panel (plan semanal), la foto queda fuera del Link para poder arrastrarla
+  // sin que el navegador capture el drag del <a>/<img>.
+  const imageOutsideLink = compact || Boolean(dragHandleProps);
+
   return (
     <article
       className={cn(
@@ -328,6 +352,29 @@ function HorizontalMealCard({
         className
       )}
     >
+      {dragHandleProps ? (
+        <button
+          type="button"
+          ref={dragHandleRef}
+          className={cn(
+            "relative shrink-0 touch-manipulation cursor-grab rounded-lg active:cursor-grabbing",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3E5A3A]/40"
+          )}
+          aria-label="Arrastrar comida a otro horario"
+          {...dragHandleProps}
+        >
+          {thumbnail}
+          <span
+            className="pointer-events-none absolute bottom-0.5 right-0.5 rounded bg-black/45 p-0.5 text-white"
+            aria-hidden
+          >
+            <GripVertical className="h-2.5 w-2.5" strokeWidth={2.5} />
+          </span>
+        </button>
+      ) : imageOutsideLink ? (
+        <div className="shrink-0 select-none">{thumbnail}</div>
+      ) : null}
+
       <Link
         href={recipeDetailHref(meal.recipeId)}
         className={cn(
@@ -336,14 +383,7 @@ function HorizontalMealCard({
         )}
         aria-label={viewRecipeAria}
       >
-        <MealThumbnail
-          imageUrl={meal.imageUrl}
-          title={meal.title}
-          mealType={meal.mealType}
-          compact={compact}
-          imageAlt={imageAlt}
-          imageAltFallback={imageAltFallback}
-        />
+        {!imageOutsideLink ? thumbnail : null}
 
         <div className="min-w-0 flex-1">
           {showMealType ? (
@@ -437,7 +477,9 @@ export function PlanMealCard({
   onMealRemoved,
   onRemoveError,
   variant = "default",
-  className
+  className,
+  dragHandleRef,
+  dragHandleProps
 }: PlanMealCardProps) {
   const t = useTranslations("Plan");
   const tCommon = useTranslations("Common");
@@ -591,6 +633,8 @@ export function PlanMealCard({
           showMealType={!isPanel}
           compact={isPanel}
           className={className}
+          dragHandleRef={dragHandleRef}
+          dragHandleProps={dragHandleProps}
           {...actionProps}
         />
         {confirmDialog}

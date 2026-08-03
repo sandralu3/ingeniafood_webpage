@@ -524,3 +524,145 @@ export async function fillTodayPlanWithSuggestions(params: {
     forceReplace: params.forceReplace
   });
 }
+
+export type PlanSlotRef = {
+  dayLabel: WeekDay;
+  mealType: MealType;
+};
+
+export type MovePlanMealResult = {
+  source: PlanSlotRef & { meal: PlanMeal | null };
+  target: PlanSlotRef & { meal: PlanMeal | null };
+};
+
+type PlanSlotRowLite = Pick<PlanRow, "id" | "recipe_id" | "dia_semana" | "tipo_comida">;
+
+/**
+ * Mueve o intercambia una comida entre slots del plan (mismo u otro día).
+ * - Destino vacío: reubica la fila (dia_semana + tipo_comida).
+ * - Destino ocupado: intercambia recipe_id entre ambas filas.
+ */
+export async function movePlanMeal(params: {
+  userId: string;
+  semanaInicioISO: string;
+  from: PlanSlotRef;
+  to: PlanSlotRef;
+}): Promise<MovePlanMealResult | null> {
+  const { userId, semanaInicioISO, from, to } = params;
+
+  if (from.dayLabel === to.dayLabel && from.mealType === to.mealType) {
+    return null;
+  }
+
+  const supabase = createSupabaseClient();
+
+  const { data: rows, error } = await supabase
+    .from("plan_semanal")
+    .select("id, recipe_id, dia_semana, tipo_comida")
+    .eq("user_id", userId)
+    .eq("semana_inicio", semanaInicioISO)
+    .in("dia_semana", Array.from(new Set([from.dayLabel, to.dayLabel])));
+
+  if (error) {
+    console.error("[plan] Error leyendo slots para mover:", error);
+    return null;
+  }
+
+  const list = (rows ?? []) as PlanSlotRowLite[];
+  const sourceRow =
+    list.find(
+      (row) =>
+        row.dia_semana === from.dayLabel && mapMealType(row.tipo_comida) === from.mealType
+    ) ?? null;
+  const targetRow =
+    list.find(
+      (row) => row.dia_semana === to.dayLabel && mapMealType(row.tipo_comida) === to.mealType
+    ) ?? null;
+
+  if (!sourceRow) {
+    return null;
+  }
+
+  if (!targetRow) {
+    const { data: moved, error: moveError } = await supabase
+      .from("plan_semanal")
+      .update({
+        dia_semana: to.dayLabel,
+        tipo_comida: to.mealType
+      })
+      .eq("id", sourceRow.id)
+      .eq("user_id", userId)
+      .select(PLAN_SELECT)
+      .maybeSingle();
+
+    if (moveError || !moved) {
+      console.error("[plan] Error moviendo comida a slot vacío:", moveError);
+      return null;
+    }
+
+    const [enriched] = await enrichPlanRowsWithNutrition([moved as PlanRowWithRecipe]);
+    const meal = toPlanMeal(enriched);
+    return {
+      source: { ...from, meal: null },
+      target: { ...to, meal: { ...meal, mealType: to.mealType } }
+    };
+  }
+
+  const sourceRecipeId = sourceRow.recipe_id;
+  const targetRecipeId = targetRow.recipe_id;
+
+  const { error: swapToTargetError } = await supabase
+    .from("plan_semanal")
+    .update({ recipe_id: sourceRecipeId })
+    .eq("id", targetRow.id)
+    .eq("user_id", userId);
+
+  if (swapToTargetError) {
+    console.error("[plan] Error intercambiando recipe en destino:", swapToTargetError);
+    return null;
+  }
+
+  const { error: swapToSourceError } = await supabase
+    .from("plan_semanal")
+    .update({ recipe_id: targetRecipeId })
+    .eq("id", sourceRow.id)
+    .eq("user_id", userId);
+
+  if (swapToSourceError) {
+    // Intentar revertir el destino para no dejar el plan inconsistente.
+    await supabase
+      .from("plan_semanal")
+      .update({ recipe_id: targetRecipeId })
+      .eq("id", targetRow.id)
+      .eq("user_id", userId);
+    console.error("[plan] Error intercambiando recipe en origen:", swapToSourceError);
+    return null;
+  }
+
+  const { data: updatedRows, error: reloadError } = await supabase
+    .from("plan_semanal")
+    .select(PLAN_SELECT)
+    .in("id", [sourceRow.id, targetRow.id]);
+
+  if (reloadError || !updatedRows?.length) {
+    console.error("[plan] Error recargando slots tras intercambio:", reloadError);
+    return null;
+  }
+
+  const enrichedRows = await enrichPlanRowsWithNutrition(updatedRows as PlanRowWithRecipe[]);
+  const byId = new Map(enrichedRows.map((row) => [row.id, toPlanMeal(row)]));
+
+  const sourceMeal = byId.get(sourceRow.id) ?? null;
+  const targetMeal = byId.get(targetRow.id) ?? null;
+
+  return {
+    source: {
+      ...from,
+      meal: sourceMeal ? { ...sourceMeal, mealType: from.mealType } : null
+    },
+    target: {
+      ...to,
+      meal: targetMeal ? { ...targetMeal, mealType: to.mealType } : null
+    }
+  };
+}

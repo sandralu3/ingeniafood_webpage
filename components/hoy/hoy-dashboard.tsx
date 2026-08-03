@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { Camera, ScanLine } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { DailyChallenges } from "@/components/hoy/daily-challenges";
@@ -17,9 +16,8 @@ import {
 import { useHoyPageData } from "@/hooks/use-hoy-page-data";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
 
-/** Ensalada / bowl — visual hero del mock. */
-const SCAN_HERO_IMAGE =
-  "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=800&q=80";
+/** Nevera / despensa — asset local (evita Unsplash en PWA / móvil). */
+const SCAN_HERO_IMAGE = "/images/scanner/pantry-hero-fridge.png";
 
 function deriveLevelLabel(earnedPoints: number): string {
   const level = Math.max(1, Math.floor(earnedPoints / 100) + 1);
@@ -91,13 +89,12 @@ export function HoyDashboard() {
             </div>
 
             <div className="pointer-events-none absolute inset-y-0 right-0 w-[48%]">
-              <Image
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
                 src={SCAN_HERO_IMAGE}
                 alt=""
-                fill
-                className="object-cover object-[center_35%]"
-                sizes="200px"
-                priority
+                className="absolute inset-0 h-full w-full object-cover object-[center_40%]"
+                decoding="async"
               />
               <div className="absolute inset-0 bg-gradient-to-r from-[#E3E8DC] via-[#E3E8DC]/55 to-transparent" />
             </div>

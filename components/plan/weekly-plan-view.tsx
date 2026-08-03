@@ -17,6 +17,7 @@ import {
   fetchRecipesForPicker,
   fetchWeeklyPlan,
   fillDayPlanWithSuggestions,
+  movePlanMeal,
   type RecipePickerItem
 } from "@/lib/plan/plan-service";
 import { buildShoppingListItems, type ShoppingListItem } from "@/lib/plan/shopping-list";
@@ -341,6 +342,53 @@ export function WeeklyPlanView() {
     window.setTimeout(() => setSwapNotice(null), 3200);
   };
 
+  const handleMealMoved = (
+    result: NonNullable<Awaited<ReturnType<typeof movePlanMeal>>>
+  ) => {
+    setDays((prev) =>
+      prev.map((day) => {
+        let nextSlots = day.slots;
+        let changed = false;
+
+        if (day.label === result.source.dayLabel) {
+          nextSlots = {
+            ...nextSlots,
+            [result.source.mealType]: result.source.meal
+          };
+          changed = true;
+        }
+
+        if (day.label === result.target.dayLabel) {
+          nextSlots = {
+            ...nextSlots,
+            [result.target.mealType]: result.target.meal
+          };
+          changed = true;
+        }
+
+        return changed ? patchDaySlots(day, nextSlots) : day;
+      })
+    );
+
+    if (userId) {
+      clearHoyCache(userId);
+      invalidatePremiumInsightsCache(userId);
+    }
+
+    const movedTitle =
+      result.target.meal?.title ?? result.source.meal?.title ?? "";
+    setSwapNotice(
+      t.has("recipeMoved")
+        ? t("recipeMoved", {
+            title: movedTitle,
+            from: t(`meals.${result.source.mealType}`),
+            to: t(`meals.${result.target.mealType}`)
+          })
+        : `«${movedTitle}» movida a ${t(`meals.${result.target.mealType}`)}.`
+    );
+    window.setTimeout(() => setSwapNotice(null), 2800);
+  };
+
   const handleProposeDayMenu = async () => {
     if (!userId || !selectedDayData || isProposingDayMenu || isPremiumLoading) return;
 
@@ -628,6 +676,7 @@ export function WeeklyPlanView() {
                 onSwapError={handleSwapError}
                 onMealRemoved={handleMealRemoved}
                 onRemoveError={handleSwapError}
+                onMealMoved={handleMealMoved}
                 onSnackAdded={(dayLabel, snack) => {
                   setDays((prev) =>
                     prev.map((day) =>
