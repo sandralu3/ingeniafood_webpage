@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { usePathname } from "next/navigation";
 import { Plus, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { MasterIngredient, PantryCategoryDb } from "@/lib/pantry/types";
@@ -32,12 +34,20 @@ export function IngredientCombobox({
   onCreateCustomIngredient
 }: Props) {
   const t = useTranslations("Scanner");
+  const pathname = usePathname();
+  const hasBottomNav = pathname.startsWith("/app-recetas");
   const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(0);
   const [pendingCustomName, setPendingCustomName] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const categoryPickerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const trimmedQuery = query.trim();
   const normalizedQuery = trimmedQuery.toLowerCase();
@@ -86,7 +96,10 @@ export function IngredientCombobox({
 
   useEffect(() => {
     const onPointerDown = (event: MouseEvent) => {
-      if (!containerRef.current?.contains(event.target as Node)) {
+      const target = event.target as Node;
+      const insideCombobox = containerRef.current?.contains(target);
+      const insideCategoryPicker = categoryPickerRef.current?.contains(target);
+      if (!insideCombobox && !insideCategoryPicker) {
         setIsOpen(false);
         setPendingCustomName(null);
       }
@@ -218,40 +231,65 @@ export function IngredientCombobox({
         <Plus className="h-4 w-4" strokeWidth={2} />
       </button>
 
-      {isOpen && pendingCustomName ? (
-        <div className="absolute z-30 mt-2 w-full rounded-xl border border-sv-outline-variant/30 bg-white p-3 shadow-lg">
-          <p className="text-sm font-medium text-sv-on-surface">
-            {t("customFoodTypePrompt", { name: pendingCustomName })}
-          </p>
-          <div className="mt-3 flex flex-col gap-2">
-            {CATEGORY_OPTIONS.map((option) => (
+      {isMounted && isOpen && pendingCustomName
+        ? createPortal(
+            <div
+              className={cn(
+                "fixed inset-0 z-[60] flex items-end justify-center px-4 pt-6 sm:items-center sm:pb-6",
+                hasBottomNav
+                  ? "pb-[calc(var(--app-scan-footer-height)+var(--app-bottom-nav-height)+0.75rem)]"
+                  : "pb-[calc(var(--app-scan-footer-height)+0.75rem)]"
+              )}
+              role="presentation"
+            >
               <button
-                key={option.value}
                 type="button"
-                disabled={isCreating}
-                onClick={() => void handleConfirmCategory(option.value)}
-                className="rounded-lg border border-sv-outline-variant/30 bg-sv-surface-low px-3 py-2 text-left text-sm font-medium text-sv-on-surface transition hover:border-sv-primary/40 hover:bg-sv-secondary-container/40 disabled:opacity-60"
+                aria-label={t("customBackToSearch")}
+                className="absolute inset-0 bg-black/35"
+                onClick={() => setPendingCustomName(null)}
+              />
+              <div
+                ref={categoryPickerRef}
+                role="dialog"
+                aria-modal="true"
+                aria-label={t("customFoodTypePrompt", { name: pendingCustomName })}
+                className="relative z-10 w-full max-w-md rounded-2xl border border-stone-200 bg-white p-4 shadow-2xl"
               >
-                {isCreating ? (
-                  <span className="inline-flex items-center gap-2">
-                    <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-sv-primary/30 border-t-sv-primary" />
-                    {t("customSaving")}
-                  </span>
-                ) : (
-                  t(option.labelKey)
-                )}
-              </button>
-            ))}
-          </div>
-          <button
-            type="button"
-            onClick={() => setPendingCustomName(null)}
-            className="mt-2 text-xs text-stone-500 underline"
-          >
-            {t("customBackToSearch")}
-          </button>
-        </div>
-      ) : null}
+                <p className="text-sm font-semibold text-stone-800">
+                  {t("customFoodTypePrompt", { name: pendingCustomName })}
+                </p>
+                <div className="mt-3 flex flex-col gap-2">
+                  {CATEGORY_OPTIONS.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      disabled={isCreating}
+                      onClick={() => void handleConfirmCategory(option.value)}
+                      className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-left text-sm font-medium text-stone-800 transition hover:border-[#3E5A3A]/40 hover:bg-[#F4F7F2] disabled:opacity-60"
+                    >
+                      {isCreating ? (
+                        <span className="inline-flex items-center gap-2">
+                          <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-[#3E5A3A]/30 border-t-[#3E5A3A]" />
+                          {t("customSaving")}
+                        </span>
+                      ) : (
+                        t(option.labelKey)
+                      )}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPendingCustomName(null)}
+                  className="mt-3 w-full py-2 text-center text-xs font-medium text-stone-500 underline"
+                >
+                  {t("customBackToSearch")}
+                </button>
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
 
       {isOpen && !pendingCustomName && normalizedQuery ? (
         <ul

@@ -1,4 +1,5 @@
 import type { Database, Json } from "@/types/database.types";
+import { isExternalMeal } from "@/lib/plan/external-meal";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import { getMondayOfWeek, toISODateString } from "@/lib/plan/week-utils";
 
@@ -6,7 +7,7 @@ type PlanRow = Database["public"]["Tables"]["plan_semanal"]["Row"];
 type RecipeRow = Database["public"]["Tables"]["recipes"]["Row"];
 
 type PlanRowWithRecipeIngredients = PlanRow & {
-  recipes: Pick<RecipeRow, "id" | "title" | "ingredients"> | null;
+  recipes: Pick<RecipeRow, "id" | "title" | "ingredients" | "tags"> | null;
 };
 
 export type PlanRecipeIngredientsRow = {
@@ -15,12 +16,14 @@ export type PlanRecipeIngredientsRow = {
   ingredients: Json;
 };
 
+/**
+ * Recetas del plan semanal para la lista de compra.
+ * Excluye comidas fuera / escaneadas (ya consumidas; no hay que comprar ingredientes).
+ */
 export async function fetchWeeklyPlanRecipesForShoppingList(
   userId: string,
   weekStartDate: Date = getMondayOfWeek()
-): Promise<
-  PlanRecipeIngredientsRow[]
-> {
+): Promise<PlanRecipeIngredientsRow[]> {
   const supabase = createSupabaseClient();
   const semanaInicio = toISODateString(weekStartDate);
 
@@ -31,7 +34,8 @@ export async function fetchWeeklyPlanRecipesForShoppingList(
         recipes (
           id,
           title,
-          ingredients
+          ingredients,
+          tags
         )
       `
     )
@@ -47,6 +51,7 @@ export async function fetchWeeklyPlanRecipesForShoppingList(
   return rows
     .map((row) => {
       if (!row.recipes) return null;
+      if (isExternalMeal(row.recipes.tags)) return null;
       return {
         recipeId: row.recipes.id,
         title: row.recipes.title,
@@ -55,4 +60,3 @@ export async function fetchWeeklyPlanRecipesForShoppingList(
     })
     .filter((x): x is PlanRecipeIngredientsRow => Boolean(x));
 }
-

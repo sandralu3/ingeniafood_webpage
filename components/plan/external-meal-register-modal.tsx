@@ -1,11 +1,20 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Camera, Loader2, PenLine, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Camera, Loader2, PenLine, Trash2, X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import type { PlanMeal } from "@/components/plan/plan-meal-card";
 import type { MealType, WeekDay } from "@/lib/plan/constants";
-import type { ExternalMealEstimate } from "@/lib/plan/external-meal";
+import {
+  EXTERNAL_MEAL_UNITS,
+  applyExternalMealAdvice,
+  createExternalMealFoodItem,
+  scaleExternalMealFoodItem,
+  withEditedExternalMealFoods,
+  type ExternalMealEstimate,
+  type ExternalMealFoodItem
+} from "@/lib/plan/external-meal";
+import { compressImageForUpload } from "@/lib/images/compress-image-for-upload";
 import { registerExternalMealToPlan } from "@/lib/plan/register-external-meal";
 import { uploadExternalMealPhoto } from "@/lib/plan/upload-external-meal-photo";
 import { canRegisterExternalMealForPlanDay } from "@/lib/plan/week-utils";
@@ -13,6 +22,7 @@ import { createSupabaseClient } from "@/lib/supabaseClient";
 import { cn } from "@/lib/utils";
 
 type Mode = "photo" | "text";
+type Step = "input" | "review";
 
 type Props = {
   open: boolean;
@@ -31,19 +41,6 @@ type EstimateApiResponse = {
   code?: string;
 };
 
-async function fileToBase64(file: File): Promise<{ base64: string; mimeType: string }> {
-  const buffer = await file.arrayBuffer();
-  const bytes = new Uint8Array(buffer);
-  let binary = "";
-  for (let i = 0; i < bytes.length; i += 1) {
-    binary += String.fromCharCode(bytes[i]!);
-  }
-  return {
-    base64: btoa(binary),
-    mimeType: file.type || "image/jpeg"
-  };
-}
-
 export function ExternalMealRegisterModal({
   open,
   mode,
@@ -55,23 +52,40 @@ export function ExternalMealRegisterModal({
 }: Props) {
   const t = useTranslations("Plan");
   const locale = useLocale();
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+  const [step, setStep] = useState<Step>("input");
   const [description, setDescription] = useState("");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [isBusy, setIsBusy] = useState(false);
+  const [showSourcePicker, setShowSourcePicker] = useState(true);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [previewEstimate, setPreviewEstimate] = useState<ExternalMealEstimate | null>(null);
+  const [estimate, setEstimate] = useState<ExternalMealEstimate | null>(null);
+  const [foodItems, setFoodItems] = useState<ExternalMealFoodItem[]>([]);
+  const [quantityDrafts, setQuantityDrafts] = useState<Record<string, string>>({});
+  const [dishName, setDishName] = useState("");
+
+  const resetState = () => {
+    setStep("input");
+    setDescription("");
+    setSelectedFile(null);
+    setEstimate(null);
+    setFoodItems([]);
+    setQuantityDrafts({});
+    setDishName("");
+    setError(null);
+    setIsAnalyzing(false);
+    setIsSaving(false);
+    setShowSourcePicker(true);
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(null);
+  };
 
   useEffect(() => {
     if (!open) {
-      setDescription("");
-      setSelectedFile(null);
-      setPreviewEstimate(null);
-      setError(null);
-      setIsBusy(false);
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
-      setPreviewUrl(null);
+      resetState();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only when closing/opening
   }, [open]);
@@ -81,6 +95,15 @@ export function ExternalMealRegisterModal({
       if (previewUrl) URL.revokeObjectURL(previewUrl);
     };
   }, [previewUrl]);
+
+  const liveEstimate = useMemo(() => {
+    if (!estimate) return null;
+    const withName = {
+      ...estimate,
+      nombre_plato: dishName.trim() || estimate.nombre_plato
+    };
+    return withEditedExternalMealFoods(withName, foodItems);
+  }, [dishName, estimate, foodItems]);
 
   if (!open) return null;
 
@@ -94,11 +117,25 @@ export function ExternalMealRegisterModal({
         : "✍️ Registrar comida rápida";
 
   const handleFileChange = (file: File | null) => {
+    if (!file || !file.type.startsWith("image/")) return;
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setSelectedFile(file);
-    setPreviewEstimate(null);
+    setEstimate(null);
+    setFoodItems([]);
+    setQuantityDrafts({});
+    setDishName("");
     setError(null);
-    setPreviewUrl(file ? URL.createObjectURL(file) : null);
+    setStep("input");
+    setPreviewUrl(URL.createObjectURL(file));
+    setShowSourcePicker(false);
+  };
+
+  const openCamera = () => {
+    window.setTimeout(() => cameraInputRef.current?.click(), 0);
+  };
+
+  const openGallery = () => {
+    window.setTimeout(() => galleryInputRef.current?.click(), 0);
   };
 
   const estimateMeal = async (): Promise<ExternalMealEstimate | null> => {
@@ -114,7 +151,7 @@ export function ExternalMealRegisterModal({
         );
         return null;
       }
-      const { base64, mimeType } = await fileToBase64(selectedFile);
+      const { base64, mimeType } = await compressImageForUpload(selectedFile);
       payload.imageBase64 = base64;
       payload.mimeType = mimeType;
     }
@@ -136,12 +173,32 @@ export function ExternalMealRegisterModal({
       );
       return null;
     }
-    return data.estimate;
+
+    const next = applyExternalMealAdvice({
+      ...data.estimate,
+      alimentos: Array.isArray(data.estimate.alimentos) ? data.estimate.alimentos : [],
+      balance: data.estimate.balance ?? "mejorable",
+      recomendaciones: Array.isArray(data.estimate.recomendaciones)
+        ? data.estimate.recomendaciones
+        : []
+    });
+    if (!next.alimentos.length) {
+      next.alimentos = [
+        createExternalMealFoodItem({
+          nombre: next.nombre_plato,
+          cantidad: 1,
+          unidad: "porción",
+          calorias: next.calorias_est,
+          proteinas_g: next.proteinas_est_g
+        })
+      ];
+    }
+    return applyExternalMealAdvice(next);
   };
 
-  const handleSubmit = async () => {
-    if (isBusy) return;
-    setIsBusy(true);
+  const handleAnalyze = async () => {
+    if (isAnalyzing || isSaving) return;
+    setIsAnalyzing(true);
     setError(null);
     try {
       if (!canRegisterExternalMealForPlanDay(weekStartISO, dayLabel)) {
@@ -153,10 +210,92 @@ export function ExternalMealRegisterModal({
         return;
       }
 
-      const estimate = previewEstimate ?? (await estimateMeal());
-      if (!estimate) return;
+      const nextEstimate = await estimateMeal();
+      if (!nextEstimate) return;
 
-      setPreviewEstimate(estimate);
+      setEstimate(nextEstimate);
+      setFoodItems(nextEstimate.alimentos);
+      setQuantityDrafts({});
+      setDishName(nextEstimate.nombre_plato);
+      setStep("review");
+    } catch (err) {
+      console.error("[external-meal] analyze", err);
+      setError(
+        t.has("externalMealEstimateError")
+          ? t("externalMealEstimateError")
+          : "No pudimos analizar la comida."
+      );
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const updateFoodItem = (id: string, patch: Partial<ExternalMealFoodItem>) => {
+    setFoodItems((current) =>
+      current.map((item) => {
+        if (item.id !== id) return item;
+        if (patch.cantidad != null && patch.cantidad !== item.cantidad) {
+          const nextQty = Number(patch.cantidad);
+          if (!Number.isFinite(nextQty) || nextQty <= 0) return item;
+          return scaleExternalMealFoodItem(item, nextQty);
+        }
+        if (patch.unidad != null || patch.nombre != null) {
+          return {
+            ...item,
+            nombre: patch.nombre?.trim() || item.nombre,
+            unidad: patch.unidad?.trim() || item.unidad
+          };
+        }
+        return { ...item, ...patch };
+      })
+    );
+  };
+
+  const handleQuantityDraftChange = (id: string, raw: string) => {
+    // Permitir borrar / reescribir (coma o punto decimal).
+    if (raw !== "" && !/^\d*[.,]?\d*$/.test(raw)) return;
+    setQuantityDrafts((current) => ({ ...current, [id]: raw }));
+
+    const normalized = raw.replace(",", ".");
+    if (normalized === "" || normalized === "." || normalized.endsWith(".")) return;
+    const nextQty = Number(normalized);
+    if (!Number.isFinite(nextQty) || nextQty <= 0) return;
+    updateFoodItem(id, { cantidad: nextQty });
+  };
+
+  const commitQuantityDraft = (id: string, _fallback: number) => {
+    const raw = quantityDrafts[id];
+    setQuantityDrafts((current) => {
+      const next = { ...current };
+      delete next[id];
+      return next;
+    });
+    if (raw == null) return;
+    const nextQty = Number(String(raw).replace(",", "."));
+    if (!Number.isFinite(nextQty) || nextQty <= 0) {
+      // Vacío o inválido: se mantiene la cantidad anterior al salir del campo.
+      return;
+    }
+    updateFoodItem(id, { cantidad: nextQty });
+  };
+
+  const removeFoodItem = (id: string) => {
+    setFoodItems((current) => (current.length <= 1 ? current : current.filter((item) => item.id !== id)));
+  };
+
+  const handleConfirmSave = async () => {
+    if (!liveEstimate || isSaving || isAnalyzing) return;
+    setIsSaving(true);
+    setError(null);
+    try {
+      if (!canRegisterExternalMealForPlanDay(weekStartISO, dayLabel)) {
+        setError(
+          t.has("externalMealFutureDayError")
+            ? t("externalMealFutureDayError")
+            : "No puedes registrar una comida fuera en un día futuro: todavía no ha ocurrido."
+        );
+        return;
+      }
 
       const supabase = createSupabaseClient();
       const {
@@ -171,7 +310,6 @@ export function ExternalMealRegisterModal({
         return;
       }
 
-      // Foto solo si escaneó el plato; registro por texto = sin imagen (ni stock).
       let plateImageUrl: string | null = null;
       if (mode === "photo") {
         if (!selectedFile) {
@@ -192,7 +330,7 @@ export function ExternalMealRegisterModal({
 
       const result = await registerExternalMealToPlan({
         userId: user.id,
-        estimate,
+        estimate: liveEstimate,
         dayLabel,
         mealType,
         weekStartISO,
@@ -207,16 +345,19 @@ export function ExternalMealRegisterModal({
       onRegistered(result.meal);
       onClose();
     } catch (err) {
-      console.error("[external-meal]", err);
+      console.error("[external-meal] save", err);
       setError(
         t.has("externalMealEstimateError")
           ? t("externalMealEstimateError")
           : "No pudimos registrar la comida."
       );
     } finally {
-      setIsBusy(false);
+      setIsSaving(false);
     }
   };
+
+  const canAnalyze =
+    mode === "text" ? description.trim().length >= 3 : Boolean(selectedFile);
 
   return (
     <div className="fixed inset-0 z-[170] flex items-end justify-center bg-black/50 px-0 backdrop-blur-[2px] sm:items-center sm:px-4">
@@ -224,23 +365,31 @@ export function ExternalMealRegisterModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="external-meal-title"
-        className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border border-stone-100 bg-white shadow-2xl sm:rounded-3xl"
+        className="flex h-[90dvh] max-h-[90dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border border-stone-100 bg-white shadow-2xl sm:h-auto sm:max-h-[85vh] sm:rounded-3xl"
       >
-        <div className="flex items-start justify-between gap-3 border-b border-stone-100 px-5 py-4">
+        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-stone-100 px-5 py-4">
           <div>
             <h2 id="external-meal-title" className="font-serif text-lg font-semibold text-stone-900">
-              {title}
+              {step === "review"
+                ? t.has("externalMealReviewTitle")
+                  ? t("externalMealReviewTitle")
+                  : "Revisa los alimentos"
+                : title}
             </h2>
             <p className="mt-1 text-xs text-stone-500">
-              {t.has("externalMealSubtitle")
-                ? t("externalMealSubtitle")
-                : "Estimamos calorías y proteínas para mantener el balance del día."}
+              {step === "review"
+                ? t.has("externalMealReviewSubtitle")
+                  ? t("externalMealReviewSubtitle")
+                  : "Ajusta cantidades o pesos antes de guardar en tu plan."
+                : t.has("externalMealSubtitle")
+                  ? t("externalMealSubtitle")
+                  : "Estimamos calorías y proteínas para mantener el balance del día."}
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            disabled={isBusy}
+            disabled={isAnalyzing || isSaving}
             className="rounded-full p-2 text-stone-400 transition hover:bg-stone-100 disabled:opacity-50"
             aria-label="Cerrar"
           >
@@ -248,44 +397,108 @@ export function ExternalMealRegisterModal({
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-5 py-4">
-          {mode === "photo" ? (
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-y-contain px-5 py-4 touch-pan-y [-webkit-overflow-scrolling:touch]">
+          {step === "input" && mode === "photo" ? (
             <div className="space-y-3">
               <input
-                ref={fileInputRef}
+                ref={cameraInputRef}
                 type="file"
                 accept="image/*"
                 capture="environment"
                 className="hidden"
-                onChange={(event) => handleFileChange(event.target.files?.[0] ?? null)}
+                aria-label={
+                  t.has("externalMealTakePhoto") ? t("externalMealTakePhoto") : "Tomar Foto"
+                }
+                onChange={(event) => {
+                  handleFileChange(event.target.files?.[0] ?? null);
+                  event.target.value = "";
+                }}
               />
-              {previewUrl ? (
-                <div className="overflow-hidden rounded-2xl border border-stone-100 bg-stone-50">
-                  <img src={previewUrl} alt="Plato" className="max-h-56 w-full object-cover" />
-                </div>
+              <input
+                ref={galleryInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+                className="hidden"
+                aria-label={
+                  t.has("externalMealChooseGallery")
+                    ? t("externalMealChooseGallery")
+                    : "Elegir de la Galería"
+                }
+                onChange={(event) => {
+                  handleFileChange(event.target.files?.[0] ?? null);
+                  event.target.value = "";
+                }}
+              />
+
+              {previewUrl && !showSourcePicker ? (
+                <>
+                  <div className="overflow-hidden rounded-2xl border border-stone-100 bg-stone-50">
+                    <img src={previewUrl} alt="Plato" className="max-h-56 w-full object-cover" />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowSourcePicker(true)}
+                    disabled={isAnalyzing}
+                    className="text-xs font-semibold text-[#4D6638] underline-offset-2 hover:underline disabled:opacity-60"
+                  >
+                    {t.has("externalMealChangePhoto")
+                      ? t("externalMealChangePhoto")
+                      : "Cambiar foto"}
+                  </button>
+                </>
               ) : (
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="flex w-full flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-[#4D6638]/35 bg-[#4D6638]/5 px-4 py-10 text-sm font-semibold text-[#4D6638] transition hover:bg-[#4D6638]/10"
-                >
-                  <Camera className="h-6 w-6" />
-                  {t.has("externalMealTakePhoto")
-                    ? t("externalMealTakePhoto")
-                    : "Tomar o elegir foto del plato"}
-                </button>
+                <div className="rounded-t-3xl border border-stone-100 bg-white p-1 sm:rounded-3xl">
+                  <p className="mb-3 text-center text-[11px] font-bold uppercase tracking-wider text-stone-400">
+                    {t.has("externalMealAddPhotoTitle")
+                      ? t("externalMealAddPhotoTitle")
+                      : "Añadir foto del plato"}
+                  </p>
+                  <div className="space-y-2">
+                    <button
+                      type="button"
+                      onClick={openCamera}
+                      disabled={isAnalyzing}
+                      className="flex w-full items-center gap-3 rounded-2xl border border-stone-100 bg-stone-50 px-4 py-3.5 text-left text-sm font-semibold text-stone-800 transition hover:border-[#3E5A3A]/30 hover:bg-[#F4F7F2] disabled:opacity-60"
+                    >
+                      <span className="text-xl" aria-hidden>
+                        📸
+                      </span>
+                      {t.has("externalMealTakePhoto")
+                        ? t("externalMealTakePhoto")
+                        : "Tomar Foto"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={openGallery}
+                      disabled={isAnalyzing}
+                      className="flex w-full items-center gap-3 rounded-2xl border border-stone-100 bg-stone-50 px-4 py-3.5 text-left text-sm font-semibold text-stone-800 transition hover:border-[#3E5A3A]/30 hover:bg-[#F4F7F2] disabled:opacity-60"
+                    >
+                      <span className="text-xl" aria-hidden>
+                        🖼️
+                      </span>
+                      {t.has("externalMealChooseGallery")
+                        ? t("externalMealChooseGallery")
+                        : "Elegir de la Galería"}
+                    </button>
+                  </div>
+                  {previewUrl ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowSourcePicker(false)}
+                      disabled={isAnalyzing}
+                      className="mt-3 w-full rounded-2xl py-3 text-sm font-semibold text-stone-500 transition hover:bg-stone-50 hover:text-stone-700 disabled:opacity-60"
+                    >
+                      {t.has("externalMealCancelChangePhoto")
+                        ? t("externalMealCancelChangePhoto")
+                        : "Cancelar"}
+                    </button>
+                  ) : null}
+                </div>
               )}
-              {previewUrl ? (
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="text-xs font-semibold text-[#4D6638] underline-offset-2 hover:underline"
-                >
-                  Cambiar foto
-                </button>
-              ) : null}
             </div>
-          ) : (
+          ) : null}
+
+          {step === "input" && mode === "text" ? (
             <label className="block space-y-1.5">
               <span className="text-[11px] font-bold uppercase tracking-wide text-stone-400">
                 {t.has("externalMealDescriptionLabel")
@@ -296,22 +509,186 @@ export function ExternalMealRegisterModal({
                 value={description}
                 onChange={(event) => {
                   setDescription(event.target.value);
-                  setPreviewEstimate(null);
+                  setEstimate(null);
+                  setFoodItems([]);
+                  setQuantityDrafts({});
                 }}
                 rows={3}
                 placeholder='Ej. "Pizza margherita y ensalada verde"'
                 className="w-full resize-none rounded-2xl border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-800 outline-none focus:border-[#4D6638] focus:ring-1 focus:ring-[#4D6638]"
               />
             </label>
-          )}
+          ) : null}
 
-          {previewEstimate ? (
-            <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 px-3 py-2.5 text-sm text-emerald-950">
-              <p className="font-semibold">{previewEstimate.nombre_plato}</p>
-              <p className="mt-1 text-xs text-emerald-900/80">
-                ~{previewEstimate.calorias_est} kcal · {previewEstimate.proteinas_est_g}g proteína
-                {previewEstimate.tiene_vegetales ? " · con vegetales" : ""}
-              </p>
+          {step === "review" && liveEstimate ? (
+            <div className="space-y-2">
+              {previewUrl ? (
+                <div className="overflow-hidden rounded-xl border border-stone-100 bg-stone-50">
+                  <img
+                    src={previewUrl}
+                    alt="Plato"
+                    className="h-36 w-full object-cover sm:h-40"
+                  />
+                </div>
+              ) : null}
+
+              <label className="flex items-center gap-2">
+                <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide text-stone-400">
+                  {t.has("externalMealDishNameLabel")
+                    ? t("externalMealDishNameLabel")
+                    : "Plato"}
+                </span>
+                <input
+                  type="text"
+                  value={dishName}
+                  onChange={(event) => setDishName(event.target.value)}
+                  className="min-w-0 flex-1 rounded-lg border border-stone-200 bg-white px-2 py-1.5 text-[13px] font-semibold text-stone-800 outline-none focus:border-[#4D6638] focus:ring-1 focus:ring-[#4D6638]"
+                />
+              </label>
+
+              <div className="space-y-1">
+                <div className="flex items-center justify-between gap-2 px-0.5">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">
+                    {t.has("externalMealFoodsLabel")
+                      ? t("externalMealFoodsLabel")
+                      : "Alimentos"}
+                  </p>
+                  <p className="text-[10px] font-medium text-stone-400">
+                    {t.has("externalMealTotals")
+                      ? t("externalMealTotals", {
+                          kcal: liveEstimate.calorias_est,
+                          protein: liveEstimate.proteinas_est_g
+                        })
+                      : `~${liveEstimate.calorias_est} kcal · ${liveEstimate.proteinas_est_g}g`}
+                  </p>
+                </div>
+
+                <div className="overflow-hidden rounded-xl border border-stone-200/80 bg-white">
+                  {foodItems.map((item, index) => (
+                    <div
+                      key={item.id}
+                      className={cn(
+                        "flex items-center gap-1.5 px-2 py-1.5",
+                        index > 0 ? "border-t border-stone-100" : null
+                      )}
+                    >
+                      <p className="min-w-0 flex-1 truncate px-1.5 py-1 text-[12px] font-medium text-stone-800">
+                        {item.nombre}
+                      </p>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={
+                          quantityDrafts[item.id] !== undefined
+                            ? quantityDrafts[item.id]
+                            : String(item.cantidad)
+                        }
+                        onChange={(event) =>
+                          handleQuantityDraftChange(item.id, event.target.value)
+                        }
+                        onBlur={() => commitQuantityDraft(item.id, item.cantidad)}
+                        onFocus={(event) => event.currentTarget.select()}
+                        className="w-14 shrink-0 rounded-md border border-stone-200 bg-stone-50 px-1 py-1 text-center text-[12px] text-stone-800 outline-none focus:border-[#4D6638] focus:bg-white"
+                        aria-label={
+                          t.has("externalMealQuantityAria")
+                            ? t("externalMealQuantityAria")
+                            : "Cantidad"
+                        }
+                      />
+                      <select
+                        value={
+                          (EXTERNAL_MEAL_UNITS as readonly string[]).includes(item.unidad)
+                            ? item.unidad
+                            : "g"
+                        }
+                        onChange={(event) =>
+                          updateFoodItem(item.id, { unidad: event.target.value })
+                        }
+                        className="w-[4.25rem] shrink-0 rounded-md border border-stone-200 bg-stone-50 px-1 py-1 text-[11px] text-stone-700 outline-none focus:border-[#4D6638] focus:bg-white"
+                        aria-label={
+                          t.has("externalMealUnitAria")
+                            ? t("externalMealUnitAria")
+                            : "Unidad"
+                        }
+                      >
+                        {EXTERNAL_MEAL_UNITS.map((unit) => (
+                          <option key={unit} value={unit}>
+                            {unit}
+                          </option>
+                        ))}
+                        {!(EXTERNAL_MEAL_UNITS as readonly string[]).includes(item.unidad) ? (
+                          <option value={item.unidad}>{item.unidad}</option>
+                        ) : null}
+                      </select>
+                      <span className="hidden w-16 shrink-0 text-right text-[10px] text-stone-400 sm:inline">
+                        {item.calorias} kcal
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => removeFoodItem(item.id)}
+                        disabled={foodItems.length <= 1}
+                        className="shrink-0 rounded-md p-1 text-stone-400 transition hover:bg-rose-50 hover:text-rose-600 disabled:opacity-30"
+                        aria-label={
+                          t.has("externalMealRemoveFoodAria")
+                            ? t("externalMealRemoveFoodAria")
+                            : "Quitar alimento"
+                        }
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {liveEstimate.recomendaciones.length > 0 ? (
+                <div
+                  className={cn(
+                    "rounded-xl border px-2.5 py-2",
+                    liveEstimate.balance === "equilibrado"
+                      ? "border-emerald-100 bg-emerald-50/70"
+                      : liveEstimate.balance === "poco_saludable"
+                        ? "border-amber-200 bg-amber-50/80"
+                        : "border-[#C49520]/25 bg-[#C49520]/8"
+                  )}
+                >
+                  <p
+                    className={cn(
+                      "text-[10px] font-bold uppercase tracking-wide",
+                      liveEstimate.balance === "equilibrado"
+                        ? "text-emerald-800/80"
+                        : liveEstimate.balance === "poco_saludable"
+                          ? "text-amber-900/80"
+                          : "text-[#8A6A16]"
+                    )}
+                  >
+                    {liveEstimate.balance === "equilibrado"
+                      ? t.has("externalMealBalanceOk")
+                        ? t("externalMealBalanceOk")
+                        : "Menú equilibrado"
+                      : liveEstimate.balance === "poco_saludable"
+                        ? t.has("externalMealBalancePoor")
+                          ? t("externalMealBalancePoor")
+                          : "Poco equilibrado"
+                        : t.has("externalMealBalanceFair")
+                          ? t("externalMealBalanceFair")
+                          : "Se puede mejorar"}
+                  </p>
+                  <ul className="mt-1 space-y-1">
+                    {liveEstimate.recomendaciones.map((tip) => (
+                      <li
+                        key={tip}
+                        className="text-[11px] leading-snug text-stone-700"
+                      >
+                        <span className="mr-1 text-[#4D6638]" aria-hidden>
+                          ·
+                        </span>
+                        {tip}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
             </div>
           ) : null}
 
@@ -322,29 +699,65 @@ export function ExternalMealRegisterModal({
           ) : null}
         </div>
 
-        <div className="border-t border-stone-100 px-5 py-4">
-          <button
-            type="button"
-            disabled={
-              isBusy ||
-              (mode === "text" && description.trim().length < 3) ||
-              (mode === "photo" && !selectedFile)
-            }
-            onClick={() => void handleSubmit()}
-            className={cn(
-              "flex w-full items-center justify-center gap-2 rounded-2xl bg-[#4D6638] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-105",
-              "disabled:cursor-not-allowed disabled:opacity-60"
-            )}
-          >
-            {isBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : mode === "photo" ? <Camera className="h-4 w-4" /> : <PenLine className="h-4 w-4" />}
-            {isBusy
-              ? t.has("externalMealSaving")
-                ? t("externalMealSaving")
-                : "Estimando y guardando…"
-              : t.has("externalMealConfirm")
-                ? t("externalMealConfirm")
-                : "Estimar y asignar al plan"}
-          </button>
+        <div className="shrink-0 border-t border-stone-100 px-5 py-4">
+          {step === "input" ? (
+            <button
+              type="button"
+              disabled={isAnalyzing || !canAnalyze}
+              onClick={() => void handleAnalyze()}
+              className={cn(
+                "flex w-full items-center justify-center gap-2 rounded-2xl bg-[#4D6638] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-105",
+                "disabled:cursor-not-allowed disabled:opacity-60"
+              )}
+            >
+              {isAnalyzing ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : mode === "photo" ? (
+                <Camera className="h-4 w-4" />
+              ) : (
+                <PenLine className="h-4 w-4" />
+              )}
+              {isAnalyzing
+                ? t.has("externalMealAnalyzing")
+                  ? t("externalMealAnalyzing")
+                  : "Analizando plato…"
+                : t.has("externalMealAnalyzeCta")
+                  ? t("externalMealAnalyzeCta")
+                  : "Analizar alimentos"}
+            </button>
+          ) : (
+            <div className="flex gap-2">
+              <button
+                type="button"
+                disabled={isSaving}
+                onClick={() => {
+                  setStep("input");
+                  setError(null);
+                }}
+                className="rounded-2xl border border-stone-200 bg-white px-4 py-3 text-sm font-semibold text-stone-600 transition hover:bg-stone-50 disabled:opacity-60"
+              >
+                {t.has("externalMealBack") ? t("externalMealBack") : "Atrás"}
+              </button>
+              <button
+                type="button"
+                disabled={isSaving || foodItems.length === 0 || !dishName.trim()}
+                onClick={() => void handleConfirmSave()}
+                className={cn(
+                  "flex flex-1 items-center justify-center gap-2 rounded-2xl bg-[#4D6638] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-105",
+                  "disabled:cursor-not-allowed disabled:opacity-60"
+                )}
+              >
+                {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                {isSaving
+                  ? t.has("externalMealSaving")
+                    ? t("externalMealSaving")
+                    : "Guardando…"
+                  : t.has("externalMealConfirm")
+                    ? t("externalMealConfirm")
+                    : "Guardar y asignar al plan"}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

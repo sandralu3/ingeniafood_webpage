@@ -1,4 +1,8 @@
 import type { Database, Json } from "@/types/database.types";
+import {
+  resolveExternalMealBadge,
+  externalMealBadgeLabel
+} from "@/lib/plan/external-meal";
 import { ingredientsJsonToDisplayStrings } from "@/lib/recipes/structured-ingredients";
 import {
   getRecipeMealTypeLabel,
@@ -247,6 +251,11 @@ export function filterPickerRecipes<T extends RecipeLabelSource>(
  * Solo usa heurística por palabras del título/ingredientes en recetas legacy sin ese campo.
  */
 export function getRecipeCardLabel(recipe: RecipeRow): string | null {
+  const externalBadge = resolveExternalMealBadge(recipe.tags);
+  if (externalBadge) {
+    return externalMealBadgeLabel(externalBadge);
+  }
+
   const mealType = storedMealType(recipe);
   if (mealType) {
     return MEAL_TYPE_CARD_LABEL[mealType] ?? getRecipeMealTypeLabel(mealType);

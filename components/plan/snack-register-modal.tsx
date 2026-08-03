@@ -5,6 +5,7 @@ import { Camera, Loader2, PenLine, X, Zap } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import type { MealType, WeekDay } from "@/lib/plan/constants";
 import type { ExternalMealEstimate } from "@/lib/plan/external-meal";
+import { compressImageForUpload } from "@/lib/images/compress-image-for-upload";
 import { SNACK_PRESETS, type PlanSnack } from "@/lib/plan/snack-presets";
 import {
   addEstimatedSnackToPlan,
@@ -32,19 +33,6 @@ type EstimateApiResponse = {
   error?: string;
   message?: string;
 };
-
-async function fileToBase64(file: File): Promise<{ base64: string; mimeType: string }> {
-  const buffer = await file.arrayBuffer();
-  const bytes = new Uint8Array(buffer);
-  let binary = "";
-  for (let i = 0; i < bytes.length; i += 1) {
-    binary += String.fromCharCode(bytes[i]!);
-  }
-  return {
-    base64: btoa(binary),
-    mimeType: file.type || "image/jpeg"
-  };
-}
 
 export function SnackRegisterModal({
   open,
@@ -157,7 +145,7 @@ export function SnackRegisterModal({
         setError("Toma o elige una foto del snack.");
         return null;
       }
-      const { base64, mimeType } = await fileToBase64(selectedFile);
+      const { base64, mimeType } = await compressImageForUpload(selectedFile);
       payload.imageBase64 = base64;
       payload.mimeType = mimeType;
     }

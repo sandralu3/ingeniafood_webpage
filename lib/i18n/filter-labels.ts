@@ -93,6 +93,10 @@ export function translateSavedCardLabel(t: Translate, label: string | null): str
       return t("tagFlourless");
     case "Airfryer":
       return t("tagAirfryer");
+    case "📸 Escaneado":
+      return t("tagScanned");
+    case "📍 Comida fuera":
+      return t("tagExternalMeal");
     default:
       return label;
   }

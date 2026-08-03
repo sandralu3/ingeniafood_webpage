@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Heart, Loader2, Play, Share2 } from "lucide-react";
+import { Heart, Loader2, Play, Share2, Trash2 } from "lucide-react";
 import { RecipeInstagramLink } from "@/components/recipes/recipe-instagram-link";
 import {
   getRecipeImageFallback,
@@ -24,9 +24,16 @@ type RecipeCardProps = {
   onShare?: () => void;
   isSharing?: boolean;
   isShareDisabled?: boolean;
-  onRemove?: () => void;
-  isRemoving?: boolean;
-  isRemoveDisabled?: boolean;
+  isFavorite?: boolean;
+  onToggleFavorite?: () => void;
+  isTogglingFavorite?: boolean;
+  isFavoriteDisabled?: boolean;
+  onDelete?: () => void;
+  isDeleting?: boolean;
+  isDeleteDisabled?: boolean;
+  favoriteAriaLabel?: string;
+  deleteAriaLabel?: string;
+  shareAriaLabel?: string;
   onPrefetch?: () => void;
 };
 
@@ -120,9 +127,16 @@ export function RecipeCard({
   onShare,
   isSharing = false,
   isShareDisabled = false,
-  onRemove,
-  isRemoving = false,
-  isRemoveDisabled = false,
+  isFavorite = false,
+  onToggleFavorite,
+  isTogglingFavorite = false,
+  isFavoriteDisabled = false,
+  onDelete,
+  isDeleting = false,
+  isDeleteDisabled = false,
+  favoriteAriaLabel,
+  deleteAriaLabel,
+  shareAriaLabel,
   onPrefetch
 }: RecipeCardProps) {
   return (
@@ -175,22 +189,32 @@ export function RecipeCard({
         </span>
 
         <div className="flex items-center gap-0.5">
-          {onRemove ? (
+          {onToggleFavorite ? (
             <button
               type="button"
-              aria-label="Quitar de favoritos"
-              disabled={isRemoveDisabled || isRemoving}
-              onClick={onRemove}
+              aria-label={
+                favoriteAriaLabel ??
+                (isFavorite ? "Quitar de favoritos" : "Añadir a favoritos")
+              }
+              aria-pressed={isFavorite}
+              disabled={isFavoriteDisabled || isTogglingFavorite}
+              onClick={onToggleFavorite}
               className={cn(
-                "inline-flex h-6 w-6 items-center justify-center rounded-full text-[#D07D62] transition hover:text-[#B8654D]",
+                "inline-flex h-6 w-6 items-center justify-center rounded-full transition",
+                isFavorite
+                  ? "text-[#D07D62] hover:text-[#B8654D]"
+                  : "text-stone-300 hover:text-[#D07D62]",
                 "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#D07D62]/30",
                 "disabled:cursor-not-allowed disabled:opacity-40"
               )}
             >
-              {isRemoving ? (
+              {isTogglingFavorite ? (
                 <Loader2 className="h-3 w-3 animate-spin" />
               ) : (
-                <Heart className="h-3 w-3 fill-current" strokeWidth={1.5} />
+                <Heart
+                  className={cn("h-3 w-3", isFavorite ? "fill-current" : "")}
+                  strokeWidth={1.5}
+                />
               )}
             </button>
           ) : null}
@@ -198,7 +222,7 @@ export function RecipeCard({
           {onShare ? (
             <button
               type="button"
-              aria-label="Compartir receta como imagen"
+              aria-label={shareAriaLabel ?? "Compartir receta como imagen"}
               disabled={isShareDisabled || isSharing}
               onClick={onShare}
               className={cn(
@@ -211,6 +235,26 @@ export function RecipeCard({
                 <Loader2 className="h-3 w-3 animate-spin" />
               ) : (
                 <Share2 className="h-3 w-3" strokeWidth={1.5} />
+              )}
+            </button>
+          ) : null}
+
+          {onDelete ? (
+            <button
+              type="button"
+              aria-label={deleteAriaLabel ?? "Eliminar receta"}
+              disabled={isDeleteDisabled || isDeleting}
+              onClick={onDelete}
+              className={cn(
+                "inline-flex h-6 w-6 items-center justify-center rounded-full text-stone-400 transition hover:text-red-600",
+                "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-red-300",
+                "disabled:cursor-not-allowed disabled:opacity-40"
+              )}
+            >
+              {isDeleting ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Trash2 className="h-3 w-3" strokeWidth={1.5} />
               )}
             </button>
           ) : null}

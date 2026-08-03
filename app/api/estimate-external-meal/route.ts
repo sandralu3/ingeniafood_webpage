@@ -5,8 +5,14 @@ import { getRouteUser } from "@/lib/auth/get-route-user";
 import { getUserIsPremium } from "@/lib/auth/user-premium";
 import {
   EXTERNAL_MEAL_BADGE,
+  applyExternalMealAdvice,
+  createExternalMealFoodItem,
+  evaluateExternalMealBalance,
   isExternalMealBadge,
-  type ExternalMealEstimate
+  sumExternalMealFoodMacros,
+  type ExternalMealBalance,
+  type ExternalMealEstimate,
+  type ExternalMealFoodItem
 } from "@/lib/plan/external-meal";
 
 export const maxDuration = 60;
@@ -112,6 +118,89 @@ function asRecord(value: unknown): Record<string, unknown> | null {
   return value as Record<string, unknown>;
 }
 
+function normalizeRecommendations(raw: unknown): string[] {
+  if (!Array.isArray(raw)) {
+    if (typeof raw === "string" && raw.trim()) return [raw.trim().slice(0, 180)];
+    return [];
+  }
+  return raw
+    .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
+    .filter((tip) => tip.length >= 8)
+    .map((tip) => tip.slice(0, 180))
+    .slice(0, 3);
+}
+
+function normalizeBalance(raw: unknown): ExternalMealBalance | null {
+  if (raw === "equilibrado" || raw === "mejorable" || raw === "poco_saludable") {
+    return raw;
+  }
+  if (typeof raw === "string") {
+    const lower = raw.toLowerCase();
+    if (lower.includes("equilibr") || lower.includes("balanced") || lower.includes("saludable")) {
+      if (lower.includes("poco") || lower.includes("unhealthy") || lower.includes("malo")) {
+        return "poco_saludable";
+      }
+      if (lower.includes("mejor") || lower.includes("improv")) return "mejorable";
+      return "equilibrado";
+    }
+    if (lower.includes("poco") || lower.includes("unhealthy")) return "poco_saludable";
+    if (lower.includes("mejor")) return "mejorable";
+  }
+  return null;
+}
+
+function normalizeFoodItems(raw: unknown): ExternalMealFoodItem[] {
+  if (!Array.isArray(raw)) return [];
+
+  const items: ExternalMealFoodItem[] = [];
+  for (const entry of raw) {
+    const obj = asRecord(entry);
+    if (!obj) continue;
+
+    const nombre =
+      (typeof obj.nombre === "string" && obj.nombre.trim()) ||
+      (typeof obj.name === "string" && obj.name.trim()) ||
+      (typeof obj.alimento === "string" && obj.alimento.trim()) ||
+      "";
+    if (!nombre) continue;
+
+    const cantidad = clampNumber(
+      obj.cantidad ?? obj.quantity ?? obj.peso ?? obj.amount ?? obj.grams,
+      1,
+      5000,
+      100
+    );
+    const unidadRaw =
+      (typeof obj.unidad === "string" && obj.unidad.trim()) ||
+      (typeof obj.unit === "string" && obj.unit.trim()) ||
+      "g";
+    const calorias = clampNumber(
+      obj.calorias ?? obj.calories ?? obj.kcal ?? obj.calorias_est,
+      0,
+      1500,
+      Math.max(20, Math.round(cantidad * 1.2))
+    );
+    const proteinas = clampNumber(
+      obj.proteinas_g ?? obj.proteinas ?? obj.protein_g ?? obj.protein,
+      0,
+      120,
+      0
+    );
+
+    items.push(
+      createExternalMealFoodItem({
+        nombre,
+        cantidad,
+        unidad: unidadRaw.slice(0, 20),
+        calorias,
+        proteinas_g: proteinas
+      })
+    );
+  }
+
+  return items.slice(0, 12);
+}
+
 function normalizeEstimate(
   raw: unknown,
   fallbackBadge: ExternalMealEstimate["badge"]
@@ -148,23 +237,47 @@ function normalizeEstimate(
     veggiesRaw === 1 ||
     (typeof veggiesRaw === "string" && /si|sí|yes/i.test(veggiesRaw));
 
-  return {
+  const alimentos = normalizeFoodItems(
+    obj.alimentos ?? obj.foods ?? obj.items ?? obj.ingredientes ?? obj.ingredients
+  );
+
+  let calorias = clampNumber(
+    obj.calorias_est ?? obj.calorias ?? obj.calories ?? obj.kcal,
+    80,
+    2500,
+    450
+  );
+  let proteinas = clampNumber(
+    obj.proteinas_est_g ?? obj.proteinas_g ?? obj.proteinas ?? obj.protein_g ?? obj.protein,
+    0,
+    200,
+    18
+  );
+
+  if (alimentos.length > 0) {
+    const totals = sumExternalMealFoodMacros(alimentos);
+    if (totals.calorias > 0) calorias = Math.min(2500, Math.max(80, totals.calorias));
+    proteinas = Math.min(200, Math.max(0, totals.proteinas_g));
+  }
+
+  const recomendaciones = normalizeRecommendations(
+    obj.recomendaciones ?? obj.recommendations ?? obj.tips ?? obj.consejos
+  );
+  const balance =
+    normalizeBalance(obj.balance ?? obj.equilibrio ?? obj.health_balance) ?? undefined;
+
+  const base: ExternalMealEstimate = {
     nombre_plato: nombre.slice(0, 120),
-    calorias_est: clampNumber(
-      obj.calorias_est ?? obj.calorias ?? obj.calories ?? obj.kcal,
-      80,
-      2500,
-      450
-    ),
-    proteinas_est_g: clampNumber(
-      obj.proteinas_est_g ?? obj.proteinas_g ?? obj.proteinas ?? obj.protein_g ?? obj.protein,
-      0,
-      200,
-      18
-    ),
+    calorias_est: calorias,
+    proteinas_est_g: proteinas,
     tiene_vegetales: tieneVegetales,
-    badge
+    badge,
+    alimentos,
+    balance: balance ?? "mejorable",
+    recomendaciones
   };
+
+  return applyExternalMealAdvice(base, { preferAi: recomendaciones.length > 0 });
 }
 
 /** Último recurso si la IA falla: no bloquea el registro por texto. */
@@ -198,32 +311,54 @@ function fallbackTextEstimate(description: string): ExternalMealEstimate {
   const shortName =
     description.length > 70 ? `${description.slice(0, 67).trim()}…` : description.trim();
 
-  return {
+  const base: ExternalMealEstimate = {
     nombre_plato: shortName || "Comida fuera",
     calorias_est: calorias,
     proteinas_est_g: proteinas,
     tiene_vegetales: hasVeggies,
-    badge: EXTERNAL_MEAL_BADGE.comida_fuera
+    badge: EXTERNAL_MEAL_BADGE.comida_fuera,
+    alimentos: [
+      createExternalMealFoodItem({
+        nombre: shortName || "Comida fuera",
+        cantidad: 1,
+        unidad: "porción",
+        calorias,
+        proteinas_g: proteinas
+      })
+    ],
+    balance: "mejorable",
+    recomendaciones: []
+  };
+
+  return {
+    ...base,
+    ...evaluateExternalMealBalance(base)
   };
 }
 
 function buildPrompt(mode: "photo" | "text", description: string, locale?: string): string {
   const lang =
     locale === "en"
-      ? "Respond with dish name in English."
-      : "Responde con el nombre del plato en español.";
+      ? "Respond with dish, foods and recommendations in English."
+      : "Responde con el nombre del plato, alimentos y recomendaciones en español.";
 
   const source =
     mode === "photo"
-      ? "Analiza la foto de un plato ya servido (restaurante, evento o casa). Identifica el plato o la comida."
-      : `El usuario describe una comida consumida fuera:\n"""${description.replace(/"/g, "'")}"""\nEstima el plato. Incluye bebidas, postres y snacks: SÍ son comida.`;
+      ? "Analiza la foto de un plato ya servido (restaurante, evento o casa). Identifica el plato y cada alimento visible."
+      : `El usuario describe una comida consumida fuera:\n"""${description.replace(/"/g, "'")}"""\nEstima el plato y desglosa los alimentos típicos. Incluye bebidas, postres y snacks: SÍ son comida.`;
 
   return (
     `${source} ${lang}\n` +
-    "Estima calorías y proteínas de UNA ración típica. Indica si incluye vegetales/verdura significativa.\n" +
+    "Lista cada alimento del plato con cantidad estimada (peso en g/ml o unidades) y sus calorías/proteínas para ESA cantidad.\n" +
+    "Los totales del plato deben coincidir con la suma de los alimentos.\n" +
+    "Indica si incluye vegetales/verdura significativa.\n" +
+    "Evalúa si el menú está equilibrado. Si falta verdura, proteína o es muy calórico/poco saludable, dilo con claridad y sugiere 1-3 recomendaciones prácticas (p. ej. añadir ensalada, yogur, reducir porción).\n" +
     "Responde SOLO un objeto JSON válido (sin markdown, sin texto extra) con exactamente estas claves:\n" +
-    '{"nombre_plato":"string","calorias_est":350,"proteinas_est_g":12,"tiene_vegetales":false,"badge":"comida_fuera"}\n' +
+    '{"nombre_plato":"string","calorias_est":350,"proteinas_est_g":12,"tiene_vegetales":false,"badge":"comida_fuera","alimentos":[{"nombre":"Pollo","cantidad":150,"unidad":"g","calorias":180,"proteinas_g":35}],"balance":"mejorable","recomendaciones":["Añade una ensalada para equilibrar el plato."]}\n' +
     `badge debe ser "${mode === "photo" ? "escaneado" : "comida_fuera"}".\n` +
+    'balance debe ser "equilibrado", "mejorable" o "poco_saludable".\n' +
+    'unidad preferida: g, ml, unidad, rebanada, cda, cdta, taza o porción.\n' +
+    "Incluye entre 2 y 8 alimentos cuando sea posible.\n" +
     'Si la imagen NO es comida, responde {"error":"NOT_FOOD"}. Nunca uses NOT_FOOD para descripciones de texto con alimentos o bebidas.'
   );
 }
@@ -261,7 +396,19 @@ export async function POST(request: Request) {
       );
     }
 
-    const body = (await request.json()) as EstimatePayload;
+    let body: EstimatePayload;
+    try {
+      body = (await request.json()) as EstimatePayload;
+    } catch {
+      return jsonResponse(
+        {
+          error:
+            "La foto es demasiado grande o el envío se cortó. Prueba otra imagen o vuelve a intentarlo.",
+          code: "BODY_TOO_LARGE"
+        },
+        413
+      );
+    }
     const mode = body.mode === "photo" ? "photo" : "text";
     const description = typeof body.description === "string" ? body.description.trim() : "";
     const imageBase64 =
@@ -390,6 +537,23 @@ export async function POST(request: Request) {
 
     estimate.badge =
       mode === "photo" ? EXTERNAL_MEAL_BADGE.escaneado : EXTERNAL_MEAL_BADGE.comida_fuera;
+
+    // Si la IA no devolvió desglose, crear un ítem editable con el total.
+    if (!estimate.alimentos.length) {
+      estimate.alimentos = [
+        createExternalMealFoodItem({
+          nombre: estimate.nombre_plato,
+          cantidad: 1,
+          unidad: "porción",
+          calorias: estimate.calorias_est,
+          proteinas_g: estimate.proteinas_est_g
+        })
+      ];
+    }
+
+    estimate = applyExternalMealAdvice(estimate, {
+      preferAi: estimate.recomendaciones.length > 0
+    });
 
     return jsonResponse({ estimate });
   } catch (error) {

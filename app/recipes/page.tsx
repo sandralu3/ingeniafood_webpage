@@ -8,7 +8,11 @@ import { RecipeCard } from "@/components/recipes/RecipeCard";
 import { RecipeShareCaptureHost } from "@/components/share/recipe-share-capture-host";
 import { useShareRecipeImage } from "@/hooks/use-share-recipe-image";
 import { savedRecipeToShareable } from "@/lib/share/recipe-share-utils";
-import { handleRemoveFromFavorites } from "@/lib/recipes/remove-from-favorites";
+import { deleteSavedRecipe } from "@/lib/recipes/delete-saved-recipe";
+import {
+  fetchFavoriteRecipeIds,
+  toggleRecipeFavorite
+} from "@/lib/recipes/recipe-favorites";
 import {
   filterSavedRecipes,
   getRecipeCardLabel,
@@ -28,6 +32,7 @@ import { cn } from "@/lib/utils";
 import type { Database } from "@/types/database.types";
 
 type RecipeRow = Database["public"]["Tables"]["recipes"]["Row"];
+type LibraryTab = "saved" | "favorites" | "outside";
 
 const FILTER_CHIPS = SAVED_RECIPE_FILTERS;
 
@@ -58,6 +63,7 @@ export default function RecipesPage() {
   const locale = useLocale();
   const router = useRouter();
   const [recipes, setRecipes] = useState<RecipeRow[]>([]);
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -65,8 +71,10 @@ export default function RecipesPage() {
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
   const filterMenuRef = useRef<HTMLDivElement>(null);
   const [mostrarTodas, setMostrarTodas] = useState(false);
-  const [removingRecipeId, setRemovingRecipeId] = useState<string | null>(null);
-  const [removeMessage, setRemoveMessage] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<LibraryTab>("saved");
+  const [deletingRecipeId, setDeletingRecipeId] = useState<string | null>(null);
+  const [togglingFavoriteId, setTogglingFavoriteId] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
   const {
     captureRef,
     captureRecipe,
@@ -85,24 +93,61 @@ export default function RecipesPage() {
     [clearShareError, shareRecipeImage]
   );
 
-  const handleRemoveRecipe = useCallback(
+  const handleToggleFavorite = useCallback(
     async (recipeId: string) => {
-      if (removingRecipeId) return;
+      if (togglingFavoriteId) return;
 
-      setRemovingRecipeId(recipeId);
-      setRemoveMessage(null);
+      const currentlyFavorite = favoriteIds.has(recipeId);
+      setTogglingFavoriteId(recipeId);
+      setActionMessage(null);
 
-      const result = await handleRemoveFromFavorites(recipeId);
+      const result = await toggleRecipeFavorite(recipeId, currentlyFavorite);
+
+      if (result.success) {
+        setFavoriteIds((previous) => {
+          const next = new Set(previous);
+          if (result.isFavorite) {
+            next.add(recipeId);
+          } else {
+            next.delete(recipeId);
+          }
+          return next;
+        });
+      } else {
+        setActionMessage(result.error);
+      }
+
+      setTogglingFavoriteId(null);
+    },
+    [favoriteIds, togglingFavoriteId]
+  );
+
+  const handleDeleteRecipe = useCallback(
+    async (recipeId: string, title: string) => {
+      if (deletingRecipeId) return;
+
+      const confirmed = window.confirm(t("deleteConfirm", { title }));
+      if (!confirmed) return;
+
+      setDeletingRecipeId(recipeId);
+      setActionMessage(null);
+
+      const result = await deleteSavedRecipe(recipeId);
 
       if (result.success) {
         setRecipes((previous) => previous.filter((recipe) => recipe.id !== recipeId));
+        setFavoriteIds((previous) => {
+          const next = new Set(previous);
+          next.delete(recipeId);
+          return next;
+        });
       } else {
-        setRemoveMessage(result.error);
+        setActionMessage(result.error);
       }
 
-      setRemovingRecipeId(null);
+      setDeletingRecipeId(null);
     },
-    [removingRecipeId]
+    [deletingRecipeId, t]
   );
 
   useEffect(() => {
@@ -135,13 +180,16 @@ export default function RecipesPage() {
         return;
       }
 
-      const primaryQuery = await supabase
-        .from("recipes")
-        .select(
-          "id,title,description,cooking_time,is_airfryer,is_flourless,is_public,created_at,user_id,ingredients,steps,instructions,image_url,reference_image_url,tip_sandra,instagram_url,meal_type,tags"
-        )
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
+      const [primaryQuery, favoritesResult] = await Promise.all([
+        supabase
+          .from("recipes")
+          .select(
+            "id,title,description,cooking_time,is_airfryer,is_flourless,is_public,created_at,user_id,ingredients,steps,instructions,image_url,reference_image_url,tip_sandra,instagram_url,meal_type,tags"
+          )
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false }),
+        fetchFavoriteRecipeIds()
+      ]);
 
       let recipesData = primaryQuery.data as RecipeRow[] | null;
       let recipesError = primaryQuery.error;
@@ -177,11 +225,15 @@ export default function RecipesPage() {
         return;
       }
 
-      // Comidas fuera viven en el plan; borradores del escáner no son guardadas reales.
+      if (favoritesResult.success) {
+        setFavoriteIds(favoritesResult.ids);
+      } else {
+        setFavoriteIds(new Set());
+      }
+
+      // Borradores del escáner no son guardadas reales; comidas fuera sí se listan.
       setRecipes(
-        (recipesData ?? []).filter(
-          (recipe) => !isExternalMeal(recipe.tags) && !isScannerDraftRecipe(recipe)
-        )
+        (recipesData ?? []).filter((recipe) => !isScannerDraftRecipe(recipe))
       );
       setIsLoading(false);
     };
@@ -198,10 +250,38 @@ export default function RecipesPage() {
     [activeFilter, recipes, searchTerm]
   );
 
+  const cookableRecipes = useMemo(
+    () => filteredRecipes.filter((recipe) => !isExternalMeal(recipe.tags)),
+    [filteredRecipes]
+  );
+
+  const outsideRecipes = useMemo(
+    () => filteredRecipes.filter((recipe) => isExternalMeal(recipe.tags)),
+    [filteredRecipes]
+  );
+
+  const favoriteRecipes = useMemo(
+    () => filteredRecipes.filter((recipe) => favoriteIds.has(recipe.id)),
+    [favoriteIds, filteredRecipes]
+  );
+
+  const otherSavedRecipes = useMemo(
+    () =>
+      cookableRecipes.filter((recipe) => !favoriteIds.has(recipe.id)),
+    [cookableRecipes, favoriteIds]
+  );
+
   const isSearchActive = normalizeSearchText(searchTerm).length > 0;
   const isCategoryFilterActive = activeFilter !== "Todas";
   const shouldShowAllResults = mostrarTodas || isSearchActive || isCategoryFilterActive;
-  const visibleRecipes = shouldShowAllResults ? filteredRecipes : filteredRecipes.slice(0, 5);
+
+  const activeRecipes =
+    activeTab === "favorites"
+      ? favoriteRecipes
+      : activeTab === "outside"
+        ? outsideRecipes
+        : otherSavedRecipes;
+  const visibleRecipes = shouldShowAllResults ? activeRecipes : activeRecipes.slice(0, 5);
 
   useEffect(() => {
     if (isSearchActive || isCategoryFilterActive) {
@@ -221,6 +301,72 @@ export default function RecipesPage() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isFilterMenuOpen]);
+
+  const renderRecipeCard = useCallback(
+    (recipe: RecipeRow, index: number, animateFromIndex?: number) => {
+      const cardLabel = translateSavedCardLabel(t, getRecipeCardLabel(recipe));
+      const shouldAnimate =
+        animateFromIndex != null && index >= animateFromIndex;
+
+      return (
+        <div
+          key={recipe.id}
+          className={shouldAnimate ? "animate-fade-in-down" : undefined}
+          style={
+            shouldAnimate
+              ? { animationDelay: `${Math.min(index - animateFromIndex, 8) * 45}ms` }
+              : undefined
+          }
+        >
+          <RecipeCard
+            title={recipe.title}
+            recipeId={recipe.id}
+            categoryLabel={cardLabel}
+            savedAtLabel={formatSavedDate(recipe.created_at, locale, (date) =>
+              t("savedOn", { date })
+            )}
+            imageUrl={recipe.image_url}
+            referenceImageUrl={recipe.reference_image_url}
+            instagramUrl={recipe.instagram_url}
+            isSocialVideo={Boolean(
+              recipe.instagram_url && !recipe.image_url && !recipe.reference_image_url
+            )}
+            detailHref={`/app-recetas/recipes/${recipe.id}`}
+            onPrefetch={() => router.prefetch(`/app-recetas/recipes/${recipe.id}`)}
+            isFavorite={favoriteIds.has(recipe.id)}
+            onToggleFavorite={() => void handleToggleFavorite(recipe.id)}
+            isTogglingFavorite={togglingFavoriteId === recipe.id}
+            isFavoriteDisabled={Boolean(
+              togglingFavoriteId && togglingFavoriteId !== recipe.id
+            )}
+            onShare={() => handleShareRecipe(recipe)}
+            isSharing={sharingRecipeId === recipe.id}
+            isShareDisabled={Boolean(sharingRecipeId && sharingRecipeId !== recipe.id)}
+            onDelete={() => void handleDeleteRecipe(recipe.id, recipe.title)}
+            isDeleting={deletingRecipeId === recipe.id}
+            isDeleteDisabled={Boolean(deletingRecipeId && deletingRecipeId !== recipe.id)}
+            favoriteAriaLabel={
+              favoriteIds.has(recipe.id) ? t("removeFavoriteAria") : t("addFavoriteAria")
+            }
+            deleteAriaLabel={t("deleteAria")}
+            shareAriaLabel={t("shareAria")}
+          />
+        </div>
+      );
+    },
+    [
+      deletingRecipeId,
+      favoriteIds,
+      handleDeleteRecipe,
+      handleShareRecipe,
+      handleToggleFavorite,
+      locale,
+      router,
+      sharingRecipeId,
+      t,
+      togglingFavoriteId
+    ]
+  );
 
   const pageContent = useMemo(() => {
     if (isLoading) {
@@ -255,73 +401,124 @@ export default function RecipesPage() {
       );
     }
 
-    return (
-      <div className="space-y-0">
-        <div className="grid grid-cols-1">
-          {visibleRecipes.map((recipe, index) => {
-            const cardLabel = translateSavedCardLabel(t, getRecipeCardLabel(recipe));
+    const emptyMessage =
+      activeTab === "favorites"
+        ? t("favoritesEmpty")
+        : activeTab === "outside"
+          ? t("outsideSectionEmpty")
+          : t("savedSectionEmpty");
 
-            return (
-              <div
-                key={recipe.id}
-                className={mostrarTodas && index >= 5 ? "animate-fade-in-down" : undefined}
-                style={
-                  mostrarTodas && index >= 5
-                    ? { animationDelay: `${Math.min(index - 5, 8) * 45}ms` }
-                    : undefined
-                }
-              >
-                <RecipeCard
-                  title={recipe.title}
-                  recipeId={recipe.id}
-                  categoryLabel={cardLabel}
-                  savedAtLabel={formatSavedDate(recipe.created_at, locale, (date) =>
-                    t("savedOn", { date })
-                  )}
-                  imageUrl={recipe.image_url}
-                  referenceImageUrl={recipe.reference_image_url}
-                  instagramUrl={recipe.instagram_url}
-                  isSocialVideo={Boolean(
-                    recipe.instagram_url && !recipe.image_url && !recipe.reference_image_url
-                  )}
-                  detailHref={`/app-recetas/recipes/${recipe.id}`}
-                  onPrefetch={() => router.prefetch(`/app-recetas/recipes/${recipe.id}`)}
-                  onShare={() => handleShareRecipe(recipe)}
-                  onRemove={() => void handleRemoveRecipe(recipe.id)}
-                  isRemoving={removingRecipeId === recipe.id}
-                  isRemoveDisabled={Boolean(removingRecipeId && removingRecipeId !== recipe.id)}
-                  isSharing={sharingRecipeId === recipe.id}
-                  isShareDisabled={Boolean(sharingRecipeId && sharingRecipeId !== recipe.id)}
-                />
-              </div>
-            );
-          })}
+    return (
+      <div className="space-y-3">
+        <div
+          className="grid grid-cols-3 gap-1 rounded-xl border border-stone-200/60 bg-white p-1 shadow-sm"
+          role="tablist"
+          aria-label={t("libraryTabsAria")}
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "saved"}
+            onClick={() => {
+              setActiveTab("saved");
+              setMostrarTodas(false);
+            }}
+            className={cn(
+              "rounded-lg px-2 py-2 text-center text-[11px] font-semibold transition sm:text-[12px] sm:px-3",
+              activeTab === "saved"
+                ? "bg-[#F0F4ED] text-[#3e5219]"
+                : "text-stone-500 hover:bg-stone-50 hover:text-stone-700"
+            )}
+          >
+            {t("savedSection")}
+            <span className="ml-1 text-[10px] font-medium opacity-70">
+              {otherSavedRecipes.length}
+            </span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "favorites"}
+            onClick={() => {
+              setActiveTab("favorites");
+              setMostrarTodas(false);
+            }}
+            className={cn(
+              "rounded-lg px-2 py-2 text-center text-[11px] font-semibold transition sm:text-[12px] sm:px-3",
+              activeTab === "favorites"
+                ? "bg-[#F5EBE6] text-[#C06A4F]"
+                : "text-stone-500 hover:bg-stone-50 hover:text-stone-700"
+            )}
+          >
+            {t("favoritesSection")}
+            <span className="ml-1 text-[10px] font-medium opacity-70">
+              {favoriteRecipes.length}
+            </span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "outside"}
+            onClick={() => {
+              setActiveTab("outside");
+              setMostrarTodas(false);
+            }}
+            className={cn(
+              "rounded-lg px-2 py-2 text-center text-[11px] font-semibold transition sm:text-[12px] sm:px-3",
+              activeTab === "outside"
+                ? "bg-amber-50 text-amber-900"
+                : "text-stone-500 hover:bg-stone-50 hover:text-stone-700"
+            )}
+          >
+            {t("outsideSection")}
+            <span className="ml-1 text-[10px] font-medium opacity-70">
+              {outsideRecipes.length}
+            </span>
+          </button>
         </div>
 
-        {filteredRecipes.length > 5 ? (
-          <div className="flex justify-center pt-1">
-            <button
-              type="button"
-              onClick={() => setMostrarTodas((previous) => !previous)}
-              className="inline-flex items-center justify-center rounded-full border border-stone-200/60 bg-white px-6 py-2.5 text-sm font-medium text-[#4C6B3F] shadow-sm transition hover:border-stone-300 hover:bg-stone-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#4C6B3F]"
-            >
-              {mostrarTodas ? t("viewLess") : t("viewAll", { count: filteredRecipes.length })}
-            </button>
-          </div>
-        ) : null}
+        {activeRecipes.length > 0 ? (
+          <>
+            <div className="grid grid-cols-1" role="tabpanel">
+              {visibleRecipes.map((recipe, index) =>
+                renderRecipeCard(recipe, index, shouldShowAllResults ? 5 : undefined)
+              )}
+            </div>
+
+            {activeRecipes.length > 5 ? (
+              <div className="flex justify-center pt-1">
+                <button
+                  type="button"
+                  onClick={() => setMostrarTodas((previous) => !previous)}
+                  className="inline-flex items-center justify-center rounded-full border border-stone-200/60 bg-white px-6 py-2.5 text-sm font-medium text-[#4C6B3F] shadow-sm transition hover:border-stone-300 hover:bg-stone-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#4C6B3F]"
+                >
+                  {mostrarTodas
+                    ? t("viewLess")
+                    : t("viewAll", { count: activeRecipes.length })}
+                </button>
+              </div>
+            ) : null}
+          </>
+        ) : (
+          <p className="rounded-xl border border-dashed border-stone-200/80 bg-white/70 px-3 py-2.5 text-[11px] text-stone-500">
+            {emptyMessage}
+          </p>
+        )}
       </div>
     );
   }, [
+    activeRecipes,
+    activeTab,
     errorMessage,
-    filteredRecipes,
-    handleRemoveRecipe,
-    handleShareRecipe,
+    favoriteRecipes.length,
+    filteredRecipes.length,
     isLoading,
     mostrarTodas,
+    otherSavedRecipes.length,
+    outsideRecipes.length,
     recipes.length,
-    sharingRecipeId,
-    removingRecipeId,
-    locale,
+    renderRecipeCard,
+    shouldShowAllResults,
     t,
     visibleRecipes
   ]);
@@ -405,9 +602,9 @@ export default function RecipesPage() {
         </p>
       ) : null}
 
-      {removeMessage ? (
+      {actionMessage ? (
         <p className="rounded-2xl border border-red-100 bg-red-50/80 px-4 py-3 text-sm text-red-700">
-          {removeMessage}
+          {actionMessage}
         </p>
       ) : null}
 

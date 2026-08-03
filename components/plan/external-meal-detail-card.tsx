@@ -14,7 +14,8 @@ type Props = {
   calories?: number | null;
   proteinGrams?: number | null;
   mealTypeLabel?: string | null;
-  tipSandra?: string | null;
+  foodLines?: string[];
+  recommendations?: string[];
 };
 
 /**
@@ -28,7 +29,8 @@ export function ExternalMealDetailCard({
   calories,
   proteinGrams,
   mealTypeLabel,
-  tipSandra
+  foodLines = [],
+  recommendations = []
 }: Props) {
   const hasPhoto = Boolean(imageUrl?.trim());
   const BadgeIcon = badge === "escaneado" ? Camera : MapPin;
@@ -96,19 +98,46 @@ export function ExternalMealDetailCard({
           ) : null}
         </div>
 
-        <p className="text-sm leading-relaxed text-stone-600">
-          Comida registrada fuera de casa. No incluye ingredientes ni pasos de cocina: solo cuenta
-          para el balance nutricional del día.
-        </p>
-
-        {tipSandra?.trim() ? (
-          <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 px-3.5 py-3">
-            <p className="text-[11px] font-bold uppercase tracking-wide text-emerald-800/80">
-              Tip de Sandra
+        {foodLines.length > 0 ? (
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-wide text-stone-400">
+              Alimentos
             </p>
-            <p className="mt-1 text-sm leading-relaxed text-emerald-950/90">{tipSandra.trim()}</p>
+            <ul className="mt-2 space-y-1.5">
+              {foodLines.map((line) => (
+                <li key={line} className="text-sm leading-snug text-stone-700">
+                  <span className="mr-1 text-[#4D6638]" aria-hidden>
+                    ·
+                  </span>
+                  {line}
+                </li>
+              ))}
+            </ul>
           </div>
         ) : null}
+
+        {recommendations.length > 0 ? (
+          <div className="rounded-2xl border border-amber-200/80 bg-amber-50/70 px-3.5 py-3">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-amber-900/80">
+              Recomendación
+            </p>
+            <ul className="mt-1.5 space-y-1.5">
+              {recommendations.map((tip) => (
+                <li key={tip} className="text-sm leading-relaxed text-amber-950/90">
+                  <span className="mr-1" aria-hidden>
+                    ·
+                  </span>
+                  {tip}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : (
+          <p className="text-sm leading-relaxed text-stone-600">
+            Comida registrada fuera de casa. Las calorías y proteínas se estiman según las porciones
+            que confirmaste, para mantener el balance del día.
+          </p>
+        )}
       </div>
     </article>
   );

@@ -64,6 +64,7 @@ import {
   type RecipeOptionVariant
 } from "@/lib/recipes/recipe-options";
 import { normalizeRecipeImageFields } from "@/lib/recipes/dish-image-fallback";
+import { compressImageForUpload } from "@/lib/images/compress-image-for-upload";
 
 type GeneratedRecipe = {
   titulo: string;
@@ -137,56 +138,6 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
-}
-
-async function compressImageForUpload(
-  file: File
-): Promise<{ base64: string; mimeType: string }> {
-  const dataUrl = await new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result !== "string") {
-        reject(new Error("Lectura de imagen inválida"));
-        return;
-      }
-      resolve(reader.result);
-    };
-    reader.onerror = () => reject(reader.error ?? new Error("Error al leer la imagen"));
-    reader.readAsDataURL(file);
-  });
-
-  const image = await new Promise<HTMLImageElement>((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error("No se pudo cargar la imagen para compresión"));
-    img.src = dataUrl;
-  });
-
-  const maxDimension = 1200;
-  const scale = Math.min(1, maxDimension / Math.max(image.width, image.height));
-  const width = Math.max(1, Math.round(image.width * scale));
-  const height = Math.max(1, Math.round(image.height * scale));
-
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
-  const context = canvas.getContext("2d");
-  if (!context) throw new Error("No se pudo inicializar el canvas");
-
-  context.drawImage(image, 0, 0, width, height);
-
-  let quality = 0.8;
-  let compressed = canvas.toDataURL("image/jpeg", quality);
-  const maxLength = 3_500_000;
-  while (compressed.length > maxLength && quality > 0.45) {
-    quality -= 0.1;
-    compressed = canvas.toDataURL("image/jpeg", quality);
-  }
-
-  const match = compressed.match(/^data:([^;]+);base64,(.+)$/);
-  if (!match) throw new Error("No se pudo generar la imagen comprimida");
-
-  return { mimeType: "image/jpeg", base64: match[2].replace(/\s/g, "") };
 }
 
 function extractRetrySeconds(details?: string): number {

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Heart, Loader2 } from "lucide-react";
+import { ArrowLeft, Heart, Loader2, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { ExternalMealDetailCard } from "@/components/plan/external-meal-detail-card";
 import { RecipeAppliedFiltersBadges } from "@/components/recipes/recipe-applied-filters-badges";
@@ -13,7 +13,12 @@ import { RecipeResultHeroCard } from "@/components/scanner/recipe-result-hero-ca
 import { isSandraAdmin } from "@/lib/auth/sandra-admin";
 import { translateMealType } from "@/lib/i18n/filter-labels";
 import { resolveExternalMealBadge } from "@/lib/plan/external-meal";
-import { handleRemoveFromFavorites } from "@/lib/recipes/remove-from-favorites";
+import { deleteSavedRecipe } from "@/lib/recipes/delete-saved-recipe";
+import {
+  isRecipeFavorite,
+  toggleRecipeFavorite
+} from "@/lib/recipes/recipe-favorites";
+import { ingredientsJsonToDisplayStrings } from "@/lib/recipes/structured-ingredients";
 import {
   parseStoredAppliedFilters
 } from "@/lib/recipes/save-generated-recipe";
@@ -56,8 +61,9 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
   const [recipe, setRecipe] = useState<RecipeRow | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isFavorite, setIsFavorite] = useState(true);
-  const [isRemoving, setIsRemoving] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [isTogglingFavorite, setIsTogglingFavorite] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
@@ -211,7 +217,12 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
       }
 
       setRecipe(recipeData);
-      setIsFavorite(Boolean(recipeData));
+      if (recipeData) {
+        const favorite = await isRecipeFavorite(recipeData.id);
+        setIsFavorite(favorite);
+      } else {
+        setIsFavorite(false);
+      }
       setIsLoading(false);
     };
 
@@ -240,23 +251,42 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
     return mealType ? translateMealType(tScanner, mealType) : null;
   }, [appliedFilters?.mealType, recipe?.meal_type, tScanner]);
 
-  const handleRemoveFavorite = useCallback(async () => {
-    if (!recipe || isRemoving || !isFavorite) return;
+  const handleToggleFavorite = useCallback(async () => {
+    if (!recipe || isTogglingFavorite || isDeleting) return;
 
-    setIsRemoving(true);
+    setIsTogglingFavorite(true);
     setErrorMessage(null);
 
-    const result = await handleRemoveFromFavorites(recipe.id);
+    const result = await toggleRecipeFavorite(recipe.id, isFavorite);
 
     if (result.success) {
-      setIsFavorite(false);
+      setIsFavorite(result.isFavorite);
+    } else {
+      setErrorMessage(result.error);
+    }
+
+    setIsTogglingFavorite(false);
+  }, [isDeleting, isFavorite, isTogglingFavorite, recipe]);
+
+  const handleDeleteRecipe = useCallback(async () => {
+    if (!recipe || isDeleting || isTogglingFavorite) return;
+
+    const confirmed = window.confirm(t("deleteConfirm", { title: recipe.title }));
+    if (!confirmed) return;
+
+    setIsDeleting(true);
+    setErrorMessage(null);
+
+    const result = await deleteSavedRecipe(recipe.id);
+
+    if (result.success) {
       router.push("/app-recetas/recipes");
       return;
     }
 
     setErrorMessage(result.error);
-    setIsRemoving(false);
-  }, [isFavorite, isRemoving, recipe, router]);
+    setIsDeleting(false);
+  }, [isDeleting, isTogglingFavorite, recipe, router, t]);
 
   return (
     <section className="space-y-5 pb-8">
@@ -270,28 +300,48 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
         </Link>
 
         {!isLoading && recipe && !externalBadge ? (
-          <button
-            type="button"
-            onClick={() => void handleRemoveFavorite()}
-            disabled={isRemoving || !isFavorite}
-            aria-label={isFavorite ? t("removeFavoriteAria") : t("notSavedAria")}
-            className={cn(
-              "inline-flex h-10 w-10 items-center justify-center rounded-full border transition",
-              isFavorite
-                ? "border-[#4c6633]/15 bg-[#4c6633]/5 text-[#4c6633] hover:bg-[#4c6633]/10"
-                : "border-stone-200 bg-white text-stone-400",
-              "disabled:cursor-not-allowed disabled:opacity-50"
-            )}
-          >
-            {isRemoving ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Heart
-                className={cn("h-4 w-4", isFavorite ? "fill-current" : "")}
-                strokeWidth={1.5}
-              />
-            )}
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => void handleToggleFavorite()}
+              disabled={isTogglingFavorite || isDeleting}
+              aria-label={isFavorite ? t("removeFavoriteAria") : t("addFavoriteAria")}
+              aria-pressed={isFavorite}
+              className={cn(
+                "inline-flex h-10 w-10 items-center justify-center rounded-full border transition",
+                isFavorite
+                  ? "border-[#D07D62]/30 bg-[#D07D62]/10 text-[#D07D62] hover:bg-[#D07D62]/15"
+                  : "border-stone-200 bg-white text-stone-400 hover:text-[#D07D62]",
+                "disabled:cursor-not-allowed disabled:opacity-50"
+              )}
+            >
+              {isTogglingFavorite ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Heart
+                  className={cn("h-4 w-4", isFavorite ? "fill-current" : "")}
+                  strokeWidth={1.5}
+                />
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => void handleDeleteRecipe()}
+              disabled={isDeleting || isTogglingFavorite}
+              aria-label={t("deleteAria")}
+              className={cn(
+                "inline-flex h-10 w-10 items-center justify-center rounded-full border border-stone-200 bg-white text-stone-400 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600",
+                "disabled:cursor-not-allowed disabled:opacity-50"
+              )}
+            >
+              {isDeleting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4" strokeWidth={1.5} />
+              )}
+            </button>
+          </div>
         ) : null}
       </div>
 
@@ -324,7 +374,15 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
             calories={shareableRecipe.macronutrientes?.calorias ?? null}
             proteinGrams={shareableRecipe.macronutrientes?.proteinas_g ?? null}
             mealTypeLabel={mealTypeLabel}
-            tipSandra={recipe.tip_sandra}
+            foodLines={ingredientsJsonToDisplayStrings(recipe.ingredients)}
+            recommendations={(
+              recipe.meal_type_advisory ||
+              recipe.tip_sandra ||
+              ""
+            )
+              .split(/\n+/)
+              .map((tip) => tip.trim())
+              .filter((tip) => tip.length >= 8)}
           />
         </div>
       ) : null}

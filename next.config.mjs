@@ -6,6 +6,11 @@ const isDev = process.env.NODE_ENV !== "production";
 const nextConfig = {
   allowedDevOrigins: ["192.168.1.13", "localhost", "127.0.0.1"],
 
+  // Fotos del plato / escáner llegan como base64; el default (~10MB) corta el JSON.
+  experimental: {
+    middlewareClientMaxBodySize: "16mb"
+  },
+
   onDemandEntries: {
     maxInactiveAge: 30_000,
     pagesBufferLength: 2

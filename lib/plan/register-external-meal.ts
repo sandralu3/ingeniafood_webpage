@@ -2,11 +2,17 @@ import type { MealType, WeekDay } from "@/lib/plan/constants";
 import type { PlanMeal } from "@/components/plan/plan-meal-card";
 import {
   buildExternalMealTags,
+  formatExternalMealFoodLine,
+  formatExternalMealRecommendations,
   type ExternalMealEstimate
 } from "@/lib/plan/external-meal";
 import { assignRecipeToPlan } from "@/lib/plan/plan-service";
 import { canRegisterExternalMealForPlanDay } from "@/lib/plan/week-utils";
 import { saveGeneratedRecipeToLibrary } from "@/lib/recipes/save-generated-recipe";
+import {
+  stringsToStructuredIngredients,
+  structuredIngredientsToJson
+} from "@/lib/recipes/structured-ingredients";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 
 function mapMealTypeToFilter(mealType: MealType): "desayuno" | "almuerzo" | "cena" {
@@ -48,15 +54,21 @@ export async function registerExternalMealToPlan(params: {
   };
 
   const platePhoto = params.imageUrl?.trim() || null;
+  const ingredientLines =
+    params.estimate.alimentos?.length > 0
+      ? params.estimate.alimentos.map(formatExternalMealFoodLine)
+      : [];
+  const adviceText = formatExternalMealRecommendations(params.estimate);
 
   const saveResult = await saveGeneratedRecipeToLibrary(supabase, {
     userId: params.userId,
     title: params.estimate.nombre_plato,
-    ingredients: [],
+    ingredients: structuredIngredientsToJson(
+      stringsToStructuredIngredients(ingredientLines)
+    ),
     steps: [],
     instructions: "Registro de comida externa (sin preparación).",
-    tipSandra:
-      "Has registrado una comida fuera: los macros son una estimación orientativa para no romper el balance del día.",
+    tipSandra: adviceText || "",
     isAirfryer: false,
     isFlourless: false,
     tags,
@@ -70,7 +82,7 @@ export async function registerExternalMealToPlan(params: {
       servings: 1,
       complexity: "facil"
     },
-    mealTypeAdvisory: null
+    mealTypeAdvisory: adviceText || null
   });
 
   if ("error" in saveResult) {

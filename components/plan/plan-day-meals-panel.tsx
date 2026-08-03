@@ -49,8 +49,8 @@ export function PlanDayMealsPanel({
 }: PlanDayMealsPanelProps) {
   const t = useTranslations("Plan");
   const assignedCount = MEAL_TYPES.filter((type) => day.slots[type] !== null).length;
-  const hasEmptySlots = assignedCount < MEAL_TYPES.length;
-  const showPropose = Boolean(onProposeDayMenu) && hasEmptySlots;
+  const dayIsEmpty = assignedCount === 0;
+  const showPropose = Boolean(onProposeDayMenu) && dayIsEmpty;
   const resolvedWeekStart = weekStartISO ?? toISODateString(getMondayOfWeek());
 
   return (
