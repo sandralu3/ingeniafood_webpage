@@ -20,6 +20,11 @@ import {
   buildRecipeLanguagePromptClause,
   resolveRecipeGenerationLocale
 } from "@/lib/recipes/recipe-locale-prompt";
+import {
+  buildUnhealthyIngredientWarningPromptClause,
+  ensureUnhealthyIngredientAdvisory,
+  mergeAdvisoryNotes
+} from "@/lib/recipes/unhealthy-ingredient-advisory";
 import { resolveDishImagePlaceholder } from "@/lib/recipes/generate-recipe-image";
 import { resolveDishImageMatch } from "@/lib/recipes/resolve-dish-image-match";
 import { getOpenAiDishPhotoAccess } from "@/lib/recipes/can-generate-openai-dish-photo";
@@ -62,6 +67,7 @@ const PANTRY_PRIORITY_RULE =
 const HEALTHY_NUTRITION_RULE =
   "PRIORIDAD NUTRICIONAL INGENIAFOOD: Todas las recetas deben ser saludables, equilibradas y con ingredientes reales de alto valor nutricional. " +
   "PROHIBIDO inventar o añadir como ingrediente principal harina de trigo, harina blanca, harinas refinadas, azúcar refinada en gran cantidad, frituras en aceite abundante o ingredientes ultraprocesados, SALVO que el usuario los haya seleccionado explícitamente o aparezcan claramente en la imagen. " +
+  "Si el usuario SÍ aportó un alimento poco saludable, GENERA la receta con él y avisa en advertencia_ingredientes (ver REGLA AVISO ALIMENTO POCO SALUDABLE). " +
   "Prioriza verduras, proteínas magras, huevos, legumbres, grasas saludables (aceite de oliva, aguacate), cereales integrales (avena, arroz integral, quinoa) y preparaciones al horno, salteado ligero, plancha o airfryer. " +
   "Si los ingredientes del usuario no permiten un plato tradicional con harina, propón una versión saludable alternativa con lo que SÍ tienen (ej. queso al horno con verduras, tortilla, bowl proteico), sin inventar masas fritas ni rebozados. " +
   "Evita recetas tipo empanada, tequeños, buñuelos o frituras con harina si el usuario no aportó harina.\n\n";
@@ -82,15 +88,26 @@ const DETAILED_STEPS_RULE =
   "pero incluso en Fácil cada paso debe ser detallado (nunca un resumen superficial).\n\n";
 
 const INGREDIENT_VALIDATION_RULE =
-  "Antes de generar cualquier receta, analiza minuciosamente la lista de ingredientes que te envía el usuario. " +
-  "Si detectas que alguno de los textos enviados NO es un ingrediente, condimento, bebida o alimento comestible real, " +
-  'debes abortar inmediatamente y responder ÚNICAMENTE con este objeto JSON: {"error":"ingrediente_invalido","mensaje":"Parece que hay algo en tu despensa que no es un alimento válido. ¡Revisa tus ingredientes seleccionados e inténtalo de nuevo!"}. ' +
-  "Trata como NO válidos (obligatorio): nombres de personas (ej. Sandra, Juan, María), la coach o marca de la app (Sandra, Tip de Sandra, IngeniaFood), " +
-  "insultos, frases, utensilios/aparatos (airfryer, sartén, nevera), ropa, animales de compañía, marcas de electrónica u objetos no comestibles. " +
-  "Si todos los ingredientes son válidos, procede a generar la estructura habitual de la receta en formato JSON.\n\n";
+  "PRIMERA TAREA OBLIGATORIA (antes de cualquier receta): analiza minuciosamente la lista de ingredientes del usuario. " +
+  "Si ALGUNO de los textos NO es un alimento, bebida, condimento o ingrediente culinario comestible real, " +
+  "ABORTA de inmediato. NO generes recipes, NO inventes un plato, NO sustituyas por otros alimentos. " +
+  'Responde ÚNICAMENTE con este JSON (sin markdown): {"error":"NOT_FOOD","mensaje":"Eso no es un alimento válido. Quita lo que no sea comida e inténtalo de nuevo."}. ' +
+  "Trata como NO válidos (obligatorio): nombres de personas (Sandra, Juan, María), la coach/marca (Tip de Sandra, IngeniaFood), " +
+  "saludos (hola, adiós), basura (asdf, test, prueba), utensilios/aparatos (airfryer, sartén, nevera, mesa, silla), " +
+  "ropa, animales de compañía, electrónica, minerales/objetos (piedra, plástico, madera, vidrio), frases o cualquier cosa no comestible. " +
+  "Solo si TODOS los ítems son comestibles reales, genera el JSON de recetas habitual.\n\n";
 
 const VISION_SYSTEM_PREFIX =
-  "Tu primera tarea es analizar si la imagen contiene ingredientes, alimentos o comida. Si la imagen NO muestra nada comestible (por ejemplo: objetos, personas, paisajes, animales), debes responder ÚNICAMENTE con este código de error: { \"error\": \"NOT_FOOD\" }. No generes ninguna receta en ese caso.\nAnaliza esta imagen de una nevera o despensa. Identifica los ingredientes comestibles visibles. Úsalos como base para generar una receta que también incluya los ingredientes que el usuario haya seleccionado manualmente.\n\n";
+  "Tu primera tarea es analizar si la imagen contiene ingredientes, alimentos o comida. " +
+  "Si la imagen NO muestra nada comestible (objetos, personas, paisajes, animales, utensilios vacíos), " +
+  'responde ÚNICAMENTE {"error":"NOT_FOOD","mensaje":"No hemos detectado alimentos en la foto."}. No generes ninguna receta. ' +
+  "Si la imagen SÍ tiene comida, identifica los ingredientes comestibles visibles y úsalos junto con los seleccionados manualmente (si son válidos).\n\n";
+
+const TEXT_ONLY_VALIDATION_PREFIX =
+  "MODO TEXTO (sin imagen): NO hables de comida visible. " +
+  "Valida SOLO la lista de ingredientes enviada. " +
+  "Si hay algún no-alimento, responde ÚNICAMENTE {\"error\":\"NOT_FOOD\",\"mensaje\":\"Eso no es un alimento válido. Quita lo que no sea comida e inténtalo de nuevo.\"} " +
+  "y termina. PROHIBIDO devolver el array recipes en ese caso.\n\n";
 
 const MACRO_ESTIMATION_RULE = MACRO_ESTIMATION_PROMPT_CLAUSE;
 
@@ -278,11 +295,11 @@ function parseJsonResponse(rawText: string): ParseOutcome {
     if (parsed.error === "NOT_FOOD") {
       return { status: "not_food" };
     }
-    if (parsed.error === "ingrediente_invalido") {
+    if (parsed.error === "ingrediente_invalido" || parsed.error === "INVALID_INGREDIENT") {
       const message =
         typeof parsed.mensaje === "string" && parsed.mensaje.trim().length > 0
           ? parsed.mensaje.trim()
-          : "Parece que hay algo en tu despensa que no es un alimento válido. ¡Revisa tus ingredientes seleccionados e inténtalo de nuevo!";
+          : "Eso no es un alimento válido. Quita lo que no sea comida e inténtalo de nuevo.";
       return { status: "invalid_ingredient", message };
     }
     if (parsed.error === "tipo_plato_incompatible") {
@@ -303,8 +320,8 @@ function parseJsonResponse(rawText: string): ParseOutcome {
       parsed.advertencia_ingredientes.trim().length > 0
         ? parsed.advertencia_ingredientes.trim()
         : undefined;
-    // Prefer transparency note when ingredients were reserved among multiple options.
-    const mealTypeAdvisory = omitidosNota ?? advertencia;
+    // Combinar omisión + aviso (p. ej. poco saludable); no descartar uno por el otro.
+    const mealTypeAdvisory = mergeAdvisoryNotes(omitidosNota, advertencia);
 
     const looseList = Array.isArray(parsed.recipes)
       ? parsed.recipes
@@ -495,14 +512,14 @@ export async function POST(request: Request) {
       const invalidList = invalidIngredients.map((item) => item.name).join(", ");
       return jsonResponse(
         {
-          error: "ingrediente_invalido",
-          code: "INVALID_INGREDIENT",
+          error: "NOT_FOOD",
+          code: "NOT_FOOD",
           mensaje:
             invalidIngredients.length === 1
-              ? `"${invalidList}" no es un alimento válido. Quítalo de tu despensa e inténtalo de nuevo.`
-              : `Estos elementos no son alimentos válidos: ${invalidList}. Revísalos e inténtalo de nuevo.`
+              ? `"${invalidList}" no es un alimento. Quítalo e inténtalo de nuevo.`
+              : `Esto no son alimentos: ${invalidList}. Quítalos e inténtalo de nuevo.`
         },
-        400
+        422
       );
     }
 
@@ -644,10 +661,13 @@ export async function POST(request: Request) {
       "Las 3 deben usar los mismos ingredientes base del usuario pero con enfoques claramente distintos (titulo, pasos y tiempos diferentes). " +
       "Incluye emoji (1 emoji) y nombre_corto (max 28 chars) en cada opción. ";
 
+    const unhealthyWarningClause = buildUnhealthyIngredientWarningPromptClause();
+
     const jsonRules =
       languagePromptClause +
       PANTRY_PRIORITY_RULE +
       HEALTHY_NUTRITION_RULE +
+      unhealthyWarningClause +
       DETAILED_STEPS_RULE +
       ingredientQuantityRule +
       MACRO_ESTIMATION_RULE +
@@ -657,7 +677,8 @@ export async function POST(request: Request) {
       recipeJsonShape +
       ", ...exactamente 3 ] }. " +
       multiRecipeRules +
-      "advertencia_ingredientes: opcional; texto breve (en el idioma de salida) si hace falta avisar de complementos no escaneados. Si no aplica, usa \"\". " +
+      "advertencia_ingredientes: texto breve (idioma de salida). Úsalo para: (a) avisar si el usuario aportó alimento(s) poco saludable(s) — OBLIGATORIO en ese caso, nombrándolos; " +
+      "(b) opcionalmente, complementos de despensa no escaneados. Si no aplica nada, usa \"\". " +
       "ingredientes_omitidos_nota: SOLO si el usuario envió VARIOS ingredientes y omitiste alguno porque usaste otros de su lista en la receta; explica qué reservaste y qué usaste. Si el usuario tiene un solo ingrediente (o pocos) y lo usas, DEBE ser \"\". NUNCA omitas el único ingrediente disponible ni inventes un plato sin él. " +
       "ETIQUETAS (campo etiquetas): array de 0 a 3 strings. Valores permitidos SOLO: \"Sin Harinas\", \"Apto para Airfryer\", \"Alto en Proteína\". " +
       "NO incluyas Desayuno, Cena, Snack, Almuerzo ni Postre en etiquetas (el momento del plato ya se define por filtros del usuario). " +
@@ -672,7 +693,9 @@ export async function POST(request: Request) {
 
     const systemInstruction = hasImage
       ? `${INGREDIENT_VALIDATION_RULE}${ingredientQuantityRule}${VISION_SYSTEM_PREFIX}${jsonRules} ${manualClause}`
-      : `${INGREDIENT_VALIDATION_RULE}${ingredientQuantityRule}Solo JSON valido. Usa ingredientes: [${selectedList}]. ${multiRecipeRules} Formato { "advertencia_ingredientes": "", "ingredientes_omitidos_nota": "", "recipes": [${recipeJsonShape}, ...] }. ${jsonRules}`;
+      : `${INGREDIENT_VALIDATION_RULE}${TEXT_ONLY_VALIDATION_PREFIX}${ingredientQuantityRule}` +
+        `Ingredientes del usuario: [${selectedList}]. ${multiRecipeRules} ` +
+        `Formato si son válidos: { "advertencia_ingredientes": "", "ingredientes_omitidos_nota": "", "recipes": [${recipeJsonShape}, ...] }. ${jsonRules}`;
 
     const promptTail =
       selectedIngredients.length && hasImage
@@ -681,11 +704,16 @@ export async function POST(request: Request) {
           ? "Incluye en ingredientes_detallados (con cantidades) los ingredientes seleccionados por el usuario en la receta."
           : "Completa ingredientes_detallados (con cantidades) con lo que propongas para la receta.";
 
-    const prompt =
-      "Primero valida si hay comida visible. Si NO hay comida, responde solo {\"error\":\"NOT_FOOD\"} y termina sin texto adicional. " +
-      "Si sí hay comida, responde exclusivamente con JSON valido (sin markdown, sin bloques de codigo) usando esta estructura exacta: " +
-      `{ "advertencia_ingredientes": string, "ingredientes_omitidos_nota": string, "recipes": [${recipeJsonShape}, ${recipeJsonShape}, ${recipeJsonShape}] }. ` +
-      `${multiRecipeRules}${promptTail} No inventes ingredientes principales imposibles; prioriza exclusivamente lo visible y lo indicado arriba. El titulo debe reflejar los ingredientes reales del usuario, no sabores inventados.`;
+    const prompt = hasImage
+      ? "Primero valida si hay comida visible. Si NO hay comida, responde solo {\"error\":\"NOT_FOOD\"} y termina sin texto adicional. " +
+        "Si sí hay comida, responde exclusivamente con JSON valido (sin markdown, sin bloques de codigo) usando esta estructura exacta: " +
+        `{ "advertencia_ingredientes": string, "ingredientes_omitidos_nota": string, "recipes": [${recipeJsonShape}, ${recipeJsonShape}, ${recipeJsonShape}] }. ` +
+        `${multiRecipeRules}${promptTail} No inventes ingredientes principales imposibles; prioriza exclusivamente lo visible y lo indicado arriba. El titulo debe reflejar los ingredientes reales del usuario, no sabores inventados.`
+      : "PRIMERO valida la lista de ingredientes. Si alguno NO es alimento/bebida/condimento, responde SOLO " +
+        "{\"error\":\"NOT_FOOD\",\"mensaje\":\"Eso no es un alimento válido. Quita lo que no sea comida e inténtalo de nuevo.\"} " +
+        "sin array recipes. Si todos son válidos, responde exclusivamente con JSON válido (sin markdown): " +
+        `{ "advertencia_ingredientes": string, "ingredientes_omitidos_nota": string, "recipes": [${recipeJsonShape}, ${recipeJsonShape}, ${recipeJsonShape}] }. ` +
+        `${multiRecipeRules}${promptTail} PROHIBIDO inventar una receta a partir de no-alimentos.`;
 
     let rawResponse = "";
 
@@ -794,7 +822,8 @@ export async function POST(request: Request) {
       return jsonResponse(
         {
           error: "NOT_FOOD",
-          code: "NOT_FOOD"
+          code: "NOT_FOOD",
+          mensaje: "Eso no es un alimento válido. Quita lo que no sea comida e inténtalo de nuevo."
         },
         422
       );
@@ -803,11 +832,11 @@ export async function POST(request: Request) {
     if (parseOutcome?.status === "invalid_ingredient") {
       return jsonResponse(
         {
-          error: "ingrediente_invalido",
-          code: "INVALID_INGREDIENT",
+          error: "NOT_FOOD",
+          code: "NOT_FOOD",
           mensaje: parseOutcome.message
         },
-        400
+        422
       );
     }
 
@@ -893,7 +922,6 @@ export async function POST(request: Request) {
       );
     }
     const parsedRecipes = parseOutcome.recipes;
-    const mealTypeAdvisory = parseOutcome.mealTypeAdvisory;
 
     const safeRecipes: GeminiRecipe[] = parsedRecipes.map((recipe, index) => {
       const variant = normalizeRecipeVariant(recipe.variant, index);
@@ -925,6 +953,17 @@ export async function POST(request: Request) {
             : defaults.emoji,
         nombre_corto: shortRecipeName(titulo, recipe.nombre_corto)
       };
+    });
+
+    const namesForUnhealthyCheck =
+      selectedIngredients.length > 0
+        ? selectedIngredients
+        : safeRecipes.flatMap((recipe) => recipe.ingredientes_detallados).slice(0, 40);
+
+    const mealTypeAdvisory = ensureUnhealthyIngredientAdvisory({
+      existingAdvisory: parseOutcome.mealTypeAdvisory,
+      ingredientNames: namesForUnhealthyCheck,
+      locale: recipeLocale
     });
 
     const primaryParsedRecipe = safeRecipes[0];

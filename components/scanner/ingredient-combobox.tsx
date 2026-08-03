@@ -42,6 +42,7 @@ export function IngredientCombobox({
   const [pendingCustomName, setPendingCustomName] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const categoryPickerRef = useRef<HTMLDivElement>(null);
 
@@ -77,6 +78,30 @@ export function IngredientCombobox({
     !exactMatch &&
     isValidCustomIngredientName(trimmedQuery) &&
     isLikelyEdibleIngredientName(trimmedQuery);
+
+  const rejectNonFoodMessage = () => {
+    if (!trimmedQuery) {
+      setLocalError(null);
+      return;
+    }
+    if (!isValidCustomIngredientName(trimmedQuery)) {
+      setLocalError(
+        t.has("customInvalidFormatError")
+          ? t("customInvalidFormatError")
+          : "Nombre no válido. Usa al menos 3 letras, sin símbolos raros."
+      );
+      return;
+    }
+    if (!isLikelyEdibleIngredientName(trimmedQuery)) {
+      setLocalError(
+        t.has("customNotFoodError")
+          ? t("customNotFoodError")
+          : "Eso no parece un alimento. Usa un ingrediente comestible (ej. tomate, pollo, arroz)."
+      );
+      return;
+    }
+    setLocalError(null);
+  };
 
   const listOptions = useMemo(() => {
     const items = [...suggestions];
@@ -114,9 +139,18 @@ export function IngredientCombobox({
     setHighlightedIndex(0);
     setPendingCustomName(null);
     setIsCreating(false);
+    setLocalError(null);
   };
 
   const commitSelection = (ingredient: MasterIngredient) => {
+    if (!isLikelyEdibleIngredientName(ingredient.name)) {
+      setLocalError(
+        t.has("customNotFoodError")
+          ? t("customNotFoodError")
+          : "Eso no parece un alimento. Usa un ingrediente comestible (ej. tomate, pollo, arroz)."
+      );
+      return;
+    }
     onSelectIngredient(ingredient);
     resetPicker();
   };
@@ -127,18 +161,35 @@ export function IngredientCombobox({
   };
 
   const openCategoryPicker = () => {
-    if (!canOfferCreate || disabled) return;
+    if (disabled) return;
+    if (!canOfferCreate) {
+      rejectNonFoodMessage();
+      return;
+    }
+    setLocalError(null);
     setPendingCustomName(trimmedQuery);
     setIsOpen(true);
   };
 
   const handleConfirmCategory = async (category: PantryCategoryDb) => {
     if (!pendingCustomName || disabled || isCreating) return;
+    if (!isLikelyEdibleIngredientName(pendingCustomName)) {
+      setLocalError(
+        t.has("customNotFoodError")
+          ? t("customNotFoodError")
+          : "Eso no parece un alimento. Usa un ingrediente comestible (ej. tomate, pollo, arroz)."
+      );
+      setPendingCustomName(null);
+      return;
+    }
     setIsCreating(true);
     try {
       const created = await onCreateCustomIngredient(pendingCustomName, category);
       if (created) {
         commitSelection(created);
+      } else {
+        rejectNonFoodMessage();
+        setPendingCustomName(null);
       }
     } finally {
       setIsCreating(false);
@@ -172,6 +223,7 @@ export function IngredientCombobox({
         onChange={(event) => {
           setQuery(event.target.value);
           setPendingCustomName(null);
+          setLocalError(null);
           setIsOpen(true);
         }}
         onFocus={() => setIsOpen(true)}
@@ -199,12 +251,17 @@ export function IngredientCombobox({
             const highlighted = listOptions[highlightedIndex];
             if (highlighted) {
               handleListPick(highlighted);
+              return;
+            }
+            if (trimmedQuery) {
+              rejectNonFoodMessage();
             }
             return;
           }
           if (event.key === "Escape") {
             setIsOpen(false);
             setPendingCustomName(null);
+            setLocalError(null);
           }
         }}
         placeholder={t("addMorePlaceholder")}
@@ -212,7 +269,8 @@ export function IngredientCombobox({
           "w-full text-xs text-stone-800 shadow-none placeholder:text-stone-400 transition focus:outline-none disabled:opacity-60",
           variant === "pantry"
             ? "rounded-xl border border-stone-200/60 bg-stone-50 py-2 pl-10 pr-12 focus:border-[#3E5A3A] focus:bg-white focus:ring-1 focus:ring-[#3E5A3A]/25"
-            : "rounded-xl border border-stone-100 bg-[#FAF7F2] px-3 py-2.5 pr-11 focus:border-[#3E5A3A]/40 focus:bg-white focus:ring-1 focus:ring-[#3E5A3A]"
+            : "rounded-xl border border-stone-100 bg-[#FAF7F2] px-3 py-2.5 pr-11 focus:border-[#3E5A3A]/40 focus:bg-white focus:ring-1 focus:ring-[#3E5A3A]",
+          localError ? "border-rose-300 focus:border-rose-400 focus:ring-rose-200" : null
         )}
       />
       <button
@@ -230,6 +288,12 @@ export function IngredientCombobox({
       >
         <Plus className="h-4 w-4" strokeWidth={2} />
       </button>
+
+      {localError ? (
+        <p role="alert" className="mt-1.5 text-[11px] leading-snug text-rose-700">
+          {localError}
+        </p>
+      ) : null}
 
       {isMounted && isOpen && pendingCustomName
         ? createPortal(
@@ -338,8 +402,13 @@ export function IngredientCombobox({
 
           {suggestions.length === 0 && !canOfferCreate ? (
             <li className="px-4 py-3 text-sm text-stone-600">
-              No hay coincidencias. Usa al menos 3 letras válidas (sin símbolos raros) para crear uno
-              nuevo.
+              {trimmedQuery && !isLikelyEdibleIngredientName(trimmedQuery)
+                ? t.has("customNotFoodError")
+                  ? t("customNotFoodError")
+                  : "Eso no parece un alimento. Usa un ingrediente comestible (ej. tomate, pollo, arroz)."
+                : t.has("customNoMatchesHint")
+                  ? t("customNoMatchesHint")
+                  : "Sin coincidencias. Prueba otro nombre de alimento."}
             </li>
           ) : null}
         </ul>

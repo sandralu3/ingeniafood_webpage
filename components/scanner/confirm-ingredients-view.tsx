@@ -19,6 +19,7 @@ import type {
 import type { DetectedIngredient } from "@/lib/scanner/detected-ingredient";
 import { selectedIngredientNames } from "@/lib/scanner/detected-ingredient";
 import type { MasterIngredient } from "@/lib/pantry/types";
+import { isLikelyEdibleIngredientName } from "@/lib/pantry/validation";
 import { cn } from "@/lib/utils";
 
 type ConfirmIngredientsViewProps = {
@@ -274,6 +275,7 @@ export function ConfirmIngredientsView({
 
   const handleComboboxSelect = useCallback(
     (ingredient: MasterIngredient) => {
+      if (!isLikelyEdibleIngredientName(ingredient.name)) return;
       onAddIngredient(ingredient.name);
     },
     [onAddIngredient]
@@ -281,6 +283,7 @@ export function ConfirmIngredientsView({
 
   const handleCreateCustomIngredient = useCallback(
     async (name: string, category: MasterIngredient["category"]) => {
+      if (!isLikelyEdibleIngredientName(name)) return null;
       const created = await createCustomIngredient(name, category);
       if (created) {
         onAddIngredient(created.name);

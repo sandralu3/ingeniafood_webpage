@@ -79,7 +79,8 @@ export function buildMealTypeCompatibilityPromptClause(mealType: RecipeMealType)
     "REGLA 4 — NOTA DE OMISIÓN: solo genera ingredientes_omitidos_nota cuando REALMENTE omitas algún ingrediente seleccionado " +
     "Y al mismo tiempo uses otros ingredientes seleccionados del usuario en la receta. " +
     "Si usas el único ingrediente disponible, ingredientes_omitidos_nota debe ser \"\". " +
-    "También puedes usar advertencia_ingredientes para complementos de despensa no escaneados.\n" +
+    "También puedes usar advertencia_ingredientes para complementos de despensa no escaneados " +
+    "y DEBES usarlo si el usuario aportó alimentos poco saludables (ver REGLA AVISO ALIMENTO POCO SALUDABLE).\n" +
     `El tipo de plato pedido es "${label}": genera un plato apetecible de ese momento del día SIN abandonar la despensa del usuario. ` +
     'Responde con {"error":"tipo_plato_incompatible","mensaje":"..."} SOLO en casos extremos en los que sea imposible adaptar nada de lo enviado a ' +
     `${label}.`

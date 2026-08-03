@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
-import { Wand2 } from "lucide-react";
+import { AlertTriangle, Wand2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { ShareableRecipe } from "@/lib/share/recipe-share-image";
 import { formatTimeLabel } from "@/lib/share/recipe-share-utils";
@@ -22,6 +22,9 @@ const LOADER_MESSAGE_KEYS = [
   "loaderCooking",
   "loaderPlating"
 ] as const;
+
+const UNHEALTHY_ADVISORY_RE =
+  /poco\s+saludable|no\s+es\s+un\s+alimento\s+saludable|no\s+son\s+alimentos\s+saludables|unhealthy|not\s+a\s+healthy|not\s+healthy|peu\s+sain|aliment\s+sain|pouco\s+saud[aá]vel|ungesund|gesundes|ultraproces|ultra[\s-]?process|ten\s+en\s+cuenta|note:|attention\s*:|aten[cç][aã]o|hinweis/i;
 
 type Props = {
   recipe: ShareableRecipe;
@@ -81,6 +84,10 @@ export function RecipeResultHeroCard({
             missing: [] as string[]
           },
     [pantryIngredients, recipe.ingredientes_detallados]
+  );
+
+  const isUnhealthyAdvisory = Boolean(
+    mealTypeAdvisory && UNHEALTHY_ADVISORY_RE.test(mealTypeAdvisory)
   );
 
   const steps = useMemo(
@@ -220,14 +227,32 @@ export function RecipeResultHeroCard({
             {mealTypeAdvisory ? (
               <div
                 role="status"
-                className="mb-2 flex items-start gap-1.5 rounded-lg border border-[#4D6638]/15 bg-[#4D6638]/5 px-2.5 py-1.5"
+                className={cn(
+                  "mb-2 flex items-start gap-1.5 rounded-lg border px-2.5 py-1.5",
+                  isUnhealthyAdvisory
+                    ? "border-amber-500/25 bg-amber-50"
+                    : "border-[#4D6638]/15 bg-[#4D6638]/5"
+                )}
               >
-                <Wand2
-                  className="mt-px h-3 w-3 shrink-0 text-[#4D6638]/80"
-                  strokeWidth={2}
-                  aria-hidden
-                />
-                <p className="text-[11px] font-medium leading-snug text-[#334425]/90">
+                {isUnhealthyAdvisory ? (
+                  <AlertTriangle
+                    className="mt-px h-3 w-3 shrink-0 text-amber-700/90"
+                    strokeWidth={2}
+                    aria-hidden
+                  />
+                ) : (
+                  <Wand2
+                    className="mt-px h-3 w-3 shrink-0 text-[#4D6638]/80"
+                    strokeWidth={2}
+                    aria-hidden
+                  />
+                )}
+                <p
+                  className={cn(
+                    "text-[11px] font-medium leading-snug",
+                    isUnhealthyAdvisory ? "text-amber-950/85" : "text-[#334425]/90"
+                  )}
+                >
                   {mealTypeAdvisory}
                 </p>
               </div>

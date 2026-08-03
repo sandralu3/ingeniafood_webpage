@@ -26,6 +26,7 @@ import {
   type PendingPlanAssignment
 } from "@/lib/plan/plan-pending-assignment";
 import { consumeScannerGenerationSeed } from "@/lib/scanner/scanner-generation-seed";
+import { isLikelyEdibleIngredientName } from "@/lib/pantry/validation";
 import {
   FREE_DEFAULT_COMPLEXITY,
   FREE_DEFAULT_CUISINE_STYLE,
@@ -189,12 +190,15 @@ function resolveErrorMessage(
     return "La IA respondió pero el formato no es válido. Intenta con otros ingredientes.";
   }
   if (payload.code === "NOT_FOOD" || payload.error === "NOT_FOOD") {
-    return "🍎 ¡Ups! No hemos detectado ningún ingrediente en la foto. Por favor, asegúrate de enfocar bien tus alimentos para que pueda ayudarte con una receta.";
+    return (
+      payload.mensaje ??
+      "🍎 Eso no es un alimento válido. Quita lo que no sea comida e inténtalo de nuevo."
+    );
   }
   if (payload.code === "INVALID_INGREDIENT" || payload.error === "ingrediente_invalido") {
     return (
       payload.mensaje ??
-      "Parece que hay algo en tu despensa que no es un alimento válido. ¡Revisa tus ingredientes seleccionados e inténtalo de nuevo!"
+      "Eso no es un alimento válido. Quita lo que no sea comida e inténtalo de nuevo."
     );
   }
   if (payload.code === "PREMIUM_REQUIRED" || payload.code === "INSUFFICIENT_CREDITS") {
@@ -590,6 +594,16 @@ export default function ScannerPage() {
   const handleAddScannedIngredient = (name: string) => {
     const trimmed = name.trim();
     if (!trimmed) return;
+    if (!isLikelyEdibleIngredientName(trimmed)) {
+      setErrorMessage(
+        t.has("customNotFoodError")
+          ? t("customNotFoodError")
+          : "Eso no parece un alimento. Usa un ingrediente comestible (ej. tomate, pollo, arroz)."
+      );
+      return;
+    }
+    setErrorMessage(null);
+    setDetectError(null);
     setScannedIngredients((prev) => {
       const key = trimmed.toLowerCase();
       const existing = prev.find((item) => item.name.trim().toLowerCase() === key);
@@ -625,6 +639,14 @@ export default function ScannerPage() {
   };
 
   const handleToggleFromCategory = (name: string) => {
+    if (!selectedIngredients.includes(name) && !isLikelyEdibleIngredientName(name)) {
+      setErrorMessage(
+        t.has("customNotFoodError")
+          ? t("customNotFoodError")
+          : "Eso no parece un alimento. Usa un ingrediente comestible (ej. tomate, pollo, arroz)."
+      );
+      return;
+    }
     setSelectedIngredients((prev) =>
       prev.includes(name) ? prev.filter((x) => x !== name) : [...prev, name]
     );
@@ -651,7 +673,17 @@ export default function ScannerPage() {
   };
 
   const handleAddIngredient = (name: string) => {
-    setSelectedIngredients((prev) => (prev.includes(name) ? prev : [...prev, name]));
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    if (!isLikelyEdibleIngredientName(trimmed)) {
+      setErrorMessage(
+        t.has("customNotFoodError")
+          ? t("customNotFoodError")
+          : "Eso no parece un alimento. Usa un ingrediente comestible (ej. tomate, pollo, arroz)."
+      );
+      return;
+    }
+    setSelectedIngredients((prev) => (prev.includes(trimmed) ? prev : [...prev, trimmed]));
     setRecipe(null);
     setRecipeFromPhoto(false);
     setErrorMessage(null);
@@ -881,15 +913,26 @@ export default function ScannerPage() {
 
         const isNotFood = payload.code === "NOT_FOOD" || payload.error === "NOT_FOOD";
         if (isNotFood) {
-          setShowNotFoodGuidance(true);
-          setShowInvalidIngredientAlert(false);
+          // Texto manual o foto: no mostrar receta; aviso claro de no-alimento
+          const hasManualIngredients = selectedIngredients.length > 0 && !pantryImageFile;
+          if (hasManualIngredients) {
+            setShowInvalidIngredientAlert(true);
+            setInvalidIngredientMessage(
+              payload.mensaje ??
+                resolveErrorMessage(response.status, payload, networkError)
+            );
+            setShowNotFoodGuidance(false);
+          } else {
+            setShowNotFoodGuidance(true);
+            setShowInvalidIngredientAlert(false);
+            setInvalidIngredientMessage(null);
+          }
           setErrorMessage(null);
           return;
         }
 
         const isInvalidIngredient =
-          response.status === 400 &&
-          (payload.code === "INVALID_INGREDIENT" || payload.error === "ingrediente_invalido");
+          payload.code === "INVALID_INGREDIENT" || payload.error === "ingrediente_invalido";
         if (isInvalidIngredient) {
           setShowInvalidIngredientAlert(true);
           setInvalidIngredientMessage(
