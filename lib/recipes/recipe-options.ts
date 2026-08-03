@@ -12,6 +12,8 @@ export type RecipeOption = {
   macronutrientes?: RecipeMacros | null;
   imageUrl?: string | null;
   referenceImageUrl?: string | null;
+  /** Id auto-guardado mientras se genera la foto OpenAI (polling). */
+  savedRecipeId?: string | null;
   variant: RecipeOptionVariant;
   emoji: string;
   nombre_corto: string;

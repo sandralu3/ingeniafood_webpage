@@ -32,4 +32,8 @@ export async function getOpenAiDishPhotoAccess(
   return resolveDishPhotoAccess(supabase, userId, email);
 }
 
-export { isOpenAiDishPhotosEnabled, REAL_PHOTO_USED_MESSAGE } from "@/lib/billing/premium-feature-access";
+export {
+  isOpenAiDishPhotosEnabled,
+  REAL_PHOTO_USED_MESSAGE,
+  REAL_PHOTO_PREMIUM_REQUIRED_MESSAGE
+} from "@/lib/billing/premium-feature-access";

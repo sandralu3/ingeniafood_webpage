@@ -28,6 +28,7 @@ import type {
 import { usePantryData } from "@/hooks/use-pantry-data";
 import { cn } from "@/lib/utils";
 import { emojiForIngredientName } from "@/lib/scanner/detected-ingredient";
+import { isLikelyEdibleIngredientName } from "@/lib/pantry/validation";
 import {
   buildFrequentIngredientCards,
   getIngredientUsageMap,
@@ -280,6 +281,7 @@ export function PantrySearchView({
 
   const handleComboboxSelect = useCallback(
     (ingredient: MasterIngredient) => {
+      if (!isLikelyEdibleIngredientName(ingredient.name)) return;
       if (!selectedIngredients.includes(ingredient.name)) {
         onAddIngredient(ingredient.name);
         recordIngredientUsage([ingredient.name]);

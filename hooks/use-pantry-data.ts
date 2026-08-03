@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import {
   formatCustomIngredientName,
+  isLikelyEdibleIngredientName,
   isValidCustomIngredientName
 } from "@/lib/pantry/validation";
 import type { MasterIngredient, PantryCategoryDb, PantryFavorite } from "@/lib/pantry/types";
@@ -191,8 +192,10 @@ export function usePantryData(): UsePantryDataResult {
   const createCustomIngredient = useCallback(
     async (rawName: string, category: PantryCategoryDb): Promise<MasterIngredient | null> => {
       const name = formatCustomIngredientName(rawName);
-      if (!isValidCustomIngredientName(name)) {
-        setError("Nombre de ingrediente no válido. Usa al menos 3 letras sin símbolos raros.");
+      if (!isValidCustomIngredientName(name) || !isLikelyEdibleIngredientName(name)) {
+        setError(
+          "Eso no parece un alimento. Usa un ingrediente comestible real (ej. tomate, pollo, arroz)."
+        );
         return null;
       }
 

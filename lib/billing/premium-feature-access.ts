@@ -1,6 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getUserPremiumAccess } from "@/lib/auth/user-premium";
-import { getSubscriptionAccess } from "@/lib/billing/has-valid-subscription";
 import type { Database } from "@/types/database.types";
 
 type AppSupabaseClient = SupabaseClient<Database>;
@@ -19,10 +18,10 @@ export type DishPhotoAccess =
 
 /**
  * Foto IA del plato:
- * - Stripe / admin / tester → ilimitado
- * - Premium por código (u otro Premium no-Stripe) → 1 foto lifetime
- * - Free → paywall
- * - Si has_generated_real_photo → bloqueo con mensaje de upgrade
+ * - Free (sin Premium) → NUNCA (ni una sola vez)
+ * - admin → ilimitado
+ * - Premium (Stripe, código 24h, tester) → 1 foto lifetime
+ * - Si has_generated_real_photo → bloqueo (excepto admin)
  */
 export async function resolveDishPhotoAccess(
   supabase: AppSupabaseClient,
@@ -43,17 +42,20 @@ export async function resolveDishPhotoAccess(
     return { allowed: false, reason: "PREMIUM_REQUIRED" };
   }
 
-  if (!access.canUsePremiumFeatures) {
-    return { allowed: false, reason: "PREMIUM_REQUIRED" };
-  }
-
-  const { access: subscription } = await getSubscriptionAccess(supabase, trimmedUserId);
-  const unlimited =
-    subscription.hasValidSubscription ||
+  // Cuenta Free: sin foto real, ni siquiera de prueba.
+  const isPremiumUser =
+    access.canUsePremiumFeatures ||
+    access.isPaidPremium ||
+    access.isCodePremium ||
     access.role === "admin" ||
     access.role === "tester";
 
-  if (unlimited) {
+  if (!isPremiumUser) {
+    return { allowed: false, reason: "PREMIUM_REQUIRED" };
+  }
+
+  // Solo el administrador tiene generaciones ilimitadas.
+  if (access.role === "admin") {
     return { allowed: true, mode: "unlimited" };
   }
 
@@ -65,4 +67,7 @@ export async function resolveDishPhotoAccess(
 }
 
 export const REAL_PHOTO_USED_MESSAGE =
-  "Ya has utilizado tu generación de foto real de prueba. Actualiza a la versión completa para generar fotos ilimitadas.";
+  "Ya has utilizado tu único intento de foto real. Actualiza a la versión completa o contacta al administrador si necesitas más generaciones.";
+
+export const REAL_PHOTO_PREMIUM_REQUIRED_MESSAGE =
+  "La foto real del plato no está disponible en la cuenta Free. Activa Premium para usarla.";

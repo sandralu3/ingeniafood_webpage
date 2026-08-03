@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { MasterIngredient, PantryCategoryDb } from "@/lib/pantry/types";
-import { isValidCustomIngredientName } from "@/lib/pantry/validation";
+import { isLikelyEdibleIngredientName, isValidCustomIngredientName } from "@/lib/pantry/validation";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -45,18 +45,28 @@ export function IngredientCombobox({
   const suggestions = useMemo(() => {
     if (!normalizedQuery) return [];
     return ingredients
-      .filter((item) => item.name.toLowerCase().includes(normalizedQuery))
+      .filter(
+        (item) =>
+          item.name.toLowerCase().includes(normalizedQuery) &&
+          isLikelyEdibleIngredientName(item.name)
+      )
       .slice(0, 8);
   }, [ingredients, normalizedQuery]);
 
   const exactMatch = useMemo(() => {
     if (!normalizedQuery) return null;
-    return ingredients.find((item) => item.name.toLowerCase() === normalizedQuery) ?? null;
+    const match =
+      ingredients.find((item) => item.name.toLowerCase() === normalizedQuery) ?? null;
+    if (!match || !isLikelyEdibleIngredientName(match.name)) return null;
+    return match;
   }, [ingredients, normalizedQuery]);
 
   const canAddExisting = Boolean(exactMatch);
   const canOfferCreate =
-    Boolean(trimmedQuery) && !exactMatch && isValidCustomIngredientName(trimmedQuery);
+    Boolean(trimmedQuery) &&
+    !exactMatch &&
+    isValidCustomIngredientName(trimmedQuery) &&
+    isLikelyEdibleIngredientName(trimmedQuery);
 
   const listOptions = useMemo(() => {
     const items = [...suggestions];

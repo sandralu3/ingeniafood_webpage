@@ -12,6 +12,7 @@ import type { PlanMeal } from "@/components/plan/plan-meal-card";
 import type { Database, Json } from "@/types/database.types";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import { pickRandomRecipe } from "@/lib/plan/match-meal-type";
+import { isScannerDraftRecipe } from "@/lib/recipes/scanner-draft";
 import {
   enrichPlanMealWithNutrition,
   EMPTY_DAY_PLAN_NUTRITION,
@@ -392,7 +393,8 @@ export async function swapPlanMeal(params: {
     return null;
   }
 
-  const replacement = pickRandomRecipe(recipes, params.mealType, params.currentRecipeId);
+  const usableRecipes = recipes.filter((recipe) => !isScannerDraftRecipe(recipe));
+  const replacement = pickRandomRecipe(usableRecipes, params.mealType, params.currentRecipeId);
   if (!replacement) return null;
 
   const { data: updated, error: updateError } = await supabase

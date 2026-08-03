@@ -332,24 +332,41 @@ async function generateWithOpenAI(input: GenerateRecipeImageInput): Promise<stri
     prompt,
     n: 1,
     size: "1024x1024",
-    quality: isLegacyDalle ? "standard" : "medium"
+    ...(isLegacyDalle
+      ? { quality: "standard" as const, response_format: "b64_json" as const }
+      : { quality: "medium" as const })
   });
 
   const first = result.data?.[0];
   if (first?.b64_json) {
     const buffer = Buffer.from(first.b64_json, "base64");
-    return uploadImageBuffer({
+    const imageUrl = await uploadImageBuffer({
       userId: input.userId,
       buffer,
       mimeType: "image/png"
     });
+    console.info("[recipe-image] OpenAI OK (b64)", {
+      userId: input.userId,
+      title: input.title.slice(0, 80)
+    });
+    return imageUrl;
   }
 
   if (first?.url) {
     const { buffer, mimeType } = await fetchImageAsBuffer(first.url);
-    return uploadImageBuffer({ userId: input.userId, buffer, mimeType });
+    const imageUrl = await uploadImageBuffer({ userId: input.userId, buffer, mimeType });
+    console.info("[recipe-image] OpenAI OK (url)", {
+      userId: input.userId,
+      title: input.title.slice(0, 80)
+    });
+    return imageUrl;
   }
 
+  console.error("[recipe-image] OpenAI respuesta sin imagen", {
+    model,
+    dataLength: result.data?.length ?? 0,
+    keys: first ? Object.keys(first) : []
+  });
   throw new Error("OpenAI devolvió una respuesta de imagen vacía.");
 }
 
@@ -451,7 +468,10 @@ export async function generatePremiumDishPhoto(
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Error generando imagen con OpenAI.";
-    console.error("[recipe-image] OpenAI Image falló; usando placeholder:", message);
+    console.error("[recipe-image] OpenAI Image falló; usando placeholder:", message, {
+      title: input.title.slice(0, 80),
+      userId: input.userId
+    });
     const placeholder = await resolveDishImagePlaceholder(input);
     return { imageUrl: placeholder, provider: "placeholder", error: message };
   }

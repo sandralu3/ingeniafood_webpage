@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import { Wand2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { ShareableRecipe } from "@/lib/share/recipe-share-image";
@@ -13,6 +14,14 @@ import { cn } from "@/lib/utils";
 import { translateMealType } from "@/lib/i18n/filter-labels";
 
 type DetailTab = "ingredients" | "preparation";
+
+const LOTTIE_SRC = "/lottie/LoadingEscaner.json";
+const MESSAGE_ROTATION_MS = 5000;
+const LOADER_MESSAGE_KEYS = [
+  "loaderIngredients",
+  "loaderCooking",
+  "loaderPlating"
+] as const;
 
 type Props = {
   recipe: ShareableRecipe;
@@ -34,12 +43,34 @@ export function RecipeResultHeroCard({
   const [tab, setTab] = useState<DetailTab>("ingredients");
   const [imageFailed, setImageFailed] = useState(false);
   const [fallbackFailed, setFallbackFailed] = useState(false);
+  const [loaderMessageIndex, setLoaderMessageIndex] = useState(0);
+  const [loaderMessageVisible, setLoaderMessageVisible] = useState(true);
 
   useEffect(() => {
     setTab("ingredients");
     setImageFailed(false);
     setFallbackFailed(false);
   }, [recipe.titulo, recipe.imageUrl, recipe.referenceImageUrl]);
+
+  useEffect(() => {
+    if (!isGeneratingPhoto) return;
+
+    let fadeTimeoutId: number | undefined;
+    const intervalId = window.setInterval(() => {
+      setLoaderMessageVisible(false);
+      fadeTimeoutId = window.setTimeout(() => {
+        setLoaderMessageIndex((current) => (current + 1) % LOADER_MESSAGE_KEYS.length);
+        setLoaderMessageVisible(true);
+      }, 280);
+    }, MESSAGE_ROTATION_MS);
+
+    return () => {
+      window.clearInterval(intervalId);
+      if (fadeTimeoutId !== undefined) {
+        window.clearTimeout(fadeTimeoutId);
+      }
+    };
+  }, [isGeneratingPhoto]);
 
   const pantrySplit = useMemo(
     () =>
@@ -67,21 +98,57 @@ export function RecipeResultHeroCard({
   const mealTypeLabel = appliedFilters?.mealType
     ? translateMealType(t, appliedFilters.mealType)
     : null;
-  const primaryUrl = recipe.imageUrl || recipe.referenceImageUrl || null;
-  const heroImageUrl =
-    primaryUrl && !imageFailed
-      ? primaryUrl
-      : !fallbackFailed
-        ? DEFAULT_DISH_HERO_FALLBACK
-        : null;
+  const primaryUrl = recipe.imageUrl || null;
+  const referenceUrl = recipe.referenceImageUrl || null;
+  // Mientras se genera la foto real OpenAI, no usar la imagen del banco como si ya estuviera lista.
   const showGenerating = Boolean(isGeneratingPhoto && !primaryUrl);
+  const loaderMessageKey =
+    LOADER_MESSAGE_KEYS[loaderMessageIndex] ?? LOADER_MESSAGE_KEYS[0];
+  const heroImageUrl = showGenerating
+    ? null
+    : primaryUrl && !imageFailed
+      ? primaryUrl
+      : !isGeneratingPhoto && referenceUrl && !imageFailed
+        ? referenceUrl
+        : !isGeneratingPhoto && !fallbackFailed
+          ? DEFAULT_DISH_HERO_FALLBACK
+          : null;
 
   return (
     <section>
       <div className="relative h-64 w-full overflow-hidden bg-stone-200">
         {showGenerating ? (
-          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#F0F4ED] via-stone-50 to-[#E8EFE3]">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#556B2F]/30 border-t-[#556B2F]" />
+          <div
+            className="relative flex h-full w-full flex-col items-center justify-center bg-gradient-to-br from-[#F0F4ED] via-stone-50 to-[#E8EFE3]"
+            role="status"
+            aria-live="polite"
+            aria-busy="true"
+          >
+            <div
+              className="pointer-events-none absolute inset-0 opacity-40"
+              style={{
+                backgroundImage:
+                  "radial-gradient(circle at 20% 20%, rgba(85,107,47,0.12), transparent 45%), radial-gradient(circle at 80% 70%, rgba(201,162,39,0.10), transparent 40%)"
+              }}
+            />
+            <div className="relative flex w-full max-w-[12rem] flex-1 items-center justify-center pt-4">
+              <DotLottieReact
+                src={LOTTIE_SRC}
+                loop
+                autoplay
+                className="h-full w-full"
+              />
+            </div>
+            <p
+              className={cn(
+                "relative z-10 mb-10 min-h-[2.25rem] px-4 text-center text-[11px] font-medium leading-snug text-[#3e5219] transition-all duration-300 ease-out",
+                loaderMessageVisible
+                  ? "translate-y-0 opacity-100"
+                  : "translate-y-1 opacity-0"
+              )}
+            >
+              {tDetail(loaderMessageKey)}
+            </p>
           </div>
         ) : heroImageUrl ? (
           <img
@@ -96,6 +163,10 @@ export function RecipeResultHeroCard({
             decoding="async"
             onError={() => {
               if (primaryUrl && !imageFailed && heroImageUrl === primaryUrl) {
+                setImageFailed(true);
+                return;
+              }
+              if (referenceUrl && !imageFailed && heroImageUrl === referenceUrl) {
                 setImageFailed(true);
                 return;
               }

@@ -23,11 +23,12 @@ import {
 import { resolveDishImagePlaceholder } from "@/lib/recipes/generate-recipe-image";
 import { resolveDishImageMatch } from "@/lib/recipes/resolve-dish-image-match";
 import { getOpenAiDishPhotoAccess } from "@/lib/recipes/can-generate-openai-dish-photo";
-import { schedulePremiumDishPhoto } from "@/lib/recipes/schedule-premium-dish-photo";
+import { schedulePremiumDishPhotoBatch } from "@/lib/recipes/schedule-premium-dish-photo";
 import {
   parseCookingMinutesFromLabel,
   saveGeneratedRecipeToLibrary
 } from "@/lib/recipes/save-generated-recipe";
+import { findInvalidIngredientNames } from "@/lib/pantry/validation";
 import { tagsToLegacyFlags } from "@/lib/recipes/recipe-tags";
 import {
   stringsToStructuredIngredients,
@@ -46,7 +47,7 @@ import { LOCALE_COOKIE_NAME } from "@/i18n/config";
 import { cookies } from "next/headers";
 
 /** Texto Gemini + after() de imagen Premium (~20s en background). */
-export const maxDuration = 90;
+export const maxDuration = 180;
 export const runtime = "nodejs";
 
 const PANTRY_PRIORITY_RULE =
@@ -81,7 +82,12 @@ const DETAILED_STEPS_RULE =
   "pero incluso en Fácil cada paso debe ser detallado (nunca un resumen superficial).\n\n";
 
 const INGREDIENT_VALIDATION_RULE =
-  'Antes de generar cualquier receta, analiza minuciosamente la lista de ingredientes que te envía el usuario. Si detectas que alguno de los textos enviados NO es un ingrediente, condimento, bebida o alimento comestible real (por ejemplo: frases como "esto no es un ingrediente", "eres feo", "zapatos", etc.), debes abortar inmediatamente la creación de la receta y responder ÚNICAMENTE con este objeto JSON: {"error":"ingrediente_invalido","mensaje":"Parece que hay algo en tu despensa que no es un alimento válido. ¡Revisa tus ingredientes seleccionados e inténtalo de nuevo!"}. Si todos los ingredientes son válidos, procede a generar la estructura habitual de la receta en formato JSON.\n\n';
+  "Antes de generar cualquier receta, analiza minuciosamente la lista de ingredientes que te envía el usuario. " +
+  "Si detectas que alguno de los textos enviados NO es un ingrediente, condimento, bebida o alimento comestible real, " +
+  'debes abortar inmediatamente y responder ÚNICAMENTE con este objeto JSON: {"error":"ingrediente_invalido","mensaje":"Parece que hay algo en tu despensa que no es un alimento válido. ¡Revisa tus ingredientes seleccionados e inténtalo de nuevo!"}. ' +
+  "Trata como NO válidos (obligatorio): nombres de personas (ej. Sandra, Juan, María), la coach o marca de la app (Sandra, Tip de Sandra, IngeniaFood), " +
+  "insultos, frases, utensilios/aparatos (airfryer, sartén, nevera), ropa, animales de compañía, marcas de electrónica u objetos no comestibles. " +
+  "Si todos los ingredientes son válidos, procede a generar la estructura habitual de la receta en formato JSON.\n\n";
 
 const VISION_SYSTEM_PREFIX =
   "Tu primera tarea es analizar si la imagen contiene ingredientes, alimentos o comida. Si la imagen NO muestra nada comestible (por ejemplo: objetos, personas, paisajes, animales), debes responder ÚNICAMENTE con este código de error: { \"error\": \"NOT_FOOD\" }. No generes ninguna receta en ese caso.\nAnaliza esta imagen de una nevera o despensa. Identifica los ingredientes comestibles visibles. Úsalos como base para generar una receta que también incluya los ingredientes que el usuario haya seleccionado manualmente.\n\n";
@@ -483,6 +489,22 @@ export async function POST(request: Request) {
           .map((ingredient) => ingredient.trim())
           .filter((ingredient) => ingredient.length > 0)
       : [];
+
+    const invalidIngredients = findInvalidIngredientNames(selectedIngredients);
+    if (invalidIngredients.length > 0) {
+      const invalidList = invalidIngredients.map((item) => item.name).join(", ");
+      return jsonResponse(
+        {
+          error: "ingrediente_invalido",
+          code: "INVALID_INGREDIENT",
+          mensaje:
+            invalidIngredients.length === 1
+              ? `"${invalidList}" no es un alimento válido. Quítalo de tu despensa e inténtalo de nuevo.`
+              : `Estos elementos no son alimentos válidos: ${invalidList}. Revísalos e inténtalo de nuevo.`
+        },
+        400
+      );
+    }
 
     const cookieStore = await cookies();
     const recipeLocale = resolveRecipeGenerationLocale({
@@ -930,7 +952,7 @@ export async function POST(request: Request) {
     }
 
     // Banco de fotos: Premium. Free solo con match local.
-    // OpenAI: ilimitado (Stripe/admin/tester) o 1x lifetime (código).
+    // OpenAI: Free = nunca; Premium = 1x; admin = ilimitado.
     const userWantsDishPhoto = body.useDishPhoto === true;
     const dishPhotoAccess = await getOpenAiDishPhotoAccess(
       supabase,
@@ -1003,18 +1025,7 @@ export async function POST(request: Request) {
       imageUrl: null as string | null,
       referenceImageUrl: null as string | null
     };
-    const referenceImageUrl = safeRecipe.referenceImageUrl;
     const provisionalImageUrl = canUseDishImages ? safeRecipe.imageUrl : null;
-
-    const dishImageInput = {
-      userId: user.id,
-      title: safeRecipe.titulo,
-      ingredients: safeRecipe.ingredientes_detallados,
-      tags: safeRecipe.tags,
-      mealType: resolvedFilters.mealType,
-      cuisineStyle: resolvedFilters.cuisineStyle,
-      tipSandra: safeRecipe.tip_sandra
-    };
 
     if (!canGenerateDishPhoto && process.env.NODE_ENV !== "production") {
       const enabled = process.env.OPENAI_DISH_PHOTOS_ENABLED?.trim().toLowerCase();
@@ -1040,53 +1051,89 @@ export async function POST(request: Request) {
     };
 
     let savedRecipeId: string | null = null;
+    let savedRecipeIds: string[] = [];
 
     if (canGenerateDishPhoto) {
-      const instructions = safeRecipe.pasos_ordenados
-        .map((step, index) => `${index + 1}. ${step}`)
-        .join("\n");
-      const { is_airfryer, is_flourless } = tagsToLegacyFlags(safeRecipe.tags);
-      const structuredIngredients = structuredIngredientsToJson(
-        stringsToStructuredIngredients(safeRecipe.ingredientes_detallados)
-      );
+      const batchItems: Array<{
+        recipeId: string;
+        userId: string;
+        title: string;
+        ingredients: string[];
+        tags: string[];
+        mealType: typeof resolvedFilters.mealType;
+        cuisineStyle: typeof resolvedFilters.cuisineStyle;
+        tipSandra: string;
+      }> = [];
 
-      // Auto-guardar (Premium ilimitado o Free con gasto de créditos): after() actualiza image_url.
-      const saveResult = await saveGeneratedRecipeToLibrary(supabase, {
-        userId: user.id,
-        title: safeRecipe.titulo,
-        ingredients: structuredIngredients,
-        steps: safeRecipe.pasos_ordenados,
-        instructions: instructions || "Sin pasos detallados",
-        tipSandra: safeRecipe.tip_sandra,
-        isAirfryer: is_airfryer,
-        isFlourless: is_flourless,
-        tags: safeRecipe.tags,
-        macronutrientes: safeRecipe.macronutrientes,
-        cookingTimeMinutes: parseCookingMinutesFromLabel(safeRecipe.tiempo_preparacion),
-        imageUrl: null,
-        referenceImageUrl,
-        appliedFilters,
-        mealTypeAdvisory: mealTypeAdvisory ?? null
-      });
-
-      if ("recipeId" in saveResult) {
-        savedRecipeId = saveResult.recipeId;
-        schedulePremiumDishPhoto({
-          recipeId: savedRecipeId,
-          userEmail: user.email,
-          ...dishImageInput
-        });
-        // Opción 1: skeleton hasta que llegue la foto; opciones 2–3 conservan cover del banco.
-        recipesWithCovers = recipesWithCovers.map((recipe, index) =>
-          index === 0 ? { ...recipe, imageUrl: null } : recipe
+      // Auto-guardar las 3 opciones y programar foto OpenAI para cada una.
+      for (const recipe of recipesWithCovers) {
+        const instructions = recipe.pasos_ordenados
+          .map((step, index) => `${index + 1}. ${step}`)
+          .join("\n");
+        const { is_airfryer, is_flourless } = tagsToLegacyFlags(recipe.tags);
+        const structuredIngredients = structuredIngredientsToJson(
+          stringsToStructuredIngredients(recipe.ingredientes_detallados)
         );
-      } else {
-        console.warn("[generate-recipe] Auto-guardado Premium falló:", saveResult.error);
+
+        const saveResult = await saveGeneratedRecipeToLibrary(supabase, {
+          userId: user.id,
+          title: recipe.titulo,
+          ingredients: structuredIngredients,
+          steps: recipe.pasos_ordenados,
+          instructions: instructions || "Sin pasos detallados",
+          tipSandra: recipe.tip_sandra,
+          isAirfryer: is_airfryer,
+          isFlourless: is_flourless,
+          tags: recipe.tags,
+          macronutrientes: recipe.macronutrientes,
+          cookingTimeMinutes: parseCookingMinutesFromLabel(recipe.tiempo_preparacion),
+          imageUrl: null,
+          referenceImageUrl: recipe.referenceImageUrl,
+          appliedFilters,
+          mealTypeAdvisory: mealTypeAdvisory ?? null,
+          asScannerDraft: true
+        });
+
+        if (!("recipeId" in saveResult)) {
+          console.warn("[generate-recipe] Auto-guardado Premium falló:", saveResult.error);
+          continue;
+        }
+
+        savedRecipeIds.push(saveResult.recipeId);
+        batchItems.push({
+          recipeId: saveResult.recipeId,
+          userId: user.id,
+          title: recipe.titulo,
+          ingredients: recipe.ingredientes_detallados,
+          tags: recipe.tags,
+          mealType: resolvedFilters.mealType,
+          cuisineStyle: resolvedFilters.cuisineStyle,
+          tipSandra: recipe.tip_sandra
+        });
+      }
+
+      if (batchItems.length > 0) {
+        savedRecipeId = batchItems[0]!.recipeId;
+        schedulePremiumDishPhotoBatch({
+          userId: user.id,
+          userEmail: user.email,
+          access: dishPhotoAccess,
+          items: batchItems
+        });
+        // Skeleton en las 3 opciones hasta que lleguen las fotos OpenAI.
+        recipesWithCovers = recipesWithCovers.map((recipe) => ({
+          ...recipe,
+          imageUrl: null
+        }));
       }
     }
 
-    const responseRecipes = recipesWithCovers;
+    const responseRecipes = recipesWithCovers.map((recipe, index) => ({
+      ...recipe,
+      savedRecipeId: savedRecipeIds[index] ?? null
+    }));
     const responsePrimary = responseRecipes[0] ?? safeRecipe;
+    const dishPhotoPending = Boolean(canGenerateDishPhoto && savedRecipeIds.length > 0);
 
     return jsonResponse({
       recipe: {
@@ -1101,19 +1148,18 @@ export async function POST(request: Request) {
         emoji: responsePrimary.emoji,
         nombre_corto: responsePrimary.nombre_corto,
         imageUrl: responsePrimary.imageUrl,
-        referenceImageUrl: responsePrimary.referenceImageUrl
+        referenceImageUrl: responsePrimary.referenceImageUrl,
+        savedRecipeId: savedRecipeIds[0] ?? null
       },
       recipes: responseRecipes,
       savedRecipe: savedRecipeId ? { id: savedRecipeId } : null,
       savedRecipeId,
+      savedRecipeIds,
       generationsLeft: remainingGenerations,
       referenceImageUrl: responsePrimary.referenceImageUrl,
       // Premium+OpenAI: sin URL final (skeleton). Premium sin foto: banco. Free: null.
-      imageUrl:
-        canGenerateDishPhoto && savedRecipeId
-          ? null
-          : responsePrimary.imageUrl ?? provisionalImageUrl,
-      dishPhotoPending: Boolean(canGenerateDishPhoto && savedRecipeId),
+      imageUrl: dishPhotoPending ? null : responsePrimary.imageUrl ?? provisionalImageUrl,
+      dishPhotoPending,
       ...(dishPhotoBlockedReason ? { dishPhotoBlockedReason } : {}),
       appliedFilters,
       ...(mealTypeAdvisory ? { mealTypeAdvisory } : {}),

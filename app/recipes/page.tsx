@@ -17,6 +17,7 @@ import {
   type SavedRecipeFilter
 } from "@/lib/recipes/saved-recipes-filter";
 import { isExternalMeal } from "@/lib/plan/external-meal";
+import { isScannerDraftRecipe } from "@/lib/recipes/scanner-draft";
 import {
   translateSavedCardLabel,
   translateSavedFilterChip
@@ -176,8 +177,12 @@ export default function RecipesPage() {
         return;
       }
 
-      // Comidas fuera viven en el plan, no en la biblioteca de recetas.
-      setRecipes((recipesData ?? []).filter((recipe) => !isExternalMeal(recipe.tags)));
+      // Comidas fuera viven en el plan; borradores del escáner no son guardadas reales.
+      setRecipes(
+        (recipesData ?? []).filter(
+          (recipe) => !isExternalMeal(recipe.tags) && !isScannerDraftRecipe(recipe)
+        )
+      );
       setIsLoading(false);
     };
 

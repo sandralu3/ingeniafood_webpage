@@ -11,6 +11,7 @@ import {
   FREE_DEFAULT_SERVINGS
 } from "@/lib/recipes/premium-recipe-filters";
 import { normalizeRecipeTags } from "@/lib/recipes/recipe-tags";
+import { SCANNER_DRAFT_DESCRIPTION } from "@/lib/recipes/scanner-draft";
 
 type RecipesInsert = Database["public"]["Tables"]["recipes"]["Insert"];
 
@@ -30,6 +31,8 @@ export type SaveGeneratedRecipeInput = {
   referenceImageUrl?: string | null;
   appliedFilters?: AppliedRecipeFilters | null;
   mealTypeAdvisory?: string | null;
+  /** Auto-guardado temporal del escáner (foto OpenAI); no debe verse en Guardadas. */
+  asScannerDraft?: boolean;
 };
 
 type InsertOptions = {
@@ -67,11 +70,13 @@ function buildInsertPayload(input: SaveGeneratedRecipeInput, options?: InsertOpt
     input.cookingTimeMinutes > 0;
 
   // Preferir foto real; si imageUrl es null (p. ej. pendiente), usar referencia/banco.
-  // Así la lista de Guardadas no queda con placeholder beige.
-  const primaryImage =
-    (typeof input.imageUrl === "string" && input.imageUrl.trim()) ||
-    (typeof input.referenceImageUrl === "string" && input.referenceImageUrl.trim()) ||
-    null;
+  // EXCEPCIÓN borrador del escáner (foto OpenAI pendiente): image_url debe quedar null
+  // para que el polling no tome la foto del banco como “lista”.
+  const primaryImage = input.asScannerDraft
+    ? (typeof input.imageUrl === "string" && input.imageUrl.trim()) || null
+    : (typeof input.imageUrl === "string" && input.imageUrl.trim()) ||
+      (typeof input.referenceImageUrl === "string" && input.referenceImageUrl.trim()) ||
+      null;
 
   const payload: RecipesInsert = {
     user_id: input.userId,
@@ -83,6 +88,10 @@ function buildInsertPayload(input: SaveGeneratedRecipeInput, options?: InsertOpt
     is_flourless: input.isFlourless,
     is_public: false
   };
+
+  if (input.asScannerDraft) {
+    payload.description = SCANNER_DRAFT_DESCRIPTION;
+  }
 
   if (includeSteps) {
     payload.steps = input.steps;

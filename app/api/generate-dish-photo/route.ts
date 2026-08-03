@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import {
   getOpenAiDishPhotoAccess,
-  REAL_PHOTO_USED_MESSAGE
+  REAL_PHOTO_USED_MESSAGE,
+  REAL_PHOTO_PREMIUM_REQUIRED_MESSAGE
 } from "@/lib/recipes/can-generate-openai-dish-photo";
 import { generatePremiumDishPhoto } from "@/lib/recipes/generate-recipe-image";
 import {
@@ -29,7 +30,7 @@ type GenerateDishPhotoBody = {
 };
 
 /**
- * Foto OpenAI: Premium requerido; 1x lifetime salvo Stripe/admin/tester (ilimitado).
+ * Foto OpenAI: cuenta Free = nunca. Premium = 1x lifetime. Admin = ilimitado.
  */
 export async function POST(request: Request) {
   let markedOnce = false;
@@ -59,7 +60,7 @@ export async function POST(request: Request) {
           ? REAL_PHOTO_USED_MESSAGE
           : access.reason === "DISABLED"
             ? "La generación de fotos reales está desactivada."
-            : "La foto real del plato requiere Premium.";
+            : REAL_PHOTO_PREMIUM_REQUIRED_MESSAGE;
       return NextResponse.json({ error, code: access.reason }, { status: 403 });
     }
 

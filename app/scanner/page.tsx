@@ -47,6 +47,10 @@ import {
 } from "@/lib/recipes/structured-ingredients";
 import { type RecipeMacros } from "@/lib/recipes/recipe-macros";
 import { saveGeneratedRecipeToLibrary, parseCookingMinutesFromLabel } from "@/lib/recipes/save-generated-recipe";
+import {
+  deleteScannerDraftRecipes,
+  promoteScannerDraftRecipe
+} from "@/lib/recipes/scanner-draft";
 import { completeScanPantryChallengeIfConfigured } from "@/lib/gamification/scan-pantry-challenge";
 import { usePremium } from "@/hooks/use-premium";
 import { useScannerReset } from "@/lib/scanner/scanner-reset-context";
@@ -71,6 +75,7 @@ type GeneratedRecipe = {
   macronutrientes?: RecipeMacros | null;
   imageUrl?: string | null;
   referenceImageUrl?: string | null;
+  savedRecipeId?: string | null;
   variant?: RecipeOptionVariant;
   emoji?: string;
   nombre_corto?: string;
@@ -92,6 +97,7 @@ type ApiPayload = {
   dishPhotoPending?: boolean;
   dishPhotoBlockedReason?: string;
   savedRecipeId?: string | null;
+  savedRecipeIds?: string[] | null;
   savedRecipe?: { id: string } | null;
   mealTypeAdvisory?: string;
 };
@@ -113,6 +119,7 @@ function toRecipeOption(
     macronutrientes: recipe.macronutrientes ?? null,
     imageUrl: images?.imageUrl ?? recipe.imageUrl ?? null,
     referenceImageUrl: images?.referenceImageUrl ?? recipe.referenceImageUrl ?? null,
+    savedRecipeId: recipe.savedRecipeId ?? null,
     variant,
     emoji:
       typeof recipe.emoji === "string" && recipe.emoji.trim().length > 0
@@ -123,7 +130,8 @@ function toRecipeOption(
 }
 
 const DISH_PHOTO_POLL_INTERVAL_MS = 3000;
-const DISH_PHOTO_POLL_MAX_ATTEMPTS = 20;
+/** Más intentos: generamos hasta 3 fotos OpenAI en secuencia. */
+const DISH_PHOTO_POLL_MAX_ATTEMPTS = 40;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => {
@@ -275,9 +283,19 @@ export default function ScannerPage() {
   const tPlan = useTranslations("Plan");
   const locale = useLocale();
   const scannerReset = useScannerReset();
-  const { refresh: refreshPremium, isPaidPremium, isPremium } = usePremium();
+  const {
+    refresh: refreshPremium,
+    isPremium,
+    role,
+    hasGeneratedRealPhoto
+  } = usePremium();
   const dishPhotoChoiceRef = useRef(false);
+  const scannerDraftIdsRef = useRef<string[]>([]);
   const [showPhotoCreditConfirm, setShowPhotoCreditConfirm] = useState(false);
+
+  /** Free = nunca. Premium = 1 intento (admin ilimitado). */
+  const canOfferRealDishPhoto =
+    isPremium && (role === "admin" || !hasGeneratedRealPhoto);
   const [selectedIngredients, setSelectedIngredients] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -419,6 +437,27 @@ export default function ScannerPage() {
   const resetScannerState = useCallback(() => {
     detectAbortRef.current?.abort();
     detectAbortRef.current = null;
+
+    const draftIds = scannerDraftIdsRef.current;
+    scannerDraftIdsRef.current = [];
+    if (draftIds.length > 0) {
+      void (async () => {
+        try {
+          const supabase = createSupabaseClient();
+          const {
+            data: { user }
+          } = await supabase.auth.getUser();
+          if (!user) return;
+          await deleteScannerDraftRecipes(supabase, {
+            userId: user.id,
+            recipeIds: draftIds
+          });
+        } catch (error) {
+          console.warn("[scanner] No se pudieron limpiar borradores:", error);
+        }
+      })();
+    }
+
     setSelectedIngredients([]);
     setRecipe(null);
     setRecipeOptions([]);
@@ -624,7 +663,7 @@ export default function ScannerPage() {
     setScannedIngredients([]);
     setDetectError(null);
 
-    if (isPaidPremium) {
+    if (canOfferRealDishPhoto) {
       pendingIngredientsOverrideRef.current = names;
       setShowPhotoCreditConfirm(true);
       return;
@@ -695,7 +734,8 @@ export default function ScannerPage() {
     if (typeof options?.useDishPhoto === "boolean") {
       dishPhotoChoiceRef.current = options.useDishPhoto;
     }
-    const useDishPhoto = dishPhotoChoiceRef.current;
+    // Cuenta Free: nunca foto real (ni aunque el cliente envíe useDishPhoto).
+    const useDishPhoto = Boolean(isPremium && dishPhotoChoiceRef.current);
 
     const FETCH_TIMEOUT_MS = 120_000;
     const createFetchSignal = (): AbortSignal => {
@@ -966,11 +1006,27 @@ export default function ScannerPage() {
         return;
       }
       const nextOptions = rawOptions.map((item, index) => {
+        const withSavedId: GeneratedRecipe = {
+          ...item,
+          savedRecipeId:
+            item.savedRecipeId ??
+            (Array.isArray(payload.savedRecipeIds) ? payload.savedRecipeIds[index] : null) ??
+            null
+        };
+
+        // Mientras OpenAI genera, no usar la imagen del banco como imageUrl.
+        if (payload.dishPhotoPending) {
+          return toRecipeOption(withSavedId, index, {
+            imageUrl: null,
+            referenceImageUrl: withSavedId.referenceImageUrl ?? null
+          });
+        }
+
         const fromPayload =
-          item.imageUrl || item.referenceImageUrl
+          withSavedId.imageUrl || withSavedId.referenceImageUrl
             ? {
-                imageUrl: item.imageUrl ?? null,
-                referenceImageUrl: item.referenceImageUrl ?? null
+                imageUrl: withSavedId.imageUrl ?? null,
+                referenceImageUrl: withSavedId.referenceImageUrl ?? null
               }
             : index === 0
               ? {
@@ -978,7 +1034,7 @@ export default function ScannerPage() {
                   referenceImageUrl: payload.referenceImageUrl ?? null
                 }
               : undefined;
-        return toRecipeOption(item, index, fromPayload);
+        return toRecipeOption(withSavedId, index, fromPayload);
       });
       const primary = nextOptions[0] ?? null;
 
@@ -990,7 +1046,7 @@ export default function ScannerPage() {
       setIsGeneratingDishPhoto(Boolean(payload.dishPhotoPending));
       if (payload.dishPhotoBlockedReason === "PHOTO_USED") {
         setImageGenerationError(
-          "Ya has utilizado tu generación de foto real de prueba. Actualiza a la versión completa para generar fotos ilimitadas."
+          "Ya has utilizado tu único intento de foto real. Las siguientes recetas usarán imagen de referencia."
         );
       }
       setAppliedRecipeFilters(
@@ -1015,6 +1071,17 @@ export default function ScannerPage() {
           ? payload.savedRecipe.id
           : null);
 
+      const draftIds = Array.isArray(payload.savedRecipeIds)
+        ? payload.savedRecipeIds.filter(
+            (id): id is string => typeof id === "string" && id.trim().length > 0
+          )
+        : autoSavedId
+          ? [autoSavedId]
+          : nextOptions
+              .map((option) => option.savedRecipeId)
+              .filter((id): id is string => Boolean(id));
+      scannerDraftIdsRef.current = draftIds;
+
       // El id auto-guardado solo sirve para el polling de la foto Premium.
       // No marcar como "ya guardada": el usuario debe poder pulsar Guardar.
       setSavedRecipeId(autoSavedId);
@@ -1025,60 +1092,118 @@ export default function ScannerPage() {
       }
       void refreshPremium();
 
-      // Polling: la foto se genera en after() del servidor y actualiza Supabase.
-      if (payload.dishPhotoPending && autoSavedId) {
-        const recipeIdToPoll = autoSavedId;
-        void (async () => {
-          try {
-            for (let attempt = 0; attempt < DISH_PHOTO_POLL_MAX_ATTEMPTS; attempt += 1) {
-              await sleep(DISH_PHOTO_POLL_INTERVAL_MS);
+      // Polling: fotos OpenAI en after() para las 3 opciones auto-guardadas.
+      if (payload.dishPhotoPending) {
+        const idsFromPayload = Array.isArray(payload.savedRecipeIds)
+          ? payload.savedRecipeIds.filter(
+              (id): id is string => typeof id === "string" && id.trim().length > 0
+            )
+          : [];
+        const pollIds =
+          idsFromPayload.length > 0
+            ? idsFromPayload
+            : autoSavedId
+              ? [autoSavedId]
+              : nextOptions
+                  .map((option) => option.savedRecipeId)
+                  .filter((id): id is string => Boolean(id));
 
-              const statusResponse = await fetch(
-                `/api/recipes/${encodeURIComponent(recipeIdToPoll)}/image-status`,
-                { method: "GET", credentials: "include", cache: "no-store" }
-              );
+        if (pollIds.length > 0) {
+          const idToIndex = new Map(pollIds.map((id, index) => [id, index]));
+          void (async () => {
+            const pending = new Set(pollIds);
+            try {
+              for (let attempt = 0; attempt < DISH_PHOTO_POLL_MAX_ATTEMPTS; attempt += 1) {
+                if (pending.size === 0) break;
+                await sleep(DISH_PHOTO_POLL_INTERVAL_MS);
 
-              if (!statusResponse.ok) {
-                continue;
-              }
+                await Promise.all(
+                  [...pending].map(async (recipeIdToPoll) => {
+                    try {
+                      const statusResponse = await fetch(
+                        `/api/recipes/${encodeURIComponent(recipeIdToPoll)}/image-status`,
+                        { method: "GET", credentials: "include", cache: "no-store" }
+                      );
+                      if (!statusResponse.ok) return;
 
-              const statusPayload = (await statusResponse.json()) as {
-                status?: string;
-                imageUrl?: string | null;
-                error?: string;
-              };
+                      const statusPayload = (await statusResponse.json()) as {
+                        status?: string;
+                        imageUrl?: string | null;
+                        referenceImageUrl?: string | null;
+                      };
 
-              if (statusPayload.status === "ready" && statusPayload.imageUrl) {
-                const nextUrl = statusPayload.imageUrl;
-                setRecipeOptions((current) =>
-                  current.map((option, index) =>
-                    index === 0 ? { ...option, imageUrl: nextUrl } : option
-                  )
+                      const nextUrl =
+                        typeof statusPayload.imageUrl === "string"
+                          ? statusPayload.imageUrl.trim()
+                          : "";
+                      const referenceUrl =
+                        typeof statusPayload.referenceImageUrl === "string"
+                          ? statusPayload.referenceImageUrl.trim()
+                          : "";
+                      // Ignorar “ready” con la misma URL del banco (borradores legacy).
+                      const isRealPhoto =
+                        statusPayload.status === "ready" &&
+                        nextUrl.length > 0 &&
+                        nextUrl !== referenceUrl;
+
+                      if (isRealPhoto) {
+                        const optionIndex = idToIndex.get(recipeIdToPoll);
+                        pending.delete(recipeIdToPoll);
+
+                        setRecipeOptions((current) => {
+                          const nextOptions = current.map((option, index) => {
+                            const matchesId = option.savedRecipeId === recipeIdToPoll;
+                            const matchesIndex =
+                              optionIndex != null &&
+                              index === optionIndex &&
+                              !option.imageUrl;
+                            if (!matchesId && !matchesIndex) return option;
+                            return {
+                              ...option,
+                              imageUrl: nextUrl,
+                              savedRecipeId: option.savedRecipeId ?? recipeIdToPoll
+                            };
+                          });
+
+                          // Sincronizar la receta visible con la opción seleccionada.
+                          const selected = nextOptions[selectedRecipeIndexRef.current];
+                          if (selected) {
+                            setRecipe(selected);
+                          }
+                          return nextOptions;
+                        });
+                      }
+                    } catch {
+                      // reintento en el siguiente ciclo
+                    }
+                  })
                 );
-                if (selectedRecipeIndexRef.current === 0) {
-                  setRecipe((current) =>
-                    current ? { ...current, imageUrl: nextUrl } : current
-                  );
-                }
-                setImageGenerationError(null);
-                setIsGeneratingDishPhoto(false);
-                void refreshPremium();
-                return;
-              }
-            }
 
-            setImageGenerationError(
-              "La foto del plato está tardando más de lo esperado. Revisa la receta guardada en unos momentos."
-            );
-          } catch (error) {
-            console.warn("[scanner] Polling de foto Premium falló:", error);
-            setImageGenerationError(
-              error instanceof Error ? error.message : "No pudimos generar la foto del plato."
-            );
-          } finally {
-            setIsGeneratingDishPhoto(false);
-          }
-        })();
+                if (pending.size === 0) {
+                  setImageGenerationError(null);
+                  setIsGeneratingDishPhoto(false);
+                  void refreshPremium();
+                  return;
+                }
+              }
+
+              if (pending.size > 0) {
+                setImageGenerationError(
+                  "Algunas fotos del plato están tardando más de lo esperado. Revisa las recetas guardadas en unos momentos."
+                );
+              }
+            } catch (error) {
+              console.warn("[scanner] Polling de foto Premium falló:", error);
+              setImageGenerationError(
+                error instanceof Error ? error.message : "No pudimos generar la foto del plato."
+              );
+            } finally {
+              setIsGeneratingDishPhoto(false);
+            }
+          })();
+        } else {
+          setIsGeneratingDishPhoto(false);
+        }
       }
       // Sin fallback a /api/generate-dish-photo: OpenAI solo vía after() con Premium de pago.
 
@@ -1116,17 +1241,14 @@ export default function ScannerPage() {
       setSelectedRecipeIndex(index);
       setRecipe(next);
       setIsRecipeSaved(false);
-      setSavedRecipeId(null);
+      setSavedRecipeId(next.savedRecipeId ?? null);
       setSaveErrorMessage(null);
-      if (index !== 0) {
-        setIsGeneratingDishPhoto(false);
-      }
       return options;
     });
   }, []);
 
   const handleFindRecipes = () => {
-    if (isPaidPremium) {
+    if (canOfferRealDishPhoto) {
       setShowPhotoCreditConfirm(true);
       return;
     }
@@ -1136,8 +1258,11 @@ export default function ScannerPage() {
   };
 
   const persistGeneratedRecipe = useCallback(async (): Promise<string | null> => {
-    if (savedRecipeId) return savedRecipeId;
-    if (!recipe) return null;
+    if (!recipe || isGeneratingDishPhoto) return null;
+
+    const selectedOption = recipeOptions[selectedRecipeIndex] ?? null;
+    const source = selectedOption ?? recipe;
+    const draftId = selectedOption?.savedRecipeId ?? recipe.savedRecipeId ?? savedRecipeId;
 
     const supabase = createSupabaseClient();
     const {
@@ -1149,39 +1274,72 @@ export default function ScannerPage() {
       return null;
     }
 
-    const instructions = recipe.pasos_ordenados
-      .map((step, index) => `${index + 1}. ${step}`)
-      .join("\n");
-
-    const recipeTags = recipe.tags ?? [];
-    const { is_airfryer, is_flourless } = tagsToLegacyFlags(recipeTags);
-
-    const structuredIngredients = structuredIngredientsToJson(
-      stringsToStructuredIngredients(recipe.ingredientes_detallados)
-    );
-
+    const recipeTags = source.tags ?? [];
     const imageFields = normalizeRecipeImageFields({
-      imageUrl: recipe.imageUrl,
-      referenceImageUrl: recipe.referenceImageUrl,
-      titulo: recipe.titulo,
-      ingredientes_detallados: recipe.ingredientes_detallados,
+      imageUrl: source.imageUrl,
+      referenceImageUrl: source.referenceImageUrl,
+      titulo: source.titulo,
+      ingredientes_detallados: source.ingredientes_detallados,
       tags: recipeTags
     });
 
+    // Si ya existe el borrador de esta opción (foto OpenAI), promoverlo y borrar el resto.
+    if (draftId) {
+      const promoteResult = await promoteScannerDraftRecipe(supabase, {
+        userId: user.id,
+        recipeId: draftId,
+        imageUrl: imageFields.imageUrl ?? source.imageUrl ?? null,
+        referenceImageUrl:
+          imageFields.referenceImageUrl ?? source.referenceImageUrl ?? null
+      });
+
+      if ("error" in promoteResult) {
+        setSaveErrorMessage(promoteResult.error);
+        return null;
+      }
+
+      const siblingDrafts = scannerDraftIdsRef.current.filter((id) => id !== draftId);
+      if (siblingDrafts.length > 0) {
+        await deleteScannerDraftRecipes(supabase, {
+          userId: user.id,
+          recipeIds: siblingDrafts
+        });
+      }
+      scannerDraftIdsRef.current = [];
+
+      setSavedRecipeId(draftId);
+      setIsRecipeSaved(true);
+      return draftId;
+    }
+
+    if (savedRecipeId) {
+      return savedRecipeId;
+    }
+
+    const instructions = (source.pasos_ordenados ?? [])
+      .map((step, index) => `${index + 1}. ${step}`)
+      .join("\n");
+
+    const { is_airfryer, is_flourless } = tagsToLegacyFlags(recipeTags);
+
+    const structuredIngredients = structuredIngredientsToJson(
+      stringsToStructuredIngredients(source.ingredientes_detallados)
+    );
+
     const saveResult = await saveGeneratedRecipeToLibrary(supabase, {
       userId: user.id,
-      title: recipe.titulo,
+      title: source.titulo,
       ingredients: structuredIngredients,
-      steps: recipe.pasos_ordenados,
+      steps: source.pasos_ordenados ?? [],
       instructions: instructions || "Sin pasos detallados",
-      tipSandra: recipe.tip_sandra,
+      tipSandra: source.tip_sandra ?? "",
       isAirfryer: is_airfryer,
       isFlourless: is_flourless,
       tags: recipeTags,
-      macronutrientes: recipe.macronutrientes,
-      cookingTimeMinutes: parseCookingMinutesFromLabel(recipe.tiempo_preparacion),
+      macronutrientes: source.macronutrientes,
+      cookingTimeMinutes: parseCookingMinutesFromLabel(source.tiempo_preparacion),
       imageUrl: imageFields.imageUrl,
-      referenceImageUrl: imageFields.referenceImageUrl ?? recipe.referenceImageUrl ?? null,
+      referenceImageUrl: imageFields.referenceImageUrl ?? source.referenceImageUrl ?? null,
       appliedFilters: appliedRecipeFilters,
       mealTypeAdvisory: mealTypeAdvisory
     });
@@ -1194,10 +1352,18 @@ export default function ScannerPage() {
     setSavedRecipeId(saveResult.recipeId);
     setIsRecipeSaved(true);
     return saveResult.recipeId;
-  }, [appliedRecipeFilters, mealTypeAdvisory, recipe, savedRecipeId]);
+  }, [
+    appliedRecipeFilters,
+    isGeneratingDishPhoto,
+    mealTypeAdvisory,
+    recipe,
+    recipeOptions,
+    savedRecipeId,
+    selectedRecipeIndex
+  ]);
 
   const handleSaveRecipe = async () => {
-    if (!recipe || isSavingRecipe || isRecipeSaved) return;
+    if (!recipe || isSavingRecipe || isRecipeSaved || isGeneratingDishPhoto) return;
     setIsSavingRecipe(true);
     setSaveErrorMessage(null);
 
@@ -1256,12 +1422,14 @@ export default function ScannerPage() {
   };
 
   const displayRecipe = useMemo(() => {
-    if (!recipe) return null;
+    // Preferir la opción seleccionada (incluye imageUrl actualizado por el polling OpenAI).
+    const source = recipeOptions[selectedRecipeIndex] ?? recipe;
+    if (!source) return null;
     return {
-      ...recipe,
-      ingredientes_detallados: formatIngredientLinesForDisplay(recipe.ingredientes_detallados)
+      ...source,
+      ingredientes_detallados: formatIngredientLinesForDisplay(source.ingredientes_detallados)
     };
-  }, [recipe]);
+  }, [recipe, recipeOptions, selectedRecipeIndex]);
 
   const showGenerationError =
     !isLoading &&
@@ -1391,7 +1559,10 @@ export default function ScannerPage() {
             onPlanAssigned={(message) => setSaveSuccessMessage(message)}
             isSavingFavorites={isSavingRecipe}
             isSavedFavorites={isRecipeSaved}
-            isGeneratingPhoto={isGeneratingDishPhoto && selectedRecipeIndex === 0}
+            isGeneratingPhoto={
+              isGeneratingDishPhoto &&
+              !(recipeOptions[selectedRecipeIndex] ?? recipe)?.imageUrl
+            }
           />
         </section>
       ) : null}
@@ -1592,7 +1763,13 @@ export default function ScannerPage() {
             open={showPhotoCreditConfirm}
             onOpenChange={setShowPhotoCreditConfirm}
             title={t("photoCreditConfirmTitle")}
-            description={t("photoCreditConfirmDescriptionPremium")}
+            description={
+              role === "admin"
+                ? t.has("photoCreditConfirmDescriptionAdmin")
+                  ? t("photoCreditConfirmDescriptionAdmin")
+                  : "Como administrador puedes generar fotos reales del plato sin límite. ¿Quieres generarla ahora?"
+                : t("photoCreditConfirmDescription")
+            }
             confirmLabel={t("photoCreditConfirmYes")}
             cancelLabel={t("photoCreditConfirmNo")}
             onConfirm={() => {

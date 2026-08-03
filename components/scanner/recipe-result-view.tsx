@@ -63,7 +63,7 @@ export function RecipeResultView({
     void shareRecipeImage(recipe, { useExistingCapture: true });
   };
 
-  const actionsDisabled = isGenerating || isSavingFavorites;
+  const actionsDisabled = isGenerating || isSavingFavorites || isGeneratingPhoto;
   const showOptions = recipeOptions.length > 1 && Boolean(onSelectRecipeIndex);
 
   return (
@@ -160,12 +160,18 @@ export function RecipeResultView({
               disabled={actionsDisabled || isSavedFavorites}
               className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full border border-stone-200/70 bg-[#F0F4ED] px-3 py-2 text-[12px] font-semibold text-[#3e5219] transition hover:bg-[#E9F0E6] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <Bookmark className="h-3.5 w-3.5" strokeWidth={2} />
-              {isSavedFavorites
-                ? t("saved")
-                : isSavingFavorites
-                  ? t("saving")
-                  : t("saveToCookbook")}
+              {isGeneratingPhoto ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Bookmark className="h-3.5 w-3.5" strokeWidth={2} />
+              )}
+              {isGeneratingPhoto
+                ? t("generatingImage")
+                : isSavedFavorites
+                  ? t("saved")
+                  : isSavingFavorites
+                    ? t("saving")
+                    : t("saveToCookbook")}
             </button>
           </div>
 
@@ -175,7 +181,14 @@ export function RecipeResultView({
             disabled={actionsDisabled}
             className="flex w-full items-center justify-center gap-2 rounded-full bg-[#556B2F] px-4 py-3 text-sm font-semibold text-white shadow-md shadow-[#556B2F]/25 transition hover:bg-[#4a5f28] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {t("cookOrSaveToPlan")}
+            {isGeneratingPhoto ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                {t("generatingImage")}
+              </>
+            ) : (
+              t("cookOrSaveToPlan")
+            )}
           </button>
         </div>
       </div>

@@ -55,13 +55,20 @@ export async function GET(_request: Request, context: RouteContext) {
         ? data.reference_image_url.trim()
         : null;
 
-    // Pendiente solo si aún no hay image_url (la referencia vive en otra columna).
-    const status = imageUrl ? ("ready" as const) : ("pending" as const);
+    // Ready solo con foto definitiva distinta del banco.
+    // Antes los borradores del escáner copiaban reference → image_url y el polling
+    // creía que OpenAI ya había terminado.
+    const isBankOnly =
+      Boolean(imageUrl) &&
+      Boolean(referenceImageUrl) &&
+      imageUrl === referenceImageUrl;
+    const status =
+      imageUrl && !isBankOnly ? ("ready" as const) : ("pending" as const);
 
     return NextResponse.json({
       recipeId: data.id,
       status,
-      imageUrl,
+      imageUrl: status === "ready" ? imageUrl : null,
       referenceImageUrl
     });
   } catch (error) {
