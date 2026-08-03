@@ -68,7 +68,9 @@ export async function deleteScannerDraftRecipes(
   supabase: AppSupabaseClient,
   params: { userId: string; recipeIds: string[] }
 ): Promise<void> {
-  const ids = [...new Set(params.recipeIds.map((id) => id.trim()).filter(Boolean))];
+  const ids = Array.from(
+    new Set(params.recipeIds.map((id) => id.trim()).filter(Boolean))
+  );
   if (!ids.length) return;
 
   const { error } = await supabase

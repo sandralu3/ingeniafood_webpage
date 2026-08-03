@@ -1118,7 +1118,7 @@ export default function ScannerPage() {
                 await sleep(DISH_PHOTO_POLL_INTERVAL_MS);
 
                 await Promise.all(
-                  [...pending].map(async (recipeIdToPoll) => {
+                  Array.from(pending).map(async (recipeIdToPoll) => {
                     try {
                       const statusResponse = await fetch(
                         `/api/recipes/${encodeURIComponent(recipeIdToPoll)}/image-status`,
