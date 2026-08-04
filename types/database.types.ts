@@ -48,6 +48,7 @@ export type Database = {
           nutrition_goal: "deficit" | "maintenance" | "surplus" | null;
           calorie_goal_override: number | null;
           protein_goal_override: number | null;
+          water_glasses_goal: number | null;
           created_at: string;
           updated_at: string;
         };
@@ -89,6 +90,7 @@ export type Database = {
           nutrition_goal?: "deficit" | "maintenance" | "surplus" | null;
           calorie_goal_override?: number | null;
           protein_goal_override?: number | null;
+          water_glasses_goal?: number | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -130,6 +132,7 @@ export type Database = {
           nutrition_goal?: "deficit" | "maintenance" | "surplus" | null;
           calorie_goal_override?: number | null;
           protein_goal_override?: number | null;
+          water_glasses_goal?: number | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -552,6 +555,41 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "retos_personalizados_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      water_intake_daily: {
+        Row: {
+          id: string;
+          user_id: string;
+          intake_date: string;
+          glasses_drunk: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          intake_date?: string;
+          glasses_drunk?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          intake_date?: string;
+          glasses_drunk?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "water_intake_daily_user_id_fkey";
             columns: ["user_id"];
             isOneToOne: false;
             referencedRelation: "profiles";

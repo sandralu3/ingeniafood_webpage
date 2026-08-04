@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { IntelligentDoseModal } from "@/components/hoy/progress-board/IntelligentDoseModal";
+import { WaterDoseIndicator } from "@/components/hoy/progress-board/water-dose-indicator";
 import { HoyProgressBoardSkeleton } from "@/components/skeletons/hoy-dashboard-skeleton";
 import { StreakCalendarModal } from "@/components/hoy/progress-board/progress-board-modals";
 import { NutritionCoachTeaserModal } from "@/components/hoy/nutrition-coach-teaser-modal";
@@ -14,6 +15,11 @@ import { pickDailyTipIndex } from "@/lib/content/daily-tip";
 import type { HoyPageData } from "@/lib/gamification/hoy-page-data";
 import type { WeeklyHealthMetrics } from "@/lib/gamification/weekly-metrics";
 import { buildWeekConsistencyDays, type WeekConsistencyDay } from "@/lib/gamification/week-consistency";
+import {
+  fetchTodayWaterGlassesDrunk,
+  fetchWaterGlassesGoal
+} from "@/lib/hydration/water-intake";
+import { resolveWaterIntakeStatus } from "@/lib/hydration/water-status";
 import { computeDayBalanceLevel } from "@/lib/premium-stories/dose-suggested-recipe";
 import type { IntelligentDoseMealSnapshot } from "@/lib/premium-stories/intelligent-dose-context";
 import { isLikelyLiquidMealTitle } from "@/lib/plan/plan-nutrition";
@@ -214,11 +220,49 @@ export function ProgressBoard({
   const [doseOpen, setDoseOpen] = useState(false);
   const [coachTeaserOpen, setCoachTeaserOpen] = useState(false);
   const [paywallOpen, setPaywallOpen] = useState(false);
+  const [waterDrunk, setWaterDrunk] = useState(0);
+  const [waterGoal, setWaterGoal] = useState<number | null>(null);
 
   const today = toISODateString(new Date());
   const metrics = data?.metrics ?? EMPTY_METRICS;
   const premiumReady = isPremium && !isPremiumLoading;
   const planRevision = useMemo(() => buildPlanRevision(data), [data]);
+
+  useEffect(() => {
+    if (!userId) {
+      setWaterDrunk(0);
+      setWaterGoal(null);
+      return;
+    }
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        const [goal, drunk] = await Promise.all([
+          fetchWaterGlassesGoal(userId),
+          fetchTodayWaterGlassesDrunk(userId)
+        ]);
+        if (cancelled) return;
+        setWaterGoal(goal);
+        setWaterDrunk(drunk);
+      } catch (error) {
+        console.error("[progress-board] Error cargando hidratación:", error);
+        if (!cancelled) {
+          setWaterGoal(null);
+          setWaterDrunk(0);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, doseOpen, data?.fetchedAt]);
+
+  const waterStatus = useMemo(
+    () => resolveWaterIntakeStatus(waterDrunk, waterGoal),
+    [waterDrunk, waterGoal]
+  );
 
   const {
     report: doseReport,
@@ -402,6 +446,8 @@ export function ProgressBoard({
                       </span>
                     </span>
                   </div>
+
+                  {waterStatus ? <WaterDoseIndicator status={waterStatus} /> : null}
                 </>
               ) : (
                 <p className="mt-1.5 line-clamp-3 flex-1 text-[10px] leading-snug text-stone-500">
@@ -462,6 +508,7 @@ export function ProgressBoard({
         context={doseContext}
         firstName={firstName}
         isLoading={isDoseLoading}
+        waterStatus={waterStatus}
       />
 
       <NutritionCoachTeaserModal

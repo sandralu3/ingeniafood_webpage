@@ -12,6 +12,15 @@ import type { PlanMeal } from "@/components/plan/plan-meal-card";
 import type { Database, Json } from "@/types/database.types";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import { pickRandomRecipe } from "@/lib/plan/match-meal-type";
+import {
+  computeRemainingMacros,
+  pickMealSuggestionFromCatalog,
+  subtractSuggestionFromRemaining,
+  type MealSuggestionCandidate,
+  type RemainingMacros
+} from "@/lib/plan/meal-suggestion";
+import { fetchUserNutritionGoals } from "@/lib/nutrition/nutrition-profile";
+import { parseMacrosFromJson } from "@/lib/recipes/recipe-macros";
 import { isScannerDraftRecipe } from "@/lib/recipes/scanner-draft";
 import {
   enrichPlanMealWithNutrition,
@@ -436,16 +445,21 @@ export async function removePlanMeal(params: {
 
 /**
  * Rellena slots vacíos (desayuno/almuerzo/cena) de un día concreto con recetas sugeridas.
- * Solo escribe en slots vacíos salvo `forceReplace`.
+ * Por defecto NUNCA reemplaza comidas ya asignadas. Solo con `forceReplace: true`
+ * sobrescribe slots ocupados.
+ *
+ * Las recetas se eligen acercándose a la meta calórica/proteica del perfil
+ * (reparto ~28/40/32 entre Desayuno/Almuerzo/Cena, renormalizado si faltan slots).
  */
 export async function fillDayPlanWithSuggestions(params: {
   userId: string;
   dayLabel: WeekDay;
   semanaInicioISO: string;
   forceReplace?: boolean;
-}): Promise<{ assigned: number; dayLabel: WeekDay }> {
+}): Promise<{ assigned: number; dayLabel: WeekDay; skippedOccupied: number }> {
   const supabase = createSupabaseClient();
   const { dayLabel, semanaInicioISO } = params;
+  const forceReplace = params.forceReplace === true;
 
   const { data: existingRows, error: existingError } = await supabase
     .from("plan_semanal")
@@ -459,62 +473,236 @@ export async function fillDayPlanWithSuggestions(params: {
     throw existingError;
   }
 
-  const filledTypes = new Set(
-    (existingRows ?? [])
-      .filter((row) => row.recipe_id)
-      .map((row) => mapMealType(row.tipo_comida as string))
-  );
+  const occupiedByType = new Map<MealType, string>();
+  for (const row of existingRows ?? []) {
+    if (!row.recipe_id) continue;
+    const mealType = mapMealType(row.tipo_comida as string);
+    // Conservar el primer recipe_id visto por tipo de comida.
+    if (!occupiedByType.has(mealType)) {
+      occupiedByType.set(mealType, row.recipe_id);
+    }
+  }
 
   const slotsToFill = MEAL_TYPES.filter(
-    (mealType) => params.forceReplace || !filledTypes.has(mealType)
+    (mealType) => forceReplace || !occupiedByType.has(mealType)
   );
+  const skippedOccupied = MEAL_TYPES.length - slotsToFill.length;
+
   if (slotsToFill.length === 0) {
-    return { assigned: 0, dayLabel };
+    return { assigned: 0, dayLabel, skippedOccupied };
   }
+
+  const [goals, occupiedMacrosRows, daySnacks] = await Promise.all([
+    fetchUserNutritionGoals(params.userId),
+    occupiedByType.size > 0
+      ? supabase
+          .from("recipes")
+          .select("id, macros")
+          .in("id", Array.from(occupiedByType.values()))
+          .then(({ data }) => data ?? [])
+      : Promise.resolve([] as Array<{ id: string; macros: Json | null }>),
+    fetchSnacksForWeek(params.userId, semanaInicioISO)
+      .then((snacks) => snacks.filter((snack) => snack.dayLabel === dayLabel))
+      .catch(() => [] as PlanSnack[])
+  ]);
+
+  const consumed = {
+    calories: 0,
+    protein: 0,
+    carbs: 0,
+    fat: 0
+  };
+
+  for (const row of occupiedMacrosRows) {
+    const macros = parseMacrosFromJson(row.macros);
+    if (!macros) continue;
+    consumed.calories += macros.calorias;
+    consumed.protein += macros.proteinas_g;
+    consumed.carbs += macros.carbohidratos_g;
+    consumed.fat += macros.grasas_g;
+  }
+
+  for (const snack of daySnacks) {
+    consumed.calories += snack.kcal ?? 0;
+    consumed.protein += snack.proteinGrams ?? 0;
+    consumed.carbs += snack.carbsGrams ?? 0;
+    consumed.fat += snack.fatGrams ?? 0;
+  }
+
+  let remaining: RemainingMacros = computeRemainingMacros(consumed, {
+    calories: goals.calorieTarget,
+    protein: goals.proteinTarget,
+    carbs: goals.carbsTarget,
+    fat: goals.fatTarget
+  });
 
   const { data: recipes, error: recipesError } = await supabase
     .from("recipes")
-    .select("id, title, description, instructions, image_url, cooking_time, meal_type")
+    .select(
+      "id, title, description, instructions, image_url, cooking_time, meal_type, macros"
+    )
     .or(`user_id.eq.${params.userId},is_public.eq.true`)
-    .limit(80);
+    .limit(120);
 
   if (recipesError || !recipes?.length) {
     console.error("[plan] Error buscando recetas para menú del día:", recipesError);
     throw recipesError ?? new Error("No hay recetas disponibles");
   }
 
-  const usedIds = new Set<string>(
-    (existingRows ?? []).map((row) => row.recipe_id).filter(Boolean) as string[]
-  );
+  const candidates = recipes as MealSuggestionCandidate[];
+  const usedIds = new Set<string>(Array.from(occupiedByType.values()));
   let assigned = 0;
+  let activeSlots = [...slotsToFill];
 
   for (const mealType of slotsToFill) {
-    const available = recipes.filter((recipe) => !usedIds.has(recipe.id));
-    const recipe = pickRandomRecipe(available, mealType, "");
-    if (!recipe) continue;
+    const suggestion = pickMealSuggestionFromCatalog(
+      candidates,
+      mealType,
+      remaining,
+      Array.from(usedIds),
+      activeSlots
+    );
 
-    usedIds.add(recipe.id);
-    const meal = await assignRecipeToPlan({
-      userId: params.userId,
-      diaSemana: dayLabel,
-      tipoComida: mealType,
-      recipeId: recipe.id,
-      semanaInicioISO
-    });
-    if (meal) assigned += 1;
+    const recipeId =
+      suggestion?.recipeId ??
+      pickRandomRecipe(
+        candidates.filter((recipe) => !usedIds.has(recipe.id)),
+        mealType,
+        ""
+      )?.id;
+
+    if (!recipeId) {
+      activeSlots = activeSlots.filter((slot) => slot !== mealType);
+      continue;
+    }
+
+    usedIds.add(recipeId);
+
+    // Sin forceReplace: insertar solo si el slot sigue vacío (nunca update).
+    const meal = forceReplace
+      ? await assignRecipeToPlan({
+          userId: params.userId,
+          diaSemana: dayLabel,
+          tipoComida: mealType,
+          recipeId,
+          semanaInicioISO
+        })
+      : await assignRecipeToEmptyPlanSlot({
+          userId: params.userId,
+          diaSemana: dayLabel,
+          tipoComida: mealType,
+          recipeId,
+          semanaInicioISO
+        });
+
+    if (meal) {
+      assigned += 1;
+      if (suggestion) {
+        remaining = subtractSuggestionFromRemaining(remaining, suggestion);
+      } else {
+        const assignedMacros = parseMacrosFromJson(
+          (candidates.find((item) => item.id === recipeId)?.macros as Json | null | undefined) ??
+            null
+        );
+        if (assignedMacros) {
+          remaining = subtractSuggestionFromRemaining(remaining, {
+            kcal: assignedMacros.calorias,
+            proteinGrams: assignedMacros.proteinas_g,
+            carbsGrams: assignedMacros.carbohidratos_g,
+            fatGrams: assignedMacros.grasas_g
+          });
+        }
+      }
+    }
+
+    activeSlots = activeSlots.filter((slot) => slot !== mealType);
   }
 
-  return { assigned, dayLabel };
+  return { assigned, dayLabel, skippedOccupied };
 }
 
 /**
- * Rellena los 3 slots del día de hoy con recetas sugeridas.
- * Solo escribe en slots vacíos salvo `forceReplace`.
+ * Asigna una receta solo si el slot está vacío. Si ya hay comida, no la toca.
+ */
+async function assignRecipeToEmptyPlanSlot(params: {
+  userId: string;
+  diaSemana: WeekDay;
+  tipoComida: MealType;
+  recipeId: string;
+  semanaInicioISO: string;
+}): Promise<PlanMeal | null> {
+  const supabase = createSupabaseClient();
+
+  const { data: existing, error: existingError } = await supabase
+    .from("plan_semanal")
+    .select("id, recipe_id")
+    .eq("user_id", params.userId)
+    .eq("semana_inicio", params.semanaInicioISO)
+    .eq("dia_semana", params.diaSemana)
+    .eq("tipo_comida", params.tipoComida)
+    .maybeSingle();
+
+  if (existingError) {
+    console.error("[plan] Error comprobando slot vacío:", existingError);
+    return null;
+  }
+
+  if (existing?.recipe_id) {
+    return null;
+  }
+
+  if (existing?.id) {
+    // Fila huérfana sin recipe_id (no debería ocurrir por el schema NOT NULL).
+    const { data, error } = await supabase
+      .from("plan_semanal")
+      .update({ recipe_id: params.recipeId })
+      .eq("id", existing.id)
+      .eq("user_id", params.userId)
+      .select(PLAN_SELECT)
+      .single();
+
+    if (error || !data) {
+      console.error("[plan] Error rellenando slot vacío existente:", error);
+      return null;
+    }
+
+    const [enrichedRow] = await enrichPlanRowsWithNutrition([data as PlanRowWithRecipe]);
+    return toPlanMeal(enrichedRow);
+  }
+
+  const { data, error } = await supabase
+    .from("plan_semanal")
+    .insert({
+      user_id: params.userId,
+      semana_inicio: params.semanaInicioISO,
+      dia_semana: params.diaSemana,
+      tipo_comida: params.tipoComida,
+      recipe_id: params.recipeId
+    })
+    .select(PLAN_SELECT)
+    .single();
+
+  if (error || !data) {
+    // Carrera: otro proceso ocupó el slot → no reemplazar.
+    if (error?.code === "23505") {
+      return null;
+    }
+    console.error("[plan] Error insertando receta en slot vacío:", error);
+    return null;
+  }
+
+  const [enrichedRow] = await enrichPlanRowsWithNutrition([data as PlanRowWithRecipe]);
+  return toPlanMeal(enrichedRow);
+}
+
+/**
+ * Rellena los slots vacíos del día de hoy con recetas sugeridas.
+ * No reemplaza comidas ya asignadas salvo `forceReplace`.
  */
 export async function fillTodayPlanWithSuggestions(params: {
   userId: string;
   forceReplace?: boolean;
-}): Promise<{ assigned: number; dayLabel: WeekDay }> {
+}): Promise<{ assigned: number; dayLabel: WeekDay; skippedOccupied: number }> {
   const today = new Date();
   today.setHours(12, 0, 0, 0);
   return fillDayPlanWithSuggestions({

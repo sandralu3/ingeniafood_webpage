@@ -3,6 +3,7 @@ export const APP_ROUTES = {
   hoy: "/app-recetas/hoy",
   plan: "/app-recetas/plan",
   retos: "/app-recetas/retos",
+  parametros: "/app-recetas/parametros",
   scanner: "/app-recetas/scanner",
   guardadas: "/app-recetas/recipes",
   perfil: "/app-recetas/profile"

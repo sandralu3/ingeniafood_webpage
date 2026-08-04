@@ -9,8 +9,7 @@ import {
   Leaf,
   Loader2,
   Moon,
-  Plus,
-  Sparkles
+  Plus
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { HoyPageData } from "@/lib/gamification/hoy-page-data";
@@ -22,6 +21,10 @@ import {
   PlanSlotsDndProvider,
   type PlanSlotDragData
 } from "@/components/plan/plan-slot-dnd";
+import {
+  ProposeDayMenuBanner,
+  PROPOSE_DAY_MENU_FALLBACK_HREF
+} from "@/components/shared/propose-day-menu-banner";
 import { Toast } from "@/components/ui/toast";
 import type { MealType, WeekDay } from "@/lib/plan/constants";
 import { MEAL_TYPES } from "@/lib/plan/constants";
@@ -67,103 +70,6 @@ const SLOT_BADGE: Record<MealType, string> = {
   Almuerzo: "bg-[#E8F0E4] text-[#3E5A3A]",
   Cena: "bg-[#EDE8F8] text-[#5B4B9A]"
 };
-
-function GenerateFullDayBanner({
-  userId,
-  isPremium,
-  isPremiumLoading,
-  isGenerating,
-  onGenerate,
-  onUnlockPremium
-}: {
-  userId: string | null | undefined;
-  isPremium: boolean;
-  isPremiumLoading: boolean;
-  isGenerating: boolean;
-  onGenerate: () => void;
-  onUnlockPremium: () => void;
-}) {
-  const t = useTranslations("Hoy");
-  const premiumReady = Boolean(isPremium && !isPremiumLoading);
-
-  const handleClick = () => {
-    if (!userId) return;
-    if (!premiumReady) {
-      onUnlockPremium();
-      return;
-    }
-    onGenerate();
-  };
-
-  const title = isGenerating
-    ? t.has("todayMenuGenerating")
-      ? t("todayMenuGenerating")
-      : "Generando tu menú…"
-    : t.has("proposeDayMenu")
-      ? t("proposeDayMenu").replace(/✨/g, "").trim()
-      : "Proponer menú del día";
-
-  const sharedClass =
-    "flex w-full items-center gap-2 rounded-[18px] bg-[#F6E2C3] px-3 py-2 text-left transition hover:brightness-[0.98] disabled:cursor-wait disabled:opacity-70";
-
-  const body = (
-    <>
-      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#FDF3E3]">
-        {isGenerating ? (
-          <Loader2 className="h-3.5 w-3.5 animate-spin text-[#C27803]" />
-        ) : (
-          <Sparkles className="h-3.5 w-3.5 text-[#C27803]" strokeWidth={2} />
-        )}
-      </span>
-
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1.5">
-          <span className="text-[10px] leading-none text-[#C27803]" aria-hidden>
-            ✨
-          </span>
-          <p className="truncate text-[11px] font-bold leading-tight text-[#3D2E1F]">
-            {title}
-          </p>
-          {!premiumReady && !isGenerating ? (
-            <span className="shrink-0 rounded-md bg-[#EDE5D4] px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wide text-[#5C4A32]">
-              Pro
-            </span>
-          ) : null}
-        </div>
-      </div>
-
-      <span className="flex shrink-0 items-center gap-1.5">
-        <span className="flex flex-col gap-[2px]" aria-hidden>
-          <span className="h-px w-2 bg-[#C4B49A]/70" />
-          <span className="h-px w-2 bg-[#C4B49A]/70" />
-          <span className="h-px w-2 bg-[#C4B49A]/70" />
-        </span>
-        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-[#5C7A54] via-[#3E5A3A] to-[#2F452C] text-white shadow-sm shadow-[#3E5A3A]/20">
-          <ArrowRight className="h-3.5 w-3.5" strokeWidth={2.25} />
-        </span>
-      </span>
-    </>
-  );
-
-  if (!userId) {
-    return (
-      <Link href={APP_ROUTES.plan} className={sharedClass}>
-        {body}
-      </Link>
-    );
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={handleClick}
-      disabled={isGenerating || isPremiumLoading}
-      className={sharedClass}
-    >
-      {body}
-    </button>
-  );
-}
 
 const SLOT_PLACEHOLDER: Record<MealType, string> = {
   Desayuno: "from-amber-50 to-orange-100",
@@ -450,14 +356,14 @@ function TodayMealGrid({
               <MealPhotoCard
                 mealType={mealType}
                 meal={meal}
-                isGenerating={isGeneratingFullDay}
+                isGenerating={false}
               />
             </PlanMealDraggable>
           ) : (
             <MealPhotoCard
               mealType={mealType}
               meal={meal}
-              isGenerating={isGeneratingFullDay}
+              isGenerating={isGeneratingFullDay && !meal}
             />
           )}
         </PlanMealDroppable>
@@ -555,17 +461,24 @@ function TodayMenuSection({
       const result = await fillTodayPlanWithSuggestions({ userId, forceReplace: false });
       if (result.assigned === 0) {
         setMenuError(
-          t.has("todayMenuGenerateEmpty")
-            ? t("todayMenuGenerateEmpty")
-            : "No encontramos recetas para completar el menú."
+          result.skippedOccupied > 0
+            ? t.has("todayMenuAlreadyFull")
+              ? t("todayMenuAlreadyFull")
+              : "Este día ya tiene todas las comidas asignadas."
+            : t.has("todayMenuGenerateEmpty")
+              ? t("todayMenuGenerateEmpty")
+              : "No encontramos recetas para completar el menú."
         );
         return;
       }
       setMenuToast({
         visible: true,
-        message: t.has("dayMenuSuggestedSuccess")
-          ? t("dayMenuSuggestedSuccess")
-          : "Menú del día sugerido con éxito"
+        message:
+          result.skippedOccupied > 0 && t.has("dayMenuCompletedRemaining")
+            ? t("dayMenuCompletedRemaining")
+            : t.has("dayMenuSuggestedSuccess")
+              ? t("dayMenuSuggestedSuccess")
+              : "Menú del día sugerido con éxito"
       });
       onPlanUpdated?.();
     } catch {
@@ -604,16 +517,15 @@ function TodayMenuSection({
       </div>
 
       {hasEmptySlots ? (
-        <>
-          <GenerateFullDayBanner
-            userId={userId}
-            isPremium={isPremium}
-            isPremiumLoading={isPremiumLoading}
-            isGenerating={isGeneratingFullDay}
-            onGenerate={() => void handleGenerateFullDay()}
-            onUnlockPremium={() => setShowPremiumPaywall(true)}
-          />
-        </>
+        <ProposeDayMenuBanner
+          isGenerating={isGeneratingFullDay}
+          isPremium={isPremium}
+          isPremiumLoading={isPremiumLoading}
+          hasPartialPlan={plannedCountLocal > 0}
+          onGenerate={() => void handleGenerateFullDay()}
+          onUnlockPremium={() => setShowPremiumPaywall(true)}
+          hrefWhenUnauthenticated={userId ? undefined : PROPOSE_DAY_MENU_FALLBACK_HREF}
+        />
       ) : null}
 
       {menuError ? (

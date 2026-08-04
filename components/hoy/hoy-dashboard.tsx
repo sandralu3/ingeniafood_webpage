@@ -8,6 +8,7 @@ import { HoyGreetingHeader } from "@/components/hoy/hoy-greeting-header";
 import { ProgressBoard } from "@/components/hoy/progress-board/progress-board";
 import { PromoClaimBanner } from "@/components/hoy/promo-claim-banner";
 import { TodayPlanNutrition } from "@/components/hoy/today-plan-nutrition";
+import { WaterGlassesTracker } from "@/components/hoy/water-glasses-tracker";
 import {
   HoyDailyChallengesSkeleton,
   HoyProgressBoardSkeleton,
@@ -124,6 +125,8 @@ export function HoyDashboard() {
             }}
           />
         )}
+
+        <WaterGlassesTracker userId={userId} />
 
         {showPageSkeleton ? (
           <HoyDailyChallengesSkeleton />

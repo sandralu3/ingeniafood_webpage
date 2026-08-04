@@ -432,9 +432,12 @@ export function WeeklyPlanView() {
       await loadWeeklyPlan(weekStartDate);
       setMenuToast({
         visible: true,
-        message: t.has("dayMenuSuggestedSuccess")
-          ? t("dayMenuSuggestedSuccess")
-          : "✨ Menú del día sugerido con éxito"
+        message:
+          result.skippedOccupied > 0 && t.has("dayMenuCompletedRemaining")
+            ? t("dayMenuCompletedRemaining")
+            : t.has("dayMenuSuggestedSuccess")
+              ? t("dayMenuSuggestedSuccess")
+              : "✨ Menú del día sugerido con éxito"
       });
       window.setTimeout(() => setMenuToast({ visible: false, message: "" }), 3200);
     } catch (error) {

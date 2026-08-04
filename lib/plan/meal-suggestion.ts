@@ -12,7 +12,7 @@ export const DEFAULT_DAY_BUDGET = {
 } as const;
 
 /** Reparto energético aproximado por comida. */
-const MEAL_SHARE: Record<MealType, number> = {
+export const MEAL_SHARE: Record<MealType, number> = {
   Desayuno: 0.28,
   Almuerzo: 0.4,
   Cena: 0.32
@@ -68,12 +68,32 @@ export function computeRemainingMacros(
   };
 }
 
+/**
+ * Reparte el presupuesto restante entre los slots que aún hay que rellenar
+ * (p. ej. solo Almuerzo+Cena si Desayuno ya estaba ocupado).
+ */
+export function mealShareAmongSlots(
+  mealType: MealType,
+  activeSlots: MealType[]
+): number {
+  const slots = activeSlots.length > 0 ? activeSlots : (Object.keys(MEAL_SHARE) as MealType[]);
+  const total = slots.reduce((sum, slot) => sum + (MEAL_SHARE[slot] ?? 0), 0);
+  if (total <= 0) return MEAL_SHARE[mealType] ?? 0.33;
+  return (MEAL_SHARE[mealType] ?? 0) / total;
+}
+
 function resolveMacros(raw: Json | null | undefined): RecipeMacros | null {
   return parseMacrosFromJson(raw ?? null);
 }
 
-function targetForMeal(mealType: MealType, remaining: RemainingMacros): RemainingMacros {
-  const share = MEAL_SHARE[mealType];
+function targetForMeal(
+  mealType: MealType,
+  remaining: RemainingMacros,
+  activeSlots?: MealType[]
+): RemainingMacros {
+  const share = activeSlots?.length
+    ? mealShareAmongSlots(mealType, activeSlots)
+    : MEAL_SHARE[mealType];
   return {
     calories: Math.max(180, Math.round(remaining.calories * share)),
     protein: Math.max(8, Math.round(remaining.protein * share)),
@@ -86,10 +106,11 @@ function targetForMeal(mealType: MealType, remaining: RemainingMacros): Remainin
 export function scoreCandidateForMeal(
   candidate: MealSuggestionCandidate,
   mealType: MealType,
-  remaining: RemainingMacros
+  remaining: RemainingMacros,
+  activeSlots?: MealType[]
 ): number {
   const macros = resolveMacros(candidate.macros);
-  const target = targetForMeal(mealType, remaining);
+  const target = targetForMeal(mealType, remaining, activeSlots);
   const preferredType =
     mealType === "Desayuno" ? "desayuno" : mealType === "Cena" ? "cena" : "almuerzo";
   const resolvedType = (candidate.meal_type ?? "").toLowerCase();
@@ -137,7 +158,8 @@ export function rankMealCandidates(
   candidates: MealSuggestionCandidate[],
   mealType: MealType,
   remaining: RemainingMacros,
-  excludeRecipeIds: string[] = []
+  excludeRecipeIds: string[] = [],
+  activeSlots?: MealType[]
 ): MealSuggestionCandidate[] {
   const excluded = new Set(excludeRecipeIds.filter(Boolean));
   return candidates
@@ -145,7 +167,7 @@ export function rankMealCandidates(
     .filter((item) => recipeMatchesMealType(item, mealType))
     .map((item) => ({
       item,
-      score: scoreCandidateForMeal(item, mealType, remaining)
+      score: scoreCandidateForMeal(item, mealType, remaining, activeSlots)
     }))
     .sort((a, b) => a.score - b.score)
     .map((entry) => entry.item);
@@ -159,12 +181,32 @@ export function pickMealSuggestionFromCatalog(
   candidates: MealSuggestionCandidate[],
   mealType: MealType,
   remaining: RemainingMacros,
-  excludeRecipeIds: string[] = []
+  excludeRecipeIds: string[] = [],
+  activeSlots?: MealType[]
 ): MealSuggestion | null {
-  const ranked = rankMealCandidates(candidates, mealType, remaining, excludeRecipeIds);
+  const ranked = rankMealCandidates(
+    candidates,
+    mealType,
+    remaining,
+    excludeRecipeIds,
+    activeSlots
+  );
   if (ranked.length === 0) return null;
 
   const top = ranked.slice(0, Math.min(4, ranked.length));
   const chosen = top[Math.floor(Math.random() * top.length)] ?? ranked[0];
   return toMealSuggestion(chosen, mealType, "catalog");
+}
+
+/** Resta lo consumido de un plato al presupuesto restante del día. */
+export function subtractSuggestionFromRemaining(
+  remaining: RemainingMacros,
+  suggestion: Pick<MealSuggestion, "kcal" | "proteinGrams" | "carbsGrams" | "fatGrams">
+): RemainingMacros {
+  return {
+    calories: Math.max(0, remaining.calories - (suggestion.kcal ?? 0)),
+    protein: Math.max(0, remaining.protein - (suggestion.proteinGrams ?? 0)),
+    carbs: Math.max(0, remaining.carbs - (suggestion.carbsGrams ?? 0)),
+    fat: Math.max(0, remaining.fat - (suggestion.fatGrams ?? 0))
+  };
 }

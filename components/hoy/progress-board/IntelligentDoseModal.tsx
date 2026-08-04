@@ -17,6 +17,8 @@ import type {
   IntelligentDoseUserContext
 } from "@/lib/premium-stories/intelligent-dose-context";
 import { NutritionProfileCallout } from "@/components/hoy/progress-board/nutrition-profile-callout";
+import { WaterDoseIndicator } from "@/components/hoy/progress-board/water-dose-indicator";
+import type { WaterIntakeStatus } from "@/lib/hydration/water-status";
 import {
   hasDoseSuggestionGenerated,
   markDoseSuggestionGenerated
@@ -41,6 +43,7 @@ type IntelligentDoseModalProps = {
   context?: IntelligentDoseUserContext | null;
   firstName?: string | null;
   isLoading?: boolean;
+  waterStatus?: WaterIntakeStatus | null;
 };
 
 function resolveSuggestedRecipe(
@@ -150,7 +153,8 @@ export function IntelligentDoseModal({
   report,
   context = null,
   firstName = null,
-  isLoading = false
+  isLoading = false,
+  waterStatus = null
 }: IntelligentDoseModalProps) {
   const t = useTranslations("Hoy");
   const tCommon = useTranslations("Common");
@@ -352,6 +356,8 @@ export function IntelligentDoseModal({
               {macros.totalFat > 0 ? <MacroChip label={`${macros.totalFat}g Grasas`} /> : null}
             </div>
           ) : null}
+
+          {waterStatus ? <WaterDoseIndicator status={waterStatus} variant="report" /> : null}
 
           {isLoading && !report ? (
             <div className="flex items-center justify-center gap-2 py-8 text-[11px] text-stone-500">

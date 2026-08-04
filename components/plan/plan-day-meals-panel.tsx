@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { Loader2, Sparkles } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { EmptyMealSlot } from "@/components/plan/empty-meal-slot";
 import { PlanMealCard, type PlanMeal } from "@/components/plan/plan-meal-card";
@@ -13,6 +12,7 @@ import {
   PlanSlotsDndProvider,
   type PlanSlotDragData
 } from "@/components/plan/plan-slot-dnd";
+import { ProposeDayMenuBanner } from "@/components/shared/propose-day-menu-banner";
 import { MEAL_TYPES, type MealType, type WeekDay } from "@/lib/plan/constants";
 import { getMealTypeSubtleAccent } from "@/lib/plan/meal-type-accent";
 import { movePlanMeal } from "@/lib/plan/plan-service";
@@ -62,8 +62,8 @@ export function PlanDayMealsPanel({
 }: PlanDayMealsPanelProps) {
   const t = useTranslations("Plan");
   const assignedCount = MEAL_TYPES.filter((type) => day.slots[type] !== null).length;
-  const dayIsEmpty = assignedCount === 0;
-  const showPropose = Boolean(onProposeDayMenu) && dayIsEmpty;
+  const hasEmptySlots = assignedCount < MEAL_TYPES.length;
+  const showPropose = Boolean(onProposeDayMenu) && hasEmptySlots;
   const resolvedWeekStart = weekStartISO ?? toISODateString(getMondayOfWeek());
   const [isMoving, setIsMoving] = useState(false);
 
@@ -153,35 +153,12 @@ export function PlanDayMealsPanel({
 
       {showPropose ? (
         <div className="mb-2.5">
-          <button
-            type="button"
-            onClick={onProposeDayMenu}
-            disabled={isProposingDayMenu}
-            className={cn(
-              "flex w-full items-center justify-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition-all disabled:cursor-wait disabled:opacity-70",
-              isPremium
-                ? "border-[#4D6638]/30 bg-[#4D6638]/10 text-[#4D6638] hover:bg-[#4D6638]/20"
-                : "border-amber-300/60 bg-amber-500/10 text-amber-900 hover:bg-amber-500/20"
-            )}
-          >
-            {isProposingDayMenu ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2} />
-            ) : (
-              <Sparkles className="h-3.5 w-3.5" strokeWidth={2} />
-            )}
-            <span>
-              {isProposingDayMenu
-                ? t.has("proposingDayMenu")
-                  ? t("proposingDayMenu")
-                  : "Generando menú…"
-                : t.has("proposeDayMenu")
-                  ? t("proposeDayMenu")
-                  : "✨ Proponer menú del día"}
-            </span>
-            {!isPremium && !isProposingDayMenu ? (
-              <span className="ml-0.5 text-[10px] font-bold tracking-wide">👑 PRO</span>
-            ) : null}
-          </button>
+          <ProposeDayMenuBanner
+            isGenerating={isProposingDayMenu}
+            isPremium={isPremium}
+            hasPartialPlan={assignedCount > 0}
+            onGenerate={() => onProposeDayMenu?.()}
+          />
         </div>
       ) : null}
 

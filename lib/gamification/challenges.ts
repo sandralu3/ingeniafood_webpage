@@ -12,11 +12,15 @@ export type ConfigurableChallenge = DailyChallenge & {
   isActive: boolean;
 };
 
-/** Retos retirados del catálogo de hábitos (UI). El escaneo (4) vive solo en el banner/backend. */
-export const RETIRED_SYSTEM_CHALLENGE_IDS = new Set(["3", "4", "6"]);
+/**
+ * Retos retirados del catálogo de hábitos (UI).
+ * - 1: agua → parámetro personalizable (vasos en Hoy)
+ * - 3/6: nutrición del plan
+ * - 4: escaneo (solo banner/backend)
+ */
+export const RETIRED_SYSTEM_CHALLENGE_IDS = new Set(["1", "3", "4", "6"]);
 
 export const SYSTEM_DAILY_CHALLENGES: DailyChallenge[] = [
-  { id: "1", label: "Beber 2 L de agua", points: 2, source: "system" },
   { id: "2", label: "Caminar 20 minutos", points: 2, source: "system" },
   { id: "5", label: "Cocinar sin harinas refinadas", points: 2, source: "system" },
   { id: "7", label: "Evitar bebidas azucaradas", points: 2, source: "system" },

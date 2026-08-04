@@ -9,6 +9,7 @@ import {
   CalendarDays,
   LogOut,
   ScanLine,
+  SlidersHorizontal,
   Sparkles,
   Target,
   UserRound,
@@ -28,7 +29,14 @@ type AppDrawerProps = {
 
 type DrawerItem = {
   href: string;
-  labelKey: "hoy" | "planWeekly" | "retos" | "scanner" | "saved" | "profile";
+  labelKey:
+    | "hoy"
+    | "planWeekly"
+    | "retos"
+    | "parametros"
+    | "scanner"
+    | "saved"
+    | "profile";
   icon: LucideIcon;
 };
 
@@ -39,6 +47,7 @@ const drawerItems: DrawerItem[] = [
   { href: APP_ROUTES.hoy, labelKey: "hoy", icon: Sparkles },
   { href: APP_ROUTES.plan, labelKey: "planWeekly", icon: CalendarDays },
   { href: APP_ROUTES.retos, labelKey: "retos", icon: Target },
+  { href: APP_ROUTES.parametros, labelKey: "parametros", icon: SlidersHorizontal },
   { href: APP_ROUTES.scanner, labelKey: "scanner", icon: ScanLine },
   { href: APP_ROUTES.guardadas, labelKey: "saved", icon: Bookmark },
   { href: APP_ROUTES.perfil, labelKey: "profile", icon: UserRound }
