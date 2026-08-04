@@ -1,3 +1,6 @@
+import type { WeekDay } from "@/lib/plan/constants";
+import { WEEK_DAYS } from "@/lib/plan/constants";
+
 export type ChallengeSource = "system" | "custom";
 
 export type DailyChallenge = {
@@ -10,7 +13,29 @@ export type DailyChallenge = {
 
 export type ConfigurableChallenge = DailyChallenge & {
   isActive: boolean;
+  /** Días en que aparece en Hoy (si está activo). */
+  activeDays: WeekDay[];
 };
+
+export const ALL_CHALLENGE_WEEK_DAYS: WeekDay[] = [...WEEK_DAYS];
+
+/** Normaliza el array de días desde DB / UI. Vacío → todos los días. */
+export function normalizeChallengeWeekDays(raw: unknown): WeekDay[] {
+  const allowed = new Set<string>(WEEK_DAYS);
+  const fromRaw = Array.isArray(raw)
+    ? raw.filter((day): day is string => typeof day === "string" && allowed.has(day))
+    : [];
+
+  const selected = WEEK_DAYS.filter((day) => fromRaw.includes(day));
+  return selected.length > 0 ? selected : [...WEEK_DAYS];
+}
+
+export function isChallengeScheduledForDay(
+  activeDays: WeekDay[],
+  day: WeekDay
+): boolean {
+  return normalizeChallengeWeekDays(activeDays).includes(day);
+}
 
 /**
  * Retos retirados del catálogo de hábitos (UI).

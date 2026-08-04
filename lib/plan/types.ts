@@ -2,7 +2,8 @@ import type { PlanMeal } from "@/components/plan/plan-meal-card";
 import type { MealType, WeekDay } from "@/lib/plan/constants";
 import type { PlanSnack } from "@/lib/plan/snack-presets";
 
-export type PlanDaySlots = Record<MealType, PlanMeal | null>;
+/** Varias recetas por desayuno / almuerzo / cena. */
+export type PlanDaySlots = Record<MealType, PlanMeal[]>;
 
 export type PlanDayNutritionSummary = {
   totalKcal: number;

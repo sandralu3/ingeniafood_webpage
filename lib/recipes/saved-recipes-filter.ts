@@ -9,14 +9,24 @@ import {
   parseRecipeMealType,
   type RecipeMealType
 } from "@/lib/recipes/premium-recipe-filters";
+import { normalizeRecipeTags } from "@/lib/recipes/recipe-tags";
 
-export type SavedRecipeFilter = "Todas" | "Airfryer" | "Desayunos" | "Cenas" | "Sin Harinas";
+export type SavedRecipeFilter =
+  | "Todas"
+  | "Desayunos"
+  | "Almuerzos"
+  | "Cenas"
+  | "Snacks"
+  | "Airfryer"
+  | "Sin Harinas";
 
 export const SAVED_RECIPE_FILTERS: SavedRecipeFilter[] = [
   "Todas",
-  "Airfryer",
   "Desayunos",
+  "Almuerzos",
   "Cenas",
+  "Snacks",
+  "Airfryer",
   "Sin Harinas"
 ];
 
@@ -65,6 +75,7 @@ const DINNER_KEYWORDS = [
 
 const LUNCH_KEYWORDS = [
   "almuerzo",
+  "comida",
   "lunch",
   "ensalada",
   "salad",
@@ -75,10 +86,13 @@ const LUNCH_KEYWORDS = [
   "quinoa"
 ];
 
+const SNACK_TITLE_HINTS = ["snack", "tentempie", "merienda", "picoteo"];
+
 const MEAL_TYPE_CARD_LABEL: Record<RecipeMealType, string> = {
   desayuno: "Desayuno",
   almuerzo: "Almuerzo",
   cena: "Cena",
+  snack: "Snack",
   postre: "Postre"
 };
 
@@ -127,6 +141,25 @@ function storedMealType(recipe: Pick<RecipeRow, "meal_type">): RecipeMealType | 
   return parseRecipeMealType(recipe.meal_type ?? null);
 }
 
+/** Snack = meal_type/tag snack. Sin heurística amplia (batido/yogur = desayuno). */
+function isExplicitSnackRecipe(recipe: {
+  meal_type?: string | null;
+  tags?: unknown;
+  title: string;
+}): boolean {
+  const mealType = parseRecipeMealType(recipe.meal_type ?? null);
+  if (mealType === "snack") return true;
+  if (mealType) return false;
+
+  const tags = normalizeRecipeTags(recipe.tags).map((tag) => tag.toLowerCase());
+  if (tags.includes("snack")) return true;
+
+  const title = normalizeSearchText(recipe.title);
+  return SNACK_TITLE_HINTS.some(
+    (hint) => title === hint || title.startsWith(`${hint} `) || title.includes(` ${hint} `)
+  );
+}
+
 export function matchesSavedRecipeCategory(recipe: RecipeRow, filter: SavedRecipeFilter): boolean {
   if (filter === "Todas") return true;
 
@@ -141,9 +174,14 @@ export function matchesSavedRecipeCategory(recipe: RecipeRow, filter: SavedRecip
     case "Desayunos":
       if (mealType) return mealType === "desayuno";
       return includesAnyKeyword(blob, BREAKFAST_KEYWORDS);
+    case "Almuerzos":
+      if (mealType) return mealType === "almuerzo";
+      return includesAnyKeyword(blob, LUNCH_KEYWORDS);
     case "Cenas":
       if (mealType) return mealType === "cena";
       return includesAnyKeyword(blob, DINNER_KEYWORDS);
+    case "Snacks":
+      return isExplicitSnackRecipe(recipe);
     default:
       return true;
   }
@@ -183,6 +221,7 @@ function resolveRecipeCardLabelFromKeywords(
   if (includesAnyKeyword(blob, BREAKFAST_KEYWORDS)) return "Desayuno";
   if (includesAnyKeyword(blob, DINNER_KEYWORDS)) return "Cena";
   if (includesAnyKeyword(blob, LUNCH_KEYWORDS)) return "Almuerzo";
+  if (includesAnyKeyword(blob, SNACK_TITLE_HINTS)) return "Snack";
   if (flags.is_flourless || blob.includes("sin harinas") || blob.includes("sin harina")) {
     return "Sin Harinas";
   }
@@ -197,6 +236,7 @@ export type RecipeLabelSource = {
   is_airfryer?: boolean;
   is_flourless?: boolean;
   meal_type?: string | null;
+  tags?: unknown;
 };
 
 export function getRecipePickerCardLabel(source: RecipeLabelSource): string | null {
@@ -222,9 +262,18 @@ export function matchesPickerRecipeCategory(
     case "Desayunos":
       if (mealType) return mealType === "desayuno";
       return includesAnyKeyword(blob, BREAKFAST_KEYWORDS);
+    case "Almuerzos":
+      if (mealType) return mealType === "almuerzo";
+      return includesAnyKeyword(blob, LUNCH_KEYWORDS);
     case "Cenas":
       if (mealType) return mealType === "cena";
       return includesAnyKeyword(blob, DINNER_KEYWORDS);
+    case "Snacks":
+      return isExplicitSnackRecipe({
+        meal_type: source.meal_type ?? null,
+        tags: source.tags,
+        title: source.title
+      });
     default:
       return true;
   }

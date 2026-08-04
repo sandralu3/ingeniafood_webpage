@@ -27,7 +27,8 @@ export function PlanDayCarousel({
   const selectedRef = useRef<HTMLButtonElement>(null);
 
   const weekAssigned = days.reduce(
-    (sum, day) => sum + MEAL_TYPES.filter((type) => day.slots[type] !== null).length,
+    (sum, day) =>
+      sum + MEAL_TYPES.filter((type) => (day.slots[type]?.length ?? 0) > 0).length,
     0
   );
   const weekTotal = days.length * MEAL_TYPES.length;
@@ -68,7 +69,9 @@ export function PlanDayCarousel({
       >
         {days.map((day) => {
           const isSelected = day.label === selectedDay;
-          const assignedCount = MEAL_TYPES.filter((type) => day.slots[type] !== null).length;
+          const assignedCount = MEAL_TYPES.filter(
+    (type) => (day.slots[type]?.length ?? 0) > 0
+  ).length;
 
           return (
             <button

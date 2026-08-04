@@ -27,7 +27,7 @@ export type HoyPageData = {
   weekCompletions: Array<{ reto_id: string; completado_at: string }>;
   streakCompletions: Array<{ reto_id: string; completado_at: string }>;
   todayPlanNutrition: DayPlanNutritionSummary;
-  todayPlanMeals: Array<{ mealType: MealType; meal: TodayPlanMealSummary | null }>;
+  todayPlanMeals: Array<{ mealType: MealType; meals: TodayPlanMealSummary[] }>;
   todayPlanSnacks: PlanSnack[];
   weekStartISO: string;
 };

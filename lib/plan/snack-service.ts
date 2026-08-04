@@ -1,10 +1,13 @@
 import type { WeekDay } from "@/lib/plan/constants";
 import { findSnackPreset, type PlanSnack, type PlanSnackSource } from "@/lib/plan/snack-presets";
 import { canRegisterExternalMealForPlanDay } from "@/lib/plan/week-utils";
+import { saveGeneratedRecipeToLibrary } from "@/lib/recipes/save-generated-recipe";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import type { Database } from "@/types/database.types";
 
 type PlanSnackRow = Database["public"]["Tables"]["plan_snacks"]["Row"];
+
+const SNACK_RECIPE_TAG = "snack";
 
 function isMissingTableError(error: { code?: string; message?: string } | null): boolean {
   if (!error) return false;
@@ -28,6 +31,60 @@ function mapRowToSnack(row: PlanSnackRow): PlanSnack {
     emoji: row.emoji,
     dayLabel: row.dia_semana as WeekDay
   };
+}
+
+/** Guarda el snack también en el recetario (meal_type = snack). No bloquea el plan si falla. */
+async function saveSnackRecipeToLibrary(params: {
+  userId: string;
+  title: string;
+  kcal: number;
+  proteinGrams: number;
+  carbsGrams: number;
+  fatGrams: number;
+  imageUrl?: string | null;
+  source: PlanSnackSource;
+}): Promise<void> {
+  try {
+    const supabase = createSupabaseClient();
+    const result = await saveGeneratedRecipeToLibrary(supabase, {
+      userId: params.userId,
+      title: params.title,
+      ingredients: [],
+      steps: [],
+      instructions:
+        params.source === "photo"
+          ? "Snack registrado desde una foto (sin preparación)."
+          : params.source === "text"
+            ? "Snack registrado por texto (sin preparación)."
+            : "Snack rápido del plan (sin preparación).",
+      tipSandra: "",
+      isAirfryer: false,
+      isFlourless: false,
+      tags: [SNACK_RECIPE_TAG],
+      macronutrientes: {
+        calorias: params.kcal,
+        proteinas_g: params.proteinGrams,
+        carbohidratos_g: params.carbsGrams,
+        grasas_g: params.fatGrams
+      },
+      cookingTimeMinutes: null,
+      imageUrl: params.imageUrl ?? null,
+      referenceImageUrl: null,
+      appliedFilters: {
+        mealType: "snack",
+        cuisineStyle: "estandar",
+        servings: 1,
+        complexity: "facil"
+      },
+      mealTypeAdvisory: null
+    });
+
+    if ("error" in result) {
+      console.warn("[plan-snacks] No se pudo guardar snack en recetario:", result.error);
+    }
+  } catch (error) {
+    console.warn("[plan-snacks] Error guardando snack en recetario:", error);
+  }
 }
 
 export async function fetchSnacksForWeek(
@@ -171,6 +228,17 @@ async function insertSnack(params: {
     console.error("[plan-snacks] insert:", error);
     return { error: "No pudimos guardar el snack. Inténtalo de nuevo." };
   }
+
+  void saveSnackRecipeToLibrary({
+    userId: params.userId,
+    title: params.title,
+    kcal: params.kcal,
+    proteinGrams: params.proteinGrams,
+    carbsGrams: params.carbsGrams,
+    fatGrams: params.fatGrams,
+    imageUrl: params.imageUrl,
+    source: params.source
+  });
 
   return { snack: mapRowToSnack(data as PlanSnackRow) };
 }

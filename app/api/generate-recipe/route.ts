@@ -12,6 +12,12 @@ import {
   MACRO_ESTIMATION_PROMPT_CLAUSE,
   resolveRecipeFilters
 } from "@/lib/recipes/premium-recipe-filters";
+import { buildPreferredDietPromptClause } from "@/lib/nutrition/preferred-diet";
+import {
+  buildDietIncompatibilityWarningPromptClause,
+  ensureDietIncompatibilityAdvisory
+} from "@/lib/nutrition/diet-ingredient-advisory";
+import { fetchUserNutritionGoals } from "@/lib/nutrition/nutrition-profile";
 import {
   buildMealTypeCompatibilityPromptClause,
   buildMealTypePantryExpansionClause
@@ -558,6 +564,12 @@ export async function POST(request: Request) {
       resolvedFilters.mealType
     );
     const mealTypePantryClause = buildMealTypePantryExpansionClause(resolvedFilters.mealType);
+    const nutritionGoals = await fetchUserNutritionGoals(user.id, supabase);
+    const dietPromptClause = buildPreferredDietPromptClause(nutritionGoals.preferredDiet);
+    const dietPromptBlock = dietPromptClause ? `${dietPromptClause}\n\n` : "";
+    const dietWarningClause = buildDietIncompatibilityWarningPromptClause(
+      nutritionGoals.preferredDiet
+    );
 
     let imageBase64Raw =
       typeof body.imageBase64 === "string" && body.imageBase64.length > 0
@@ -668,17 +680,20 @@ export async function POST(request: Request) {
       PANTRY_PRIORITY_RULE +
       HEALTHY_NUTRITION_RULE +
       unhealthyWarningClause +
+      dietWarningClause +
       DETAILED_STEPS_RULE +
       ingredientQuantityRule +
       MACRO_ESTIMATION_RULE +
       `${filtersPromptClause}\n\n${mealTypeCompatibilityClause}\n\n${mealTypePantryClause}\n\n` +
+      dietPromptBlock +
       (recipeIdeaClause ? `${recipeIdeaClause}\n\n` : "") +
       "Solo JSON valido. Formato esperado: { \"advertencia_ingredientes\": \"\", \"ingredientes_omitidos_nota\": \"\", \"recipes\": [ " +
       recipeJsonShape +
       ", ...exactamente 3 ] }. " +
       multiRecipeRules +
       "advertencia_ingredientes: texto breve (idioma de salida). Úsalo para: (a) avisar si el usuario aportó alimento(s) poco saludable(s) — OBLIGATORIO en ese caso, nombrándolos; " +
-      "(b) opcionalmente, complementos de despensa no escaneados. Si no aplica nada, usa \"\". " +
+      "(b) avisar si algún alimento NO es apto para la dieta preferida del usuario (gluten, keto, vegana, etc.) — OBLIGATORIO si aplica, nombrando el alimento y por qué; " +
+      "(c) opcionalmente, complementos de despensa no escaneados. Si no aplica nada, usa \"\". " +
       "ingredientes_omitidos_nota: SOLO si el usuario envió VARIOS ingredientes y omitiste alguno porque usaste otros de su lista en la receta; explica qué reservaste y qué usaste. Si el usuario tiene un solo ingrediente (o pocos) y lo usas, DEBE ser \"\". NUNCA omitas el único ingrediente disponible ni inventes un plato sin él. " +
       "ETIQUETAS (campo etiquetas): array de 0 a 3 strings. Valores permitidos SOLO: \"Sin Harinas\", \"Apto para Airfryer\", \"Alto en Proteína\". " +
       "NO incluyas Desayuno, Cena, Snack, Almuerzo ni Postre en etiquetas (el momento del plato ya se define por filtros del usuario). " +
@@ -955,14 +970,35 @@ export async function POST(request: Request) {
       };
     });
 
+    const namesFromRecipes = safeRecipes
+      .flatMap((recipe) => recipe.ingredientes_detallados)
+      .slice(0, 60);
     const namesForUnhealthyCheck =
-      selectedIngredients.length > 0
-        ? selectedIngredients
-        : safeRecipes.flatMap((recipe) => recipe.ingredientes_detallados).slice(0, 40);
+      selectedIngredients.length > 0 ? selectedIngredients : namesFromRecipes;
+    // Dieta: revisar lo escaneado y lo que la IA puso en las recetas.
+    const namesForDietCheck = (() => {
+      const seen = new Set<string>();
+      const out: string[] = [];
+      for (const raw of [...selectedIngredients, ...namesFromRecipes]) {
+        const name = raw.trim();
+        if (!name) continue;
+        const key = name.toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push(name);
+        if (out.length >= 80) break;
+      }
+      return out;
+    })();
 
-    const mealTypeAdvisory = ensureUnhealthyIngredientAdvisory({
-      existingAdvisory: parseOutcome.mealTypeAdvisory,
-      ingredientNames: namesForUnhealthyCheck,
+    const mealTypeAdvisory = ensureDietIncompatibilityAdvisory({
+      existingAdvisory: ensureUnhealthyIngredientAdvisory({
+        existingAdvisory: parseOutcome.mealTypeAdvisory,
+        ingredientNames: namesForUnhealthyCheck,
+        locale: recipeLocale
+      }),
+      ingredientNames: namesForDietCheck,
+      preferredDiet: nutritionGoals.preferredDiet,
       locale: recipeLocale
     });
 

@@ -1,4 +1,4 @@
-import { assignRecipeToPlan } from "@/lib/plan/plan-service";
+import { assignRecipeToPlan, replacePlanMealRecipe } from "@/lib/plan/plan-service";
 import {
   clearPendingPlanAssignment,
   readPendingPlanAssignment,
@@ -21,13 +21,19 @@ export async function completePendingPlanAssignment(
     return { hadPending: false, assigned: false, pending: null };
   }
 
-  const meal = await assignRecipeToPlan({
-    userId,
-    diaSemana: pending.dayLabel,
-    tipoComida: pending.mealType,
-    recipeId,
-    semanaInicioISO: pending.weekStartISO
-  });
+  const meal = pending.planEntryId
+    ? await replacePlanMealRecipe({
+        userId,
+        planEntryId: pending.planEntryId,
+        recipeId
+      })
+    : await assignRecipeToPlan({
+        userId,
+        diaSemana: pending.dayLabel,
+        tipoComida: pending.mealType,
+        recipeId,
+        semanaInicioISO: pending.weekStartISO
+      });
 
   clearPendingPlanAssignment();
 

@@ -489,7 +489,7 @@ export function EmptyMealCard({
           <div className="flex min-h-0 flex-1 flex-col justify-between gap-2 pr-5">
             <p
               className={cn(
-                "line-clamp-2 text-[13px] font-semibold leading-snug text-slate-800",
+                "line-clamp-2 text-[11px] font-bold leading-snug text-slate-800",
                 isRefreshing && "opacity-60"
               )}
             >

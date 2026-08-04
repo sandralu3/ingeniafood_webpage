@@ -44,7 +44,7 @@ export function parsePlanSlotDroppableId(
   };
 }
 
-/** Evita que Swap / Quitar inicien el drag. Los enlaces sí permiten arrastrar (como en Hoy). */
+/** Evita que Cambiar / Quitar inicien el drag. Los enlaces sí permiten arrastrar (como en Hoy). */
 function isActionControlTarget(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false;
   return Boolean(target.closest('button, input, textarea, select, [data-no-dnd="true"]'));

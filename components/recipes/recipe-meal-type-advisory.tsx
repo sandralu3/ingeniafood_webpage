@@ -3,7 +3,7 @@ type Props = {
 };
 
 const UNHEALTHY_ADVISORY_RE =
-  /poco\s+saludable|no\s+es\s+un\s+alimento\s+saludable|no\s+son\s+alimentos\s+saludables|unhealthy|not\s+a\s+healthy|not\s+healthy|peu\s+sain|aliment\s+sain|pouco\s+saud[aá]vel|ungesund|gesundes|ultraproces|ultra[\s-]?process|ten\s+en\s+cuenta|note:|attention\s*:|aten[cç][aã]o|hinweis/i;
+  /poco\s+saludable|no\s+es\s+un\s+alimento\s+saludable|no\s+son\s+alimentos\s+saludables|unhealthy|not\s+a\s+healthy|not\s+healthy|peu\s+sain|aliment\s+sain|pouco\s+saud[aá]vel|ungesund|gesundes|ultraproces|ultra[\s-]?process|ten\s+en\s+cuenta|note:|attention\s*:|aten[cç][aã]o|hinweis|nota\s+de\s+dieta|diet\s+note|note\s+r[eé]gime|di[aä]t[\s-]?hinweis/i;
 
 export function RecipeMealTypeAdvisory({ message }: Props) {
   const isUnhealthy = UNHEALTHY_ADVISORY_RE.test(message);

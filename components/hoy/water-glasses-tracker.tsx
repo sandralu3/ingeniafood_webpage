@@ -178,8 +178,8 @@ export function WaterGlassesTracker({ userId }: Props) {
                   : t("waterGlassEmptyAria", { n: index + 1 })
               }
               className={cn(
-                "flex min-w-0 flex-1 flex-col items-center justify-end rounded-md py-0.5 transition active:scale-95 disabled:opacity-70",
-                filled ? "bg-[#4FA3C7]/10" : "hover:bg-stone-50"
+                "flex min-w-0 flex-1 flex-col items-center justify-end rounded-md bg-transparent py-0.5 transition active:scale-95 disabled:opacity-70",
+                "hover:bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4FA3C7]/35"
               )}
             >
               <WaterGlassIcon

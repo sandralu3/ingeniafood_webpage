@@ -1,12 +1,16 @@
 import {
+  ALL_CHALLENGE_WEEK_DAYS,
   CUSTOM_CHALLENGE_DEFAULT_POINTS,
+  isChallengeScheduledForDay,
   isRetiredSystemChallenge,
+  normalizeChallengeWeekDays,
   SYSTEM_DAILY_CHALLENGES,
   type ConfigurableChallenge,
   type DailyChallenge,
   getTodayDateString
 } from "@/lib/gamification/challenges";
-import { getMondayOfWeek, toISODateString } from "@/lib/plan/week-utils";
+import type { WeekDay } from "@/lib/plan/constants";
+import { getMondayOfWeek, getTodayWeekDay, toISODateString } from "@/lib/plan/week-utils";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import type { Database } from "@/types/database.types";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -123,30 +127,74 @@ async function isActiveChallengesTableAvailable(
   return activeChallengesTableAvailableCache;
 }
 
-export async function fetchActiveRetoIds(userId: string): Promise<string[]> {
+export async function fetchActiveRetoSchedules(
+  userId: string
+): Promise<Map<string, WeekDay[]>> {
   const supabase = createSupabaseClient();
+  const schedules = new Map<string, WeekDay[]>();
 
   if (!(await isActiveChallengesTableAvailable(supabase))) {
-    return [];
+    return schedules;
   }
 
-  const { data, error } = await supabase
+  const withDays = await supabase
     .from("retos_hoy_activos")
-    .select("reto_id")
+    .select("reto_id, dias_semana")
     .eq("user_id", userId);
 
-  if (error) {
-    console.error("[gamification] Error cargando retos activos:", error);
-    throw error;
+  if (!withDays.error) {
+    for (const row of withDays.data ?? []) {
+      schedules.set(row.reto_id, normalizeChallengeWeekDays(row.dias_semana));
+    }
+    return schedules;
   }
 
-  return (data ?? []).map((row) => row.reto_id);
+  // Columna aún no migrada: tratar todos los activos como "todos los días".
+  if (withDays.error.code === "PGRST204" || withDays.error.code === "42703") {
+    const legacy = await supabase
+      .from("retos_hoy_activos")
+      .select("reto_id")
+      .eq("user_id", userId);
+
+    if (legacy.error) {
+      console.error("[gamification] Error cargando retos activos:", legacy.error);
+      throw legacy.error;
+    }
+
+    for (const row of legacy.data ?? []) {
+      schedules.set(row.reto_id, [...ALL_CHALLENGE_WEEK_DAYS]);
+    }
+    return schedules;
+  }
+
+  console.error("[gamification] Error cargando horarios de retos:", withDays.error);
+  throw withDays.error;
+}
+
+/** IDs activos. Por defecto solo los programados para hoy. */
+export async function fetchActiveRetoIds(
+  userId: string,
+  options?: { forTodayOnly?: boolean }
+): Promise<string[]> {
+  const forTodayOnly = options?.forTodayOnly !== false;
+  const schedules = await fetchActiveRetoSchedules(userId);
+  const today = getTodayWeekDay();
+
+  const ids: string[] = [];
+  schedules.forEach((days, retoId) => {
+    if (!forTodayOnly || isChallengeScheduledForDay(days, today)) {
+      ids.push(retoId);
+    }
+  });
+  return ids;
 }
 
 export async function setRetoActiveForHoy(params: {
   userId: string;
   retoId: string;
   active: boolean;
+  /** Días al activar (default: toda la semana). */
+  days?: WeekDay[];
 }): Promise<void> {
   const supabase = createSupabaseClient();
 
@@ -157,12 +205,39 @@ export async function setRetoActiveForHoy(params: {
   }
 
   if (params.active) {
+    const diasSemana = normalizeChallengeWeekDays(params.days ?? ALL_CHALLENGE_WEEK_DAYS);
     const { error } = await supabase.from("retos_hoy_activos").insert({
       user_id: params.userId,
-      reto_id: params.retoId
+      reto_id: params.retoId,
+      dias_semana: diasSemana
     });
 
-    if (error && error.code !== "23505") {
+    if (error && error.code === "23505") {
+      // Ya existía: actualizar días si se enviaron.
+      if (params.days) {
+        await setRetoWeekdaysForHoy({
+          userId: params.userId,
+          retoId: params.retoId,
+          days: diasSemana
+        });
+      }
+      return;
+    }
+
+    if (error && (error.code === "PGRST204" || error.code === "42703")) {
+      // Sin columna dias_semana todavía.
+      const legacy = await supabase.from("retos_hoy_activos").insert({
+        user_id: params.userId,
+        reto_id: params.retoId
+      });
+      if (legacy.error && legacy.error.code !== "23505") {
+        console.error("[gamification] Error activando reto (legacy):", legacy.error);
+        throw legacy.error;
+      }
+      return;
+    }
+
+    if (error) {
       console.error("[gamification] Error activando reto:", error);
       throw error;
     }
@@ -181,23 +256,59 @@ export async function setRetoActiveForHoy(params: {
   }
 }
 
+export async function setRetoWeekdaysForHoy(params: {
+  userId: string;
+  retoId: string;
+  days: WeekDay[];
+}): Promise<WeekDay[]> {
+  const supabase = createSupabaseClient();
+  const diasSemana = normalizeChallengeWeekDays(params.days);
+
+  if (!(await isActiveChallengesTableAvailable(supabase))) {
+    throw new Error(
+      "La configuración de retos requiere ejecutar la migración de Supabase (retos_hoy_activos)."
+    );
+  }
+
+  const { error } = await supabase
+    .from("retos_hoy_activos")
+    .update({ dias_semana: diasSemana })
+    .eq("user_id", params.userId)
+    .eq("reto_id", params.retoId);
+
+  if (error) {
+    if (error.code === "PGRST204" || error.code === "42703") {
+      throw new Error(
+        "Falta la columna dias_semana. Ejecuta la migración 20260804120000_retos_dias_semana.sql en Supabase."
+      );
+    }
+    console.error("[gamification] Error guardando días del reto:", error);
+    throw error;
+  }
+
+  return diasSemana;
+}
+
 export async function fetchConfigurableChallenges(userId: string): Promise<ConfigurableChallenge[]> {
-  const [allChallenges, activeIds] = await Promise.all([
+  const [allChallenges, schedules] = await Promise.all([
     fetchAllChallengesForUser(userId),
-    fetchActiveRetoIds(userId)
+    fetchActiveRetoSchedules(userId)
   ]);
 
-  const activeSet = new Set(activeIds.filter((id) => !isRetiredSystemChallenge(id)));
-  return allChallenges.map((challenge) => ({
-    ...challenge,
-    isActive: activeSet.has(challenge.id)
-  }));
+  return allChallenges.map((challenge) => {
+    const days = schedules.get(challenge.id);
+    return {
+      ...challenge,
+      isActive: Boolean(days),
+      activeDays: days ? normalizeChallengeWeekDays(days) : [...ALL_CHALLENGE_WEEK_DAYS]
+    };
+  });
 }
 
 export async function fetchActiveDailyChallengesForUser(userId: string): Promise<DailyChallenge[]> {
   const [allChallenges, activeIds] = await Promise.all([
     fetchAllChallengesForUser(userId),
-    fetchActiveRetoIds(userId)
+    fetchActiveRetoIds(userId, { forTodayOnly: true })
   ]);
 
   if (activeIds.length === 0) {

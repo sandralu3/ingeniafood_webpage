@@ -5,8 +5,16 @@ import {
   type NutritionGoalType,
   type ResolvedNutritionTargets
 } from "@/lib/nutrition/tdee";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import {
+  parsePreferredDiet,
+  type PreferredDiet
+} from "@/lib/nutrition/preferred-diet";
 import { DEFAULT_DAY_BUDGET } from "@/lib/plan/meal-suggestion";
 import { createSupabaseClient } from "@/lib/supabaseClient";
+import type { Database } from "@/types/database.types";
+
+type NutritionSupabaseClient = SupabaseClient<Database>;
 
 export type NutritionProfileRow = {
   weight_kg: number | null;
@@ -17,6 +25,7 @@ export type NutritionProfileRow = {
   nutrition_goal: NutritionGoalType | null;
   calorie_goal_override: number | null;
   protein_goal_override: number | null;
+  preferred_diet: PreferredDiet | null;
 };
 
 export type UserNutritionGoals = {
@@ -29,12 +38,16 @@ export type UserNutritionGoals = {
   bmr: number | null;
   tdee: number | null;
   nutritionGoal: NutritionGoalType | null;
+  preferredDiet: PreferredDiet;
   calorieSource: "calculated" | "override" | "default";
   proteinSource: "calculated" | "override" | "default";
   profile: NutritionProfileRow | null;
 };
 
 export const NUTRITION_PROFILE_SELECT =
+  "weight_kg, height_cm, age_years, biological_sex, activity_level, nutrition_goal, calorie_goal_override, protein_goal_override, preferred_diet" as const;
+
+export const NUTRITION_PROFILE_SELECT_LEGACY =
   "weight_kg, height_cm, age_years, biological_sex, activity_level, nutrition_goal, calorie_goal_override, protein_goal_override" as const;
 
 export function isNutritionProfileComplete(
@@ -65,18 +78,38 @@ export function defaultNutritionGoals(): UserNutritionGoals {
     bmr: null,
     tdee: null,
     nutritionGoal: null,
+    preferredDiet: "estandar",
     calorieSource: "default",
     proteinSource: "default",
     profile: null
   };
 }
 
+function normalizeProfileRow(
+  raw: Partial<NutritionProfileRow> & { preferred_diet?: unknown }
+): NutritionProfileRow {
+  return {
+    weight_kg: raw.weight_kg ?? null,
+    height_cm: raw.height_cm ?? null,
+    age_years: raw.age_years ?? null,
+    biological_sex: raw.biological_sex ?? null,
+    activity_level: raw.activity_level ?? null,
+    nutrition_goal: raw.nutrition_goal ?? null,
+    calorie_goal_override: raw.calorie_goal_override ?? null,
+    protein_goal_override: raw.protein_goal_override ?? null,
+    preferred_diet: raw.preferred_diet != null ? parsePreferredDiet(raw.preferred_diet) : null
+  };
+}
+
 export function resolveUserNutritionGoals(
   profile: NutritionProfileRow | null | undefined
 ): UserNutritionGoals {
+  const preferredDiet = parsePreferredDiet(profile?.preferred_diet);
+
   if (!isNutritionProfileComplete(profile) || !profile) {
     return {
       ...defaultNutritionGoals(),
+      preferredDiet,
       profile: profile ?? null
     };
   }
@@ -102,28 +135,61 @@ export function resolveUserNutritionGoals(
     bmr: targets.bmr,
     tdee: targets.tdee,
     nutritionGoal: targets.nutritionGoal,
+    preferredDiet,
     calorieSource: targets.calorieSource,
     proteinSource: targets.proteinSource,
     profile
   };
 }
 
+function isMissingPreferredDietColumn(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  return (
+    error.code === "42703" ||
+    error.code === "PGRST204" ||
+    error.message?.includes("preferred_diet") === true
+  );
+}
+
+/**
+ * Lee metas nutricionales + dieta preferida.
+ * En rutas API hay que pasar el `supabase` de `createSupabaseRouteClient()`
+ * (con cookies de sesión); sin él el cliente browser no tiene auth y RLS
+ * devuelve vacío → dieta "estandar".
+ */
 export async function fetchUserNutritionGoals(
-  userId: string
+  userId: string,
+  supabaseClient?: NutritionSupabaseClient
 ): Promise<UserNutritionGoals> {
   try {
-    const supabase = createSupabaseClient();
-    const { data, error } = await supabase
+    const supabase = supabaseClient ?? createSupabaseClient();
+    const primary = await supabase
       .from("profiles")
       .select(NUTRITION_PROFILE_SELECT)
       .eq("id", userId)
       .maybeSingle();
 
-    if (error || !data) {
+    if (primary.error && isMissingPreferredDietColumn(primary.error)) {
+      const legacy = await supabase
+        .from("profiles")
+        .select(NUTRITION_PROFILE_SELECT_LEGACY)
+        .eq("id", userId)
+        .maybeSingle();
+      if (legacy.error || !legacy.data) {
+        return defaultNutritionGoals();
+      }
+      return resolveUserNutritionGoals(
+        normalizeProfileRow(legacy.data as Partial<NutritionProfileRow>)
+      );
+    }
+
+    if (primary.error || !primary.data) {
       return defaultNutritionGoals();
     }
 
-    return resolveUserNutritionGoals(data as NutritionProfileRow);
+    return resolveUserNutritionGoals(
+      normalizeProfileRow(primary.data as Partial<NutritionProfileRow>)
+    );
   } catch {
     return defaultNutritionGoals();
   }

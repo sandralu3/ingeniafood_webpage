@@ -1,6 +1,6 @@
 "use client";
 
-import { Gauge, Globe2, Moon, Sparkles, Sun, Users, UtensilsCrossed } from "lucide-react";
+import { Cookie, Gauge, Globe2, Moon, Sparkles, Sun, Users, UtensilsCrossed } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
   type AppliedRecipeFilters,
@@ -30,6 +30,8 @@ function mealTypeIcon(mealType: RecipeMealType) {
       return Moon;
     case "postre":
       return Sparkles;
+    case "snack":
+      return Cookie;
     case "almuerzo":
     default:
       return UtensilsCrossed;

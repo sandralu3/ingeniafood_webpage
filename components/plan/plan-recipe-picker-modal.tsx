@@ -30,6 +30,10 @@ type PlanRecipePickerModalProps = {
   dayLabel: string;
   mealType: MealType;
   weekStartISO: string;
+  /** add = nueva comida; replace = cambiar plato existente */
+  mode?: "add" | "replace";
+  /** Entrada del plan a sustituir cuando mode = "replace" */
+  planEntryId?: string;
   recipes: RecipePickerItem[];
   isLoading: boolean;
   isAssigning: boolean;
@@ -41,9 +45,11 @@ type PlanRecipePickerModalProps = {
 
 const FILTER_LABEL_KEYS: Record<SavedRecipeFilter, string> = {
   Todas: "filterAll",
-  Airfryer: "filterAirfryer",
   Desayunos: "filterBreakfasts",
+  Almuerzos: "filterLunches",
   Cenas: "filterDinners",
+  Snacks: "filterSnacks",
+  Airfryer: "filterAirfryer",
   "Sin Harinas": "filterFlourless"
 };
 
@@ -52,6 +58,8 @@ export function PlanRecipePickerModal({
   dayLabel,
   mealType,
   weekStartISO,
+  mode = "add",
+  planEntryId,
   recipes,
   isLoading,
   isAssigning,
@@ -121,13 +129,14 @@ export function PlanRecipePickerModal({
     return canRegisterExternalMealForPlanDay(weekStartISO, dayLabel as WeekDay);
   }, [dayLabel, weekStartISO]);
 
-  const goToScannerForPlan = (mode: ScannerMode = "pantry") => {
+  const goToScannerForPlan = (scannerMode: ScannerMode = "pantry") => {
     savePendingPlanAssignment({
       dayLabel: dayLabel as WeekDay,
       mealType,
-      weekStartISO
+      weekStartISO,
+      ...(mode === "replace" && planEntryId ? { planEntryId } : {})
     });
-    saveScannerInitialMode(mode);
+    saveScannerInitialMode(scannerMode);
     onClose();
     router.push(APP_ROUTES.scanner);
   };
@@ -159,9 +168,19 @@ export function PlanRecipePickerModal({
                   {dayDisplay} · {mealDisplay}
                 </p>
                 <h2 id="plan-picker-title" className="mt-1 font-serif text-xl font-semibold text-stone-900">
-                  {t("pickerTitle")}
+                  {mode === "replace"
+                    ? t.has("pickerReplaceTitle")
+                      ? t("pickerReplaceTitle")
+                      : "Cambiar plato"
+                    : t("pickerTitle")}
                 </h2>
-                <p className="mt-1 text-xs text-stone-500">{t("pickerSubtitle")}</p>
+                <p className="mt-1 text-xs text-stone-500">
+                  {mode === "replace"
+                    ? t.has("pickerReplaceSubtitle")
+                      ? t("pickerReplaceSubtitle")
+                      : "Elige otra receta de tu biblioteca para este hueco."
+                    : t("pickerSubtitle")}
+                </p>
               </div>
               <button
                 type="button"
@@ -355,14 +374,22 @@ export function PlanRecipePickerModal({
             </button>
           </div>
           <p className="mt-2 text-center text-[10px] leading-relaxed text-stone-400">
-            {t("willAssignHint", { meal: mealDisplay, day: dayDisplay })}
+            {mode === "replace"
+              ? t.has("willReplaceHint")
+                ? t("willReplaceHint", { meal: mealDisplay, day: dayDisplay })
+                : `Se actualizará el ${mealDisplay} del ${dayDisplay}.`
+              : t("willAssignHint", { meal: mealDisplay, day: dayDisplay })}
           </p>
         </div>
 
         {isAssigning ? (
           <div className="border-t border-stone-100 px-5 py-3 text-center text-xs font-medium text-[#556B2F]">
             <Loader2 className="mr-1.5 inline h-3.5 w-3.5 animate-spin" />
-            {t("assigning")}
+            {mode === "replace"
+              ? t.has("replacing")
+                ? t("replacing")
+                : "Actualizando plato…"
+              : t("assigning")}
           </div>
         ) : null}
       </div>
@@ -379,6 +406,7 @@ export function PlanRecipePickerModal({
         }
         mealType={mealType}
         weekStartISO={weekStartISO}
+        replacePlanEntryId={mode === "replace" ? planEntryId : undefined}
         onBusyChange={setExternalBusy}
         onClose={() => {
           if (externalBusy) return;

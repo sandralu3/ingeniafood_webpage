@@ -81,9 +81,6 @@ export function ProposeDayMenuBanner({
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
-          <span className="text-[10px] leading-none text-[#C27803]" aria-hidden>
-            ✨
-          </span>
           <p className="truncate text-[11px] font-bold leading-tight text-[#3D2E1F]">
             {title}
           </p>

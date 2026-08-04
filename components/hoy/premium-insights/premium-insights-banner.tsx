@@ -81,7 +81,8 @@ export function PremiumHoyHero({ data, className }: PremiumHoyHeroProps) {
       hasVegetables: Boolean(data?.todayPlanNutrition.hasVegetables),
       hasProtein: Boolean(data?.todayPlanNutrition.hasProtein),
       mealTitles: (data?.todayPlanMeals ?? [])
-        .map((slot) => slot.meal?.title)
+        .flatMap((slot) => slot.meals ?? [])
+        .map((meal) => meal.title)
         .filter((title): title is string => Boolean(title))
         .slice(0, 6)
     }),

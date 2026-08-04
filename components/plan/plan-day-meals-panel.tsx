@@ -26,9 +26,9 @@ type PlanDayMealsPanelProps = {
   day: PlanDay;
   weekStartISO?: string;
   onAddMeal?: (dayLabel: WeekDay, mealType: MealType) => void;
-  onMealSwapped?: (dayLabel: WeekDay, updatedMeal: PlanMeal) => void;
+  onChangeMeal?: (dayLabel: WeekDay, meal: PlanMeal) => void;
   onSwapError?: (message: string) => void;
-  onMealRemoved?: (dayLabel: WeekDay, mealType: MealType) => void;
+  onMealRemoved?: (dayLabel: WeekDay, mealType: MealType, planEntryId: string) => void;
   onRemoveError?: (message: string) => void;
   onMealMoved?: (
     result: NonNullable<Awaited<ReturnType<typeof movePlanMeal>>>
@@ -48,7 +48,7 @@ export function PlanDayMealsPanel({
   day,
   weekStartISO,
   onAddMeal,
-  onMealSwapped,
+  onChangeMeal,
   onSwapError,
   onMealRemoved,
   onRemoveError,
@@ -61,8 +61,14 @@ export function PlanDayMealsPanel({
   className
 }: PlanDayMealsPanelProps) {
   const t = useTranslations("Plan");
-  const assignedCount = MEAL_TYPES.filter((type) => day.slots[type] !== null).length;
-  const hasEmptySlots = assignedCount < MEAL_TYPES.length;
+  const assignedMealTypes = MEAL_TYPES.filter(
+    (type) => (day.slots[type]?.length ?? 0) > 0
+  ).length;
+  const assignedItems = MEAL_TYPES.reduce(
+    (sum, type) => sum + (day.slots[type]?.length ?? 0),
+    0
+  );
+  const hasEmptySlots = assignedMealTypes < MEAL_TYPES.length;
   const showPropose = Boolean(onProposeDayMenu) && hasEmptySlots;
   const resolvedWeekStart = weekStartISO ?? toISODateString(getMondayOfWeek());
   const [isMoving, setIsMoving] = useState(false);
@@ -86,6 +92,7 @@ export function PlanDayMealsPanel({
         const result = await movePlanMeal({
           userId: user.id,
           semanaInicioISO: resolvedWeekStart,
+          planEntryId: from.planEntryId,
           from: { dayLabel: from.dayLabel, mealType: from.mealType },
           to
         });
@@ -134,7 +141,7 @@ export function PlanDayMealsPanel({
             ) : null}
             <span className="text-[11px] text-stone-500">{day.dateLabel}</span>
           </div>
-          {assignedCount > 0 ? (
+          {assignedItems > 0 ? (
             <p className="mt-0.5 text-[10px] text-stone-400">
               {t.has("dragToReorderHint")
                 ? t("dragToReorderHint")
@@ -144,7 +151,7 @@ export function PlanDayMealsPanel({
         </div>
 
         <span className="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-900">
-          {assignedCount}/{MEAL_TYPES.length}
+          {assignedMealTypes}/{MEAL_TYPES.length}
           {day.nutrition.totalKcal > 0 ? (
             <span className="ml-1 text-orange-800">· {day.nutrition.totalKcal} kcal</span>
           ) : null}
@@ -156,7 +163,7 @@ export function PlanDayMealsPanel({
           <ProposeDayMenuBanner
             isGenerating={isProposingDayMenu}
             isPremium={isPremium}
-            hasPartialPlan={assignedCount > 0}
+            hasPartialPlan={assignedMealTypes > 0}
             onGenerate={() => onProposeDayMenu?.()}
           />
         </div>
@@ -189,9 +196,9 @@ export function PlanDayMealsPanel({
       >
         <ul className="space-y-2">
           {MEAL_TYPES.map((mealType) => {
-            const meal = day.slots[mealType];
+            const meals = day.slots[mealType] ?? [];
             const accent = getMealTypeSubtleAccent(mealType);
-            const slotGenerating = isProposingDayMenu && !meal;
+            const slotGenerating = isProposingDayMenu && meals.length === 0;
 
             return (
               <li key={mealType}>
@@ -202,8 +209,9 @@ export function PlanDayMealsPanel({
                 >
                   <PlanSectionDivider label={t(`meals.${mealType}`)} accent={accent} />
 
-                  {meal ? (
+                  {meals.map((meal, index) => (
                     <PlanMealDraggable
+                      key={meal.id}
                       data={{
                         dayLabel: day.label,
                         mealType,
@@ -214,25 +222,35 @@ export function PlanDayMealsPanel({
                       disabled={isMoving || isProposingDayMenu}
                     >
                       <div className="rounded-lg border border-stone-100/90 bg-white px-2 py-1.5 shadow-sm shadow-stone-100/20">
+                        {index > 0 ? (
+                          <p className="mb-1 text-[9px] font-semibold uppercase tracking-wide text-stone-400">
+                            {t.has("complementBadge") ? t("complementBadge") : "Complemento"}
+                          </p>
+                        ) : null}
                         <PlanMealCard
                           meal={meal}
                           variant="panel"
-                          onMealSwapped={(updated) => onMealSwapped?.(day.label, updated)}
-                          onSwapError={onSwapError}
-                          onMealRemoved={(removedMealType) =>
-                            onMealRemoved?.(day.label, removedMealType)
+                          onMealRemoved={(removedMealType, planEntryId) =>
+                            onMealRemoved?.(day.label, removedMealType, planEntryId)
                           }
-                          onRemoveError={onRemoveError}
+                          onRemoveError={onRemoveError ?? onSwapError}
+                          onChangeMeal={
+                            onChangeMeal
+                              ? (selected) => onChangeMeal(day.label, selected)
+                              : undefined
+                          }
                         />
                       </div>
                     </PlanMealDraggable>
-                  ) : (
-                    <EmptyMealSlot
-                      mealType={mealType}
-                      isGenerating={slotGenerating}
-                      onAdd={() => onAddMeal?.(day.label, mealType)}
-                    />
-                  )}
+                  ))}
+
+                  <EmptyMealSlot
+                    mealType={mealType}
+                    isGenerating={slotGenerating}
+                    addComplement={meals.length > 0}
+                    onAdd={() => onAddMeal?.(day.label, mealType)}
+                    className={meals.length > 0 ? "border-dashed opacity-90" : undefined}
+                  />
                 </PlanMealDroppable>
               </li>
             );

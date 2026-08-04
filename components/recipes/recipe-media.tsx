@@ -68,7 +68,7 @@ export function RecipeMedia({
 
         {title ? (
           <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent p-3 pt-10">
-            <p className="line-clamp-2 text-sm font-bold leading-snug text-white">{title}</p>
+            <p className="line-clamp-2 text-[11px] font-bold leading-snug text-white">{title}</p>
           </div>
         ) : null}
       </div>
@@ -94,7 +94,7 @@ export function RecipeMedia({
 
       {title ? (
         <div className="absolute inset-0 flex items-end p-3">
-          <p className="line-clamp-3 text-sm font-bold leading-snug tracking-tight text-white drop-shadow-[0_1px_8px_rgba(0,0,0,0.35)]">
+          <p className="line-clamp-3 text-[11px] font-bold leading-snug tracking-tight text-white drop-shadow-[0_1px_8px_rgba(0,0,0,0.35)]">
             {title}
           </p>
         </div>

@@ -2,6 +2,7 @@ export const RECIPE_MEAL_TYPES = [
   { id: "almuerzo", label: "Almuerzo", premium: false },
   { id: "desayuno", label: "Desayuno", premium: true },
   { id: "cena", label: "Cena", premium: true },
+  { id: "snack", label: "Snack", premium: false },
   { id: "postre", label: "Postre", premium: true }
 ] as const;
 
@@ -244,6 +245,8 @@ export function buildMealTypePromptClause(mealType: RecipeMealType): string {
         "Adapta los ingredientes del usuario (incluido pollo, carne, atún o granos) a un formato mañanero. " +
         "Prioridad absoluta: usar lo que el usuario tiene; no inventes un desayuno de huevos si solo envió pollo."
       );
+    case "snack":
+      return `TIPO DE PLATO: genera un snack o tentempié ideal para ${label}. Porción ligera, práctica y rápida (fruta, yogur, frutos secos, batido corto, etc.), adaptando los ingredientes del usuario.`;
     case "cena":
       return `TIPO DE PLATO: genera una receta ideal para ${label}. Equilibrada, reconfortante y apropiada para la noche.`;
     case "postre":

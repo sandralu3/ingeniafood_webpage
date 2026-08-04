@@ -3,13 +3,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Heart, Loader2, Trash2 } from "lucide-react";
+import { ArrowLeft, CalendarPlus, Heart, Loader2, Share2, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { ExternalMealDetailCard } from "@/components/plan/external-meal-detail-card";
 import { RecipeAppliedFiltersBadges } from "@/components/recipes/recipe-applied-filters-badges";
 import { RecipeInstagramAdminForm } from "@/components/recipes/recipe-instagram-admin-form";
 import { RecipeInstagramLink } from "@/components/recipes/recipe-instagram-link";
+import { AddToPlanSheet } from "@/components/scanner/add-to-plan-sheet";
 import { RecipeResultHeroCard } from "@/components/scanner/recipe-result-hero-card";
+import { RecipeShareCaptureHost } from "@/components/share/recipe-share-capture-host";
+import { useShareRecipeImage } from "@/hooks/use-share-recipe-image";
 import { isSandraAdmin } from "@/lib/auth/sandra-admin";
 import { translateMealType } from "@/lib/i18n/filter-labels";
 import { resolveExternalMealBadge } from "@/lib/plan/external-meal";
@@ -65,6 +68,16 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
   const [isTogglingFavorite, setIsTogglingFavorite] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isPlanSheetOpen, setIsPlanSheetOpen] = useState(false);
+  const [planSuccessMessage, setPlanSuccessMessage] = useState<string | null>(null);
+  const {
+    captureRef,
+    captureRecipe,
+    shareRecipeImage,
+    isGenerating: isSharing,
+    errorMessage: shareErrorMessage,
+    clearError: clearShareError
+  } = useShareRecipeImage();
 
   useEffect(() => {
     let isMounted = true;
@@ -269,7 +282,7 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
   }, [isDeleting, isFavorite, isTogglingFavorite, recipe]);
 
   const handleDeleteRecipe = useCallback(async () => {
-    if (!recipe || isDeleting || isTogglingFavorite) return;
+    if (!recipe || isDeleting || isTogglingFavorite || isSharing) return;
 
     const confirmed = window.confirm(t("deleteConfirm", { title: recipe.title }));
     if (!confirmed) return;
@@ -286,10 +299,30 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
 
     setErrorMessage(result.error);
     setIsDeleting(false);
-  }, [isDeleting, isTogglingFavorite, recipe, router, t]);
+  }, [isDeleting, isSharing, isTogglingFavorite, recipe, router, t]);
+
+  const handleShareRecipe = useCallback(() => {
+    if (!recipe || !shareableRecipe || isSharing || isDeleting) return;
+    clearShareError();
+    setPlanSuccessMessage(null);
+    void shareRecipeImage(shareableRecipe, { recipeId: recipe.id });
+  }, [
+    clearShareError,
+    isDeleting,
+    isSharing,
+    recipe,
+    shareRecipeImage,
+    shareableRecipe
+  ]);
+
+  const persistRecipeId = useCallback(async () => recipe?.id ?? null, [recipe]);
+
+  const actionsBusy = isTogglingFavorite || isDeleting || isSharing;
 
   return (
     <section className="space-y-5 pb-8">
+      <RecipeShareCaptureHost captureRef={captureRef} recipe={captureRecipe} mode="offscreen" />
+
       <div className="flex items-center justify-between gap-3">
         <Link
           href={externalBadge ? "/app-recetas/plan" : "/app-recetas/recipes"}
@@ -303,8 +336,41 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
           <div className="flex items-center gap-1.5">
             <button
               type="button"
+              onClick={() => {
+                setPlanSuccessMessage(null);
+                setIsPlanSheetOpen(true);
+              }}
+              disabled={actionsBusy}
+              aria-label={t("assignToPlanAria")}
+              className={cn(
+                "inline-flex h-10 w-10 items-center justify-center rounded-full border border-stone-200 bg-white text-[#556B2F] transition hover:bg-[#eef4e6]",
+                "disabled:cursor-not-allowed disabled:opacity-50"
+              )}
+            >
+              <CalendarPlus className="h-4 w-4" strokeWidth={1.5} />
+            </button>
+
+            <button
+              type="button"
+              onClick={handleShareRecipe}
+              disabled={actionsBusy}
+              aria-label={t("shareAria")}
+              className={cn(
+                "inline-flex h-10 w-10 items-center justify-center rounded-full border border-stone-200 bg-white text-stone-500 transition hover:text-[#556B2F]",
+                "disabled:cursor-not-allowed disabled:opacity-50"
+              )}
+            >
+              {isSharing ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Share2 className="h-4 w-4" strokeWidth={1.5} />
+              )}
+            </button>
+
+            <button
+              type="button"
               onClick={() => void handleToggleFavorite()}
-              disabled={isTogglingFavorite || isDeleting}
+              disabled={actionsBusy}
               aria-label={isFavorite ? t("removeFavoriteAria") : t("addFavoriteAria")}
               aria-pressed={isFavorite}
               className={cn(
@@ -328,7 +394,7 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
             <button
               type="button"
               onClick={() => void handleDeleteRecipe()}
-              disabled={isDeleting || isTogglingFavorite}
+              disabled={actionsBusy}
               aria-label={t("deleteAria")}
               className={cn(
                 "inline-flex h-10 w-10 items-center justify-center rounded-full border border-stone-200 bg-white text-stone-400 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600",
@@ -344,6 +410,18 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
           </div>
         ) : null}
       </div>
+
+      {planSuccessMessage ? (
+        <p className="rounded-xl border border-[#556B2F]/20 bg-[#eef4e6] px-3 py-2 text-xs text-[#3e5219]">
+          {planSuccessMessage}
+        </p>
+      ) : null}
+
+      {shareErrorMessage ? (
+        <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+          {shareErrorMessage}
+        </p>
+      ) : null}
 
       {isLoading ? (
         <div className="space-y-4 animate-pulse">
@@ -414,6 +492,18 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
             />
           ) : null}
         </article>
+      ) : null}
+
+      {!isLoading && recipe && !externalBadge ? (
+        <AddToPlanSheet
+          isOpen={isPlanSheetOpen}
+          onClose={() => setIsPlanSheetOpen(false)}
+          persistRecipeId={persistRecipeId}
+          onSuccess={(message) => {
+            setPlanSuccessMessage(message);
+            setIsPlanSheetOpen(false);
+          }}
+        />
       ) : null}
 
       <style jsx>{`

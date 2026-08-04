@@ -36,6 +36,8 @@ type Props = {
   dayLabel: WeekDay;
   mealType: MealType;
   weekStartISO: string;
+  /** Si existe, sustituye esta entrada del plan en lugar de añadir. */
+  replacePlanEntryId?: string;
   onClose: () => void;
   onRegistered: (meal: PlanMeal) => void;
   /** true mientras analiza o guarda: el padre no debe desmontar el modal. */
@@ -55,6 +57,7 @@ export function ExternalMealRegisterModal({
   dayLabel,
   mealType,
   weekStartISO,
+  replacePlanEntryId,
   onClose,
   onRegistered,
   onBusyChange
@@ -387,7 +390,8 @@ export function ExternalMealRegisterModal({
         dayLabel,
         mealType,
         weekStartISO,
-        imageUrl: plateImageUrl
+        imageUrl: plateImageUrl,
+        replacePlanEntryId
       });
 
       if ("error" in result) {

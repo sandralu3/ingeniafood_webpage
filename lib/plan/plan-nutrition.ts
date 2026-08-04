@@ -185,10 +185,9 @@ export function summarizeDayPlanNutrition(
     fatGrams?: number | null;
   }> = []
 ): DayPlanNutritionSummary {
-  const meals = MEAL_TYPES.flatMap((mealType) => {
-    const meal = slots[mealType];
-    return meal ? [{ mealType, meal }] : [];
-  });
+  const meals = MEAL_TYPES.flatMap((mealType) =>
+    (slots[mealType] ?? []).map((meal) => ({ mealType, meal }))
+  );
 
   const snackKcal = snacks.reduce((sum, snack) => sum + (snack.kcal ?? 0), 0);
   const snackProtein = snacks.reduce((sum, snack) => sum + (snack.proteinGrams ?? 0), 0);
@@ -213,44 +212,33 @@ export function summarizeDayPlanNutrition(
 }
 
 export function buildTodayPlanMealSummaries(slots: PlanDaySlots): TodayPlanMealSummary[] {
-  return MEAL_TYPES.flatMap((mealType) => {
-    const meal = slots[mealType];
-    if (!meal) return [];
-
-    return [
-      {
-        mealType,
-        title: meal.title,
-        kcal: meal.kcal ?? null,
-        hasVegetables: Boolean(meal.hasVegetables),
-        hasProtein: Boolean(meal.hasProtein),
-        imageUrl: meal.imageUrl?.trim() || null,
-        recipeId: meal.recipeId ?? null,
-        planEntryId: meal.id ?? null
-      }
-    ];
-  });
+  return MEAL_TYPES.flatMap((mealType) =>
+    (slots[mealType] ?? []).map((meal) => ({
+      mealType,
+      title: meal.title,
+      kcal: meal.kcal ?? null,
+      hasVegetables: Boolean(meal.hasVegetables),
+      hasProtein: Boolean(meal.hasProtein),
+      imageUrl: meal.imageUrl?.trim() || null,
+      recipeId: meal.recipeId ?? null,
+      planEntryId: meal.id ?? null
+    }))
+  );
 }
 
-/** Tres slots del día (vacíos o con receta) para el menú visual de Hoy. */
+/** Tres secciones del día; cada una puede tener 0..N recetas. */
 export function buildTodayPlanMealSlots(
   slots: PlanDaySlots | null | undefined
-): Array<{ mealType: MealType; meal: TodayPlanMealSummary | null }> {
-  const filled = new Map(
-    buildTodayPlanMealSummaries(slots ?? emptySlotsForNutrition()).map((meal) => [
-      meal.mealType,
-      meal
-    ])
-  );
-
+): Array<{ mealType: MealType; meals: TodayPlanMealSummary[] }> {
+  const summaries = buildTodayPlanMealSummaries(slots ?? emptySlotsForNutrition());
   return MEAL_TYPES.map((mealType) => ({
     mealType,
-    meal: filled.get(mealType) ?? null
+    meals: summaries.filter((meal) => meal.mealType === mealType)
   }));
 }
 
 function emptySlotsForNutrition(): PlanDaySlots {
-  return { Desayuno: null, Almuerzo: null, Cena: null };
+  return { Desayuno: [], Almuerzo: [], Cena: [] };
 }
 
 export const EMPTY_DAY_PLAN_NUTRITION: DayPlanNutritionSummary = {

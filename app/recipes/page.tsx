@@ -402,11 +402,15 @@ export default function RecipesPage() {
     }
 
     const emptyMessage =
-      activeTab === "favorites"
-        ? t("favoritesEmpty")
-        : activeTab === "outside"
-          ? t("outsideSectionEmpty")
-          : t("savedSectionEmpty");
+      isCategoryFilterActive
+        ? t("noFilterResults", {
+            filter: translateSavedFilterChip(t, activeFilter)
+          })
+        : activeTab === "favorites"
+          ? t("favoritesEmpty")
+          : activeTab === "outside"
+            ? t("outsideSectionEmpty")
+            : t("savedSectionEmpty");
 
     return (
       <div className="space-y-3">
@@ -509,6 +513,8 @@ export default function RecipesPage() {
   }, [
     activeRecipes,
     activeTab,
+    activeFilter,
+    isCategoryFilterActive,
     errorMessage,
     favoriteRecipes.length,
     filteredRecipes.length,
@@ -591,6 +597,26 @@ export default function RecipesPage() {
             </div>
           </div>
         </div>
+
+        {isCategoryFilterActive ? (
+          <div className="flex items-center justify-between gap-2 rounded-xl border border-[#556B2F]/15 bg-[#F0F4ED] px-3 py-2">
+            <p className="min-w-0 text-[12px] font-semibold text-[#3e5219]">
+              {t("filterActiveLabel", {
+                filter: translateSavedFilterChip(t, activeFilter)
+              })}
+              <span className="ml-1.5 font-medium text-[#556B2F]/80">
+                · {t("filterActiveCount", { count: activeRecipes.length })}
+              </span>
+            </p>
+            <button
+              type="button"
+              onClick={() => setActiveFilter("Todas")}
+              className="shrink-0 text-[11px] font-semibold text-[#556B2F] underline-offset-2 hover:underline"
+            >
+              {t("clearFilter")}
+            </button>
+          </div>
+        ) : null}
 
         {pageContent}
 

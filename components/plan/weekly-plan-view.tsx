@@ -18,6 +18,7 @@ import {
   fetchWeeklyPlan,
   fillDayPlanWithSuggestions,
   movePlanMeal,
+  replacePlanMealRecipe,
   type RecipePickerItem
 } from "@/lib/plan/plan-service";
 import { buildShoppingListItems, type ShoppingListItem } from "@/lib/plan/shopping-list";
@@ -47,6 +48,8 @@ import { usePremium } from "@/hooks/use-premium";
 type PickerTarget = {
   dayLabel: WeekDay;
   mealType: MealType;
+  mode: "add" | "replace";
+  planEntryId?: string;
 };
 
 function resolveInitialDay(days: PlanDay[]): WeekDay {
@@ -212,14 +215,23 @@ export function WeeklyPlanView() {
     };
   }, [userId, weekStartDate]);
 
-  const openPicker = async (dayLabel: WeekDay, mealType: MealType) => {
+  const openPicker = async (
+    dayLabel: WeekDay,
+    mealType: MealType,
+    options?: { mode?: "add" | "replace"; planEntryId?: string }
+  ) => {
     if (!userId) {
       setSwapNotice(t("loginToAssign"));
       window.setTimeout(() => setSwapNotice(null), 2800);
       return;
     }
 
-    setPickerTarget({ dayLabel, mealType });
+    setPickerTarget({
+      dayLabel,
+      mealType,
+      mode: options?.mode ?? "add",
+      planEntryId: options?.planEntryId
+    });
     setPickerError(null);
     setIsPickerLoading(true);
 
@@ -248,6 +260,49 @@ export function WeeklyPlanView() {
     setPickerError(null);
 
     try {
+      if (pickerTarget.mode === "replace" && pickerTarget.planEntryId) {
+        const replaced = await replacePlanMealRecipe({
+          userId,
+          planEntryId: pickerTarget.planEntryId,
+          recipeId
+        });
+
+        if (!replaced) {
+          setPickerError(
+            t.has("replaceError")
+              ? t("replaceError")
+              : "No pudimos cambiar el plato. Inténtalo de nuevo."
+          );
+          return;
+        }
+
+        setDays((prev) =>
+          prev.map((day) =>
+            day.label === pickerTarget.dayLabel
+              ? patchDaySlots(day, {
+                  ...day.slots,
+                  [pickerTarget.mealType]: (day.slots[pickerTarget.mealType] ?? []).map(
+                    (meal) => (meal.id === pickerTarget.planEntryId ? replaced : meal)
+                  )
+                })
+              : day
+          )
+        );
+
+        clearHoyCache(userId);
+        invalidatePremiumInsightsCache(userId);
+
+        setSelectedDay(pickerTarget.dayLabel);
+        setSwapNotice(
+          t.has("recipeReplaced")
+            ? t("recipeReplaced", { title: replaced.title })
+            : `Plato actualizado: «${replaced.title}»`
+        );
+        window.setTimeout(() => setSwapNotice(null), 2800);
+        setPickerTarget(null);
+        return;
+      }
+
       const assigned = await assignRecipeToPlan({
         userId,
         diaSemana: pickerTarget.dayLabel,
@@ -266,7 +321,10 @@ export function WeeklyPlanView() {
           day.label === pickerTarget.dayLabel
             ? patchDaySlots(day, {
                 ...day.slots,
-                [pickerTarget.mealType]: assigned
+                [pickerTarget.mealType]: [
+                  ...(day.slots[pickerTarget.mealType] ?? []),
+                  assigned
+                ]
               })
             : day
         )
@@ -286,30 +344,17 @@ export function WeeklyPlanView() {
       window.setTimeout(() => setSwapNotice(null), 2800);
       setPickerTarget(null);
     } catch (error) {
-      console.error("[weekly-plan] Error asignando receta:", error);
-      setPickerError(t("assignError"));
+      console.error("[weekly-plan] Error asignando/reemplazando receta:", error);
+      setPickerError(
+        pickerTarget.mode === "replace"
+          ? t.has("replaceError")
+            ? t("replaceError")
+            : "No pudimos cambiar el plato. Inténtalo de nuevo."
+          : t("assignError")
+      );
     } finally {
       setIsAssigning(false);
     }
-  };
-
-  const handleMealSwapped = (dayLabel: WeekDay, updatedMeal: PlanMeal) => {
-    setDays((prev) =>
-      prev.map((day) =>
-        day.label === dayLabel
-          ? patchDaySlots(day, {
-              ...day.slots,
-              [updatedMeal.mealType]: updatedMeal
-            })
-          : day
-      )
-    );
-    if (userId) {
-      clearHoyCache(userId);
-      invalidatePremiumInsightsCache(userId);
-    }
-    setSwapNotice(t("recipeSwapped", { title: updatedMeal.title }));
-    window.setTimeout(() => setSwapNotice(null), 2800);
   };
 
   const handleSwapError = (message: string) => {
@@ -317,13 +362,17 @@ export function WeeklyPlanView() {
     window.setTimeout(() => setSwapNotice(null), 3200);
   };
 
-  const handleMealRemoved = (dayLabel: WeekDay, mealType: MealType) => {
+  const handleMealRemoved = (
+    dayLabel: WeekDay,
+    mealType: MealType,
+    planEntryId: string
+  ) => {
     setDays((prev) =>
       prev.map((day) =>
         day.label === dayLabel
           ? patchDaySlots(day, {
               ...day.slots,
-              [mealType]: null
+              [mealType]: (day.slots[mealType] ?? []).filter((meal) => meal.id !== planEntryId)
             })
           : day
       )
@@ -353,15 +402,20 @@ export function WeeklyPlanView() {
         if (day.label === result.source.dayLabel) {
           nextSlots = {
             ...nextSlots,
-            [result.source.mealType]: result.source.meal
+            [result.source.mealType]: (nextSlots[result.source.mealType] ?? []).filter(
+              (meal) => meal.id !== result.planEntryId
+            )
           };
           changed = true;
         }
 
         if (day.label === result.target.dayLabel) {
+          const withoutMoved = (nextSlots[result.target.mealType] ?? []).filter(
+            (meal) => meal.id !== result.planEntryId
+          );
           nextSlots = {
             ...nextSlots,
-            [result.target.mealType]: result.target.meal
+            [result.target.mealType]: [...withoutMoved, result.meal]
           };
           changed = true;
         }
@@ -375,8 +429,7 @@ export function WeeklyPlanView() {
       invalidatePremiumInsightsCache(userId);
     }
 
-    const movedTitle =
-      result.target.meal?.title ?? result.source.meal?.title ?? "";
+    const movedTitle = result.meal.title;
     setSwapNotice(
       t.has("recipeMoved")
         ? t("recipeMoved", {
@@ -397,7 +450,9 @@ export function WeeklyPlanView() {
       return;
     }
 
-    const emptyCount = MEAL_TYPES.filter((mealType) => !selectedDayData.slots[mealType]).length;
+    const emptyCount = MEAL_TYPES.filter(
+      (mealType) => (selectedDayData.slots[mealType]?.length ?? 0) === 0
+    ).length;
     if (emptyCount === 0) {
       setSwapNotice(
         t.has("dayMenuAlreadyFull")
@@ -519,19 +574,26 @@ export function WeeklyPlanView() {
         return;
       }
 
-      const upsertRows = data.map((row) => ({
+      const { error: deleteError } = await supabase
+        .from("plan_semanal")
+        .delete()
+        .eq("user_id", userId)
+        .eq("semana_inicio", currentWeekISO);
+
+      if (deleteError) throw deleteError;
+
+      const insertRows = data.map((row, index) => ({
         user_id: userId,
         semana_inicio: currentWeekISO,
         dia_semana: row.dia_semana,
         tipo_comida: row.tipo_comida,
-        recipe_id: row.recipe_id
+        recipe_id: row.recipe_id,
+        orden: index
       }));
 
-      const { error: upsertError } = await supabase.from("plan_semanal").upsert(upsertRows, {
-        onConflict: "user_id,semana_inicio,dia_semana,tipo_comida"
-      });
+      const { error: insertError } = await supabase.from("plan_semanal").insert(insertRows);
 
-      if (upsertError) throw upsertError;
+      if (insertError) throw insertError;
 
       setSwapNotice(t("cloneSuccess"));
       window.setTimeout(() => setSwapNotice(null), 3200);
@@ -675,7 +737,12 @@ export function WeeklyPlanView() {
                 day={selectedDayData}
                 weekStartISO={toISODateString(weekStartDate)}
                 onAddMeal={(dayLabel, mealType) => void openPicker(dayLabel, mealType)}
-                onMealSwapped={handleMealSwapped}
+                onChangeMeal={(dayLabel, meal) =>
+                  void openPicker(dayLabel, meal.mealType, {
+                    mode: "replace",
+                    planEntryId: meal.id
+                  })
+                }
                 onSwapError={handleSwapError}
                 onMealRemoved={handleMealRemoved}
                 onRemoveError={handleSwapError}
@@ -728,6 +795,8 @@ export function WeeklyPlanView() {
         dayLabel={pickerTarget?.dayLabel ?? ""}
         mealType={pickerTarget?.mealType ?? "Almuerzo"}
         weekStartISO={toISODateString(weekStartDate)}
+        mode={pickerTarget?.mode ?? "add"}
+        planEntryId={pickerTarget?.planEntryId}
         recipes={pickerRecipes}
         isLoading={isPickerLoading}
         isAssigning={isAssigning}
@@ -736,16 +805,28 @@ export function WeeklyPlanView() {
         onSelectRecipe={(recipeId) => void handleSelectRecipe(recipeId)}
         onExternalMealRegistered={(meal) => {
           const targetDay = pickerTarget?.dayLabel ?? null;
+          const replaceId = pickerTarget?.planEntryId;
+          const isReplace = pickerTarget?.mode === "replace" && Boolean(replaceId);
+
           if (targetDay) {
             setDays((prev) =>
-              prev.map((day) =>
-                day.label === targetDay
-                  ? patchDaySlots(day, {
-                      ...day.slots,
-                      [meal.mealType]: meal
-                    })
-                  : day
-              )
+              prev.map((day) => {
+                if (day.label !== targetDay) return day;
+
+                if (isReplace && replaceId) {
+                  return patchDaySlots(day, {
+                    ...day.slots,
+                    [meal.mealType]: (day.slots[meal.mealType] ?? []).map((existing) =>
+                      existing.id === replaceId ? meal : existing
+                    )
+                  });
+                }
+
+                return patchDaySlots(day, {
+                  ...day.slots,
+                  [meal.mealType]: [...(day.slots[meal.mealType] ?? []), meal]
+                });
+              })
             );
           }
           if (userId) {
@@ -753,9 +834,13 @@ export function WeeklyPlanView() {
             invalidatePremiumInsightsCache(userId);
           }
           setSwapNotice(
-            t.has("externalMealRegistered")
-              ? t("externalMealRegistered", { title: meal.title })
-              : `«${meal.title}» registrada en el plan.`
+            isReplace
+              ? t.has("recipeReplaced")
+                ? t("recipeReplaced", { title: meal.title })
+                : `Plato actualizado: «${meal.title}»`
+              : t.has("externalMealRegistered")
+                ? t("externalMealRegistered", { title: meal.title })
+                : `«${meal.title}» registrada en el plan.`
           );
           window.setTimeout(() => setSwapNotice(null), 3200);
           closePicker();

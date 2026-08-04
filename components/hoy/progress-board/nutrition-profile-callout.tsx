@@ -17,14 +17,14 @@ export function NutritionProfileCallout({
   onNavigate
 }: NutritionProfileCalloutProps) {
   const t = useTranslations("Hoy");
-  const href = `${APP_ROUTES.perfil}#nutrition-goals`;
+  const href = `${APP_ROUTES.parametros}#nutrition-goals`;
 
   const message = t.has("nutritionProfileCallout")
     ? t("nutritionProfileCallout")
     : "✨ Personaliza tu perfil (peso, estatura y objetivo) para recibir análisis y metas exactas para ti.";
   const cta = t.has("nutritionProfileCalloutCta")
     ? t("nutritionProfileCalloutCta")
-    : "Completar Perfil →";
+    : "Personalizar parámetros →";
 
   if (variant === "card") {
     return (

@@ -54,11 +54,13 @@ function jsonResponse(payload: unknown, status = 200) {
 }
 
 function buildModelCandidates(configured?: string): string[] {
+  // Alineado con generate-recipe / detect-ingredients (evita 1.5 retirados y 2.0 free-tier agotado).
   const defaults = [
-    "gemini-2.0-flash",
+    "gemini-3.1-flash-lite",
+    "gemini-2.5-flash-lite",
+    "gemini-2.5-flash",
     "gemini-2.0-flash-lite",
-    "gemini-1.5-flash",
-    "gemini-1.5-flash-8b"
+    "gemini-2.0-flash"
   ];
   const all = configured?.trim() ? [configured.trim(), ...defaults] : defaults;
   return Array.from(new Set(all.filter((model) => model.length > 0)));
@@ -688,12 +690,8 @@ export async function POST(request: Request) {
         // Loguear como string: pasar el Error completo hace que Next.js lo trate
         // como fallo de ruta y puede remountar el cliente (cierra el modal).
         console.warn(`[estimate-external-meal] modelo ${modelName}: ${message.slice(0, 280)}`);
-        // Sin cuota: para texto ya validado como comida, usar fallback ya.
-        if (
-          mode === "text" &&
-          isQuotaExhaustedError(error) &&
-          isLikelyFoodOrDrinkDescription(description)
-        ) {
+        // Cuota agotada: no tiene sentido seguir quemando modelos del mismo free-tier.
+        if (isQuotaExhaustedError(error)) {
           break;
         }
         if (isRetryableModelError(error)) continue;
@@ -718,9 +716,17 @@ export async function POST(request: Request) {
 
     if (!estimate) {
       console.error("[estimate-external-meal] empty/fail:", lastError, lastRawText.slice(0, 400));
+      const quota = isQuotaExhaustedError(lastError);
       return jsonResponse(
-        { error: "No pudimos estimar la comida. Inténtalo de nuevo." },
-        isRetryableModelError(lastError) ? 429 : 502
+        {
+          error: quota
+            ? "La IA está temporalmente sin cuota. Espera un minuto e inténtalo de nuevo, o registra por texto."
+            : context === "snack"
+              ? "No pudimos estimar el snack. Inténtalo de nuevo."
+              : "No pudimos estimar la comida. Inténtalo de nuevo.",
+          code: quota ? "QUOTA_EXCEEDED" : "ESTIMATE_FAILED"
+        },
+        quota || isRetryableModelError(lastError) ? 429 : 502
       );
     }
 

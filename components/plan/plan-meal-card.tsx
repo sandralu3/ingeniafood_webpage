@@ -2,12 +2,12 @@
 
 import { useState, type HTMLAttributes } from "react";
 import Link from "next/link";
-import { Coffee, Clock3, GripVertical, Loader2, RefreshCw, Soup, Trash2, Utensils } from "lucide-react";
+import { Coffee, Clock3, GripVertical, Loader2, Pencil, Soup, Trash2, Utensils } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { RecipeInstagramLink } from "@/components/recipes/recipe-instagram-link";
 import { RecipeMedia } from "@/components/recipes/recipe-media";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { removePlanMeal, swapPlanMeal } from "@/lib/plan/plan-service";
+import { removePlanMeal } from "@/lib/plan/plan-service";
 import type { MealType } from "@/lib/plan/constants";
 import { getMealTypeIcon, getMealTypeSubtleAccent } from "@/lib/plan/meal-type-accent";
 import {
@@ -45,10 +45,10 @@ export type PlanMeal = {
 
 type PlanMealCardProps = {
   meal: PlanMeal;
-  onMealSwapped?: (updatedMeal: PlanMeal) => void;
-  onSwapError?: (message: string) => void;
-  onMealRemoved?: (mealType: MealType) => void;
+  onMealRemoved?: (mealType: MealType, planEntryId: string) => void;
   onRemoveError?: (message: string) => void;
+  /** Abrir selector para cambiar el plato de esta entrada. */
+  onChangeMeal?: (meal: PlanMeal) => void;
   variant?: "default" | "slot" | "panel";
   className?: string;
   /** Ref del asa de arrastre (imagen). */
@@ -184,31 +184,45 @@ function MealThumbnail({
 }
 
 function CompactActionButtons({
-  isSwapping,
   isRemoving,
-  swapDisabled,
   removeDisabled,
-  onSwap,
+  changeDisabled,
   onRemove,
+  onChange,
   compact = false,
   removeAria,
-  swapAria
+  changeAria
 }: {
-  isSwapping: boolean;
   isRemoving: boolean;
-  swapDisabled: boolean;
   removeDisabled: boolean;
-  onSwap: () => void;
+  changeDisabled?: boolean;
   onRemove: () => void;
+  onChange?: () => void;
   compact?: boolean;
   removeAria: string;
-  swapAria: string;
+  changeAria?: string;
 }) {
   const buttonSize = compact ? "h-7 w-7" : "h-8 w-8";
   const iconSize = compact ? "h-3 w-3" : "h-3.5 w-3.5";
 
   return (
     <div className={cn("flex shrink-0 items-center gap-1", compact ? "flex-row" : "flex-col gap-1.5 sm:flex-row")}>
+      {onChange ? (
+        <button
+          type="button"
+          onClick={onChange}
+          disabled={changeDisabled || removeDisabled}
+          aria-label={changeAria}
+          title={changeAria}
+          className={cn(
+            "inline-flex items-center justify-center rounded-full bg-[#F0F4ED] text-[#3e5219] transition hover:bg-[#dce7c3] disabled:cursor-not-allowed disabled:opacity-50",
+            buttonSize
+          )}
+        >
+          <Pencil className={iconSize} strokeWidth={2.25} />
+        </button>
+      ) : null}
+
       <button
         type="button"
         onClick={onRemove}
@@ -225,61 +239,7 @@ function CompactActionButtons({
           <Trash2 className={iconSize} strokeWidth={2.25} />
         )}
       </button>
-
-      <button
-        type="button"
-        onClick={onSwap}
-        disabled={swapDisabled}
-        aria-label={swapAria}
-        className={cn(
-          "inline-flex items-center gap-1 rounded-full bg-stone-100 font-bold uppercase tracking-wide text-stone-600 transition hover:bg-stone-200 disabled:cursor-not-allowed disabled:opacity-50",
-          compact ? "h-7 px-2 text-[9px]" : "px-2.5 py-1.5 text-[10px]"
-        )}
-      >
-        {isSwapping ? (
-          <Loader2 className="h-3 w-3 animate-spin" />
-        ) : (
-          <RefreshCw className="h-3 w-3" strokeWidth={2.5} />
-        )}
-        Swap
-      </button>
     </div>
-  );
-}
-
-function SwapButton({
-  isSwapping,
-  disabled,
-  onClick,
-  floating = false,
-  swapAria
-}: {
-  isSwapping: boolean;
-  disabled: boolean;
-  onClick: () => void;
-  floating?: boolean;
-  swapAria: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={cn(
-        "inline-flex items-center gap-1 rounded-full text-[10px] font-bold uppercase tracking-wide transition disabled:cursor-not-allowed disabled:opacity-50",
-        floating
-          ? "absolute right-3 top-3 z-20 border border-white/30 bg-white/80 px-2.5 py-1.5 text-stone-800 shadow-lg backdrop-blur-md hover:bg-white"
-          : "border border-[#556B2F]/20 bg-[#F0F4ED] px-2.5 py-1 text-[#3e5219] hover:bg-[#dce7c3]"
-      )}
-      aria-label={swapAria}
-    >
-      {isSwapping ? (
-        <Loader2 className="h-3 w-3 animate-spin" />
-      ) : (
-        <RefreshCw className="h-3 w-3" strokeWidth={2.5} />
-      )}
-      Swap
-    </button>
   );
 }
 
@@ -288,16 +248,14 @@ function HorizontalMealCard({
   isFading,
   showMealType = true,
   compact = false,
-  isSwapping,
   isRemoving,
-  swapDisabled,
   removeDisabled,
-  onSwap,
   onRemove,
+  onChange,
   className,
   mealTypeLabel,
   removeAria,
-  swapAria,
+  changeAria,
   viewRecipeAria,
   imageAlt,
   imageAltFallback,
@@ -309,16 +267,14 @@ function HorizontalMealCard({
   isFading: boolean;
   showMealType?: boolean;
   compact?: boolean;
-  isSwapping: boolean;
   isRemoving: boolean;
-  swapDisabled: boolean;
   removeDisabled: boolean;
-  onSwap: () => void;
   onRemove: () => void;
+  onChange?: () => void;
   className?: string;
   mealTypeLabel: string;
   removeAria: string;
-  swapAria: string;
+  changeAria?: string;
   viewRecipeAria: string;
   imageAlt: string;
   imageAltFallback: string;
@@ -387,15 +343,14 @@ function HorizontalMealCard({
 
         <div className="min-w-0 flex-1">
           {showMealType ? (
-            <p className="text-xs font-semibold uppercase tracking-wider text-stone-400">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-stone-400">
               {mealTypeLabel}
             </p>
           ) : null}
 
           <h3
             className={cn(
-              "line-clamp-2 font-bold leading-snug",
-              compact ? "text-sm text-stone-800" : "text-base text-stone-800",
+              "line-clamp-2 text-[11px] font-bold leading-snug text-stone-800",
               showMealType ? "mt-0.5" : ""
             )}
           >
@@ -431,7 +386,7 @@ function HorizontalMealCard({
           ) : compact && (meal.kcal || getPrepMinutes(meal)) ? (
             <div className="mt-0.5 flex flex-wrap items-center gap-2">
               {meal.kcal ? (
-                <span className="text-[11px] font-semibold tabular-nums text-orange-800">
+                <span className="text-[11px] font-medium text-stone-500">
                   {meal.kcal} kcal
                 </span>
               ) : null}
@@ -456,14 +411,13 @@ function HorizontalMealCard({
 
         <CompactActionButtons
           compact={compact}
-          isSwapping={isSwapping}
           isRemoving={isRemoving}
-          swapDisabled={swapDisabled}
           removeDisabled={removeDisabled}
-          onSwap={onSwap}
+          changeDisabled={removeDisabled}
           onRemove={onRemove}
+          onChange={onChange}
           removeAria={removeAria}
-          swapAria={swapAria}
+          changeAria={changeAria}
         />
       </div>
     </article>
@@ -472,10 +426,9 @@ function HorizontalMealCard({
 
 export function PlanMealCard({
   meal,
-  onMealSwapped,
-  onSwapError,
   onMealRemoved,
   onRemoveError,
+  onChangeMeal,
   variant = "default",
   className,
   dragHandleRef,
@@ -483,9 +436,7 @@ export function PlanMealCard({
 }: PlanMealCardProps) {
   const t = useTranslations("Plan");
   const tCommon = useTranslations("Common");
-  const [isSwapping, setIsSwapping] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
-  const [isFading, setIsFading] = useState(false);
   const [isRemoveDialogOpen, setIsRemoveDialogOpen] = useState(false);
 
   const isPanel = variant === "panel";
@@ -493,12 +444,11 @@ export function PlanMealCard({
   const hasReel = Boolean(meal.instagramUrl && !meal.imageUrl);
   const useHeroLayout = isCompact && (Boolean(meal.imageUrl) || hasReel);
 
-  const swapDisabled = isSwapping;
-  const removeDisabled = isRemoving || isSwapping;
+  const removeDisabled = isRemoving;
 
   const mealTypeLabel = t(`meals.${meal.mealType}`);
   const removeAria = t("removeAria");
-  const swapAria = t("swapAria");
+  const changeAria = t.has("changeRecipeAria") ? t("changeRecipeAria") : "Cambiar plato";
   const viewRecipeAria = t("viewRecipeAria", { title: meal.title });
   const imageAlt = t("recipeImageAlt", { title: meal.title });
   const imageAltFallback = t("recipeImageAltFallback");
@@ -508,46 +458,9 @@ export function PlanMealCard({
     healthy: t("tagHealthy")
   });
 
-  const handleSwap = async () => {
-    if (swapDisabled) return;
-
-    setIsSwapping(true);
-
-    try {
-      const supabase = createSupabaseClient();
-      const {
-        data: { user }
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        onSwapError?.(t("loginToSwap"));
-        return;
-      }
-
-      const mealType = meal.mealType as MealType;
-      const updated = await swapPlanMeal({
-        userId: user.id,
-        planEntryId: meal.id,
-        currentRecipeId: meal.recipeId,
-        mealType
-      });
-
-      if (!updated) {
-        onSwapError?.(t("noCompatibleRecipe"));
-        return;
-      }
-
-      setIsFading(true);
-      window.setTimeout(() => {
-        onMealSwapped?.(updated);
-        setIsFading(false);
-      }, 220);
-    } catch (error) {
-      console.error("[plan-meal-card] Error en swap:", error);
-      onSwapError?.(t("swapError"));
-    } finally {
-      setIsSwapping(false);
-    }
+  const handleChange = () => {
+    if (removeDisabled) return;
+    onChangeMeal?.(meal);
   };
 
   const handleRemove = async () => {
@@ -577,7 +490,7 @@ export function PlanMealCard({
       }
 
       setIsRemoveDialogOpen(false);
-      onMealRemoved?.(meal.mealType);
+      onMealRemoved?.(meal.mealType, meal.id);
     } catch (error) {
       console.error("[plan-meal-card] Error quitando receta:", error);
       onRemoveError?.(t("removeErrorGeneric"));
@@ -592,15 +505,13 @@ export function PlanMealCard({
   };
 
   const actionProps = {
-    isSwapping,
     isRemoving,
-    swapDisabled,
     removeDisabled,
-    onSwap: () => void handleSwap(),
     onRemove: requestRemove,
+    onChange: onChangeMeal ? handleChange : undefined,
     mealTypeLabel,
     removeAria,
-    swapAria,
+    changeAria,
     viewRecipeAria,
     imageAlt,
     imageAltFallback,
@@ -629,7 +540,7 @@ export function PlanMealCard({
       <>
         <HorizontalMealCard
           meal={meal}
-          isFading={isFading}
+          isFading={false}
           showMealType={!isPanel}
           compact={isPanel}
           className={className}
@@ -648,7 +559,6 @@ export function PlanMealCard({
         <article
           className={cn(
             "group relative h-36 overflow-hidden rounded-2xl border border-stone-100 bg-white shadow-md shadow-stone-200/40 transition-all duration-300",
-            isFading && "scale-[0.98] opacity-70",
             className
           )}
         >
@@ -667,13 +577,21 @@ export function PlanMealCard({
 
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-transparent" />
 
-          <SwapButton
-            floating
-            isSwapping={isSwapping}
-            disabled={swapDisabled}
-            onClick={() => void handleSwap()}
-            swapAria={swapAria}
-          />
+          {onChangeMeal ? (
+            <button
+              type="button"
+              onClick={handleChange}
+              disabled={removeDisabled}
+              aria-label={changeAria}
+              title={changeAria}
+              className={cn(
+                "absolute right-3 top-3 z-20 inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/30 bg-white/80 text-[#3e5219] shadow-lg backdrop-blur-md transition hover:bg-white",
+                "disabled:cursor-not-allowed disabled:opacity-60"
+              )}
+            >
+              <Pencil className="h-3.5 w-3.5" strokeWidth={2.25} />
+            </button>
+          ) : null}
 
           <button
             type="button"
@@ -693,7 +611,7 @@ export function PlanMealCard({
           ) : null}
 
           <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 p-3 pt-10">
-            <h3 className="line-clamp-2 text-sm font-bold leading-snug text-white drop-shadow-md">
+            <h3 className="line-clamp-2 text-[11px] font-bold leading-snug text-white drop-shadow-md">
               {meal.title}
             </h3>
             {meal.externalBadge ? (
@@ -723,7 +641,7 @@ export function PlanMealCard({
     <>
       <HorizontalMealCard
         meal={meal}
-        isFading={isFading}
+        isFading={false}
         showMealType={false}
         className={className}
         {...actionProps}
@@ -732,3 +650,4 @@ export function PlanMealCard({
     </>
   );
 }
+

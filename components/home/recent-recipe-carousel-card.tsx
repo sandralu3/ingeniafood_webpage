@@ -35,7 +35,7 @@ export function RecentRecipeCarouselCard({
       />
 
       <div className="flex flex-1 flex-col justify-between p-3.5">
-        <h3 className="line-clamp-2 text-sm font-semibold leading-snug tracking-tight text-stone-800">
+        <h3 className="line-clamp-2 text-[11px] font-bold leading-snug tracking-tight text-stone-800">
           {title}
         </h3>
 

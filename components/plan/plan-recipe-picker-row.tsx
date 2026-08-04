@@ -119,7 +119,7 @@ export function PlanRecipePickerRow({ recipe, disabled = false, onSelect }: Prop
       />
 
       <div className="flex h-full min-w-0 flex-1 flex-col justify-center px-3">
-        <h3 className="mb-0.5 truncate text-xs font-bold text-stone-800">{recipe.title}</h3>
+        <h3 className="mb-0.5 truncate text-[11px] font-bold text-stone-800">{recipe.title}</h3>
         {categoryLabel ? (
           <span className="w-fit rounded-md bg-[#F5EBE6] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[#C06A4F]">
             {categoryLabel}

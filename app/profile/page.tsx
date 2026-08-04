@@ -6,7 +6,6 @@ import { useTranslations } from "next-intl";
 import { Camera, ChevronDown, LogOut, Pencil, Users, Wand2 } from "lucide-react";
 import { AvatarCropModal } from "@/components/profile/avatar-crop-modal";
 import { LanguageSelector } from "@/components/profile/language-selector";
-import { NutritionGoalsForm, type NutritionGoalsFormHandle } from "@/components/profile/nutrition-goals-form";
 import { PremiumBillingActions } from "@/components/profile/premium-billing-actions";
 import { TesterPromoResetButton } from "@/components/profile/tester-promo-reset-button";
 import { PremiumLabel } from "@/components/premium/premium-label";
@@ -92,7 +91,6 @@ export default function ProfilePage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const cropObjectUrlRef = useRef<string | null>(null);
   const previewObjectUrlRef = useRef<string | null>(null);
-  const nutritionFormRef = useRef<NutritionGoalsFormHandle | null>(null);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -329,11 +327,9 @@ export default function ProfilePage() {
     setErrorMessage(null);
     try {
       const supabase = createSupabaseClient();
-      const nutritionPayload = nutritionFormRef.current?.getPayload() ?? {};
       const payload = {
         full_name: fullName.trim() || null,
-        country: country || null,
-        ...nutritionPayload
+        country: country || null
       };
 
       const { error } = await supabase.from("profiles").update(payload).eq("id", userId);
@@ -555,10 +551,6 @@ export default function ProfilePage() {
             <PremiumBillingActions />
 
             <TesterPromoResetButton />
-
-            {userId ? (
-              <NutritionGoalsForm apiRef={nutritionFormRef} userId={userId} />
-            ) : null}
 
             {errorMessage ? (
               <p className="rounded-xl border border-red-100 bg-red-50/80 px-3 py-2.5 text-sm text-red-700">

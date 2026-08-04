@@ -6,7 +6,7 @@ import {
   formatExternalMealRecommendations,
   type ExternalMealEstimate
 } from "@/lib/plan/external-meal";
-import { assignRecipeToPlan } from "@/lib/plan/plan-service";
+import { assignRecipeToPlan, replacePlanMealRecipe } from "@/lib/plan/plan-service";
 import { canRegisterExternalMealForPlanDay } from "@/lib/plan/week-utils";
 import { saveGeneratedRecipeToLibrary } from "@/lib/recipes/save-generated-recipe";
 import {
@@ -24,6 +24,7 @@ function mapMealTypeToFilter(mealType: MealType): "desayuno" | "almuerzo" | "cen
 /**
  * Persiste la estimación como registro privado (sin módulo de receta) y la asigna al plan.
  * Solo guarda imageUrl cuando el usuario escaneó el plato; texto = sin imagen.
+ * Si `replacePlanEntryId` está definido, sustituye esa entrada en lugar de añadir.
  */
 export async function registerExternalMealToPlan(params: {
   userId: string;
@@ -33,6 +34,8 @@ export async function registerExternalMealToPlan(params: {
   weekStartISO: string;
   /** Solo foto del plato escaneado; null en registro por texto. */
   imageUrl?: string | null;
+  /** Sustituye esta entrada del plan (flujo «Cambiar plato»). */
+  replacePlanEntryId?: string;
 }): Promise<{ meal: PlanMeal } | { error: string }> {
   if (!canRegisterExternalMealForPlanDay(params.weekStartISO, params.dayLabel)) {
     return {
@@ -89,16 +92,26 @@ export async function registerExternalMealToPlan(params: {
     return { error: saveResult.error };
   }
 
-  const meal = await assignRecipeToPlan({
-    userId: params.userId,
-    diaSemana: params.dayLabel,
-    tipoComida: params.mealType,
-    recipeId: saveResult.recipeId,
-    semanaInicioISO: params.weekStartISO
-  });
+  const meal = params.replacePlanEntryId
+    ? await replacePlanMealRecipe({
+        userId: params.userId,
+        planEntryId: params.replacePlanEntryId,
+        recipeId: saveResult.recipeId
+      })
+    : await assignRecipeToPlan({
+        userId: params.userId,
+        diaSemana: params.dayLabel,
+        tipoComida: params.mealType,
+        recipeId: saveResult.recipeId,
+        semanaInicioISO: params.weekStartISO
+      });
 
   if (!meal) {
-    return { error: "Se guardó la comida pero no pudimos asignarla al plan." };
+    return {
+      error: params.replacePlanEntryId
+        ? "Se guardó la comida pero no pudimos actualizar el plato del plan."
+        : "Se guardó la comida pero no pudimos asignarla al plan."
+    };
   }
 
   return {

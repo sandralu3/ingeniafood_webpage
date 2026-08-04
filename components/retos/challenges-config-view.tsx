@@ -9,14 +9,21 @@ import {
   deleteCustomChallenge,
   fetchConfigurableChallenges,
   setRetoActiveForHoy,
+  setRetoWeekdaysForHoy,
   updateCustomChallenge
 } from "@/lib/gamification/challenge-service";
 import {
   translateChallengeLabel
 } from "@/lib/gamification/challenge-i18n";
-import type { ConfigurableChallenge } from "@/lib/gamification/challenges";
+import {
+  ALL_CHALLENGE_WEEK_DAYS,
+  normalizeChallengeWeekDays,
+  type ConfigurableChallenge
+} from "@/lib/gamification/challenges";
 import { clearHoyCache } from "@/lib/gamification/hoy-cache";
 import { prefetchHoyPageData } from "@/lib/gamification/prefetch-hoy-page-data";
+import { WEEK_DAYS, WEEK_DAY_SHORT, type WeekDay } from "@/lib/plan/constants";
+import { getTodayWeekDay } from "@/lib/plan/week-utils";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "next-intl";
@@ -84,22 +91,127 @@ export function ChallengesConfigView() {
     setPendingId(challenge.id);
     setErrorMessage(null);
     setChallenges((prev) =>
-      prev.map((item) => (item.id === challenge.id ? { ...item, isActive: nextActive } : item))
+      prev.map((item) =>
+        item.id === challenge.id
+          ? {
+              ...item,
+              isActive: nextActive,
+              activeDays: nextActive
+                ? normalizeChallengeWeekDays(item.activeDays)
+                : item.activeDays
+            }
+          : item
+      )
     );
 
     try {
       await setRetoActiveForHoy({
         userId,
         retoId: challenge.id,
-        active: nextActive
+        active: nextActive,
+        days: nextActive ? normalizeChallengeWeekDays(challenge.activeDays) : undefined
       });
       invalidateHoyAfterRetosChange(userId);
     } catch (error) {
       console.error("[challenges-config] Error actualizando reto:", error);
       setChallenges((prev) =>
-        prev.map((item) => (item.id === challenge.id ? { ...item, isActive: !nextActive } : item))
+        prev.map((item) =>
+          item.id === challenge.id ? { ...item, isActive: !nextActive } : item
+        )
       );
       setErrorMessage(t("saveToggleError"));
+    } finally {
+      setPendingId(null);
+    }
+  };
+
+  const toggleChallengeDay = async (challenge: ConfigurableChallenge, day: WeekDay) => {
+    if (!userId || !challenge.isActive || pendingId) return;
+
+    const current = normalizeChallengeWeekDays(challenge.activeDays);
+    const isSelected = current.includes(day);
+    const nextDays = normalizeChallengeWeekDays(
+      isSelected ? current.filter((item) => item !== day) : [...current, day]
+    );
+
+    if (nextDays.length === 0) {
+      setErrorMessage(t("minOneDayError"));
+      return;
+    }
+
+    const previousDays = challenge.activeDays;
+    setPendingId(challenge.id);
+    setErrorMessage(null);
+    setChallenges((prev) =>
+      prev.map((item) =>
+        item.id === challenge.id ? { ...item, activeDays: nextDays } : item
+      )
+    );
+
+    try {
+      const saved = await setRetoWeekdaysForHoy({
+        userId,
+        retoId: challenge.id,
+        days: nextDays
+      });
+      setChallenges((prev) =>
+        prev.map((item) =>
+          item.id === challenge.id ? { ...item, activeDays: saved } : item
+        )
+      );
+      invalidateHoyAfterRetosChange(userId);
+    } catch (error) {
+      console.error("[challenges-config] Error actualizando días del reto:", error);
+      setChallenges((prev) =>
+        prev.map((item) =>
+          item.id === challenge.id ? { ...item, activeDays: previousDays } : item
+        )
+      );
+      setErrorMessage(t("saveDaysError"));
+    } finally {
+      setPendingId(null);
+    }
+  };
+
+  const setChallengeAllDays = async (challenge: ConfigurableChallenge) => {
+    if (!userId || !challenge.isActive || pendingId) return;
+    const nextDays = [...ALL_CHALLENGE_WEEK_DAYS];
+    if (
+      nextDays.length === challenge.activeDays.length &&
+      nextDays.every((day) => challenge.activeDays.includes(day))
+    ) {
+      return;
+    }
+
+    const previousDays = challenge.activeDays;
+    setPendingId(challenge.id);
+    setErrorMessage(null);
+    setChallenges((prev) =>
+      prev.map((item) =>
+        item.id === challenge.id ? { ...item, activeDays: nextDays } : item
+      )
+    );
+
+    try {
+      const saved = await setRetoWeekdaysForHoy({
+        userId,
+        retoId: challenge.id,
+        days: nextDays
+      });
+      setChallenges((prev) =>
+        prev.map((item) =>
+          item.id === challenge.id ? { ...item, activeDays: saved } : item
+        )
+      );
+      invalidateHoyAfterRetosChange(userId);
+    } catch (error) {
+      console.error("[challenges-config] Error activando todos los días:", error);
+      setChallenges((prev) =>
+        prev.map((item) =>
+          item.id === challenge.id ? { ...item, activeDays: previousDays } : item
+        )
+      );
+      setErrorMessage(t("saveDaysError"));
     } finally {
       setPendingId(null);
     }
@@ -113,7 +225,10 @@ export function ChallengesConfigView() {
 
     try {
       const created = await createCustomChallenge({ userId, titulo });
-      setChallenges((prev) => [...prev, { ...created, isActive: true }]);
+      setChallenges((prev) => [
+        ...prev,
+        { ...created, isActive: true, activeDays: [...ALL_CHALLENGE_WEEK_DAYS] }
+      ]);
       setModalState(null);
       invalidateHoyAfterRetosChange(userId);
     } catch (error) {
@@ -174,7 +289,12 @@ export function ChallengesConfigView() {
     }
   };
 
-  const activeCount = challenges.filter((challenge) => challenge.isActive).length;
+  const todayWeekDay = getTodayWeekDay();
+  const activeCount = challenges.filter(
+    (challenge) =>
+      challenge.isActive &&
+      normalizeChallengeWeekDays(challenge.activeDays).includes(todayWeekDay)
+  ).length;
   const systemChallenges = challenges.filter((challenge) => challenge.source === "system");
   const customChallenges = challenges.filter((challenge) => challenge.source === "custom");
   const deleteLabel = deleteTarget
@@ -230,6 +350,8 @@ export function ChallengesConfigView() {
                 pendingId={pendingId}
                 disabled={!userId}
                 onToggle={(challenge) => void toggleActive(challenge)}
+                onToggleDay={(challenge, day) => void toggleChallengeDay(challenge, day)}
+                onSetAllDays={(challenge) => void setChallengeAllDays(challenge)}
               />
 
               {customChallenges.length > 0 ? (
@@ -240,6 +362,8 @@ export function ChallengesConfigView() {
                   pendingId={pendingId}
                   disabled={!userId}
                   onToggle={(challenge) => void toggleActive(challenge)}
+                  onToggleDay={(challenge, day) => void toggleChallengeDay(challenge, day)}
+                  onSetAllDays={(challenge) => void setChallengeAllDays(challenge)}
                   onEdit={(challenge) => {
                     setModalErrorMessage(null);
                     setModalState({ mode: "edit", challenge });
@@ -319,6 +443,8 @@ function ChallengeSection({
   pendingId,
   disabled,
   onToggle,
+  onToggleDay,
+  onSetAllDays,
   onEdit,
   onDelete
 }: {
@@ -328,6 +454,8 @@ function ChallengeSection({
   pendingId: string | null;
   disabled: boolean;
   onToggle: (challenge: ConfigurableChallenge) => void;
+  onToggleDay: (challenge: ConfigurableChallenge, day: WeekDay) => void;
+  onSetAllDays: (challenge: ConfigurableChallenge) => void;
   onEdit?: (challenge: ConfigurableChallenge) => void;
   onDelete?: (challenge: ConfigurableChallenge) => void;
 }) {
@@ -352,6 +480,10 @@ function ChallengeSection({
           const isFocused = focusedChallengeId === challenge.id;
           const canManage = Boolean(onEdit && onDelete);
           const displayLabel = translateChallengeLabel(challenge, t);
+          const activeDays = normalizeChallengeWeekDays(challenge.activeDays);
+          const allDaysSelected =
+            activeDays.length === ALL_CHALLENGE_WEEK_DAYS.length &&
+            ALL_CHALLENGE_WEEK_DAYS.every((day) => activeDays.includes(day));
 
           return (
             <li
@@ -445,6 +577,46 @@ function ChallengeSection({
                   <Info className="h-3 w-3" />
                 </button>
               </div>
+
+              {challenge.isActive ? (
+                <div className="mt-1.5 space-y-1 pl-11">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[10px] text-stone-500">{t("daysHint")}</p>
+                    <button
+                      type="button"
+                      onClick={() => onSetAllDays(challenge)}
+                      disabled={disabled || Boolean(pendingId) || allDaysSelected}
+                      className="shrink-0 text-[10px] font-medium text-[#556B2F] transition hover:text-[#3e5219] disabled:opacity-40"
+                    >
+                      {t("daysAll")}
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-1" role="group" aria-label={t("daysHint")}>
+                    {WEEK_DAYS.map((day) => {
+                      const isSelected = activeDays.includes(day);
+                      return (
+                        <button
+                          key={day}
+                          type="button"
+                          onClick={() => onToggleDay(challenge, day)}
+                          disabled={disabled || Boolean(pendingId)}
+                          aria-pressed={isSelected}
+                          title={day}
+                          className={cn(
+                            "flex h-6 min-w-[1.75rem] items-center justify-center rounded-full px-1 text-[9px] font-semibold transition",
+                            isSelected
+                              ? "bg-[#556B2F] text-white"
+                              : "bg-white/80 text-stone-500 ring-1 ring-stone-200 hover:text-[#556B2F]",
+                            (disabled || pendingId) && "opacity-70"
+                          )}
+                        >
+                          {WEEK_DAY_SHORT[day]}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
 
               {isFocused ? (
                 <p className="mt-1.5 rounded-md bg-white/75 px-2 py-1.5 text-[10px] leading-snug text-stone-600">

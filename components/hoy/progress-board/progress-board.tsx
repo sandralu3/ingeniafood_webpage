@@ -47,7 +47,7 @@ type ProgressBoardProps = {
 
 function ConsistencyDotsWeek({ days }: { days: WeekConsistencyDay[] }) {
   return (
-    <div className="flex w-full items-start justify-between gap-0.5 pt-2">
+    <div className="mt-auto flex w-full items-start justify-between gap-0.5 pt-1.5">
       {days.map((day) => {
         const done = day.active || day.inCurrentStreak;
         return (
@@ -85,15 +85,15 @@ function ConsistencyDotsWeek({ days }: { days: WeekConsistencyDay[] }) {
   );
 }
 
-/** Anillo con gradiente verde→dorado (mock). */
+/** Anillo compacto para la tarjeta Dosis. */
 function DoseRing({ score }: { score: number }) {
   const clamped = Math.max(0, Math.min(100, score));
-  const radius = 15;
+  const radius = 13;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (clamped / 100) * circumference;
 
   return (
-    <div className="relative h-9 w-9 shrink-0 sm:h-10 sm:w-10">
+    <div className="relative h-7 w-7 shrink-0 sm:h-8 sm:w-8">
       <svg className="h-full w-full -rotate-90" viewBox="0 0 36 36" aria-hidden>
         <defs>
           <linearGradient id="doseRingGrad" x1="0%" y1="0%" x2="0%" y2="100%">
@@ -129,7 +129,11 @@ function DoseRing({ score }: { score: number }) {
 function buildPlanRevision(data: HoyPageData | null): string | null {
   if (!data) return null;
   const meals = (data.todayPlanMeals ?? [])
-    .map((slot) => `${slot.mealType}:${slot.meal?.recipeId ?? ""}:${slot.meal?.kcal ?? ""}`)
+    .map((slot) =>
+      `${slot.mealType}:${(slot.meals ?? [])
+        .map((meal) => `${meal.recipeId ?? ""}:${meal.kcal ?? ""}`)
+        .join(",")}`
+    )
     .join("|");
   const snacks = (data.todayPlanSnacks ?? [])
     .map((snack) => `${snack.id}:${snack.kcal}`)
@@ -155,24 +159,25 @@ function snapshotFromHoyPlan(
   const totalCalories = nutrition.totalKcal;
   const mealCount = nutrition.plannedMealCount;
   const mealTitles = (data?.todayPlanMeals ?? [])
-    .map((slot) => slot.meal?.title)
+    .flatMap((slot) => slot.meals ?? [])
+    .map((meal) => meal.title)
     .filter((title): title is string => Boolean(title))
     .slice(0, 8);
-  const dishes = (data?.todayPlanMeals ?? [])
-    .filter((slot) => slot.meal)
-    .map((slot) => {
-      const title = slot.meal!.title?.trim() || "Sin título";
+  const dishes = (data?.todayPlanMeals ?? []).flatMap((slot) =>
+    (slot.meals ?? []).map((meal) => {
+      const title = meal.title?.trim() || "Sin título";
       return {
         mealType: slot.mealType,
         title,
-        kcal: Math.max(0, Math.round(slot.meal!.kcal ?? 0)),
+        kcal: Math.max(0, Math.round(meal.kcal ?? 0)),
         proteinGrams: 0,
         carbsGrams: 0,
         fatGrams: 0,
         ingredientNames: [] as string[],
         isLikelyLiquidOnly: isLikelyLiquidMealTitle(title)
       };
-    });
+    })
+  );
   const solidDishes = dishes.filter((d) => !d.isLikelyLiquidOnly);
   const isLikelyLiquidOnly = dishes.length > 0 && solidDishes.length === 0;
   const lowCalorieThreshold =
@@ -192,7 +197,7 @@ function snapshotFromHoyPlan(
     hasProtein: !isLikelyLiquidOnly && nutrition.hasProtein,
     mealTitles,
     mealTypesFilled: (data?.todayPlanMeals ?? [])
-      .filter((slot) => slot.meal)
+      .filter((slot) => (slot.meals?.length ?? 0) > 0)
       .map((slot) => slot.mealType),
     dishes,
     ingredientNames: [],
@@ -405,7 +410,7 @@ export function ProgressBoard({
             <button
               type="button"
               onClick={handleDoseCardClick}
-              className="flex min-w-0 flex-col border-l border-stone-100 px-3.5 py-3 text-left transition hover:opacity-90 sm:px-4 sm:py-3.5"
+              className="flex min-w-0 flex-col gap-1 border-l border-stone-100 px-3.5 py-3 text-left transition hover:opacity-90 sm:px-4 sm:py-3.5"
             >
               <p className="flex items-center gap-1 text-[12px] font-semibold text-stone-800">
                 <span className="shrink-0" aria-hidden>
@@ -420,29 +425,29 @@ export function ProgressBoard({
 
               {premiumReady && doseBalance ? (
                 <>
-                  <div className="mt-1.5 flex items-center justify-between gap-1.5">
+                  <div className="flex items-center justify-between gap-1.5">
                     <div className="min-w-0 flex items-center gap-1.5">
                       <span className="flex items-baseline tabular-nums leading-none">
-                        <span className="text-[20px] font-bold text-stone-900 sm:text-[22px]">
+                        <span className="text-[22px] font-bold text-stone-900 sm:text-[24px]">
                           {doseScore}
                         </span>
-                        <span className="text-[12px] font-semibold text-stone-400">
+                        <span className="text-[11px] font-semibold text-stone-400">
                           /100
                         </span>
                       </span>
-                      <span className="shrink-0 rounded-full bg-[#FDF3E3] px-1.5 py-0.5 text-[9px] font-bold text-[#C27803]">
+                      <span className="shrink-0 rounded-full bg-[#FDF3E3] px-1.5 py-0.5 text-[9px] font-bold leading-none text-[#C27803]">
                         {doseLabel}
                       </span>
                     </div>
                     <DoseRing score={doseScore} />
                   </div>
 
-                  <div className="mt-2 flex flex-nowrap items-center justify-between gap-2">
-                    <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-[10px] text-stone-600">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                    <span className="inline-flex items-center gap-1 whitespace-nowrap text-[10px] leading-none text-stone-600">
                       Proteína
                       <span
                         className={cn(
-                          "rounded-full px-1.5 py-0.5 text-[9px] font-bold",
+                          "rounded-full px-1.5 py-0.5 text-[9px] font-bold leading-none",
                           hasProteinOk
                             ? "bg-[#E8F0E4] text-[#3E5A3A]"
                             : "bg-stone-100 text-stone-500"
@@ -451,11 +456,11 @@ export function ProgressBoard({
                         {hasProteinOk ? "Bien" : "Baja"}
                       </span>
                     </span>
-                    <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-[10px] text-stone-600">
+                    <span className="inline-flex items-center gap-1 whitespace-nowrap text-[10px] leading-none text-stone-600">
                       Fibra
                       <span
                         className={cn(
-                          "rounded-full px-1.5 py-0.5 text-[9px] font-bold",
+                          "rounded-full px-1.5 py-0.5 text-[9px] font-bold leading-none",
                           hasFiberOk
                             ? "bg-[#E8F0E4] text-[#3E5A3A]"
                             : "bg-stone-100 text-stone-500"
@@ -466,10 +471,10 @@ export function ProgressBoard({
                     </span>
                   </div>
 
-                  {waterStatus ? <WaterDoseIndicator status={waterStatus} /> : null}
+                  {waterStatus ? <WaterDoseIndicator status={waterStatus} className="mt-0" /> : null}
                 </>
               ) : (
-                <p className="mt-1.5 line-clamp-3 flex-1 text-[10px] leading-snug text-stone-500">
+                <p className="line-clamp-2 flex-1 text-[10px] leading-snug text-stone-500">
                   💡{" "}
                   {(freeDailyTip || previewHeadline.replace(/✨/g, "").trim()).replace(
                     /^💡\s*/,
@@ -478,10 +483,10 @@ export function ProgressBoard({
                 </p>
               )}
 
-              <span className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-full bg-[#F3F0E8] px-2 py-1.5 text-[11px] font-semibold text-[#3E5A3A] transition hover:bg-[#EDE9E0]">
+              <span className="mt-auto inline-flex items-center gap-1 pt-1 text-[10px] font-semibold text-[#3E5A3A]">
                 <svg
                   viewBox="0 0 16 16"
-                  className="h-3.5 w-3.5 shrink-0"
+                  className="h-3 w-3 shrink-0"
                   fill="none"
                   aria-hidden
                 >

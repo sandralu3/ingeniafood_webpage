@@ -46,7 +46,7 @@ type TodayPlanNutritionProps = {
 
 type MealSlot = {
   mealType: MealType;
-  meal: TodayPlanMealSummary | null;
+  meals: TodayPlanMealSummary[];
 };
 
 function mealLabelKey(mealType: MealType): "mealSlotBreakfast" | "mealSlotLunch" | "mealSlotDinner" {
@@ -56,13 +56,45 @@ function mealLabelKey(mealType: MealType): "mealSlotBreakfast" | "mealSlotLunch"
 }
 
 function resolveSlots(meals: HoyPageData["todayPlanMeals"] | undefined): MealSlot[] {
-  if (meals && meals.length > 0) return meals;
-  return MEAL_TYPES.map((mealType) => ({ mealType, meal: null }));
+  if (meals && meals.length > 0) {
+    const byType = new Map(meals.map((slot) => [slot.mealType, slot.meals ?? []]));
+    return MEAL_TYPES.map((mealType) => ({
+      mealType,
+      meals: byType.get(mealType) ?? []
+    }));
+  }
+  return MEAL_TYPES.map((mealType) => ({ mealType, meals: [] }));
 }
 
 function orderMealSlots(slots: MealSlot[]): MealSlot[] {
   const byType = new Map(slots.map((slot) => [slot.mealType, slot]));
-  return MEAL_TYPES.map((mealType) => byType.get(mealType) ?? { mealType, meal: null });
+  return MEAL_TYPES.map(
+    (mealType) => byType.get(mealType) ?? { mealType, meals: [] }
+  );
+}
+
+function toSummaryFromMovedMeal(
+  mealType: MealType,
+  meal: {
+    id: string;
+    title: string;
+    kcal?: number | null;
+    hasVegetables?: boolean;
+    hasProtein?: boolean;
+    imageUrl?: string | null;
+    recipeId?: string | null;
+  }
+): TodayPlanMealSummary {
+  return {
+    mealType,
+    title: meal.title,
+    kcal: meal.kcal ?? null,
+    hasVegetables: Boolean(meal.hasVegetables),
+    hasProtein: Boolean(meal.hasProtein),
+    imageUrl: meal.imageUrl?.trim() || null,
+    recipeId: meal.recipeId ?? null,
+    planEntryId: meal.id ?? null
+  };
 }
 
 const SLOT_BADGE: Record<MealType, string> = {
@@ -227,26 +259,27 @@ function TodayMealGrid({
   const handleMove = useCallback(
     async (from: PlanSlotDragData, to: { dayLabel: WeekDay; mealType: MealType }) => {
       if (!userId || !weekStartISO || isMoving) return;
+      if (from.dayLabel === to.dayLabel && from.mealType === to.mealType) return;
 
       const previous = ordered;
       const fromSlot = previous.find((slot) => slot.mealType === from.mealType);
-      const toSlot = previous.find((slot) => slot.mealType === to.mealType);
-      if (!fromSlot?.meal) return;
+      const movingMeal = fromSlot?.meals.find((meal) => meal.planEntryId === from.planEntryId);
+      if (!movingMeal) return;
 
-      // Optimistic UI
       const optimistic = previous.map((slot) => {
         if (slot.mealType === from.mealType) {
           return {
             mealType: slot.mealType,
-            meal: toSlot?.meal
-              ? { ...toSlot.meal, mealType: from.mealType }
-              : null
+            meals: slot.meals.filter((meal) => meal.planEntryId !== from.planEntryId)
           };
         }
         if (slot.mealType === to.mealType) {
           return {
             mealType: slot.mealType,
-            meal: { ...fromSlot.meal!, mealType: to.mealType }
+            meals: [
+              ...slot.meals.filter((meal) => meal.planEntryId !== from.planEntryId),
+              { ...movingMeal, mealType: to.mealType }
+            ]
           };
         }
         return slot;
@@ -258,6 +291,7 @@ function TodayMealGrid({
         const result = await movePlanMeal({
           userId,
           semanaInicioISO: weekStartISO,
+          planEntryId: from.planEntryId,
           from: { dayLabel: from.dayLabel, mealType: from.mealType },
           to
         });
@@ -272,41 +306,21 @@ function TodayMealGrid({
           return;
         }
 
+        const confirmedMeal = toSummaryFromMovedMeal(result.target.mealType, result.meal);
         const confirmed = previous.map((slot) => {
           if (slot.mealType === result.source.mealType) {
-            const meal = result.source.meal;
             return {
               mealType: slot.mealType,
-              meal: meal
-                ? {
-                    mealType: result.source.mealType,
-                    title: meal.title,
-                    kcal: meal.kcal ?? null,
-                    hasVegetables: Boolean(meal.hasVegetables),
-                    hasProtein: Boolean(meal.hasProtein),
-                    imageUrl: meal.imageUrl?.trim() || null,
-                    recipeId: meal.recipeId ?? null,
-                    planEntryId: meal.id ?? null
-                  }
-                : null
+              meals: slot.meals.filter((meal) => meal.planEntryId !== result.planEntryId)
             };
           }
           if (slot.mealType === result.target.mealType) {
-            const meal = result.target.meal;
             return {
               mealType: slot.mealType,
-              meal: meal
-                ? {
-                    mealType: result.target.mealType,
-                    title: meal.title,
-                    kcal: meal.kcal ?? null,
-                    hasVegetables: Boolean(meal.hasVegetables),
-                    hasProtein: Boolean(meal.hasProtein),
-                    imageUrl: meal.imageUrl?.trim() || null,
-                    recipeId: meal.recipeId ?? null,
-                    planEntryId: meal.id ?? null
-                  }
-                : null
+              meals: [
+                ...slot.meals.filter((meal) => meal.planEntryId !== result.planEntryId),
+                confirmedMeal
+              ]
             };
           }
           return slot;
@@ -333,7 +347,7 @@ function TodayMealGrid({
       role="list"
       aria-label={t.has("todayMenuTitle") ? t("todayMenuTitle") : t("todayPlan")}
     >
-      {ordered.map(({ mealType, meal }) => (
+      {ordered.map(({ mealType, meals }) => (
         <PlanMealDroppable
           key={mealType}
           dayLabel={dayLabel}
@@ -341,31 +355,39 @@ function TodayMealGrid({
           disabled={!canDrag || isMoving}
           className="h-full min-h-0"
         >
-          {meal?.planEntryId && canDrag ? (
-            <PlanMealDraggable
-              data={{
-                dayLabel,
-                mealType,
-                planEntryId: meal.planEntryId,
-                title: meal.title,
-                imageUrl: meal.imageUrl
-              }}
-              disabled={isMoving}
-              className="h-full"
-            >
+          {meals.length === 0 ? (
+            <MealPhotoCard
+              mealType={mealType}
+              meal={null}
+              isGenerating={isGeneratingFullDay}
+            />
+          ) : (() => {
+            const meal = meals[0];
+            if (meal.planEntryId && canDrag) {
+              return (
+                <PlanMealDraggable
+                  data={{
+                    dayLabel,
+                    mealType,
+                    planEntryId: meal.planEntryId,
+                    title: meal.title,
+                    imageUrl: meal.imageUrl
+                  }}
+                  disabled={isMoving}
+                  className="min-h-0"
+                >
+                  <MealPhotoCard mealType={mealType} meal={meal} isGenerating={false} />
+                </PlanMealDraggable>
+              );
+            }
+            return (
               <MealPhotoCard
                 mealType={mealType}
                 meal={meal}
                 isGenerating={false}
               />
-            </PlanMealDraggable>
-          ) : (
-            <MealPhotoCard
-              mealType={mealType}
-              meal={meal}
-              isGenerating={isGeneratingFullDay && !meal}
-            />
-          )}
+            );
+          })()}
         </PlanMealDroppable>
       ))}
     </div>
@@ -382,13 +404,11 @@ function TodayMealGrid({
       overlay={(active) => {
         if (!active) return null;
         const slot = ordered.find((item) => item.mealType === active.mealType);
+        const meal =
+          slot?.meals.find((item) => item.planEntryId === active.planEntryId) ?? null;
         return (
           <div className="w-[30vw] max-w-[7.5rem]">
-            <MealPhotoCard
-              mealType={active.mealType}
-              meal={slot?.meal ?? null}
-              compact
-            />
+            <MealPhotoCard mealType={active.mealType} meal={meal} compact />
           </div>
         );
       }}
@@ -435,10 +455,11 @@ function TodayMenuSection({
   }, [slots]);
 
   const title = t.has("todayMenuTitle") ? t("todayMenuTitle") : t("todayPlan");
-  const plannedCountLocal = localSlots.filter((slot) => slot.meal != null).length;
+  const plannedCountLocal = localSlots.filter((slot) => slot.meals.length > 0).length;
   const hasEmptySlots = plannedCountLocal < MEAL_TYPES.length;
   const displayMealKcal = localSlots.reduce(
-    (sum, slot) => sum + (slot.meal?.kcal ?? 0),
+    (sum, slot) =>
+      sum + slot.meals.reduce((mealSum, meal) => mealSum + (meal.kcal ?? 0), 0),
     0
   );
 

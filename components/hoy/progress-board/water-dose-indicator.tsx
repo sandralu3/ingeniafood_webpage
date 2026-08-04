@@ -92,26 +92,26 @@ export function WaterDoseIndicator({ status, variant = "compact", className }: P
   }
 
   return (
-    <div className={cn("mt-1.5 w-full", className)}>
-      <div className="flex items-center justify-between gap-2">
-        <span className="inline-flex min-w-0 items-center gap-1 text-[10px] text-stone-600">
+    <div className={cn("mt-1 w-full", className)}>
+      <div className="flex items-center gap-1.5">
+        <span className="inline-flex min-w-0 items-center gap-1 text-[10px] leading-none text-stone-600">
           {t.has("waterDoseLabel") ? t("waterDoseLabel") : "Agua"}
           <span className="tabular-nums font-semibold text-stone-700">{progressLabel}</span>
         </span>
+        <div className="h-1 min-w-0 flex-1 overflow-hidden rounded-full bg-stone-100">
+          <div
+            className={cn("h-full rounded-full transition-all duration-300", waterToneBarClass(status.tone))}
+            style={{ width: `${Math.min(100, status.percent)}%` }}
+          />
+        </div>
         <span
           className={cn(
-            "shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold",
+            "shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold leading-none",
             waterToneBadgeClass(status.tone)
           )}
         >
           {label}
         </span>
-      </div>
-      <div className="mt-1 h-1 overflow-hidden rounded-full bg-stone-100">
-        <div
-          className={cn("h-full rounded-full transition-all duration-300", waterToneBarClass(status.tone))}
-          style={{ width: `${Math.min(100, status.percent)}%` }}
-        />
       </div>
     </div>
   );

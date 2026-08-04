@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { getUserIsPremium } from "@/lib/auth/user-premium";
+import { fetchUserNutritionGoals } from "@/lib/nutrition/nutrition-profile";
+import {
+  buildPreferredDietPromptClause,
+  preferredDietLabel,
+  type PreferredDiet
+} from "@/lib/nutrition/preferred-diet";
 import { MEAL_TYPES, type MealType } from "@/lib/plan/constants";
 import {
   pickMealSuggestionFromCatalog,
@@ -43,7 +49,8 @@ function parseRemaining(raw: Body["remainingMacros"]): RemainingMacros {
 async function rankWithGemini(
   shortlist: MealSuggestionCandidate[],
   mealType: MealType,
-  remaining: RemainingMacros
+  remaining: RemainingMacros,
+  preferredDiet: PreferredDiet
 ): Promise<string | null> {
   const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY?.trim();
   if (!apiKey || shortlist.length === 0) return null;
@@ -67,6 +74,11 @@ async function rankWithGemini(
       title: item.title
     }));
 
+    const dietClause = buildPreferredDietPromptClause(preferredDiet);
+    const dietLine = dietClause
+      ? `\nPreferencia de alimentación del usuario (${preferredDietLabel(preferredDiet)}): ${dietClause}`
+      : "";
+
     const prompt = `Eres coach de nutrición de IngeniaFood. Elige UNA receta del catálogo para ${mealType}.
 Reglas de coherencia (obligatorias):
 - Desayuno: SOLO platos de desayuno.
@@ -74,7 +86,7 @@ Reglas de coherencia (obligatorias):
 - Cena: platos de cena o almuerzo (intercambiables).
 - Nunca elijas postre.
 El catálogo YA está filtrado por esas reglas: elige solo entre estos IDs.
-Macros restantes del día (aprox): ${remaining.calories} kcal, ${remaining.protein}g proteína, ${remaining.carbs}g carbs, ${remaining.fat}g grasas.
+Macros restantes del día (aprox): ${remaining.calories} kcal, ${remaining.protein}g proteína, ${remaining.carbs}g carbs, ${remaining.fat}g grasas.${dietLine}
 Catálogo:
 ${JSON.stringify(catalog, null, 2)}
 
@@ -149,10 +161,14 @@ export async function POST(request: Request) {
       ? body.excludeRecipeIds.map(String).filter(Boolean).slice(0, 20)
       : [];
     const remaining = parseRemaining(body.remainingMacros);
+    const goals = await fetchUserNutritionGoals(user.id, supabase);
+    const preferredDiet = goals.preferredDiet;
 
     const { data: recipes, error } = await supabase
       .from("recipes")
-      .select("id, title, description, instructions, image_url, macros, meal_type")
+      .select(
+        "id, title, description, instructions, image_url, macros, meal_type, tags, is_airfryer, is_flourless, cuisine_style"
+      )
       .or(`user_id.eq.${user.id},is_public.eq.true`)
       .limit(100);
 
@@ -166,7 +182,14 @@ export async function POST(request: Request) {
       return jsonResponse({ error: "Sin recetas disponibles.", code: "EMPTY" }, 404);
     }
 
-    const ranked = rankMealCandidates(candidates, mealType, remaining, excludeRecipeIds);
+    const ranked = rankMealCandidates(
+      candidates,
+      mealType,
+      remaining,
+      excludeRecipeIds,
+      undefined,
+      preferredDiet
+    );
     if (ranked.length === 0) {
       return jsonResponse(
         {
@@ -184,7 +207,7 @@ export async function POST(request: Request) {
     const preferAi = body.preferAi !== false;
     if (preferAi) {
       const shortlist = ranked.slice(0, 8);
-      const aiId = await rankWithGemini(shortlist, mealType, remaining);
+      const aiId = await rankWithGemini(shortlist, mealType, remaining, preferredDiet);
       const aiPick = aiId ? shortlist.find((item) => item.id === aiId) : null;
       if (aiPick) {
         suggestion = toMealSuggestion(aiPick, mealType, "ai-ranked");
@@ -192,12 +215,13 @@ export async function POST(request: Request) {
     }
 
     if (!suggestion) {
-      // Solo sobre candidatos ya filtrados por tipo de comida.
       suggestion = pickMealSuggestionFromCatalog(
         ranked,
         mealType,
         remaining,
-        excludeRecipeIds
+        excludeRecipeIds,
+        undefined,
+        preferredDiet
       );
     }
 

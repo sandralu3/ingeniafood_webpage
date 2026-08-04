@@ -48,6 +48,16 @@ export type Database = {
           nutrition_goal: "deficit" | "maintenance" | "surplus" | null;
           calorie_goal_override: number | null;
           protein_goal_override: number | null;
+          preferred_diet:
+            | "estandar"
+            | "sin_gluten"
+            | "sin_harinas"
+            | "keto"
+            | "vegetariana"
+            | "vegana"
+            | "alto_proteina"
+            | "mediterranea"
+            | null;
           water_glasses_goal: number | null;
           created_at: string;
           updated_at: string;
@@ -90,6 +100,16 @@ export type Database = {
           nutrition_goal?: "deficit" | "maintenance" | "surplus" | null;
           calorie_goal_override?: number | null;
           protein_goal_override?: number | null;
+          preferred_diet?:
+            | "estandar"
+            | "sin_gluten"
+            | "sin_harinas"
+            | "keto"
+            | "vegetariana"
+            | "vegana"
+            | "alto_proteina"
+            | "mediterranea"
+            | null;
           water_glasses_goal?: number | null;
           created_at?: string;
           updated_at?: string;
@@ -132,6 +152,16 @@ export type Database = {
           nutrition_goal?: "deficit" | "maintenance" | "surplus" | null;
           calorie_goal_override?: number | null;
           protein_goal_override?: number | null;
+          preferred_diet?:
+            | "estandar"
+            | "sin_gluten"
+            | "sin_harinas"
+            | "keto"
+            | "vegetariana"
+            | "vegana"
+            | "alto_proteina"
+            | "mediterranea"
+            | null;
           water_glasses_goal?: number | null;
           created_at?: string;
           updated_at?: string;
@@ -634,18 +664,21 @@ export type Database = {
           id: string;
           user_id: string;
           reto_id: string;
+          dias_semana: string[];
           created_at: string;
         };
         Insert: {
           id?: string;
           user_id: string;
           reto_id: string;
+          dias_semana?: string[];
           created_at?: string;
         };
         Update: {
           id?: string;
           user_id?: string;
           reto_id?: string;
+          dias_semana?: string[];
           created_at?: string;
         };
         Relationships: [
@@ -666,6 +699,7 @@ export type Database = {
           dia_semana: string;
           tipo_comida: string;
           recipe_id: string;
+          orden: number;
           created_at: string;
         };
         Insert: {
@@ -675,6 +709,7 @@ export type Database = {
           dia_semana: string;
           tipo_comida: string;
           recipe_id: string;
+          orden?: number;
           created_at?: string;
         };
         Update: {
@@ -684,6 +719,7 @@ export type Database = {
           dia_semana?: string;
           tipo_comida?: string;
           recipe_id?: string;
+          orden?: number;
           created_at?: string;
         };
         Relationships: [

@@ -240,8 +240,7 @@ export function PlanSnacksSection({
                 <div className="min-w-0 flex-1">
                   <p
                     className={cn(
-                      "truncate font-semibold text-stone-800",
-                      compact ? "text-[11px]" : "text-xs"
+                      "truncate text-[11px] font-bold text-stone-800"
                     )}
                   >
                     {snack.title}

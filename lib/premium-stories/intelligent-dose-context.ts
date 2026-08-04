@@ -1,3 +1,4 @@
+import type { PlanMeal } from "@/components/plan/plan-meal-card";
 import type { PlanDay } from "@/lib/plan/types";
 import { MEAL_TYPES, type WeekDay } from "@/lib/plan/constants";
 import { isLikelyLiquidMealTitle } from "@/lib/plan/plan-nutrition";
@@ -121,7 +122,7 @@ function emptyMealSnapshot(): IntelligentDoseMealSnapshot {
 
 function buildDishFromMeal(
   mealType: string,
-  meal: NonNullable<PlanDay["slots"][keyof PlanDay["slots"]]>
+  meal: PlanMeal
 ): IntelligentDoseDish {
   const title = meal.title?.trim() || "Sin título";
   const liquid = isLikelyLiquidMealTitle(title);
@@ -236,16 +237,18 @@ function snapshotFromPlanDay(
   let hasProteinFromMeals = false;
 
   for (const mealType of MEAL_TYPES) {
-    const meal = day.slots[mealType];
-    if (!meal) continue;
+    const meals = day.slots[mealType] ?? [];
+    if (meals.length === 0) continue;
     filled.push(mealType);
-    const dish = buildDishFromMeal(mealType, meal);
-    dishes.push(dish);
-    if (!dish.isLikelyLiquidOnly && meal.hasVegetables) {
-      hasVegetablesFromMeals = true;
-    }
-    if (!dish.isLikelyLiquidOnly && meal.hasProtein) {
-      hasProteinFromMeals = true;
+    for (const meal of meals) {
+      const dish = buildDishFromMeal(mealType, meal);
+      dishes.push(dish);
+      if (!dish.isLikelyLiquidOnly && meal.hasVegetables) {
+        hasVegetablesFromMeals = true;
+      }
+      if (!dish.isLikelyLiquidOnly && meal.hasProtein) {
+        hasProteinFromMeals = true;
+      }
     }
   }
 
@@ -414,7 +417,11 @@ export function buildIntelligentDoseUserContext(params: {
     if (snap.hasVegetables) daysWithVegetables += 1;
     if (snap.hasProtein) daysWithProtein += 1;
 
-    if (isWeekend(weekDay) && day?.slots.Cena && !day.slots.Cena.hasProtein) {
+    if (
+      isWeekend(weekDay) &&
+      day?.slots.Cena?.length &&
+      !day.slots.Cena.some((meal) => meal.hasProtein)
+    ) {
       weekendDinnersWithoutProtein += 1;
     }
 

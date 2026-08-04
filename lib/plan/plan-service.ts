@@ -21,7 +21,6 @@ import {
 } from "@/lib/plan/meal-suggestion";
 import { fetchUserNutritionGoals } from "@/lib/nutrition/nutrition-profile";
 import { parseMacrosFromJson } from "@/lib/recipes/recipe-macros";
-import { isScannerDraftRecipe } from "@/lib/recipes/scanner-draft";
 import {
   enrichPlanMealWithNutrition,
   EMPTY_DAY_PLAN_NUTRITION,
@@ -67,7 +66,8 @@ type PlanRecipeNutrition = Pick<
   tags?: Json | null;
 };
 
-type PlanRowWithRecipe = PlanRow & {
+type PlanRowWithRecipe = Omit<PlanRow, "orden"> & {
+  orden?: number;
   recipes: (PlanRecipeBase & Partial<PlanRecipeNutrition>) | null;
 };
 
@@ -88,12 +88,24 @@ const PLAN_SELECT = `
   dia_semana,
   tipo_comida,
   recipe_id,
+  orden,
+  created_at,
+  recipes (${PLAN_BASE_RECIPE_FIELDS})
+`;
+
+const PLAN_SELECT_LEGACY = `
+  id,
+  user_id,
+  semana_inicio,
+  dia_semana,
+  tipo_comida,
+  recipe_id,
   created_at,
   recipes (${PLAN_BASE_RECIPE_FIELDS})
 `;
 
 function emptySlots(): PlanDaySlots {
-  return { Desayuno: null, Almuerzo: null, Cena: null };
+  return { Desayuno: [], Almuerzo: [], Cena: [] };
 }
 
 function mapMealType(value: string): MealType {
@@ -246,9 +258,15 @@ export function groupPlanRowsIntoDays(
 
     rows
       .filter((row) => row.dia_semana === label)
+      .sort((a, b) => {
+        const ordenA = typeof a.orden === "number" ? a.orden : 0;
+        const ordenB = typeof b.orden === "number" ? b.orden : 0;
+        if (ordenA !== ordenB) return ordenA - ordenB;
+        return a.created_at.localeCompare(b.created_at);
+      })
       .forEach((row) => {
         const mealType = mapMealType(row.tipo_comida);
-        slots[mealType] = toPlanMeal(row);
+        slots[mealType].push(toPlanMeal(row));
       });
 
     return {
@@ -274,23 +292,37 @@ export async function fetchWeeklyPlan(
   const weekStart = weekStartDate;
   const semanaInicio = toISODateString(weekStart);
 
-  const [{ data, error }, snacks] = await Promise.all([
-    supabase
-      .from("plan_semanal")
-      .select(PLAN_SELECT)
-      .eq("user_id", userId)
-      .eq("semana_inicio", semanaInicio),
+  const [planResult, snacks] = await Promise.all([
+    (async () => {
+      const primary = await supabase
+        .from("plan_semanal")
+        .select(PLAN_SELECT)
+        .eq("user_id", userId)
+        .eq("semana_inicio", semanaInicio);
+
+      if (!primary.error || !isMissingColumnError(primary.error)) {
+        return primary;
+      }
+
+      return supabase
+        .from("plan_semanal")
+        .select(PLAN_SELECT_LEGACY)
+        .eq("user_id", userId)
+        .eq("semana_inicio", semanaInicio);
+    })(),
     fetchSnacksForWeek(userId, semanaInicio).catch((snackError) => {
       console.warn("[plan] snacks omitidos:", snackError);
       return [] as PlanSnack[];
     })
   ]);
 
-  if (error) {
-    throw error;
+  if (planResult.error) {
+    throw planResult.error;
   }
 
-  const rows = await enrichPlanRowsWithNutrition((data ?? []) as PlanRowWithRecipe[]);
+  const rows = await enrichPlanRowsWithNutrition(
+    (planResult.data ?? []) as PlanRowWithRecipe[]
+  );
   const snacksByDay = groupSnacksByDay(snacks);
   return {
     weekStart: semanaInicio,
@@ -343,35 +375,44 @@ export async function assignRecipeToPlan(params: {
     params.semanaInicioISO ??
     toISODateString(params.weekStartDate ?? getMondayOfWeek());
 
-  const { data: existing, error: existingError } = await supabase
+  const orden = await nextSlotOrden({
+    userId: params.userId,
+    semanaInicio,
+    diaSemana: params.diaSemana,
+    tipoComida: params.tipoComida
+  });
+
+  const insertWithOrden = await supabase
     .from("plan_semanal")
-    .select("id")
-    .eq("user_id", params.userId)
-    .eq("semana_inicio", semanaInicio)
-    .eq("dia_semana", params.diaSemana)
-    .eq("tipo_comida", params.tipoComida)
-    .maybeSingle();
+    .insert({
+      user_id: params.userId,
+      semana_inicio: semanaInicio,
+      dia_semana: params.diaSemana,
+      tipo_comida: params.tipoComida,
+      recipe_id: params.recipeId,
+      orden
+    })
+    .select(PLAN_SELECT)
+    .single();
 
-  if (existingError) {
-    console.error("[plan] Error comprobando slot del plan:", existingError);
-    return null;
-  }
+  let data = insertWithOrden.data as PlanRowWithRecipe | null;
+  let error = insertWithOrden.error;
 
-  const query = existing
-    ? supabase
-        .from("plan_semanal")
-        .update({ recipe_id: params.recipeId })
-        .eq("id", existing.id)
-        .eq("user_id", params.userId)
-    : supabase.from("plan_semanal").insert({
+  if (error && isMissingColumnError(error)) {
+    const legacy = await supabase
+      .from("plan_semanal")
+      .insert({
         user_id: params.userId,
         semana_inicio: semanaInicio,
         dia_semana: params.diaSemana,
         tipo_comida: params.tipoComida,
         recipe_id: params.recipeId
-      });
-
-  const { data, error } = await query.select(PLAN_SELECT).single();
+      })
+      .select(PLAN_SELECT_LEGACY)
+      .single();
+    data = legacy.data as PlanRowWithRecipe | null;
+    error = legacy.error;
+  }
 
   if (error || !data) {
     console.error("[plan] Error asignando receta al plan:", error);
@@ -383,43 +424,70 @@ export async function assignRecipeToPlan(params: {
   return toPlanMeal(enrichedRow);
 }
 
-export async function swapPlanMeal(params: {
+async function nextSlotOrden(params: {
+  userId: string;
+  semanaInicio: string;
+  diaSemana: WeekDay;
+  tipoComida: MealType;
+}): Promise<number> {
+  const supabase = createSupabaseClient();
+  const { data, error } = await supabase
+    .from("plan_semanal")
+    .select("orden")
+    .eq("user_id", params.userId)
+    .eq("semana_inicio", params.semanaInicio)
+    .eq("dia_semana", params.diaSemana)
+    .eq("tipo_comida", params.tipoComida)
+    .order("orden", { ascending: false })
+    .limit(1);
+
+  if (error) {
+    if (isMissingColumnError(error)) return 0;
+    console.warn("[plan] No se pudo leer orden del slot:", error.message);
+    return 0;
+  }
+
+  const maxOrden = data?.[0]?.orden;
+  return typeof maxOrden === "number" ? maxOrden + 1 : 0;
+}
+
+/** Reemplaza la receta de una entrada concreta del plan (editar plato elegido). */
+export async function replacePlanMealRecipe(params: {
   userId: string;
   planEntryId: string;
-  currentRecipeId: string;
-  mealType: MealType;
+  recipeId: string;
 }): Promise<PlanMeal | null> {
   const supabase = createSupabaseClient();
 
-  const { data: recipes, error: recipesError } = await supabase
-    .from("recipes")
-    .select("id, title, description, instructions, image_url, cooking_time, meal_type")
-    .or(`user_id.eq.${params.userId},is_public.eq.true`)
-    .neq("id", params.currentRecipeId);
-
-  if (recipesError || !recipes?.length) {
-    console.error("[plan] Error buscando recetas para swap:", recipesError);
-    return null;
-  }
-
-  const usableRecipes = recipes.filter((recipe) => !isScannerDraftRecipe(recipe));
-  const replacement = pickRandomRecipe(usableRecipes, params.mealType, params.currentRecipeId);
-  if (!replacement) return null;
-
-  const { data: updated, error: updateError } = await supabase
+  const withOrden = await supabase
     .from("plan_semanal")
-    .update({ recipe_id: replacement.id })
+    .update({ recipe_id: params.recipeId })
     .eq("id", params.planEntryId)
     .eq("user_id", params.userId)
     .select(PLAN_SELECT)
     .maybeSingle();
 
-  if (updateError || !updated) {
-    console.error("[plan] Error actualizando plan_semanal:", updateError);
+  let data = withOrden.data as PlanRowWithRecipe | null;
+  let error = withOrden.error;
+
+  if (error && isMissingColumnError(error)) {
+    const legacy = await supabase
+      .from("plan_semanal")
+      .update({ recipe_id: params.recipeId })
+      .eq("id", params.planEntryId)
+      .eq("user_id", params.userId)
+      .select(PLAN_SELECT_LEGACY)
+      .maybeSingle();
+    data = legacy.data as PlanRowWithRecipe | null;
+    error = legacy.error;
+  }
+
+  if (error || !data) {
+    console.error("[plan] Error reemplazando receta del plan:", error);
     return null;
   }
 
-  const [enrichedRow] = await enrichPlanRowsWithNutrition([updated as PlanRowWithRecipe]);
+  const [enrichedRow] = await enrichPlanRowsWithNutrition([data]);
   return toPlanMeal(enrichedRow);
 }
 
@@ -539,7 +607,7 @@ export async function fillDayPlanWithSuggestions(params: {
   const { data: recipes, error: recipesError } = await supabase
     .from("recipes")
     .select(
-      "id, title, description, instructions, image_url, cooking_time, meal_type, macros"
+      "id, title, description, instructions, image_url, cooking_time, meal_type, macros, tags, is_airfryer, is_flourless, cuisine_style"
     )
     .or(`user_id.eq.${params.userId},is_public.eq.true`)
     .limit(120);
@@ -560,7 +628,8 @@ export async function fillDayPlanWithSuggestions(params: {
       mealType,
       remaining,
       Array.from(usedIds),
-      activeSlots
+      activeSlots,
+      goals.preferredDiet
     );
 
     const recipeId =
@@ -576,24 +645,59 @@ export async function fillDayPlanWithSuggestions(params: {
       continue;
     }
 
+    if (!forceReplace) {
+      const meal = await assignRecipeToEmptyPlanSlot({
+        userId: params.userId,
+        diaSemana: dayLabel,
+        tipoComida: mealType,
+        recipeId,
+        semanaInicioISO
+      });
+
+      if (meal) {
+        usedIds.add(recipeId);
+        assigned += 1;
+        if (suggestion) {
+          remaining = subtractSuggestionFromRemaining(remaining, suggestion);
+        } else {
+          const assignedMacros = parseMacrosFromJson(
+            (candidates.find((item) => item.id === recipeId)?.macros as Json | null | undefined) ??
+              null
+          );
+          if (assignedMacros) {
+            remaining = subtractSuggestionFromRemaining(remaining, {
+              kcal: assignedMacros.calorias,
+              proteinGrams: assignedMacros.proteinas_g,
+              carbsGrams: assignedMacros.carbohidratos_g,
+              fatGrams: assignedMacros.grasas_g
+            });
+          }
+        }
+      }
+
+      activeSlots = activeSlots.filter((slot) => slot !== mealType);
+      continue;
+    }
+
     usedIds.add(recipeId);
 
-    // Sin forceReplace: insertar solo si el slot sigue vacío (nunca update).
-    const meal = forceReplace
-      ? await assignRecipeToPlan({
-          userId: params.userId,
-          diaSemana: dayLabel,
-          tipoComida: mealType,
-          recipeId,
-          semanaInicioISO
-        })
-      : await assignRecipeToEmptyPlanSlot({
-          userId: params.userId,
-          diaSemana: dayLabel,
-          tipoComida: mealType,
-          recipeId,
-          semanaInicioISO
-        });
+    if (occupiedByType.has(mealType)) {
+      await supabase
+        .from("plan_semanal")
+        .delete()
+        .eq("user_id", params.userId)
+        .eq("semana_inicio", semanaInicioISO)
+        .eq("dia_semana", dayLabel)
+        .eq("tipo_comida", mealType);
+    }
+
+    const meal = await assignRecipeToPlan({
+      userId: params.userId,
+      diaSemana: dayLabel,
+      tipoComida: mealType,
+      recipeId,
+      semanaInicioISO
+    });
 
     if (meal) {
       assigned += 1;
@@ -622,7 +726,8 @@ export async function fillDayPlanWithSuggestions(params: {
 }
 
 /**
- * Asigna una receta solo si el slot está vacío. Si ya hay comida, no la toca.
+ * Asigna una receta solo si ese tiempo de comida aún no tiene ninguna receta.
+ * Usado por "proponer menú" para no tocar secciones ya rellenadas.
  */
 async function assignRecipeToEmptyPlanSlot(params: {
   userId: string;
@@ -635,64 +740,29 @@ async function assignRecipeToEmptyPlanSlot(params: {
 
   const { data: existing, error: existingError } = await supabase
     .from("plan_semanal")
-    .select("id, recipe_id")
+    .select("id")
     .eq("user_id", params.userId)
     .eq("semana_inicio", params.semanaInicioISO)
     .eq("dia_semana", params.diaSemana)
     .eq("tipo_comida", params.tipoComida)
-    .maybeSingle();
+    .limit(1);
 
   if (existingError) {
     console.error("[plan] Error comprobando slot vacío:", existingError);
     return null;
   }
 
-  if (existing?.recipe_id) {
+  if ((existing?.length ?? 0) > 0) {
     return null;
   }
 
-  if (existing?.id) {
-    // Fila huérfana sin recipe_id (no debería ocurrir por el schema NOT NULL).
-    const { data, error } = await supabase
-      .from("plan_semanal")
-      .update({ recipe_id: params.recipeId })
-      .eq("id", existing.id)
-      .eq("user_id", params.userId)
-      .select(PLAN_SELECT)
-      .single();
-
-    if (error || !data) {
-      console.error("[plan] Error rellenando slot vacío existente:", error);
-      return null;
-    }
-
-    const [enrichedRow] = await enrichPlanRowsWithNutrition([data as PlanRowWithRecipe]);
-    return toPlanMeal(enrichedRow);
-  }
-
-  const { data, error } = await supabase
-    .from("plan_semanal")
-    .insert({
-      user_id: params.userId,
-      semana_inicio: params.semanaInicioISO,
-      dia_semana: params.diaSemana,
-      tipo_comida: params.tipoComida,
-      recipe_id: params.recipeId
-    })
-    .select(PLAN_SELECT)
-    .single();
-
-  if (error || !data) {
-    // Carrera: otro proceso ocupó el slot → no reemplazar.
-    if (error?.code === "23505") {
-      return null;
-    }
-    console.error("[plan] Error insertando receta en slot vacío:", error);
-    return null;
-  }
-
-  const [enrichedRow] = await enrichPlanRowsWithNutrition([data as PlanRowWithRecipe]);
-  return toPlanMeal(enrichedRow);
+  return assignRecipeToPlan({
+    userId: params.userId,
+    diaSemana: params.diaSemana,
+    tipoComida: params.tipoComida,
+    recipeId: params.recipeId,
+    semanaInicioISO: params.semanaInicioISO
+  });
 }
 
 /**
@@ -719,138 +789,81 @@ export type PlanSlotRef = {
 };
 
 export type MovePlanMealResult = {
-  source: PlanSlotRef & { meal: PlanMeal | null };
-  target: PlanSlotRef & { meal: PlanMeal | null };
+  planEntryId: string;
+  source: PlanSlotRef;
+  target: PlanSlotRef;
+  meal: PlanMeal;
 };
 
-type PlanSlotRowLite = Pick<PlanRow, "id" | "recipe_id" | "dia_semana" | "tipo_comida">;
-
 /**
- * Mueve o intercambia una comida entre slots del plan (mismo u otro día).
- * - Destino vacío: reubica la fila (dia_semana + tipo_comida).
- * - Destino ocupado: intercambia recipe_id entre ambas filas.
+ * Mueve una comida concreta a otro día/tiempo (se añade a esa sección).
+ * No intercambia ni reemplaza las recetas ya presentes en el destino.
  */
 export async function movePlanMeal(params: {
   userId: string;
   semanaInicioISO: string;
+  planEntryId: string;
   from: PlanSlotRef;
   to: PlanSlotRef;
 }): Promise<MovePlanMealResult | null> {
-  const { userId, semanaInicioISO, from, to } = params;
+  const { userId, semanaInicioISO, planEntryId, from, to } = params;
 
   if (from.dayLabel === to.dayLabel && from.mealType === to.mealType) {
     return null;
   }
 
   const supabase = createSupabaseClient();
+  const orden = await nextSlotOrden({
+    userId,
+    semanaInicio: semanaInicioISO,
+    diaSemana: to.dayLabel,
+    tipoComida: to.mealType
+  });
 
-  const { data: rows, error } = await supabase
+  const updateWithOrden = await supabase
     .from("plan_semanal")
-    .select("id, recipe_id, dia_semana, tipo_comida")
+    .update({
+      dia_semana: to.dayLabel,
+      tipo_comida: to.mealType,
+      orden
+    })
+    .eq("id", planEntryId)
     .eq("user_id", userId)
     .eq("semana_inicio", semanaInicioISO)
-    .in("dia_semana", Array.from(new Set([from.dayLabel, to.dayLabel])));
+    .select(PLAN_SELECT)
+    .maybeSingle();
 
-  if (error) {
-    console.error("[plan] Error leyendo slots para mover:", error);
-    return null;
-  }
+  let moved = updateWithOrden.data as PlanRowWithRecipe | null;
+  let moveError = updateWithOrden.error;
 
-  const list = (rows ?? []) as PlanSlotRowLite[];
-  const sourceRow =
-    list.find(
-      (row) =>
-        row.dia_semana === from.dayLabel && mapMealType(row.tipo_comida) === from.mealType
-    ) ?? null;
-  const targetRow =
-    list.find(
-      (row) => row.dia_semana === to.dayLabel && mapMealType(row.tipo_comida) === to.mealType
-    ) ?? null;
-
-  if (!sourceRow) {
-    return null;
-  }
-
-  if (!targetRow) {
-    const { data: moved, error: moveError } = await supabase
+  if (moveError && isMissingColumnError(moveError)) {
+    const legacy = await supabase
       .from("plan_semanal")
       .update({
         dia_semana: to.dayLabel,
         tipo_comida: to.mealType
       })
-      .eq("id", sourceRow.id)
+      .eq("id", planEntryId)
       .eq("user_id", userId)
-      .select(PLAN_SELECT)
+      .eq("semana_inicio", semanaInicioISO)
+      .select(PLAN_SELECT_LEGACY)
       .maybeSingle();
-
-    if (moveError || !moved) {
-      console.error("[plan] Error moviendo comida a slot vacío:", moveError);
-      return null;
-    }
-
-    const [enriched] = await enrichPlanRowsWithNutrition([moved as PlanRowWithRecipe]);
-    const meal = toPlanMeal(enriched);
-    return {
-      source: { ...from, meal: null },
-      target: { ...to, meal: { ...meal, mealType: to.mealType } }
-    };
+    moved = legacy.data as PlanRowWithRecipe | null;
+    moveError = legacy.error;
   }
 
-  const sourceRecipeId = sourceRow.recipe_id;
-  const targetRecipeId = targetRow.recipe_id;
-
-  const { error: swapToTargetError } = await supabase
-    .from("plan_semanal")
-    .update({ recipe_id: sourceRecipeId })
-    .eq("id", targetRow.id)
-    .eq("user_id", userId);
-
-  if (swapToTargetError) {
-    console.error("[plan] Error intercambiando recipe en destino:", swapToTargetError);
+  if (moveError || !moved) {
+    console.error("[plan] Error moviendo comida:", moveError);
     return null;
   }
 
-  const { error: swapToSourceError } = await supabase
-    .from("plan_semanal")
-    .update({ recipe_id: targetRecipeId })
-    .eq("id", sourceRow.id)
-    .eq("user_id", userId);
-
-  if (swapToSourceError) {
-    // Intentar revertir el destino para no dejar el plan inconsistente.
-    await supabase
-      .from("plan_semanal")
-      .update({ recipe_id: targetRecipeId })
-      .eq("id", targetRow.id)
-      .eq("user_id", userId);
-    console.error("[plan] Error intercambiando recipe en origen:", swapToSourceError);
-    return null;
-  }
-
-  const { data: updatedRows, error: reloadError } = await supabase
-    .from("plan_semanal")
-    .select(PLAN_SELECT)
-    .in("id", [sourceRow.id, targetRow.id]);
-
-  if (reloadError || !updatedRows?.length) {
-    console.error("[plan] Error recargando slots tras intercambio:", reloadError);
-    return null;
-  }
-
-  const enrichedRows = await enrichPlanRowsWithNutrition(updatedRows as PlanRowWithRecipe[]);
-  const byId = new Map(enrichedRows.map((row) => [row.id, toPlanMeal(row)]));
-
-  const sourceMeal = byId.get(sourceRow.id) ?? null;
-  const targetMeal = byId.get(targetRow.id) ?? null;
+  const [enriched] = await enrichPlanRowsWithNutrition([moved as PlanRowWithRecipe]);
+  const meal = { ...toPlanMeal(enriched), mealType: to.mealType };
 
   return {
-    source: {
-      ...from,
-      meal: sourceMeal ? { ...sourceMeal, mealType: from.mealType } : null
-    },
-    target: {
-      ...to,
-      meal: targetMeal ? { ...targetMeal, mealType: to.mealType } : null
-    }
+    planEntryId,
+    source: from,
+    target: to,
+    meal
   };
 }

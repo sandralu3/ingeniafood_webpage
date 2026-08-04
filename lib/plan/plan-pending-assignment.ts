@@ -8,6 +8,11 @@ export type PendingPlanAssignment = {
    * Opcional para mantener compatibilidad con pending antiguos.
    */
   weekStartISO?: string;
+  /**
+   * Si existe, la receta del escáner reemplaza esta entrada del plan
+   * (flujo «Cambiar plato») en lugar de añadir un complemento.
+   */
+  planEntryId?: string;
 };
 
 const STORAGE_KEY = "ingeniafood_pending_plan_assignment";
@@ -55,10 +60,16 @@ export function readPendingPlanAssignment(): PendingPlanAssignment | null {
         ? parsed.weekStartISO
         : undefined;
 
+    const planEntryId =
+      typeof parsed.planEntryId === "string" && parsed.planEntryId.trim().length > 0
+        ? parsed.planEntryId.trim()
+        : undefined;
+
     return {
       dayLabel: parsed.dayLabel,
       mealType: parsed.mealType,
-      weekStartISO
+      weekStartISO,
+      planEntryId
     };
   } catch {
     return null;

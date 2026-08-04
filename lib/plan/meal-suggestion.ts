@@ -1,5 +1,9 @@
 import type { MealType } from "@/lib/plan/constants";
 import { recipeMatchesMealType } from "@/lib/plan/match-meal-type";
+import {
+  preferredDietScoreBonus,
+  type PreferredDiet
+} from "@/lib/nutrition/preferred-diet";
 import { parseMacrosFromJson, type RecipeMacros } from "@/lib/recipes/recipe-macros";
 import type { Json } from "@/types/database.types";
 
@@ -45,6 +49,10 @@ export type MealSuggestionCandidate = {
   image_url: string | null;
   macros?: Json | null;
   meal_type?: string | null;
+  tags?: Json | null;
+  is_airfryer?: boolean | null;
+  is_flourless?: boolean | null;
+  cuisine_style?: string | null;
 };
 
 export function computeRemainingMacros(
@@ -107,7 +115,8 @@ export function scoreCandidateForMeal(
   candidate: MealSuggestionCandidate,
   mealType: MealType,
   remaining: RemainingMacros,
-  activeSlots?: MealType[]
+  activeSlots?: MealType[],
+  preferredDiet?: PreferredDiet | null
 ): number {
   const macros = resolveMacros(candidate.macros);
   const target = targetForMeal(mealType, remaining, activeSlots);
@@ -115,9 +124,10 @@ export function scoreCandidateForMeal(
     mealType === "Desayuno" ? "desayuno" : mealType === "Cena" ? "cena" : "almuerzo";
   const resolvedType = (candidate.meal_type ?? "").toLowerCase();
   const exactSlotBonus = resolvedType === preferredType ? -18 : 0;
+  const dietBonus = preferredDietScoreBonus(candidate, preferredDiet);
 
   if (!macros) {
-    return 80 + exactSlotBonus;
+    return 80 + exactSlotBonus + dietBonus;
   }
 
   const kcalGap = Math.abs(macros.calorias - target.calories) / Math.max(target.calories, 1);
@@ -128,7 +138,7 @@ export function scoreCandidateForMeal(
       ? (macros.calorias - remaining.calories) / 40
       : 0;
 
-  return kcalGap * 40 + proteinGap * 25 + overshoot * 10 + exactSlotBonus;
+  return kcalGap * 40 + proteinGap * 25 + overshoot * 10 + exactSlotBonus + dietBonus;
 }
 
 export function toMealSuggestion(
@@ -159,7 +169,8 @@ export function rankMealCandidates(
   mealType: MealType,
   remaining: RemainingMacros,
   excludeRecipeIds: string[] = [],
-  activeSlots?: MealType[]
+  activeSlots?: MealType[],
+  preferredDiet?: PreferredDiet | null
 ): MealSuggestionCandidate[] {
   const excluded = new Set(excludeRecipeIds.filter(Boolean));
   return candidates
@@ -167,14 +178,14 @@ export function rankMealCandidates(
     .filter((item) => recipeMatchesMealType(item, mealType))
     .map((item) => ({
       item,
-      score: scoreCandidateForMeal(item, mealType, remaining, activeSlots)
+      score: scoreCandidateForMeal(item, mealType, remaining, activeSlots, preferredDiet)
     }))
     .sort((a, b) => a.score - b.score)
     .map((entry) => entry.item);
 }
 
 /**
- * Elige una sugerencia del catálogo (con ranking por macros restantes).
+ * Elige una sugerencia del catálogo (macros + dieta preferida).
  * Si hay varios tops cercanos, introduce un poco de aleatoriedad.
  */
 export function pickMealSuggestionFromCatalog(
@@ -182,14 +193,16 @@ export function pickMealSuggestionFromCatalog(
   mealType: MealType,
   remaining: RemainingMacros,
   excludeRecipeIds: string[] = [],
-  activeSlots?: MealType[]
+  activeSlots?: MealType[],
+  preferredDiet?: PreferredDiet | null
 ): MealSuggestion | null {
   const ranked = rankMealCandidates(
     candidates,
     mealType,
     remaining,
     excludeRecipeIds,
-    activeSlots
+    activeSlots,
+    preferredDiet
   );
   if (ranked.length === 0) return null;
 

@@ -15,9 +15,9 @@ type WeeklyPlanDaySectionProps = {
   day: PlanDay;
   defaultExpanded?: boolean;
   onAddMeal?: (dayLabel: WeekDay, mealType: MealType) => void;
-  onMealSwapped?: (dayLabel: WeekDay, updatedMeal: PlanMeal) => void;
+  onChangeMeal?: (dayLabel: WeekDay, meal: PlanMeal) => void;
   onSwapError?: (message: string) => void;
-  onMealRemoved?: (dayLabel: WeekDay, mealType: MealType) => void;
+  onMealRemoved?: (dayLabel: WeekDay, mealType: MealType, planEntryId: string) => void;
   onRemoveError?: (message: string) => void;
   className?: string;
 };
@@ -26,7 +26,7 @@ export function WeeklyPlanDaySection({
   day,
   defaultExpanded = false,
   onAddMeal,
-  onMealSwapped,
+  onChangeMeal,
   onSwapError,
   onMealRemoved,
   onRemoveError,
@@ -34,7 +34,7 @@ export function WeeklyPlanDaySection({
 }: WeeklyPlanDaySectionProps) {
   const t = useTranslations("Plan");
   const [isExpanded, setIsExpanded] = useState(defaultExpanded || day.isToday);
-  const assignedCount = MEAL_TYPES.filter((type) => day.slots[type] !== null).length;
+  const assignedCount = MEAL_TYPES.filter((type) => (day.slots[type]?.length ?? 0) > 0).length;
 
   return (
     <section
@@ -89,7 +89,7 @@ export function WeeklyPlanDaySection({
           <div className="border-t border-stone-100/80 px-2.5 pb-2.5 pt-2">
             <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {MEAL_TYPES.map((mealType) => {
-                const meal = day.slots[mealType];
+                const meals = day.slots[mealType] ?? [];
 
                 return (
                   <div
@@ -100,23 +100,36 @@ export function WeeklyPlanDaySection({
                       {t(`meals.${mealType}`)}
                     </p>
 
-                    {meal ? (
-                      <PlanMealCard
-                        meal={meal}
-                        variant="slot"
-                        onMealSwapped={(updated) => onMealSwapped?.(day.label, updated)}
-                        onSwapError={onSwapError}
-                        onMealRemoved={(mealType) => onMealRemoved?.(day.label, mealType)}
-                        onRemoveError={onRemoveError}
-                        className="h-full"
-                      />
-                    ) : (
-                      <EmptyMealSlot
-                        variant="slot"
-                        mealType={mealType}
-                        onAdd={() => onAddMeal?.(day.label, mealType)}
-                      />
-                    )}
+                    {meals.map((meal, index) => (
+                      <div key={meal.id} className="flex flex-col gap-1">
+                        {index > 0 ? (
+                          <p className="px-0.5 text-center text-[9px] font-semibold uppercase tracking-wide text-stone-400">
+                            {t.has("complementBadge") ? t("complementBadge") : "Complemento"}
+                          </p>
+                        ) : null}
+                        <PlanMealCard
+                          meal={meal}
+                          variant="slot"
+                          onMealRemoved={(removedType, planEntryId) =>
+                            onMealRemoved?.(day.label, removedType, planEntryId)
+                          }
+                          onRemoveError={onRemoveError ?? onSwapError}
+                          onChangeMeal={
+                            onChangeMeal
+                              ? (selected) => onChangeMeal(day.label, selected)
+                              : undefined
+                          }
+                          className="h-full"
+                        />
+                      </div>
+                    ))}
+
+                    <EmptyMealSlot
+                      variant="slot"
+                      mealType={mealType}
+                      addComplement={meals.length > 0}
+                      onAdd={() => onAddMeal?.(day.label, mealType)}
+                    />
                   </div>
                 );
               })}

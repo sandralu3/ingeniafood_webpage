@@ -12,6 +12,8 @@ type EmptyMealSlotProps = {
   /** panel = fila horizontal; slot = tarjeta vertical en carrusel */
   variant?: "panel" | "slot";
   isGenerating?: boolean;
+  /** true cuando ya hay comida principal: el CTA añade un complemento */
+  addComplement?: boolean;
   className?: string;
 };
 
@@ -20,6 +22,7 @@ export function EmptyMealSlot({
   onAdd,
   variant = "panel",
   isGenerating = false,
+  addComplement = false,
   className
 }: EmptyMealSlotProps) {
   const t = useTranslations("Plan");
@@ -27,10 +30,19 @@ export function EmptyMealSlot({
     ? t.has("generatingAiProposal")
       ? t("generatingAiProposal")
       : "✨ Generando propuesta con IA..."
-    : t("chooseRecipe");
+    : addComplement
+      ? t.has("addComplement")
+        ? t("addComplement")
+        : "Agregar complemento"
+      : t("chooseRecipe");
   const mealLabel = t(`meals.${mealType}`);
   const MealIcon = getMealTypeIcon(mealType);
   const accent = getMealTypeSubtleAccent(mealType);
+  const ariaLabel = addComplement
+    ? t.has("addComplementAria")
+      ? t("addComplementAria", { meal: mealLabel })
+      : `Agregar complemento a ${mealLabel}`
+    : t("chooseRecipeAria", { meal: mealLabel });
 
   if (variant === "slot") {
     return (
@@ -39,7 +51,7 @@ export function EmptyMealSlot({
         onClick={onAdd}
         disabled={isGenerating}
         aria-busy={isGenerating}
-        aria-label={t("chooseRecipeAria", { meal: mealLabel })}
+        aria-label={ariaLabel}
         className={cn(
           "flex min-h-[6.5rem] w-full flex-col items-center justify-center gap-1.5 rounded-xl border border-stone-100/90 bg-white px-2 py-3 text-center text-[11px] font-medium text-stone-500 shadow-sm shadow-stone-100/20 transition hover:border-stone-200/80 disabled:cursor-wait disabled:opacity-80",
           className
@@ -70,7 +82,7 @@ export function EmptyMealSlot({
       onClick={onAdd}
       disabled={isGenerating}
       aria-busy={isGenerating}
-      aria-label={t("chooseRecipeAria", { meal: mealLabel })}
+      aria-label={ariaLabel}
       className={cn(
         "group flex w-full items-center gap-2 rounded-lg border border-stone-100/90 bg-white px-2 py-1.5 text-left shadow-sm shadow-stone-100/20 transition hover:border-stone-200/70 disabled:cursor-wait disabled:opacity-80",
         className

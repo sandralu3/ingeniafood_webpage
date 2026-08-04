@@ -11,6 +11,7 @@ const MEAL_KEYS: Record<RecipeMealType, string> = {
   almuerzo: "mealAlmuerzo",
   desayuno: "mealDesayuno",
   cena: "mealCena",
+  snack: "mealSnack",
   postre: "mealPostre"
 };
 
@@ -89,6 +90,8 @@ export function translateSavedCardLabel(t: Translate, label: string | null): str
       return t("tagDinner");
     case "Postre":
       return t("tagDessert");
+    case "Snack":
+      return t("tagSnack");
     case "Sin Harinas":
       return t("tagFlourless");
     case "Airfryer":
@@ -110,8 +113,12 @@ export function translateSavedFilterChip(t: Translate, filter: string): string {
       return t("filterAirfryer");
     case "Desayunos":
       return t("filterBreakfasts");
+    case "Almuerzos":
+      return t("filterLunches");
     case "Cenas":
       return t("filterDinners");
+    case "Snacks":
+      return t("filterSnacks");
     case "Sin Harinas":
       return t("filterFlourless");
     default:
