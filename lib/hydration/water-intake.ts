@@ -45,6 +45,34 @@ export function nextGlassesDrunkAfterTap(
   return index + 1;
 }
 
+export type WaterIntakeChangePayload = {
+  userId: string;
+  glassesDrunk?: number;
+  goal?: number | null;
+};
+
+type WaterIntakeListener = (payload: WaterIntakeChangePayload) => void;
+
+const waterIntakeListeners = new Set<WaterIntakeListener>();
+
+/** Avisa a Hoy / informe de dosis cuando cambia el agua del día o la meta. */
+export function notifyWaterIntakeChanged(payload: WaterIntakeChangePayload): void {
+  waterIntakeListeners.forEach((listener) => {
+    try {
+      listener(payload);
+    } catch (error) {
+      console.error("[water-intake] Error en listener de hidratación:", error);
+    }
+  });
+}
+
+export function subscribeWaterIntakeChanged(listener: WaterIntakeListener): () => void {
+  waterIntakeListeners.add(listener);
+  return () => {
+    waterIntakeListeners.delete(listener);
+  };
+}
+
 export async function fetchWaterGlassesGoal(userId: string): Promise<number | null> {
   const supabase = createSupabaseClient();
   const { data, error } = await supabase
@@ -77,6 +105,8 @@ export async function saveWaterGlassesGoal(
     console.error("[water-intake] Error guardando meta de vasos:", error);
     return { ok: false, error: error.message };
   }
+
+  notifyWaterIntakeChanged({ userId, goal: normalized });
 
   return { ok: true, goal: normalized };
 }
@@ -127,6 +157,12 @@ export async function setTodayWaterGlassesDrunk(
     console.error("[water-intake] Error guardando vasos de hoy:", error);
     return { ok: false, error: error.message };
   }
+
+  notifyWaterIntakeChanged({
+    userId,
+    glassesDrunk: normalized,
+    goal: clampWaterGlassesGoal(goal)
+  });
 
   return { ok: true, glassesDrunk: normalized };
 }

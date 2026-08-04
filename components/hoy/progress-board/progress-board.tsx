@@ -17,7 +17,8 @@ import type { WeeklyHealthMetrics } from "@/lib/gamification/weekly-metrics";
 import { buildWeekConsistencyDays, type WeekConsistencyDay } from "@/lib/gamification/week-consistency";
 import {
   fetchTodayWaterGlassesDrunk,
-  fetchWaterGlassesGoal
+  fetchWaterGlassesGoal,
+  subscribeWaterIntakeChanged
 } from "@/lib/hydration/water-intake";
 import { resolveWaterIntakeStatus } from "@/lib/hydration/water-status";
 import { computeDayBalanceLevel } from "@/lib/premium-stories/dose-suggested-recipe";
@@ -236,7 +237,8 @@ export function ProgressBoard({
     }
 
     let cancelled = false;
-    void (async () => {
+
+    const loadWater = async () => {
       try {
         const [goal, drunk] = await Promise.all([
           fetchWaterGlassesGoal(userId),
@@ -252,10 +254,27 @@ export function ProgressBoard({
           setWaterDrunk(0);
         }
       }
-    })();
+    };
+
+    void loadWater();
+
+    const unsubscribe = subscribeWaterIntakeChanged((payload) => {
+      if (payload.userId !== userId) return;
+      if (typeof payload.glassesDrunk === "number") {
+        setWaterDrunk(payload.glassesDrunk);
+      }
+      if (payload.goal !== undefined) {
+        setWaterGoal(payload.goal);
+      }
+      // Si solo cambió la meta desde parámetros, refrescar también el conteo del día.
+      if (payload.goal !== undefined && typeof payload.glassesDrunk !== "number") {
+        void loadWater();
+      }
+    });
 
     return () => {
       cancelled = true;
+      unsubscribe();
     };
   }, [userId, doseOpen, data?.fetchedAt]);
 
