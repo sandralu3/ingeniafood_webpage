@@ -161,7 +161,9 @@ export function PremiumBillingActions() {
         </div>
       ) : null}
 
-      {isPremium && hasGeneratedRealPhoto ? (
+      {isPremium &&
+      hasGeneratedRealPhoto &&
+      !(isPaidPremium && billing.hasActiveSubscription) ? (
         <div
           className="rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-2 text-[10px] leading-snug text-stone-500"
           role="status"

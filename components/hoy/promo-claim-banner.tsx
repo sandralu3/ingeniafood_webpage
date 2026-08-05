@@ -79,7 +79,7 @@ export function PromoClaimBanner({ className, onClaimed }: Props) {
 
   const ctaLabel = t.has("promoClaimCtaShort")
     ? t("promoClaimCtaShort").replace(/\s*✨\s*/g, "").trim()
-    : "Activar 24H";
+    : "Desbloquea tu experiencia premium";
 
   return (
     <div className={cn("space-y-1.5", className)}>
