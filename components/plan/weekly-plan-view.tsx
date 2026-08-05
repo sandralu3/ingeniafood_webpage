@@ -7,6 +7,7 @@ import { PlanDayCarousel } from "@/components/plan/plan-day-carousel";
 import { PlanDayMealsPanel } from "@/components/plan/plan-day-meals-panel";
 import { PlanRecipePickerModal } from "@/components/plan/plan-recipe-picker-modal";
 import { ShoppingListModal } from "@/components/plan/shopping-list-modal";
+import { SnackRegisterModal } from "@/components/plan/snack-register-modal";
 import { WeeklyPlanSkeleton } from "@/components/skeletons/weekly-plan-skeleton";
 import type { PlanMeal } from "@/components/plan/plan-meal-card";
 import type { MealType, WeekDay } from "@/lib/plan/constants";
@@ -27,6 +28,7 @@ import { summarizeDayPlanNutrition } from "@/lib/plan/plan-nutrition";
 import { clearHoyCache } from "@/lib/gamification/hoy-cache";
 import { invalidatePremiumInsightsCache } from "@/lib/premium-stories/stories-cache";
 import type { PlanDay, PlanDaySlots } from "@/lib/plan/types";
+import type { PlanSnack } from "@/lib/plan/snack-presets";
 import {
   addDays,
   formatWeekDateLabel,
@@ -98,6 +100,9 @@ export function WeeklyPlanView() {
   const [shoppingListItems, setShoppingListItems] = useState<ShoppingListItem[]>([]);
   const [isShoppingListLoading, setIsShoppingListLoading] = useState(false);
   const [shoppingListError, setShoppingListError] = useState<string | null>(null);
+
+  const [snackRegisterOpen, setSnackRegisterOpen] = useState(false);
+  const [snackRegisterBusy, setSnackRegisterBusy] = useState(false);
 
   const [actionsOpen, setActionsOpen] = useState(false);
   const [isCloningWeek, setIsCloningWeek] = useState(false);
@@ -781,6 +786,7 @@ export function WeeklyPlanView() {
                     invalidatePremiumInsightsCache(userId);
                   }
                 }}
+                onOpenSnackRegister={() => setSnackRegisterOpen(true)}
                 onProposeDayMenu={() => void handleProposeDayMenu()}
                 isProposingDayMenu={isProposingDayMenu}
                 isPremium={isPremium && !isPremiumLoading}
@@ -847,6 +853,38 @@ export function WeeklyPlanView() {
         }}
       />
 
+      <SnackRegisterModal
+        open={snackRegisterOpen}
+        dayLabel={selectedDayData?.label ?? selectedDay}
+        weekStartISO={toISODateString(weekStartDate)}
+        onBusyChange={setSnackRegisterBusy}
+        onClose={() => {
+          if (snackRegisterBusy) return;
+          setSnackRegisterOpen(false);
+        }}
+        onRegistered={(snack: PlanSnack) => {
+          setSnackRegisterBusy(false);
+          const dayLabel = selectedDayData?.label ?? selectedDay;
+          setDays((prev) =>
+            prev.map((day) =>
+              day.label === dayLabel
+                ? patchDaySnacks(day, [...(day.snacks ?? []), snack])
+                : day
+            )
+          );
+          if (userId) {
+            clearHoyCache(userId);
+            invalidatePremiumInsightsCache(userId);
+          }
+          setSwapNotice(
+            t.has("snackRegistered")
+              ? t("snackRegistered", { title: snack.title })
+              : `Snack «${snack.title}» añadido.`
+          );
+          setSnackRegisterOpen(false);
+        }}
+      />
+
       <ShoppingListModal
         open={shoppingListOpen}
         title={shoppingListTitle}
@@ -878,11 +916,12 @@ export function WeeklyPlanView() {
           }
           to {
             opacity: 1;
-            transform: translateY(0);
           }
         }
+        /* Sin fill-mode forwards/both: un transform residual (aunque sea 0)
+           convierte a los hijos position:fixed en relativos al panel. */
         .animate-fade-in {
-          animation: fade-in 280ms ease-out both;
+          animation: fade-in 280ms ease-out;
         }
       `}</style>
     </div>

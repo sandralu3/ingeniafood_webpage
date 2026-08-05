@@ -24,6 +24,13 @@ import {
 import { registerExternalMealToPlan } from "@/lib/plan/register-external-meal";
 import { uploadExternalMealPhoto } from "@/lib/plan/upload-external-meal-photo";
 import { canRegisterExternalMealForPlanDay } from "@/lib/plan/week-utils";
+import {
+  buildUnhealthyBalanceAdvisory,
+  RecipeAdvisoryPulseButton
+} from "@/components/recipes/recipe-advisory-alert";
+import { ModalSheetBackButton } from "@/components/ui/modal-sheet-back-button";
+import { PhotoSourcePicker } from "@/components/ui/photo-source-picker";
+import { SwipeToCloseHandle } from "@/components/ui/swipe-to-close-handle";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import { cn } from "@/lib/utils";
 
@@ -138,6 +145,21 @@ export function ExternalMealRegisterModal({
     };
     return withEditedExternalMealFoods(withName, foodItems);
   }, [dishName, estimate, foodItems]);
+
+  const unhealthyAdvisory = useMemo(
+    () =>
+      buildUnhealthyBalanceAdvisory({
+        balance: liveEstimate?.balance,
+        tips: liveEstimate?.recomendaciones,
+        fairLabel: t.has("externalMealBalanceFair")
+          ? t("externalMealBalanceFair")
+          : "Se puede mejorar",
+        poorLabel: t.has("externalMealBalancePoor")
+          ? t("externalMealBalancePoor")
+          : "Poco equilibrado"
+      }),
+    [liveEstimate, t]
+  );
 
   if (!open) return null;
 
@@ -416,6 +438,12 @@ export function ExternalMealRegisterModal({
   const canAnalyze =
     mode === "text" ? description.trim().length >= 3 : Boolean(selectedFile);
 
+  const isPhotoSourceStep =
+    step === "input" && mode === "photo" && (!previewUrl || showSourcePicker);
+  // En modo texto no queremos que el cuerpo se estire (reduce el espacio en blanco).
+  const dialogNeedsTallBody =
+    step === "review" || (mode === "photo" && !isPhotoSourceStep);
+
   return (
     <div
       className="fixed inset-0 z-[170] flex items-end justify-center bg-black/50 px-0 backdrop-blur-[2px] sm:items-center sm:px-4"
@@ -428,10 +456,22 @@ export function ExternalMealRegisterModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="external-meal-title"
-        className="flex h-[90dvh] max-h-[90dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border border-stone-100 bg-white shadow-2xl sm:h-auto sm:max-h-[85vh] sm:rounded-3xl"
+        className={cn(
+          "self-end flex w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border border-stone-100 bg-white shadow-2xl sm:rounded-3xl",
+          dialogNeedsTallBody
+            ? "h-[90dvh] max-h-[90dvh] sm:h-auto sm:max-h-[85vh]"
+            : "max-h-[90dvh] sm:max-h-[85vh]"
+        )}
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-stone-100 px-5 py-4">
+        <div className="shrink-0 px-5 pt-0 pb-0">
+          <SwipeToCloseHandle
+            onClose={requestClose}
+            disabled={isAnalyzing || isSaving}
+          />
+        </div>
+
+        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-stone-100 px-5 py-3">
           <div>
             <h2 id="external-meal-title" className="font-serif text-lg font-semibold text-stone-900">
               {step === "review"
@@ -440,7 +480,7 @@ export function ExternalMealRegisterModal({
                   : "Revisa los alimentos"
                 : title}
             </h2>
-            <p className="mt-1 text-xs text-stone-500">
+            <p className="mt-0.5 text-xs text-stone-500">
               {step === "review"
                 ? t.has("externalMealReviewSubtitle")
                   ? t("externalMealReviewSubtitle")
@@ -461,7 +501,12 @@ export function ExternalMealRegisterModal({
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-y-contain px-5 py-4 touch-pan-y [-webkit-overflow-scrolling:touch]">
+        <div
+          className={cn(
+            "min-h-0 space-y-3 overflow-y-auto overscroll-y-contain px-5 py-3 touch-pan-y [-webkit-overflow-scrolling:touch]",
+            dialogNeedsTallBody ? "flex-1" : "shrink-0"
+          )}
+        >
           {step === "input" && mode === "photo" ? (
             <div className="space-y-3">
               <input
@@ -511,53 +556,33 @@ export function ExternalMealRegisterModal({
                   </button>
                 </>
               ) : (
-                <div className="rounded-t-3xl border border-stone-100 bg-white p-1 sm:rounded-3xl">
-                  <p className="mb-3 text-center text-[11px] font-bold uppercase tracking-wider text-stone-400">
-                    {t.has("externalMealAddPhotoTitle")
+                <PhotoSourcePicker
+                  title={
+                    t.has("externalMealAddPhotoTitle")
                       ? t("externalMealAddPhotoTitle")
-                      : "Añadir foto del plato"}
-                  </p>
-                  <div className="space-y-2">
-                    <button
-                      type="button"
-                      onClick={openCamera}
-                      disabled={isAnalyzing}
-                      className="flex w-full items-center gap-3 rounded-2xl border border-stone-100 bg-stone-50 px-4 py-3.5 text-left text-sm font-semibold text-stone-800 transition hover:border-[#3E5A3A]/30 hover:bg-[#F4F7F2] disabled:opacity-60"
-                    >
-                      <span className="text-xl" aria-hidden>
-                        📸
-                      </span>
-                      {t.has("externalMealTakePhoto")
-                        ? t("externalMealTakePhoto")
-                        : "Tomar Foto"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={openGallery}
-                      disabled={isAnalyzing}
-                      className="flex w-full items-center gap-3 rounded-2xl border border-stone-100 bg-stone-50 px-4 py-3.5 text-left text-sm font-semibold text-stone-800 transition hover:border-[#3E5A3A]/30 hover:bg-[#F4F7F2] disabled:opacity-60"
-                    >
-                      <span className="text-xl" aria-hidden>
-                        🖼️
-                      </span>
-                      {t.has("externalMealChooseGallery")
-                        ? t("externalMealChooseGallery")
-                        : "Elegir de la Galería"}
-                    </button>
-                  </div>
-                  {previewUrl ? (
-                    <button
-                      type="button"
-                      onClick={() => setShowSourcePicker(false)}
-                      disabled={isAnalyzing}
-                      className="mt-3 w-full rounded-2xl py-3 text-sm font-semibold text-stone-500 transition hover:bg-stone-50 hover:text-stone-700 disabled:opacity-60"
-                    >
-                      {t.has("externalMealCancelChangePhoto")
-                        ? t("externalMealCancelChangePhoto")
-                        : "Cancelar"}
-                    </button>
-                  ) : null}
-                </div>
+                      : "Añadir foto del plato"
+                  }
+                  takePhotoLabel={
+                    t.has("externalMealTakePhoto")
+                      ? t("externalMealTakePhoto")
+                      : "Tomar Foto"
+                  }
+                  galleryLabel={
+                    t.has("externalMealChooseGallery")
+                      ? t("externalMealChooseGallery")
+                      : "Elegir de la Galería"
+                  }
+                  cancelLabel={
+                    t.has("externalMealCancelChangePhoto")
+                      ? t("externalMealCancelChangePhoto")
+                      : "Cancelar"
+                  }
+                  showCancel={Boolean(previewUrl)}
+                  disabled={isAnalyzing}
+                  onTakePhoto={openCamera}
+                  onChooseGallery={openGallery}
+                  onCancel={() => setShowSourcePicker(false)}
+                />
               )}
             </div>
           ) : null}
@@ -597,12 +622,48 @@ export function ExternalMealRegisterModal({
           {step === "review" && liveEstimate ? (
             <div className="space-y-2">
               {previewUrl ? (
-                <div className="overflow-hidden rounded-xl border border-stone-100 bg-stone-50">
+                <div className="relative overflow-hidden rounded-xl border border-stone-100 bg-stone-50">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={previewUrl}
                     alt="Plato"
                     className="h-36 w-full object-cover sm:h-40"
                   />
+                  {unhealthyAdvisory ? (
+                    <RecipeAdvisoryPulseButton
+                      message={unhealthyAdvisory.message}
+                      tone={unhealthyAdvisory.tone}
+                    />
+                  ) : null}
+                </div>
+              ) : unhealthyAdvisory ? (
+                <div
+                  className={
+                    unhealthyAdvisory.tone === "warning"
+                      ? "relative h-14 overflow-hidden rounded-xl border border-amber-100 bg-amber-50/50"
+                      : "relative h-14 overflow-hidden rounded-xl border border-sky-100 bg-sky-50/50"
+                  }
+                >
+                  <RecipeAdvisoryPulseButton
+                    message={unhealthyAdvisory.message}
+                    tone={unhealthyAdvisory.tone}
+                    positionClassName="right-3 top-1/2 -translate-y-1/2"
+                  />
+                  <p
+                    className={
+                      unhealthyAdvisory.tone === "warning"
+                        ? "flex h-full items-center pl-4 pr-14 text-[11px] font-medium text-amber-900/80"
+                        : "flex h-full items-center pl-4 pr-14 text-[11px] font-medium text-sky-900/80"
+                    }
+                  >
+                    {unhealthyAdvisory.tone === "warning"
+                      ? t.has("externalMealAdviceHint")
+                        ? t("externalMealAdviceHint")
+                        : "Hay una advertencia sobre este plato"
+                      : t.has("externalMealInfoHint")
+                        ? t("externalMealInfoHint")
+                        : "Hay una sugerencia sobre este plato"}
+                  </p>
                 </div>
               ) : null}
 
@@ -714,55 +775,6 @@ export function ExternalMealRegisterModal({
                   ))}
                 </div>
               </div>
-
-              {liveEstimate.recomendaciones.length > 0 ? (
-                <div
-                  className={cn(
-                    "rounded-xl border px-2.5 py-2",
-                    liveEstimate.balance === "equilibrado"
-                      ? "border-emerald-100 bg-emerald-50/70"
-                      : liveEstimate.balance === "poco_saludable"
-                        ? "border-amber-200 bg-amber-50/80"
-                        : "border-[#C49520]/25 bg-[#C49520]/8"
-                  )}
-                >
-                  <p
-                    className={cn(
-                      "text-[10px] font-bold uppercase tracking-wide",
-                      liveEstimate.balance === "equilibrado"
-                        ? "text-emerald-800/80"
-                        : liveEstimate.balance === "poco_saludable"
-                          ? "text-amber-900/80"
-                          : "text-[#8A6A16]"
-                    )}
-                  >
-                    {liveEstimate.balance === "equilibrado"
-                      ? t.has("externalMealBalanceOk")
-                        ? t("externalMealBalanceOk")
-                        : "Menú equilibrado"
-                      : liveEstimate.balance === "poco_saludable"
-                        ? t.has("externalMealBalancePoor")
-                          ? t("externalMealBalancePoor")
-                          : "Poco equilibrado"
-                        : t.has("externalMealBalanceFair")
-                          ? t("externalMealBalanceFair")
-                          : "Se puede mejorar"}
-                  </p>
-                  <ul className="mt-1 space-y-1">
-                    {liveEstimate.recomendaciones.map((tip) => (
-                      <li
-                        key={tip}
-                        className="text-[11px] leading-snug text-stone-700"
-                      >
-                        <span className="mr-1 text-[#4D6638]" aria-hidden>
-                          ·
-                        </span>
-                        {tip}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
             </div>
           ) : null}
 
@@ -773,7 +785,12 @@ export function ExternalMealRegisterModal({
           ) : null}
         </div>
 
-        <div className="shrink-0 border-t border-stone-100 px-5 py-4">
+        <div
+          className={cn(
+            "shrink-0 border-t border-stone-100 px-5",
+            isPhotoSourceStep ? "py-3" : "py-4"
+          )}
+        >
           {step === "input" ? (
             <button
               type="button"
@@ -801,23 +818,20 @@ export function ExternalMealRegisterModal({
             </button>
           ) : (
             <div className="flex gap-2">
-              <button
-                type="button"
+              <ModalSheetBackButton
                 disabled={isSaving}
+                label={t.has("externalMealBack") ? t("externalMealBack") : "Atrás"}
                 onClick={() => {
                   setStep("input");
                   setError(null);
                 }}
-                className="rounded-2xl border border-stone-200 bg-white px-4 py-3 text-sm font-semibold text-stone-600 transition hover:bg-stone-50 disabled:opacity-60"
-              >
-                {t.has("externalMealBack") ? t("externalMealBack") : "Atrás"}
-              </button>
+              />
               <button
                 type="button"
                 disabled={isSaving || foodItems.length === 0 || !dishName.trim()}
                 onClick={() => void handleConfirmSave()}
                 className={cn(
-                  "flex flex-1 items-center justify-center gap-2 rounded-2xl bg-[#4D6638] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-105",
+                  "flex min-w-0 flex-1 items-center justify-center gap-2 rounded-2xl bg-[#4D6638] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-105",
                   "disabled:cursor-not-allowed disabled:opacity-60"
                 )}
               >

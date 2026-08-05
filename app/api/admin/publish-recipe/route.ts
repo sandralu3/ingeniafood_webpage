@@ -80,6 +80,14 @@ export async function POST(request: Request) {
       instagramUrl
     });
 
+    const { notifyAdminsCatalogPublished } = await import(
+      "@/lib/notifications/admin-notify"
+    );
+    void notifyAdminsCatalogPublished({
+      recipeId: result.recipeId,
+      title: recipe.titulo
+    });
+
     return NextResponse.json({
       recipeId: result.recipeId,
       imageUrl: result.imageUrl,

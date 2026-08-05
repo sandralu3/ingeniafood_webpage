@@ -14,6 +14,7 @@ import type { InstagramCatalogRecipe } from "@/lib/recipes/instagram-catalog";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import type { Database, Json } from "@/types/database.types";
 import { cn } from "@/lib/utils";
+import { SwipeToCloseHandle } from "@/components/ui/swipe-to-close-handle";
 
 type RecipeRow = Database["public"]["Tables"]["recipes"]["Row"];
 
@@ -158,6 +159,11 @@ export function InstagramCatalogRecipeModal({ open, recipe, onClose, onAddToPlan
           >
             <X className="h-4 w-4" />
           </button>
+
+          <div className="absolute left-1/2 top-12 z-20 -translate-x-1/2">
+            <SwipeToCloseHandle onClose={onClose} disabled={false} />
+          </div>
+
           <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-black/40 px-2 py-1 text-[10px] font-medium text-white backdrop-blur-md">
             <Instagram className="h-3 w-3" strokeWidth={2} />
             Reel

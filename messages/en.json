@@ -13,6 +13,12 @@
     "signOut": "Sign out",
     "signingOut": "Signing out..."
   },
+  "Notifications": {
+    "title": "Notifications",
+    "empty": "You don't have any notifications yet.",
+    "markAllRead": "Mark all as read",
+    "loading": "Updating…"
+  },
   "Profile": {
     "title": "My Profile",
     "subtitle": "Manage your personal details and photo.",
@@ -51,7 +57,18 @@
     "photoCreditAvailable": "You have {count, plural, one {# real dish photo generation} other {# real dish photo generations}}. It’s used automatically when you create a recipe.",
     "photoCreditExhausted": "You’ve already used your only real-photo attempt. Later recipes will use a reference image.",
     "testerResetCta": "🛠️ Reset Premium Trial (Tester Mode)",
-    "testerResetSuccess": "Trial reset. Go to Today to activate your 24h pass."
+    "testerResetSuccess": "Trial reset. Go to Today to activate your 24h pass.",
+    "pushTitle": "Phone notifications",
+    "pushSubtitle": "Get system tray alerts even when the app is closed (installed PWA).",
+    "pushEnabled": "Enabled on this device",
+    "pushDisabled": "Disabled",
+    "pushEnableCta": "Enable notifications",
+    "pushDisableCta": "Disable",
+    "pushUnsupported": "This browser does not support push. Install the PWA or use Chrome/Safari on mobile.",
+    "pushNotConfigured": "Push notifications are not configured on the server.",
+    "pushLoadError": "Could not load notification status.",
+    "pushEnableError": "Could not enable notifications.",
+    "pushDisableError": "Could not disable notifications."
   },
   "Hoy": {
     "dayInProgress": "Your day in motion",
@@ -504,6 +521,11 @@
     "photoCreditConfirmDescriptionPremium": "You only have 1 attempt to generate a real dish photo. If you confirm, it will be used for this recipe and you won’t get another. If you continue without a photo, you keep the attempt.",
     "photoCreditConfirmDescriptionAdmin": "As an admin you can generate real dish photos with no limit. Generate one now?",
     "photoCreditConfirmYes": "Yes, use real photo",
+    "advisoryAlertAria": "View nutrition warning",
+    "advisoryInfoAria": "View nutrition tip",
+    "advisoryPopupTitle": "Warning",
+    "advisoryPopupInfoTitle": "Information",
+    "advisoryPopupGotIt": "Got it",
     "photoCreditConfirmNo": "Continue without photo",
     "confirmIngredientsTitle": "Confirm ingredients",
     "confirmIngredientsSubtitle": "Tap to include or discard",

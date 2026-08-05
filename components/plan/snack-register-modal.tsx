@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Camera, ImageIcon, Loader2, PenLine, Trash2, X, Zap } from "lucide-react";
+import { Camera, Loader2, PenLine, Trash2, X, Zap } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
+import { ModalSheetBackButton } from "@/components/ui/modal-sheet-back-button";
 import type { MealType, WeekDay } from "@/lib/plan/constants";
 import {
   EXTERNAL_MEAL_UNITS,
@@ -27,6 +28,12 @@ import {
 } from "@/lib/plan/snack-service";
 import { uploadExternalMealPhoto } from "@/lib/plan/upload-external-meal-photo";
 import { canRegisterExternalMealForPlanDay } from "@/lib/plan/week-utils";
+import {
+  buildUnhealthyBalanceAdvisory,
+  RecipeAdvisoryPulseButton
+} from "@/components/recipes/recipe-advisory-alert";
+import { PhotoSourcePicker } from "@/components/ui/photo-source-picker";
+import { SwipeToCloseHandle } from "@/components/ui/swipe-to-close-handle";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import { cn } from "@/lib/utils";
 
@@ -140,6 +147,19 @@ export function SnackRegisterModal({
     };
     return withEditedSnackFoods(withName, foodItems);
   }, [dishName, estimate, foodItems]);
+
+  const unhealthyAdvisory = useMemo(
+    () =>
+      buildUnhealthyBalanceAdvisory({
+        balance: liveEstimate?.balance,
+        tips: liveEstimate?.recomendaciones,
+        fairLabel: t.has("snackBalanceFair") ? t("snackBalanceFair") : "Snack mejorable",
+        poorLabel: t.has("snackBalancePoor")
+          ? t("snackBalancePoor")
+          : "Snack indulgente"
+      }),
+    [liveEstimate, t]
+  );
 
   if (!open) return null;
 
@@ -479,9 +499,15 @@ export function SnackRegisterModal({
         ? t("snackRegisterSubtitle")
         : "Añade un tentempié en segundos. Cuenta para el balance del día.";
 
+  const isPhotoSourceStep =
+    step === "input" && mode === "photo" && (!previewUrl || showSourcePicker);
+  const dialogNeedsTallBody =
+    step === "review" || mode === "menu" || mode === "text" || !isPhotoSourceStep;
+
+  // Misma cáscara que PlanRecipePickerModal (items-end + max-h-[88vh]).
   return (
     <div
-      className="fixed inset-0 z-[180] flex items-end justify-center bg-black/50 px-0 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-[2px] sm:items-center sm:px-4 sm:pt-4"
+      className="fixed inset-0 z-[160] flex items-end justify-center bg-black/45 px-0 backdrop-blur-[2px] sm:items-center sm:px-4"
       onClick={(event) => {
         // Solo cerrar desde el menú vacío. Con texto/revisión un toque al fondo
         // (p. ej. al cerrar el teclado en móvil) perdía el snack sin guardar.
@@ -502,15 +528,22 @@ export function SnackRegisterModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="snack-register-title"
-        className="flex max-h-[min(88svh,88dvh)] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border border-stone-100 bg-white pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-2xl sm:max-h-[85vh] sm:rounded-3xl sm:pb-0"
+        className="flex max-h-[88vh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border border-neutral-100 bg-white shadow-2xl sm:rounded-3xl"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-stone-100 px-5 py-4">
+        <div className="shrink-0 px-5 pt-0 pb-0">
+          <SwipeToCloseHandle
+            onClose={requestClose}
+            disabled={isAnalyzing || isSaving || Boolean(busyPresetId)}
+          />
+        </div>
+
+        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-stone-100 px-5 py-3">
           <div className="min-w-0">
             <h2 id="snack-register-title" className="font-serif text-lg font-semibold text-stone-900">
               {headerTitle}
             </h2>
-            <p className="mt-1 text-xs text-stone-500">{headerSubtitle}</p>
+            <p className="mt-0.5 text-xs text-stone-500">{headerSubtitle}</p>
           </div>
           <button
             type="button"
@@ -523,7 +556,12 @@ export function SnackRegisterModal({
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-y-contain px-5 py-4 touch-pan-y [-webkit-overflow-scrolling:touch]">
+        <div
+          className={cn(
+            "min-h-0 space-y-3 overflow-y-auto overscroll-y-contain px-5 py-3 touch-pan-y [-webkit-overflow-scrolling:touch]",
+            dialogNeedsTallBody ? "flex-1" : "shrink-0"
+          )}
+        >
           {!canRegister ? (
             <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-900">
               {t.has("snackFutureDayHint")
@@ -630,13 +668,6 @@ export function SnackRegisterModal({
                   ? t("snackDescriptionCommaHint")
                   : "Si son varios alimentos, sepáralos por comas para identificarlos mejor."}
               </p>
-              <button
-                type="button"
-                onClick={() => setMode("menu")}
-                className="text-xs font-semibold text-stone-500 underline-offset-2 hover:underline"
-              >
-                Volver
-              </button>
             </label>
           ) : null}
 
@@ -678,82 +709,46 @@ export function SnackRegisterModal({
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={previewUrl} alt="Snack" className="max-h-48 w-full object-cover" />
                   </div>
-                  <div className="flex items-center justify-between gap-3 px-0.5">
-                    <button
-                      type="button"
-                      onClick={() => setShowSourcePicker(true)}
-                      disabled={isAnalyzing}
-                      className="text-xs font-semibold text-[#4D6638] underline-offset-2 hover:underline disabled:opacity-60"
-                    >
-                      {t.has("externalMealChangePhoto")
-                        ? t("externalMealChangePhoto")
-                        : "Cambiar foto"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setMode("menu")}
-                      className="text-xs font-semibold text-stone-500 underline-offset-2 hover:underline"
-                    >
-                      Volver
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowSourcePicker(true)}
+                    disabled={isAnalyzing}
+                    className="text-xs font-semibold text-[#4D6638] underline-offset-2 hover:underline disabled:opacity-60"
+                  >
+                    {t.has("externalMealChangePhoto")
+                      ? t("externalMealChangePhoto")
+                      : "Cambiar foto"}
+                  </button>
                 </div>
               ) : (
                 <div className="space-y-2">
-                  <div className="rounded-2xl border border-stone-100 bg-white p-1">
-                    <p className="mb-3 text-center text-[11px] font-bold uppercase tracking-wider text-stone-400">
-                      {t.has("snackAddPhotoTitle")
+                  <PhotoSourcePicker
+                    title={
+                      t.has("snackAddPhotoTitle")
                         ? t("snackAddPhotoTitle")
-                        : "Añadir foto del snack"}
-                    </p>
-                    <div className="space-y-2">
-                      <button
-                        type="button"
-                        onClick={openCamera}
-                        disabled={isAnalyzing}
-                        className="flex w-full items-center gap-3 rounded-2xl border border-stone-100 bg-stone-50 px-4 py-3.5 text-left text-sm font-semibold text-stone-800 transition hover:border-[#3E5A3A]/30 hover:bg-[#F4F7F2] disabled:opacity-60"
-                      >
-                        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#3E5A3A]/10 text-[#3E5A3A]">
-                          <Camera className="h-4 w-4" strokeWidth={2} />
-                        </span>
-                        {t.has("externalMealTakePhoto")
-                          ? t("externalMealTakePhoto")
-                          : "Tomar Foto"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={openGallery}
-                        disabled={isAnalyzing}
-                        className="flex w-full items-center gap-3 rounded-2xl border border-stone-100 bg-stone-50 px-4 py-3.5 text-left text-sm font-semibold text-stone-800 transition hover:border-[#3E5A3A]/30 hover:bg-[#F4F7F2] disabled:opacity-60"
-                      >
-                        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-50 text-amber-800">
-                          <ImageIcon className="h-4 w-4" strokeWidth={2} />
-                        </span>
-                        {t.has("externalMealChooseGallery")
-                          ? t("externalMealChooseGallery")
-                          : "Elegir de la Galería"}
-                      </button>
-                    </div>
-                    {previewUrl ? (
-                      <button
-                        type="button"
-                        onClick={() => setShowSourcePicker(false)}
-                        disabled={isAnalyzing}
-                        className="mt-3 w-full rounded-2xl py-3 text-sm font-semibold text-stone-500 transition hover:bg-stone-50 hover:text-stone-700 disabled:opacity-60"
-                      >
-                        {t.has("externalMealCancelChangePhoto")
-                          ? t("externalMealCancelChangePhoto")
-                          : "Cancelar"}
-                      </button>
-                    ) : null}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setMode("menu")}
-                    className="px-0.5 text-xs font-semibold text-stone-500 underline-offset-2 hover:underline"
-                  >
-                    Volver
-                  </button>
+                        : "Añadir foto del snack"
+                    }
+                    takePhotoLabel={
+                      t.has("externalMealTakePhoto")
+                        ? t("externalMealTakePhoto")
+                        : "Tomar Foto"
+                    }
+                    galleryLabel={
+                      t.has("externalMealChooseGallery")
+                        ? t("externalMealChooseGallery")
+                        : "Elegir de la Galería"
+                    }
+                    cancelLabel={
+                      t.has("externalMealCancelChangePhoto")
+                        ? t("externalMealCancelChangePhoto")
+                        : "Cancelar"
+                    }
+                    showCancel={Boolean(previewUrl)}
+                    disabled={isAnalyzing}
+                    onTakePhoto={openCamera}
+                    onChooseGallery={openGallery}
+                    onCancel={() => setShowSourcePicker(false)}
+                  />
                 </div>
               )}
             </div>
@@ -762,13 +757,48 @@ export function SnackRegisterModal({
           {step === "review" && liveEstimate ? (
             <div className="space-y-2">
               {previewUrl ? (
-                <div className="overflow-hidden rounded-xl border border-stone-100 bg-stone-50">
+                <div className="relative overflow-hidden rounded-xl border border-stone-100 bg-stone-50">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={previewUrl}
                     alt="Snack"
                     className="h-36 w-full object-cover sm:h-40"
                   />
+                  {unhealthyAdvisory ? (
+                    <RecipeAdvisoryPulseButton
+                      message={unhealthyAdvisory.message}
+                      tone={unhealthyAdvisory.tone}
+                    />
+                  ) : null}
+                </div>
+              ) : unhealthyAdvisory ? (
+                <div
+                  className={
+                    unhealthyAdvisory.tone === "warning"
+                      ? "relative h-14 overflow-hidden rounded-xl border border-amber-100 bg-amber-50/50"
+                      : "relative h-14 overflow-hidden rounded-xl border border-sky-100 bg-sky-50/50"
+                  }
+                >
+                  <RecipeAdvisoryPulseButton
+                    message={unhealthyAdvisory.message}
+                    tone={unhealthyAdvisory.tone}
+                    positionClassName="right-3 top-1/2 -translate-y-1/2"
+                  />
+                  <p
+                    className={
+                      unhealthyAdvisory.tone === "warning"
+                        ? "flex h-full items-center pl-4 pr-14 text-[11px] font-medium text-amber-900/80"
+                        : "flex h-full items-center pl-4 pr-14 text-[11px] font-medium text-sky-900/80"
+                    }
+                  >
+                    {unhealthyAdvisory.tone === "warning"
+                      ? t.has("externalMealAdviceHint")
+                        ? t("externalMealAdviceHint")
+                        : "Hay una advertencia sobre este snack"
+                      : t.has("externalMealInfoHint")
+                        ? t("externalMealInfoHint")
+                        : "Hay una sugerencia sobre este snack"}
+                  </p>
                 </div>
               ) : null}
 
@@ -881,51 +911,6 @@ export function SnackRegisterModal({
                 </div>
               </div>
 
-              {liveEstimate.recomendaciones.length > 0 ? (
-                <div
-                  className={cn(
-                    "rounded-xl border px-2.5 py-2",
-                    liveEstimate.balance === "equilibrado"
-                      ? "border-emerald-100 bg-emerald-50/70"
-                      : liveEstimate.balance === "poco_saludable"
-                        ? "border-amber-200 bg-amber-50/80"
-                        : "border-[#C49520]/25 bg-[#C49520]/8"
-                  )}
-                >
-                  <p
-                    className={cn(
-                      "text-[10px] font-bold uppercase tracking-wide",
-                      liveEstimate.balance === "equilibrado"
-                        ? "text-emerald-800/80"
-                        : liveEstimate.balance === "poco_saludable"
-                          ? "text-amber-900/80"
-                          : "text-[#8A6A16]"
-                    )}
-                  >
-                    {liveEstimate.balance === "equilibrado"
-                      ? t.has("snackBalanceOk")
-                        ? t("snackBalanceOk")
-                        : "Buen snack"
-                      : liveEstimate.balance === "poco_saludable"
-                        ? t.has("snackBalancePoor")
-                          ? t("snackBalancePoor")
-                          : "Snack indulgente"
-                        : t.has("snackBalanceFair")
-                          ? t("snackBalanceFair")
-                          : "Snack mejorable"}
-                  </p>
-                  <ul className="mt-1 space-y-1">
-                    {liveEstimate.recomendaciones.map((tip) => (
-                      <li key={tip} className="text-[11px] leading-snug text-stone-700">
-                        <span className="mr-1 text-[#4D6638]" aria-hidden>
-                          ·
-                        </span>
-                        {tip}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
             </div>
           ) : null}
 
@@ -937,51 +922,63 @@ export function SnackRegisterModal({
         </div>
 
         {mode === "text" || mode === "photo" || step === "review" ? (
-          <div className="shrink-0 border-t border-stone-100 px-5 py-4">
+          <div
+            className={cn(
+              "shrink-0 border-t border-stone-100 px-5",
+              isPhotoSourceStep ? "py-3" : "py-4"
+            )}
+          >
             {step === "input" ? (
-              <button
-                type="button"
-                disabled={isAnalyzing || !canAnalyze || !canRegister}
-                onClick={() => void handleAnalyze()}
-                className={cn(
-                  "flex w-full items-center justify-center gap-2 rounded-2xl bg-[#4D6638] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-105",
-                  "disabled:cursor-not-allowed disabled:opacity-60"
-                )}
-              >
-                {isAnalyzing ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : mode === "photo" ? (
-                  <Camera className="h-4 w-4" />
-                ) : (
-                  <PenLine className="h-4 w-4" />
-                )}
-                {isAnalyzing
-                  ? t.has("externalMealAnalyzing")
-                    ? t("externalMealAnalyzing")
-                    : "Analizando…"
-                  : t.has("externalMealAnalyzeCta")
-                    ? t("externalMealAnalyzeCta")
-                    : "Analizar alimentos"}
-              </button>
-            ) : (
               <div className="flex gap-2">
+                <ModalSheetBackButton
+                  disabled={isAnalyzing || Boolean(busyPresetId)}
+                  label={t.has("externalMealBack") ? t("externalMealBack") : "Atrás"}
+                  onClick={() => {
+                    setMode("menu");
+                    setError(null);
+                  }}
+                />
                 <button
                   type="button"
+                  disabled={isAnalyzing || !canAnalyze || !canRegister}
+                  onClick={() => void handleAnalyze()}
+                  className={cn(
+                    "flex min-w-0 flex-1 items-center justify-center gap-2 rounded-2xl bg-[#4D6638] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-105",
+                    "disabled:cursor-not-allowed disabled:opacity-60"
+                  )}
+                >
+                  {isAnalyzing ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : mode === "photo" ? (
+                    <Camera className="h-4 w-4" />
+                  ) : (
+                    <PenLine className="h-4 w-4" />
+                  )}
+                  {isAnalyzing
+                    ? t.has("externalMealAnalyzing")
+                      ? t("externalMealAnalyzing")
+                      : "Analizando…"
+                    : t.has("externalMealAnalyzeCta")
+                      ? t("externalMealAnalyzeCta")
+                      : "Analizar alimentos"}
+                </button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <ModalSheetBackButton
                   disabled={isSaving}
+                  label={t.has("externalMealBack") ? t("externalMealBack") : "Atrás"}
                   onClick={() => {
                     setStep("input");
                     setError(null);
                   }}
-                  className="rounded-2xl border border-stone-200 bg-white px-4 py-3 text-sm font-semibold text-stone-600 transition hover:bg-stone-50 disabled:opacity-60"
-                >
-                  {t.has("externalMealBack") ? t("externalMealBack") : "Atrás"}
-                </button>
+                />
                 <button
                   type="button"
                   disabled={isSaving || foodItems.length === 0 || !dishName.trim()}
                   onClick={() => void handleConfirmSave()}
                   className={cn(
-                    "flex flex-1 items-center justify-center gap-2 rounded-2xl bg-[#4D6638] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-105",
+                    "flex min-w-0 flex-1 items-center justify-center gap-2 rounded-2xl bg-[#4D6638] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-105",
                     "disabled:cursor-not-allowed disabled:opacity-60"
                   )}
                 >

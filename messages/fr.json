@@ -13,6 +13,12 @@
     "signOut": "Se déconnecter",
     "signingOut": "Déconnexion..."
   },
+  "Notifications": {
+    "title": "Notifications",
+    "empty": "Vous n'avez pas encore de notifications.",
+    "markAllRead": "Tout marquer comme lu",
+    "loading": "Mise à jour…"
+  },
   "Profile": {
     "title": "Mon profil",
     "subtitle": "Gérez vos informations personnelles et votre photo.",
@@ -434,6 +440,11 @@
     "photoCreditConfirmDescriptionPremium": "Vous n’avez qu’1 tentative pour générer la vraie photo du plat. Si vous confirmez, elle sera utilisée pour cette recette et vous n’en aurez plus. Sans photo, vous conservez la tentative.",
     "photoCreditConfirmDescriptionAdmin": "En tant qu’administrateur, vous pouvez générer des vraies photos du plat sans limite. Voulez-vous en générer une maintenant ?",
     "photoCreditConfirmYes": "Oui, utiliser la vraie photo",
+    "advisoryAlertAria": "Voir l’avertissement nutritionnel",
+    "advisoryInfoAria": "Voir l’information nutritionnelle",
+    "advisoryPopupTitle": "Avertissement",
+    "advisoryPopupInfoTitle": "Information",
+    "advisoryPopupGotIt": "Compris",
     "photoCreditConfirmNo": "Continuer sans photo",
     "confirmIngredientsTitle": "Confirmer les ingrédients",
     "confirmIngredientsSubtitle": "Touchez pour inclure ou écarter",

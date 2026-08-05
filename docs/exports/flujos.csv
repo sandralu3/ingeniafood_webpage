@@ -1,0 +1,7 @@
+﻿id,nombre,pasos,pantallas
+FL-A,Entrar a la app,Instalar PWA → clave privada si aplica → Login/Registro → confirmar email → Hoy,SCR-PWA-GATE;SCR-LOGIN;SCR-HOY
+FL-B,Generar una receta,Escáner → foto/manual → confirmar → filtros → generar → variante → guardar/plan,SCR-SCAN;SCR-SCAN-CONFIRM;SCR-SCAN-RESULT;SCR-RECIPES;SCR-PLAN
+FL-C,Planificar la semana,Plan → día → añadir/cambiar → escáner/IG → snacks/fuera → lista compras,SCR-PLAN;SCR-SCAN;MOD-PICKER;MOD-SHOP
+FL-D,Completar el día (Hoy),Agua → retos → comidas vacías → dosis Premium,SCR-HOY;MOD-DOSE
+FL-E,Ajustar preferencias,Parámetros → nutrición + dieta + agua,SCR-PARAMS
+FL-F,Hacerse Premium,Perfil/paywall → Stripe o código 24h o pase promo Hoy,SCR-PROFILE;MOD-PAYWALL;SCR-HOY

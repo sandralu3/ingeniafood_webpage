@@ -9,6 +9,7 @@ import type { DailyChallenge } from "@/lib/gamification/challenges";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "next-intl";
+import { SwipeToCloseHandle } from "@/components/ui/swipe-to-close-handle";
 
 type HoyDetailModalProps = {
   open: boolean;
@@ -39,6 +40,10 @@ function HoyDetailModal({
         aria-labelledby="hoy-detail-modal-title"
         className="max-h-[88vh] w-full max-w-md overflow-hidden rounded-t-3xl border border-neutral-100 bg-white shadow-2xl sm:rounded-3xl"
       >
+        <div className="shrink-0 px-5 pt-0 pb-0">
+          <SwipeToCloseHandle onClose={onClose} />
+        </div>
+
         <div className="flex items-start justify-between gap-3 border-b border-stone-100 px-5 py-4">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-stone-400">

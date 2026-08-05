@@ -5,6 +5,7 @@ import Cropper, { type Area, type Point } from "react-easy-crop";
 import { Loader2, X } from "lucide-react";
 import { getCroppedImageBlob } from "@/lib/images/crop-image";
 import { cn } from "@/lib/utils";
+import { SwipeToCloseHandle } from "@/components/ui/swipe-to-close-handle";
 
 type Props = {
   open: boolean;
@@ -61,6 +62,10 @@ export function AvatarCropModal({
         aria-labelledby="avatar-crop-title"
         className="flex w-full max-w-md flex-col overflow-hidden rounded-t-3xl border border-stone-200/80 bg-white shadow-2xl sm:rounded-3xl"
       >
+        <div className="shrink-0 px-5 pt-0 pb-0">
+          <SwipeToCloseHandle onClose={onClose} disabled={isProcessing} />
+        </div>
+
         <div className="flex items-start justify-between gap-3 border-b border-stone-100 px-5 py-4">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#4d6437]/80">

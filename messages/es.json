@@ -13,6 +13,12 @@
     "signOut": "Cerrar sesión",
     "signingOut": "Cerrando sesión..."
   },
+  "Notifications": {
+    "title": "Notificaciones",
+    "empty": "No tienes notificaciones todavía.",
+    "markAllRead": "Marcar todas como leídas",
+    "loading": "Actualizando…"
+  },
   "Profile": {
     "title": "Mi Perfil",
     "subtitle": "Gestiona tus datos personales y tu foto.",
@@ -51,7 +57,18 @@
     "photoCreditAvailable": "Tienes {count, plural, one {# generación} other {# generaciones}} de foto real del plato. Se usa automáticamente al crear una receta.",
     "photoCreditExhausted": "Ya usaste tu único intento de foto real. Las siguientes recetas usarán imagen de referencia.",
     "testerResetCta": "🛠️ Resetear Prueba Premium (Modo Tester)",
-    "testerResetSuccess": "Prueba reseteada. Ve a HOY para activar las 24h."
+    "testerResetSuccess": "Prueba reseteada. Ve a HOY para activar las 24h.",
+    "pushTitle": "Notificaciones del móvil",
+    "pushSubtitle": "Recibe avisos en la bandeja del sistema aunque la app esté cerrada (PWA instalada).",
+    "pushEnabled": "Activadas en este dispositivo",
+    "pushDisabled": "Desactivadas",
+    "pushEnableCta": "Activar notificaciones",
+    "pushDisableCta": "Desactivar",
+    "pushUnsupported": "Este navegador no admite push. Instala la app (PWA) o usa Chrome/Safari en el móvil.",
+    "pushNotConfigured": "Las notificaciones push no están configuradas en el servidor.",
+    "pushLoadError": "No pudimos cargar el estado de las notificaciones.",
+    "pushEnableError": "No pudimos activar las notificaciones.",
+    "pushDisableError": "No pudimos desactivar las notificaciones."
   },
   "Hoy": {
     "dayInProgress": "Tu día en marcha",
@@ -306,6 +323,8 @@
     "externalMealBalanceOk": "Menú equilibrado",
     "externalMealBalanceFair": "Se puede mejorar",
     "externalMealBalancePoor": "Poco equilibrado",
+    "externalMealAdviceHint": "Hay una advertencia sobre este plato",
+    "externalMealInfoHint": "Hay una sugerencia sobre este plato",
     "externalMealBack": "Atrás",
     "externalMealSaving": "Guardando…",
     "externalMealConfirm": "Guardar y asignar al plan",
@@ -567,6 +586,12 @@
     "photoCreditConfirmDescriptionPremium": "Solo tienes 1 intento para generar la foto real del plato. Si confirmas, se usará en esta receta y no podrás volver a generarla. Si continúas sin foto, conservarás tu intento.",
     "photoCreditConfirmDescriptionAdmin": "Como administrador puedes generar fotos reales del plato sin límite. ¿Quieres generarla ahora?",
     "photoCreditConfirmYes": "Sí, usar foto real",
+    "advisoryAlertAria": "Ver advertencia nutricional",
+    "advisoryInfoAria": "Ver información nutricional",
+    "advisoryPopupTitle": "Advertencia",
+    "advisoryPopupInfoTitle": "Información",
+    "advisoryPopupGotIt": "Entendido",
+    "close": "Cerrar",
     "photoCreditConfirmNo": "Continuar sin foto",
     "confirmIngredientsTitle": "Confirmar ingredientes",
     "confirmIngredientsSubtitle": "Toca para incluir o descartar",

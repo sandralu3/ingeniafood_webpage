@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
 import { Plus, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { ModalSheetBackButton } from "@/components/ui/modal-sheet-back-button";
 import type { MasterIngredient, PantryCategoryDb } from "@/lib/pantry/types";
 import { isLikelyEdibleIngredientName, isValidCustomIngredientName } from "@/lib/pantry/validation";
 import { cn } from "@/lib/utils";
@@ -342,13 +343,11 @@ export function IngredientCombobox({
                     </button>
                   ))}
                 </div>
-                <button
-                  type="button"
+                <ModalSheetBackButton
+                  className="mt-3 w-full"
+                  label={t("customBackToSearch")}
                   onClick={() => setPendingCustomName(null)}
-                  className="mt-3 w-full py-2 text-center text-xs font-medium text-stone-500 underline"
-                >
-                  {t("customBackToSearch")}
-                </button>
+                />
               </div>
             </div>,
             document.body

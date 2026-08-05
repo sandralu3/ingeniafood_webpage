@@ -6,6 +6,7 @@ import { Loader2, Sparkles, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { usePremium } from "@/hooks/use-premium";
 import { cn } from "@/lib/utils";
+import { SwipeToCloseHandle } from "@/components/ui/swipe-to-close-handle";
 
 type Props = {
   open: boolean;
@@ -116,6 +117,10 @@ export function NutritionCoachTeaserModal({
         className="max-h-[88vh] w-full max-w-md overflow-hidden rounded-t-[22px] border border-stone-100 bg-[#FFF8F1] shadow-2xl shadow-stone-300/40 sm:rounded-[22px]"
         onClick={(event) => event.stopPropagation()}
       >
+        <div className="shrink-0 px-4 pt-0 pb-0">
+          <SwipeToCloseHandle onClose={onClose} disabled={isClaiming} />
+        </div>
+
         <div className="flex items-start justify-between gap-3 border-b border-stone-100/80 bg-white px-4 py-3.5">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-stone-400">

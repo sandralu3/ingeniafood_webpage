@@ -38,6 +38,8 @@ type Props = {
   disabled?: boolean;
   /** Nombres de ingredientes seleccionados (para tip de coherencia Desayuno). */
   selectedIngredientNames?: string[];
+  /** Si true, el panel de chips arranca abierto (p. ej. tras «Más filtros» en confirmación). */
+  defaultExpanded?: boolean;
 };
 
 const COMPACT_SERVINGS: Array<{ value: RecipeServings; label: string }> = [
@@ -121,12 +123,13 @@ export function AdvancedRecipeFilters({
   onServingsChange,
   onComplexityChange,
   disabled = false,
-  selectedIngredientNames = []
+  selectedIngredientNames = [],
+  defaultExpanded = false
 }: Props) {
   const t = useTranslations("Scanner");
   const { isPremium, isLoading, refresh } = usePremium();
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(defaultExpanded);
 
   const showBreakfastHeavyTip =
     mealType === "desayuno" && shouldShowBreakfastPantryTip(selectedIngredientNames);

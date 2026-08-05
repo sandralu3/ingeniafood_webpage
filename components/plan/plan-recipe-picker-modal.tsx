@@ -24,6 +24,7 @@ import {
 } from "@/lib/recipes/saved-recipes-filter";
 import { canRegisterExternalMealForPlanDay } from "@/lib/plan/week-utils";
 import { cn } from "@/lib/utils";
+import { SwipeToCloseHandle } from "@/components/ui/swipe-to-close-handle";
 
 type PlanRecipePickerModalProps = {
   open: boolean;
@@ -162,6 +163,13 @@ export function PlanRecipePickerModal({
             aria-labelledby="plan-picker-title"
             className="flex max-h-[88vh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border border-neutral-100 bg-white shadow-2xl sm:rounded-3xl"
           >
+            <div className="shrink-0 px-5 pt-0 pb-0">
+              <SwipeToCloseHandle
+                onClose={requestClose}
+                disabled={externalBusy || isAssigning}
+              />
+            </div>
+
             <div className="flex items-start justify-between gap-3 border-b border-stone-100 bg-white px-5 py-4">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-amber-700/80">

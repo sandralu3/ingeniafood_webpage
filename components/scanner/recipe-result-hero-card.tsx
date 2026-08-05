@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
-import { AlertTriangle, Wand2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { ShareableRecipe } from "@/lib/share/recipe-share-image";
 import { formatTimeLabel } from "@/lib/share/recipe-share-utils";
@@ -10,6 +9,10 @@ import { normalizeRecipeSteps } from "@/lib/recipes/sentence-case";
 import { partitionIngredientsByPantry } from "@/lib/recipes/recipe-options";
 import { DEFAULT_DISH_HERO_FALLBACK } from "@/lib/recipes/dish-image-fallback";
 import type { AppliedRecipeFilters } from "@/lib/recipes/premium-recipe-filters";
+import {
+  inferAdvisoryTone,
+  RecipeAdvisoryPulseButton
+} from "@/components/recipes/recipe-advisory-alert";
 import { cn } from "@/lib/utils";
 import { translateMealType } from "@/lib/i18n/filter-labels";
 
@@ -22,9 +25,6 @@ const LOADER_MESSAGE_KEYS = [
   "loaderCooking",
   "loaderPlating"
 ] as const;
-
-const UNHEALTHY_ADVISORY_RE =
-  /poco\s+saludable|no\s+es\s+un\s+alimento\s+saludable|no\s+son\s+alimentos\s+saludables|unhealthy|not\s+a\s+healthy|not\s+healthy|peu\s+sain|aliment\s+sain|pouco\s+saud[aá]vel|ungesund|gesundes|ultraproces|ultra[\s-]?process|ten\s+en\s+cuenta|note:|attention\s*:|aten[cç][aã]o|hinweis|nota\s+de\s+dieta|diet\s+note|note\s+r[eé]gime|di[aä]t[\s-]?hinweis/i;
 
 type Props = {
   recipe: ShareableRecipe;
@@ -84,10 +84,6 @@ export function RecipeResultHeroCard({
             missing: [] as string[]
           },
     [pantryIngredients, recipe.ingredientes_detallados]
-  );
-
-  const isUnhealthyAdvisory = Boolean(
-    mealTypeAdvisory && UNHEALTHY_ADVISORY_RE.test(mealTypeAdvisory)
   );
 
   const steps = useMemo(
@@ -185,6 +181,12 @@ export function RecipeResultHeroCard({
         )}
 
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-black/45 to-transparent" />
+        {mealTypeAdvisory?.trim() ? (
+          <RecipeAdvisoryPulseButton
+            message={mealTypeAdvisory}
+            tone={inferAdvisoryTone(mealTypeAdvisory)}
+          />
+        ) : null}
         <div className="absolute inset-x-0 bottom-0 space-y-2 px-4 pb-3 pt-10">
           <h1 className="font-serif text-lg font-semibold leading-snug text-white drop-shadow-md">
             {recipe.titulo}
@@ -224,39 +226,6 @@ export function RecipeResultHeroCard({
       <div className="bg-white px-4 py-3">
         {tab === "ingredients" ? (
           <>
-            {mealTypeAdvisory ? (
-              <div
-                role="status"
-                className={cn(
-                  "mb-2 flex items-start gap-1.5 rounded-lg border px-2.5 py-1.5",
-                  isUnhealthyAdvisory
-                    ? "border-amber-500/25 bg-amber-50"
-                    : "border-[#4D6638]/15 bg-[#4D6638]/5"
-                )}
-              >
-                {isUnhealthyAdvisory ? (
-                  <AlertTriangle
-                    className="mt-px h-3 w-3 shrink-0 text-amber-700/90"
-                    strokeWidth={2}
-                    aria-hidden
-                  />
-                ) : (
-                  <Wand2
-                    className="mt-px h-3 w-3 shrink-0 text-[#4D6638]/80"
-                    strokeWidth={2}
-                    aria-hidden
-                  />
-                )}
-                <p
-                  className={cn(
-                    "text-[11px] font-medium leading-snug",
-                    isUnhealthyAdvisory ? "text-amber-950/85" : "text-[#334425]/90"
-                  )}
-                >
-                  {mealTypeAdvisory}
-                </p>
-              </div>
-            ) : null}
             <div className="grid grid-cols-2 gap-4">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-wide text-[#3e5219]">

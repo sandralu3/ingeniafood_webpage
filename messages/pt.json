@@ -13,6 +13,12 @@
     "signOut": "Terminar sessão",
     "signingOut": "A terminar sessão..."
   },
+  "Notifications": {
+    "title": "Notificações",
+    "empty": "Ainda não tem notificações.",
+    "markAllRead": "Marcar todas como lidas",
+    "loading": "A atualizar…"
+  },
   "Profile": {
     "title": "O meu perfil",
     "subtitle": "Faça a gestão dos seus dados pessoais e da fotografia.",
@@ -434,6 +440,11 @@
     "photoCreditConfirmDescriptionPremium": "Só tem 1 tentativa para gerar a foto real do prato. Se confirmar, será usada nesta receita e não poderá gerar outra. Sem foto, mantém a tentativa.",
     "photoCreditConfirmDescriptionAdmin": "Como administrador podes gerar fotos reais do prato sem limite. Queres gerá-la agora?",
     "photoCreditConfirmYes": "Sim, usar foto real",
+    "advisoryAlertAria": "Ver aviso nutricional",
+    "advisoryInfoAria": "Ver informação nutricional",
+    "advisoryPopupTitle": "Aviso",
+    "advisoryPopupInfoTitle": "Informação",
+    "advisoryPopupGotIt": "Entendido",
     "photoCreditConfirmNo": "Continuar sem foto",
     "confirmIngredientsTitle": "Confirmar ingredientes",
     "confirmIngredientsSubtitle": "Toque para incluir ou descartar",

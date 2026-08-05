@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { Cookie, Plus, X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { SnackRegisterModal } from "@/components/plan/snack-register-modal";
 import { PlanSectionDivider } from "@/components/plan/plan-section-divider";
 import type { WeekDay } from "@/lib/plan/constants";
 import type { PlanSnack } from "@/lib/plan/snack-presets";
@@ -27,6 +26,8 @@ type Props = {
   onSnackAdded?: (snack: PlanSnack) => void;
   onSnackRemoved?: (snackId: string) => void;
   onError?: (message: string) => void;
+  /** Abre el modal de registro (montado fuera del panel, como el picker de recetas). */
+  onOpenRegister?: () => void;
   className?: string;
 };
 
@@ -100,11 +101,10 @@ export function PlanSnacksSection({
   onSnackAdded,
   onSnackRemoved,
   onError,
+  onOpenRegister,
   className
 }: Props) {
   const t = useTranslations("Plan");
-  const [modalOpen, setModalOpen] = useState(false);
-  const [modalBusy, setModalBusy] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [quickBusyId, setQuickBusyId] = useState<string | null>(null);
 
@@ -297,7 +297,7 @@ export function PlanSnacksSection({
             </div>
             <button
               type="button"
-              onClick={() => setModalOpen(true)}
+              onClick={() => onOpenRegister?.()}
               className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-stone-100 bg-[#FCFBFA] px-3 py-2 text-xs font-semibold text-stone-600 transition hover:border-amber-200 hover:bg-amber-50/60 hover:text-amber-900"
             >
               <span
@@ -326,24 +326,6 @@ export function PlanSnacksSection({
           <p className="px-1 text-[10px] font-medium text-stone-500">{snackKcal} kcal en snacks</p>
         ) : null}
       </div>
-
-      {!readOnly ? (
-        <SnackRegisterModal
-          open={modalOpen}
-          dayLabel={dayLabel}
-          weekStartISO={weekStartISO}
-          onBusyChange={setModalBusy}
-          onClose={() => {
-            if (modalBusy) return;
-            setModalOpen(false);
-          }}
-          onRegistered={(snack) => {
-            setModalBusy(false);
-            onSnackAdded?.(snack);
-            setModalOpen(false);
-          }}
-        />
-      ) : null}
     </div>
   );
 }

@@ -1,0 +1,24 @@
+﻿id,area,nombre,ruta,tipo,nav,auth,premium,descripcion,funcionalidad
+SCR-LAND,Marketing,Landing web,/,Página,No,Pública,N/A,"Marketing, guía gratis, idioma, CTA a la app",Presentar producto; descargar guía; ir a /descargar-app
+SCR-DESK,Marketing,Optimizado para móviles,/desktop-app-recetas,Página,No,Pública,N/A,Puerta desktop con QR,Indicar uso móvil; QR; volver a web
+SCR-PWA-GATE,Acceso,Instalar PWA,/app-recetas/* (gate),Gate,No,Pre-login,N/A,Obliga instalar PWA salvo localhost,Instrucciones Android/iOS; modal iPhone
+SCR-LOGIN,Auth,Login / Registro / Recuperar,"/login (/auth, /registro)",Página,No,Pública,N/A,Acceso a cuenta,Login; signup; forgot password; ?next=; ?ref=
+SCR-CONFIRM,Auth,Confirmar correo,/auth/confirm-email,Página,No,Enlace email,N/A,Activación de cuenta,Confirmar email; adjuntar referral; redirigir
+SCR-CALLBACK,Auth,Callback auth,/auth/callback,Página técnica,No,Enlace,N/A,Router de enlaces Supabase,Recovery→reset; signup→confirm
+SCR-RESET,Auth,Nueva contraseña,/auth/reset-password,Página,No,Enlace recovery,N/A,Reset password,Definir nueva contraseña
+SCR-HOY,PWA,Hoy,/app-recetas/hoy,Tab,Bottom + Drawer,Sesión + PWA,Parcial,Dashboard diario,Racha; dosis; plan del día; agua; retos; menú IA; pase 24h
+SCR-PLAN,PWA,Plan semanal,/app-recetas/plan,Tab,Bottom + Drawer,Sesión + PWA,Parcial,Planificación L–D,Slots; picker; drag; lista compras; menú IA; comida fuera; snacks
+SCR-SCAN,PWA,Escáner,/app-recetas/scanner,Tab,Bottom + Drawer,Sesión + PWA,Parcial,Generación IA de recetas,Foto/manual; filtros; 3 variantes; dieta; Instagram; guardar/plan
+SCR-SCAN-CONFIRM,PWA,Confirmar ingredientes,/app-recetas/scanner (estado),Subpantalla,Escáner,Sesión,Free/Prem,Post-detección foto,Añadir/quitar ingredientes; confirmar
+SCR-SCAN-RESULT,PWA,Resultado de receta,/app-recetas/scanner (estado),Subpantalla,Escáner,Sesión,Free/Prem,Hasta 3 opciones,Ver; guardar; plan; avisos dieta/salud; nueva búsqueda
+SCR-RECIPES,PWA,Guardadas,/app-recetas/recipes,Tab,Bottom + Drawer,Sesión + PWA,Free,Recetario,Tabs Guardadas/Favoritas/Fuera; buscar; favorito; compartir; borrar
+SCR-RECIPE-DETAIL,PWA,Detalle de receta,/app-recetas/recipes/[id],Página,Desde Guardadas,Sesión + PWA,Free,Ficha completa,Ingredientes; pasos; macros; advisory; plan; compartir; borrar
+SCR-PROFILE,PWA,Perfil,/app-recetas/profile,Tab,Bottom + Drawer,Sesión + PWA,Billing,Cuenta y suscripción,Nombre; país; idioma; avatar; Stripe; código 24h; logout; admin link
+SCR-RETOS,PWA,Retos,/app-recetas/retos,Página,Drawer,Sesión + PWA,Free,Hábitos,Activar retos; días semana; metas personalizadas
+SCR-PARAMS,PWA,Personalizar parámetros,/app-recetas/parametros,Página,Drawer,Sesión + PWA,Free,Preferencias nutricionales,Agua; BMR/TDEE; metas; dieta preferida
+SCR-ADM-USERS,Admin,Administrar usuarios,/admin/usuarios,Página,Admin,Admin Sandra,N/A,Gestión usuarios,Premium/tester; límites escaneos; eliminar
+SCR-ADM-IMPORT,Admin,Importar receta,/admin/importar-receta,Página,Admin,Admin Sandra,N/A,Import Instagram→IA,Pegar texto; estructurar; publicar
+SCR-ADM-BANK,Admin,Banco de imágenes,/admin/banco-imagenes,Página,Admin,Admin Sandra,N/A,Imágenes de platos,CRUD; filtros; seed
+SCR-ADM-CAT,Admin,Catálogo Instagram,/admin/catalogo-instagram,Página,Admin,Admin Sandra,N/A,Listado catálogo escáner,Listar entradas
+SCR-ADM-CAT-EDIT,Admin,Editar receta catálogo,/admin/catalogo-instagram/[id]/edit,Página,Admin,Admin Sandra,N/A,Edición catálogo,Editar y guardar entrada
+SCR-TEST-PREM,Utilidad,Test Premium,/test-premium,Página,No,Sesión,Diagnóstico,Estado Premium,Ver flags de acceso Premium

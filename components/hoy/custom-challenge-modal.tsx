@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Loader2, Pencil, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "next-intl";
+import { SwipeToCloseHandle } from "@/components/ui/swipe-to-close-handle";
 
 type CustomChallengeModalMode = "create" | "edit";
 
@@ -65,6 +66,10 @@ export function CustomChallengeModal({
         aria-labelledby="custom-challenge-title"
         className="w-full max-w-md overflow-hidden rounded-t-3xl border border-neutral-100 bg-white shadow-2xl sm:rounded-3xl"
       >
+        <div className="shrink-0 px-5 pt-0 pb-0">
+          <SwipeToCloseHandle onClose={onClose} disabled={isSaving} />
+        </div>
+
         <div className="flex items-start justify-between gap-3 border-b border-stone-100 px-5 py-4">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-amber-700/80">

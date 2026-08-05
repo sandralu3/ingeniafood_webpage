@@ -2,7 +2,10 @@
 
 import { Clock, UtensilsCrossed } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { RecipeMealTypeAdvisory } from "@/components/recipes/recipe-meal-type-advisory";
+import {
+  inferAdvisoryTone,
+  RecipeAdvisoryPulseButton
+} from "@/components/recipes/recipe-advisory-alert";
 import { RecipeDishImage } from "@/components/recipes/recipe-dish-image";
 import { SandraTipCard } from "@/components/recipes/sandra-tip-card";
 import { RecipeAppliedFiltersBadges } from "@/components/recipes/recipe-applied-filters-badges";
@@ -83,15 +86,23 @@ export function RecipeDetailMagazine({
 
   return (
     <div className="space-y-3">
-      <RecipeDishImage
-        imageUrl={recipe.imageUrl}
-        referenceImageUrl={recipe.referenceImageUrl}
-        recipeTitle={recipe.titulo}
-        displayMode={imageDisplayMode}
-        isGeneratingPhoto={isGeneratingPhoto}
-      />
-
-      {mealTypeAdvisory ? <RecipeMealTypeAdvisory message={mealTypeAdvisory} /> : null}
+      <div className="relative">
+        <RecipeDishImage
+          imageUrl={recipe.imageUrl}
+          referenceImageUrl={recipe.referenceImageUrl}
+          recipeTitle={recipe.titulo}
+          displayMode={imageDisplayMode}
+          isGeneratingPhoto={isGeneratingPhoto}
+        />
+        {mealTypeAdvisory?.trim() ? (
+          <div data-share-exclude>
+            <RecipeAdvisoryPulseButton
+              message={mealTypeAdvisory}
+              tone={inferAdvisoryTone(mealTypeAdvisory)}
+            />
+          </div>
+        ) : null}
+      </div>
 
       <header className={`${SECTION_CARD} space-y-2`}>
         {showScanBanner ? (

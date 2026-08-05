@@ -35,6 +35,7 @@ import {
 import { saveScannerGenerationSeed } from "@/lib/scanner/scanner-generation-seed";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
 import { cn } from "@/lib/utils";
+import { SwipeToCloseHandle } from "@/components/ui/swipe-to-close-handle";
 
 type IntelligentDoseModalProps = {
   open: boolean;
@@ -251,6 +252,10 @@ export function IntelligentDoseModal({
         aria-labelledby="intelligent-dose-title"
         className="flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-t-[22px] border border-stone-100 bg-[#FFF8F1] shadow-2xl shadow-stone-300/40 sm:rounded-[22px]"
       >
+        <div className="shrink-0 px-4 pt-0 pb-0">
+          <SwipeToCloseHandle onClose={onClose} disabled={false} />
+        </div>
+
         <div className="shrink-0 border-b border-stone-100/80 bg-white px-4 py-3.5">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">

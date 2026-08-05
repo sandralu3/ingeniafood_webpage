@@ -19,6 +19,7 @@ import {
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import type { Database, Json } from "@/types/database.types";
 import { cn } from "@/lib/utils";
+import { SwipeToCloseHandle } from "@/components/ui/swipe-to-close-handle";
 
 type RecipeRow = Database["public"]["Tables"]["recipes"]["Row"];
 
@@ -211,6 +212,11 @@ export function SuggestionRecipeDetailModal({
           >
             <X className="h-4 w-4" />
           </button>
+
+          <div className="absolute left-1/2 top-12 z-20 -translate-x-1/2">
+            <SwipeToCloseHandle onClose={onClose} disabled={isAdding} />
+          </div>
+
           <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-stone-700 shadow-sm">
             {slotLabel}
           </span>

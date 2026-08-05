@@ -35,6 +35,7 @@ type PlanDayMealsPanelProps = {
   ) => void;
   onSnackAdded?: (dayLabel: WeekDay, snack: PlanSnack) => void;
   onSnackRemoved?: (dayLabel: WeekDay, snackId: string) => void;
+  onOpenSnackRegister?: () => void;
   onProposeDayMenu?: () => void;
   isProposingDayMenu?: boolean;
   isPremium?: boolean;
@@ -55,6 +56,7 @@ export function PlanDayMealsPanel({
   onMealMoved,
   onSnackAdded,
   onSnackRemoved,
+  onOpenSnackRegister,
   onProposeDayMenu,
   isProposingDayMenu = false,
   isPremium = false,
@@ -263,6 +265,7 @@ export function PlanDayMealsPanel({
               snacks={day.snacks ?? []}
               onSnackAdded={(snack) => onSnackAdded?.(day.label, snack)}
               onSnackRemoved={(snackId) => onSnackRemoved?.(day.label, snackId)}
+              onOpenRegister={onOpenSnackRegister}
               onError={onRemoveError}
             />
           </li>

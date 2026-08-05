@@ -1,0 +1,17 @@
+﻿id,nombre,contexto,premium,funcion
+MOD-DRAWER,Menú lateral,Header PWA,No,Navegación extendida + cerrar sesión
+MOD-PAYWALL,Paywall Premium,Hoy Plan Escáner picker,CTA,Stripe; código 24h; mensaje función Premium
+MOD-GEN-LIMIT,Límite generaciones,Escáner,CTA,Aviso free agotado (5 pruebas)
+MOD-REAL-PHOTO,Confirmar foto real,Escáner,Sí,Usar crédito foto OpenAI del plato
+MOD-PICKER,Picker recetas plan,Plan / Hoy,Parcial,Elegir guardada; atajos escáner / Instagram
+MOD-SHOP,Lista de compras,Plan,No,Ingredientes semana; copiar
+MOD-EXTERNAL,Comida fuera,Plan,Sí,Registro externo foto/texto + estimación
+MOD-SNACK,Snack,Plan / Hoy,No,Registrar tentempié
+MOD-DOSE,Informe Dosis Inteligente,Hoy,Sí,Informe nutricional + CTA escáner
+MOD-COACH,Teaser Coach Nutricional,Hoy,CTA,Activar pase 24h / upgrade
+MOD-STREAK,Calendario racha / logros / progreso,Hoy,No,Detalle gamificación
+MOD-CUSTOM-CH,Reto personalizado,Retos / Hoy,No,CRUD meta propia
+MOD-AVATAR,Recorte avatar,Perfil,No,Crop foto perfil
+MOD-IG,Detalle catálogo Instagram,Escáner,Parcial,Ver / guardar / plan
+MOD-CONFIRM,Diálogos confirmar/eliminar,Varios,No,Confirmaciones destructivas
+MOD-IOS-INSTALL,Instalar en iPhone,Gate PWA,N/A,Instrucciones Añadir a inicio

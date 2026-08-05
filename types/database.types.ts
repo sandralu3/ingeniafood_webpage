@@ -59,6 +59,8 @@ export type Database = {
             | "mediterranea"
             | null;
           water_glasses_goal: number | null;
+          last_seen_at: string | null;
+          push_notifications_enabled: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -111,6 +113,8 @@ export type Database = {
             | "mediterranea"
             | null;
           water_glasses_goal?: number | null;
+          last_seen_at?: string | null;
+          push_notifications_enabled?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -163,6 +167,8 @@ export type Database = {
             | "mediterranea"
             | null;
           water_glasses_goal?: number | null;
+          last_seen_at?: string | null;
+          push_notifications_enabled?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -172,6 +178,94 @@ export type Database = {
             columns: ["id"];
             isOneToOne: true;
             referencedRelation: "users";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      push_subscriptions: {
+        Row: {
+          id: string;
+          user_id: string;
+          endpoint: string;
+          p256dh: string;
+          auth: string;
+          user_agent: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          endpoint: string;
+          p256dh: string;
+          auth: string;
+          user_agent?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          endpoint?: string;
+          p256dh?: string;
+          auth?: string;
+          user_agent?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "push_subscriptions_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      user_notifications: {
+        Row: {
+          id: string;
+          user_id: string;
+          type: string;
+          title: string;
+          body: string;
+          href: string | null;
+          dedupe_key: string;
+          payload: Json;
+          read_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          type: string;
+          title: string;
+          body: string;
+          href?: string | null;
+          dedupe_key: string;
+          payload?: Json;
+          read_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          type?: string;
+          title?: string;
+          body?: string;
+          href?: string | null;
+          dedupe_key?: string;
+          payload?: Json;
+          read_at?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "user_notifications_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
             referencedColumns: ["id"];
           }
         ];

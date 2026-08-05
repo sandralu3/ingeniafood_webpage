@@ -18,6 +18,8 @@ import {
 } from "lucide-react";
 import { AdvancedRecipeFilters } from "@/components/scanner/advanced-recipe-filters";
 import { IngredientCombobox } from "@/components/scanner/ingredient-combobox";
+import { PhotoSourcePicker } from "@/components/ui/photo-source-picker";
+import { SwipeToCloseHandle } from "@/components/ui/swipe-to-close-handle";
 import type {
   RecipeCuisineStyle,
   RecipeMealType,
@@ -589,43 +591,22 @@ export function PantrySearchView({
             role="dialog"
             aria-modal="true"
             aria-labelledby="source-modal-title"
-            className="fixed inset-x-0 bottom-0 z-[80] rounded-t-3xl border-t border-stone-100 bg-white p-4 pb-6 shadow-2xl"
+            className="fixed inset-x-0 bottom-0 z-[80] rounded-t-3xl border-t border-stone-100 bg-white p-3 pb-5 shadow-2xl"
           >
-            <p
-              id="source-modal-title"
-              className="mb-3 text-center text-[11px] font-bold uppercase tracking-wider text-stone-400"
-            >
-              {t.has("addPantryPhotoTitle") ? t("addPantryPhotoTitle") : "Añadir foto de tu despensa"}
-            </p>
-            <div className="space-y-2">
-              <button
-                type="button"
-                onClick={openCameraInput}
-                className="flex w-full items-center gap-3 rounded-2xl border border-stone-100 bg-stone-50 px-4 py-3.5 text-left text-sm font-semibold text-stone-800 transition hover:border-[#3E5A3A]/30 hover:bg-[#F4F7F2]"
-              >
-                <span className="text-xl" aria-hidden>
-                  📸
-                </span>
-                Tomar Foto
-              </button>
-              <button
-                type="button"
-                onClick={openGalleryInput}
-                className="flex w-full items-center gap-3 rounded-2xl border border-stone-100 bg-stone-50 px-4 py-3.5 text-left text-sm font-semibold text-stone-800 transition hover:border-[#3E5A3A]/30 hover:bg-[#F4F7F2]"
-              >
-                <span className="text-xl" aria-hidden>
-                  🖼️
-                </span>
-                Elegir de la Galería
-              </button>
-            </div>
-            <button
-              type="button"
-              onClick={closeSourceModal}
-              className="mt-3 w-full rounded-2xl py-3 text-sm font-semibold text-stone-500 transition hover:bg-stone-50 hover:text-stone-700"
-            >
-              Cancelar
-            </button>
+            <SwipeToCloseHandle onClose={closeSourceModal} disabled={false} thresholdPx={70} />
+            <PhotoSourcePicker
+              titleId="source-modal-title"
+              title={
+                t.has("addPantryPhotoTitle")
+                  ? t("addPantryPhotoTitle")
+                  : "Añadir foto de tu despensa"
+              }
+              onTakePhoto={openCameraInput}
+              onChooseGallery={openGalleryInput}
+              showCancel
+              onCancel={closeSourceModal}
+              className="border-0 p-0"
+            />
           </div>
         </>
       ) : null}

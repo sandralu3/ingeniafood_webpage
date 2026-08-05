@@ -7,6 +7,7 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint .",
+    "docs:export-csv": "node scripts/export-docs-csv.mjs",
     "generate:icons": "node scripts/generate-pwa-icons.mjs",
     "fetch:dish-catalog": "node scripts/fetch-dish-catalog.mjs",
     "enrich:dish-catalog": "node scripts/enrich-dish-catalog-keywords.mjs",
@@ -35,12 +36,14 @@
     "react-dom": "^18.3.1",
     "react-easy-crop": "^6.2.2",
     "stripe": "^22.3.2",
-    "tailwind-merge": "^2.5.2"
+    "tailwind-merge": "^2.5.2",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@types/node": "^20.16.5",
     "@types/react": "^18.3.8",
     "@types/react-dom": "^18.3.0",
+    "@types/web-push": "^3.6.4",
     "autoprefixer": "^10.4.20",
     "eslint": "^9.39.4",
     "eslint-config-next": "^16.2.3",

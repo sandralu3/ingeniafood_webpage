@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
-import { Camera, Check, ChevronDown, ChevronUp, Loader2, Sparkles, X } from "lucide-react";
+import { Camera, Check, ChevronDown, ChevronUp, Loader2, SlidersHorizontal, Sparkles, X } from "lucide-react";
 import { AdvancedRecipeFilters } from "@/components/scanner/advanced-recipe-filters";
 import { IngredientChip } from "@/components/scanner/ingredient-chip";
 import { IngredientCombobox } from "@/components/scanner/ingredient-combobox";
@@ -43,8 +43,12 @@ type ConfirmIngredientsViewProps = {
   onBack?: () => void;
 };
 
-/** peek = visible compacto · expanded = filtros cómodos · hidden = solo tirador para ver la foto */
+/** peek = panel alto (filtros visibles) · expanded = casi pantalla · hidden = solo tirador */
 type SheetSnap = "hidden" | "peek" | "expanded";
+
+/** Altura del sheet en modo peek (debe dejar ver chips + buscador + «Más filtros»). */
+const PEEK_SHEET_HEIGHT_CLASS = "h-[min(62dvh,34rem)] max-h-[70dvh]";
+const PEEK_FOCUS_BOTTOM_CLASS = "bottom-[min(62dvh,34rem)]";
 
 function BoundingBoxOverlay({
   ingredients
@@ -112,8 +116,8 @@ function ScannerFocusFrame({
         sheetSnap === "hidden"
           ? "bottom-14"
           : sheetSnap === "peek"
-            ? "bottom-[38vh]"
-            : "bottom-[20vh]"
+            ? PEEK_FOCUS_BOTTOM_CLASS
+            : "bottom-[15vh]"
       )}
     >
       <div className="relative h-[min(42vh,18rem)] w-[min(78vw,20rem)]">
@@ -157,7 +161,7 @@ export function ConfirmIngredientsView({
 }: ConfirmIngredientsViewProps) {
   const t = useTranslations("Scanner");
   const [mounted, setMounted] = useState(false);
-  const [extrasOpen, setExtrasOpen] = useState(false);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [snap, setSnap] = useState<SheetSnap>("peek");
   const [playSwipeHint, setPlaySwipeHint] = useState(false);
   const dragStartYRef = useRef<number | null>(null);
@@ -235,7 +239,7 @@ export function ConfirmIngredientsView({
           setSnap((current) => {
             if (current === "expanded") return "peek";
             if (current === "peek") {
-              setExtrasOpen(false);
+              setShowAdvancedFilters(false);
               return "hidden";
             }
             return "hidden";
@@ -249,12 +253,11 @@ export function ConfirmIngredientsView({
     [cycleSnapFromHandle]
   );
 
-  const handleExtrasToggle = useCallback(() => {
-    setExtrasOpen((open) => {
+  const handleMoreFiltersToggle = useCallback(() => {
+    setShowAdvancedFilters((open) => {
       const next = !open;
       if (next) {
         setSnap("expanded");
-        // Tras expandir, bajar el scroll del cuerpo para ver filtros
         window.setTimeout(() => {
           scrollBodyRef.current?.scrollTo({
             top: scrollBodyRef.current.scrollHeight,
@@ -368,9 +371,9 @@ export function ConfirmIngredientsView({
       <div
         className={cn(
           "absolute bottom-0 left-0 right-0 z-30 flex w-full flex-col overflow-hidden rounded-t-3xl bg-white px-3 pt-1 pb-12 shadow-2xl transition-[transform,height] duration-300 ease-out md:pb-4",
-          snap === "expanded" && "h-[85vh] max-h-[85vh] translate-y-0",
-          snap === "peek" && "h-[38vh] max-h-[38vh] translate-y-0",
-          snap === "hidden" && "h-[38vh] max-h-[38vh] translate-y-[calc(100%-3.5rem)]",
+          snap === "expanded" && "h-[88dvh] max-h-[88dvh] translate-y-0",
+          snap === "peek" && `${PEEK_SHEET_HEIGHT_CLASS} translate-y-0`,
+          snap === "hidden" && `${PEEK_SHEET_HEIGHT_CLASS} translate-y-[calc(100%-3.5rem)]`,
           playSwipeHint && snap === "peek" && "sheet-swipe-hint"
         )}
       >
@@ -422,7 +425,7 @@ export function ConfirmIngredientsView({
                 <button
                   type="button"
                   onClick={() => {
-                    setExtrasOpen(false);
+                    setShowAdvancedFilters(false);
                     setSnap("hidden");
                   }}
                   className="shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold text-stone-400 transition hover:bg-stone-100 hover:text-stone-600"
@@ -466,50 +469,53 @@ export function ConfirmIngredientsView({
               ) : null}
             </div>
 
+            {isPantryLoading ? (
+              <div className="h-10 animate-pulse rounded-full border border-stone-100 bg-stone-50" />
+            ) : (
+              <IngredientCombobox
+                ingredients={masterIngredients.filter(
+                  (item) => !existingNames.has(item.name.trim().toLowerCase())
+                )}
+                disabled={isDetecting || isBusy}
+                variant="pantry"
+                onSelectIngredient={handleComboboxSelect}
+                onCreateCustomIngredient={handleCreateCustomIngredient}
+              />
+            )}
+            {pantryError ? <p className="text-xs text-red-600">{pantryError}</p> : null}
+
             <button
               type="button"
-              onClick={handleExtrasToggle}
-              className="mb-1 flex w-full items-center justify-between rounded-xl border border-stone-200 bg-stone-50 px-3 py-1.5 text-left text-xs font-semibold text-stone-600"
+              onClick={handleMoreFiltersToggle}
+              aria-pressed={showAdvancedFilters}
+              disabled={isDetecting || isBusy}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all disabled:opacity-50",
+                showAdvancedFilters
+                  ? "border-[#3E5A3A] bg-[#3E5A3A] text-white shadow-sm"
+                  : "border-stone-200 bg-stone-50 text-stone-700 hover:bg-stone-100"
+              )}
             >
-              <span className="truncate">
-                {t.has("addMoreAfterScan") ? t("addMoreAfterScan") : "Añadir más"} ·{" "}
-                {t.has("advancedFilters") ? t("advancedFilters") : "Filtros"}
+              <SlidersHorizontal className="h-3 w-3 shrink-0" strokeWidth={2.25} aria-hidden />
+              <span className="whitespace-nowrap">
+                {t.has("moreFilters") ? t("moreFilters") : "Más filtros"}
               </span>
-              <ChevronDown
-                className={cn("h-3.5 w-3.5 shrink-0 transition", extrasOpen && "rotate-180")}
-              />
             </button>
 
-            {extrasOpen ? (
-              <div className="space-y-2 border-t border-stone-100 pb-2 pt-2">
-                {isPantryLoading ? (
-                  <div className="h-10 animate-pulse rounded-full border border-stone-100 bg-stone-50" />
-                ) : (
-                  <IngredientCombobox
-                    ingredients={masterIngredients.filter(
-                      (item) => !existingNames.has(item.name.trim().toLowerCase())
-                    )}
-                    disabled={isDetecting || isBusy}
-                    onSelectIngredient={handleComboboxSelect}
-                    onCreateCustomIngredient={handleCreateCustomIngredient}
-                  />
-                )}
-                {pantryError ? (
-                  <p className="text-xs text-red-600">{pantryError}</p>
-                ) : null}
-                <AdvancedRecipeFilters
-                  mealType={mealType}
-                  cuisineStyle={cuisineStyle}
-                  servings={servings}
-                  complexity={complexity}
-                  onMealTypeChange={onMealTypeChange}
-                  onCuisineStyleChange={onCuisineStyleChange}
-                  onServingsChange={onServingsChange}
-                  onComplexityChange={onComplexityChange}
-                  disabled={isDetecting || isBusy}
-                  selectedIngredientNames={selectedIngredientNames(ingredients)}
-                />
-              </div>
+            {showAdvancedFilters ? (
+              <AdvancedRecipeFilters
+                mealType={mealType}
+                cuisineStyle={cuisineStyle}
+                servings={servings}
+                complexity={complexity}
+                onMealTypeChange={onMealTypeChange}
+                onCuisineStyleChange={onCuisineStyleChange}
+                onServingsChange={onServingsChange}
+                onComplexityChange={onComplexityChange}
+                disabled={isDetecting || isBusy}
+                selectedIngredientNames={selectedIngredientNames(ingredients)}
+                defaultExpanded
+              />
             ) : null}
           </div>
         ) : null}

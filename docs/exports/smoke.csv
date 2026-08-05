@@ -1,0 +1,9 @@
+﻿id,titulo,prioridad,pasos,esperado,ok
+S1,Abrir app instalada → login o Hoy,P0,Abrir desde icono,Login o Hoy,
+S2,Login válido → Hoy,P0,Email+password correctos,/app-recetas/hoy con nav,
+S3,Bottom nav 5 tabs,P0,Pulsar Hoy Plan Escáner Guardadas Perfil,Cada tab abre su pantalla,
+S4,Escáner 1 ingrediente manual,P0,Añadir pollo → generar,Opciones de receta,
+S5,Guardar receta → Guardadas,P0,Guardar,Aparece en Guardadas,
+S6,Asignar al plan,P0,Asignar a slot,Visible en Plan,
+S7,Hoy refleja comida,P0,Abrir Hoy,Comida visible,
+S8,Logout,P0,Cerrar sesión,Vuelve a acceso,

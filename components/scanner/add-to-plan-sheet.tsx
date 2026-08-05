@@ -13,6 +13,7 @@ import {
 } from "@/lib/plan/week-utils";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import { cn } from "@/lib/utils";
+import { SwipeToCloseHandle } from "@/components/ui/swipe-to-close-handle";
 
 const MEAL_TYPE_META: Record<
   MealType,
@@ -148,6 +149,7 @@ export function AddToPlanSheet({
         aria-labelledby="plan-sheet-title"
         className="fixed bottom-0 left-0 right-0 z-[100] animate-slide-up rounded-t-3xl border-t border-stone-100 bg-white p-6 shadow-2xl"
       >
+        <SwipeToCloseHandle onClose={onClose} disabled={isSubmitting} thresholdPx={70} />
         <div className="mb-5 flex items-start justify-between gap-3">
           <div>
             <p className="text-[11px] font-bold uppercase tracking-wider text-stone-400">

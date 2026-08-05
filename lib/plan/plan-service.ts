@@ -32,9 +32,20 @@ import {
   groupSnacksByDay
 } from "@/lib/plan/snack-service";
 import type { PlanSnack } from "@/lib/plan/snack-presets";
+import { normalizeRecipeTags } from "@/lib/recipes/recipe-tags";
 
 type PlanRow = Database["public"]["Tables"]["plan_semanal"]["Row"];
 type RecipeRow = Database["public"]["Tables"]["recipes"]["Row"];
+
+/** Recetas sintéticas de snack/comida fuera: no sirven como plato del plan. */
+function isNonAssignablePlanRecipe(recipe: {
+  meal_type?: string | null;
+  tags?: unknown;
+}): boolean {
+  if (resolveExternalMealBadge(recipe.tags) != null) return true;
+  if ((recipe.meal_type ?? "").toLowerCase() === "snack") return true;
+  return normalizeRecipeTags(recipe.tags).some((tag) => tag.toLowerCase() === "snack");
+}
 
 export type RecipePickerItem = Pick<
   RecipeRow,
@@ -333,6 +344,20 @@ export async function fetchWeeklyPlan(
 export async function fetchRecipesForPicker(userId: string): Promise<RecipePickerItem[]> {
   const supabase = createSupabaseClient();
 
+  const withMeta = await supabase
+    .from("recipes")
+    .select(
+      "id, title, image_url, instagram_url, cooking_time, is_airfryer, is_flourless, created_at, tags, meal_type"
+    )
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+
+  if (!withMeta.error) {
+    return ((withMeta.data ?? []) as Array<
+      RecipePickerItem & { tags?: unknown; meal_type?: string | null }
+    >).filter((recipe) => !isNonAssignablePlanRecipe(recipe));
+  }
+
   const withTags = await supabase
     .from("recipes")
     .select(
@@ -343,7 +368,7 @@ export async function fetchRecipesForPicker(userId: string): Promise<RecipePicke
 
   if (!withTags.error) {
     return ((withTags.data ?? []) as Array<RecipePickerItem & { tags?: unknown }>).filter(
-      (recipe) => resolveExternalMealBadge(recipe.tags) == null
+      (recipe) => !isNonAssignablePlanRecipe(recipe)
     );
   }
 

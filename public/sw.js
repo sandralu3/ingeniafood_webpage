@@ -1,4 +1,4 @@
-const CACHE_NAME = "ingenia-static-v3";
+const CACHE_NAME = "ingenia-static-v4";
 const OFFLINE_URLS = [
   "/",
   "/app-recetas",
@@ -32,6 +32,69 @@ self.addEventListener("message", (event) => {
   if (event.data?.type === "SKIP_WAITING") {
     self.skipWaiting();
   }
+});
+
+self.addEventListener("push", (event) => {
+  let payload = {
+    title: "IngeniaFood",
+    body: "Tienes una nueva notificación.",
+    href: "/app-recetas/hoy",
+    tag: "ingeniafood"
+  };
+
+  try {
+    if (event.data) {
+      const parsed = event.data.json();
+      payload = {
+        title: typeof parsed.title === "string" ? parsed.title : payload.title,
+        body: typeof parsed.body === "string" ? parsed.body : payload.body,
+        href: typeof parsed.href === "string" ? parsed.href : payload.href,
+        tag: typeof parsed.tag === "string" ? parsed.tag : payload.tag
+      };
+    }
+  } catch {
+    try {
+      const text = event.data?.text();
+      if (text) payload.body = text;
+    } catch {
+      // keep defaults
+    }
+  }
+
+  event.waitUntil(
+    self.registration.showNotification(payload.title, {
+      body: payload.body,
+      icon: "/icons/icon-192.png",
+      badge: "/icons/icon-192.png",
+      tag: payload.tag,
+      renotify: true,
+      data: { href: payload.href }
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const href =
+    (event.notification.data && event.notification.data.href) || "/app-recetas/hoy";
+  const targetUrl = new URL(href, self.location.origin).href;
+
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientsArr) => {
+      for (const client of clientsArr) {
+        if ("focus" in client) {
+          if ("navigate" in client && client.url !== targetUrl) {
+            return client.navigate(targetUrl).then((navigated) => navigated?.focus?.() ?? client.focus());
+          }
+          return client.focus();
+        }
+      }
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(targetUrl);
+      }
+      return undefined;
+    })
+  );
 });
 
 function isHtmlNavigation(request) {

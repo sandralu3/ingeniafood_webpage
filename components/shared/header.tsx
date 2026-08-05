@@ -4,9 +4,10 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Bell, Menu } from "lucide-react";
+import { Menu } from "lucide-react";
 import { AppDrawer } from "@/components/shared/app-drawer";
 import { IngeniaFoodLogo } from "@/components/shared/ingenia-food-logo";
+import { NotificationsBell } from "@/components/shared/notifications-bell";
 import { UserAvatar, getProfileInitials } from "@/components/shared/user-avatar";
 import { PremiumLabel } from "@/components/premium/premium-label";
 import { usePremium } from "@/hooks/use-premium";
@@ -98,13 +99,7 @@ export function Header() {
               <PremiumLabel size="2xs" />
             </span>
           ) : null}
-          <button
-            type="button"
-            className="flex h-8 w-8 items-center justify-center rounded-full text-stone-500 transition hover:bg-stone-100 hover:text-stone-700"
-            aria-label="Notificaciones"
-          >
-            <Bell className="h-4 w-4" strokeWidth={1.75} />
-          </button>
+          <NotificationsBell />
           <Link href={APP_ROUTES.perfil} className="transition hover:opacity-90">
             <UserAvatar avatarUrl={avatarUrl} initials={initials} />
           </Link>

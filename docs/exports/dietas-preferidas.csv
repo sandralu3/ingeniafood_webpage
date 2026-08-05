@@ -1,0 +1,9 @@
+﻿id,label,aviso_escanner,ejemplos_incompatibles
+estandar,Sin restricciones,No,—
+sin_gluten,Sin gluten,Sí,harina de trigo; pan; pasta; cebada (NO: harina de almendras/coco)
+sin_harinas,Sin harinas,Sí,harina de trigo; pan; pasta
+keto,Keto / low carb,Sí,arroz; azúcar; pasta; pan; patata
+vegetariana,Vegetariana,Sí,carne; pollo; pescado
+vegana,Vegana,Sí,carne; huevo; leche; queso; miel
+alto_proteina,Alto en proteína,Sí (blando),golosinas; refrescos
+mediterranea,Mediterránea,Sí (blando),ultraprocesados; nuggets; refrescos

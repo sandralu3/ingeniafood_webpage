@@ -2,6 +2,11 @@
 
 import { Camera, MapPin, Utensils } from "lucide-react";
 import {
+  inferAdvisoryTone,
+  joinAdvisoryMessages,
+  RecipeAdvisoryPulseButton
+} from "@/components/recipes/recipe-advisory-alert";
+import {
   externalMealBadgeLabel,
   type ExternalMealBadge
 } from "@/lib/plan/external-meal";
@@ -21,6 +26,7 @@ type Props = {
 /**
  * Vista compacta para comidas fuera: sin pestañas de ingredientes/preparación.
  * Foto solo si el usuario escaneó el plato; registro por texto = sin imagen.
+ * Las advertencias se muestran como icono parpadeante sobre la imagen.
  */
 export function ExternalMealDetailCard({
   title,
@@ -34,6 +40,8 @@ export function ExternalMealDetailCard({
 }: Props) {
   const hasPhoto = Boolean(imageUrl?.trim());
   const BadgeIcon = badge === "escaneado" ? Camera : MapPin;
+  const advisoryMessage = joinAdvisoryMessages(recommendations);
+  const advisoryTone = inferAdvisoryTone(advisoryMessage);
 
   return (
     <article className="overflow-hidden rounded-3xl border border-stone-100 bg-white shadow-sm">
@@ -44,7 +52,10 @@ export function ExternalMealDetailCard({
             alt={title}
             className="h-full w-full object-cover"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
+          {advisoryMessage ? (
+            <RecipeAdvisoryPulseButton message={advisoryMessage} tone={advisoryTone} />
+          ) : null}
           <div className="absolute inset-x-0 bottom-0 space-y-2 p-4">
             <span
               className={cn(
@@ -61,7 +72,10 @@ export function ExternalMealDetailCard({
           </div>
         </div>
       ) : (
-        <div className="space-y-3 border-b border-stone-100 bg-gradient-to-br from-stone-50 to-emerald-50/40 px-5 py-6">
+        <div className="relative space-y-3 border-b border-stone-100 bg-gradient-to-br from-stone-50 to-emerald-50/40 px-5 py-6">
+          {advisoryMessage ? (
+            <RecipeAdvisoryPulseButton message={advisoryMessage} tone={advisoryTone} />
+          ) : null}
           <span
             className={cn(
               "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold",
@@ -116,28 +130,12 @@ export function ExternalMealDetailCard({
           </div>
         ) : null}
 
-        {recommendations.length > 0 ? (
-          <div className="rounded-2xl border border-amber-200/80 bg-amber-50/70 px-3.5 py-3">
-            <p className="text-[11px] font-bold uppercase tracking-wide text-amber-900/80">
-              Recomendación
-            </p>
-            <ul className="mt-1.5 space-y-1.5">
-              {recommendations.map((tip) => (
-                <li key={tip} className="text-sm leading-relaxed text-amber-950/90">
-                  <span className="mr-1" aria-hidden>
-                    ·
-                  </span>
-                  {tip}
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : (
+        {!advisoryMessage ? (
           <p className="text-sm leading-relaxed text-stone-600">
             Comida registrada fuera de casa. Las calorías y proteínas se estiman según las porciones
             que confirmaste, para mantener el balance del día.
           </p>
-        )}
+        ) : null}
       </div>
     </article>
   );

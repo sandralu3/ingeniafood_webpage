@@ -8,6 +8,7 @@ import {
   groupShoppingListByCategory,
   type ShoppingListItem
 } from "@/lib/plan/shopping-list";
+import { SwipeToCloseHandle } from "@/components/ui/swipe-to-close-handle";
 
 type ShoppingListModalProps = {
   open: boolean;
@@ -125,6 +126,10 @@ export function ShoppingListModal({
         aria-label={title}
         className="flex max-h-[92vh] w-full max-w-xl flex-col overflow-hidden rounded-3xl border border-neutral-100 bg-white shadow-2xl"
       >
+        <div className="shrink-0 px-5 pt-0 pb-0">
+          <SwipeToCloseHandle onClose={onClose} disabled={isLoading} thresholdPx={70} />
+        </div>
+
         <div className="flex shrink-0 items-start justify-between gap-3 border-b border-stone-100 px-5 py-4">
           <div className="min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-amber-700/80">

@@ -13,6 +13,12 @@
     "signOut": "Abmelden",
     "signingOut": "Wird abgemeldet..."
   },
+  "Notifications": {
+    "title": "Benachrichtigungen",
+    "empty": "Du hast noch keine Benachrichtigungen.",
+    "markAllRead": "Alle als gelesen markieren",
+    "loading": "Wird aktualisiert…"
+  },
   "Profile": {
     "title": "Mein Profil",
     "subtitle": "Verwalte deine persönlichen Daten und dein Foto.",
@@ -434,6 +440,11 @@
     "photoCreditConfirmDescriptionPremium": "Du hast nur 1 Versuch für ein echtes Gerichtfoto. Wenn du bestätigst, wird es für dieses Rezept verwendet und ist danach weg. Ohne Foto behältst du den Versuch.",
     "photoCreditConfirmDescriptionAdmin": "Als Admin kannst du echte Gerichtfotos ohne Limit erzeugen. Jetzt erzeugen?",
     "photoCreditConfirmYes": "Ja, echtes Foto verwenden",
+    "advisoryAlertAria": "Ernährungswarnung anzeigen",
+    "advisoryInfoAria": "Ernährungshinweis anzeigen",
+    "advisoryPopupTitle": "Warnung",
+    "advisoryPopupInfoTitle": "Information",
+    "advisoryPopupGotIt": "Verstanden",
     "photoCreditConfirmNo": "Ohne Foto fortfahren",
     "confirmIngredientsTitle": "Zutaten bestätigen",
     "confirmIngredientsSubtitle": "Tippen zum Einbeziehen oder Verwerfen",
