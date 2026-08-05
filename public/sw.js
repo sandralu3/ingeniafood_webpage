@@ -1,4 +1,4 @@
-const CACHE_NAME = "ingenia-static-v4";
+const CACHE_NAME = "ingenia-static-v6";
 const OFFLINE_URLS = [
   "/",
   "/app-recetas",
@@ -35,11 +35,14 @@ self.addEventListener("message", (event) => {
 });
 
 self.addEventListener("push", (event) => {
+  const origin = self.location.origin;
   let payload = {
     title: "IngeniaFood",
     body: "Tienes una nueva notificación.",
     href: "/app-recetas/hoy",
-    tag: "ingeniafood"
+    tag: "ingeniafood",
+    icon: `${origin}/icons/notification-icon.png`,
+    badge: `${origin}/icons/notification-badge.png`
   };
 
   try {
@@ -49,7 +52,15 @@ self.addEventListener("push", (event) => {
         title: typeof parsed.title === "string" ? parsed.title : payload.title,
         body: typeof parsed.body === "string" ? parsed.body : payload.body,
         href: typeof parsed.href === "string" ? parsed.href : payload.href,
-        tag: typeof parsed.tag === "string" ? parsed.tag : payload.tag
+        tag: typeof parsed.tag === "string" ? parsed.tag : payload.tag,
+        icon:
+          typeof parsed.icon === "string" && parsed.icon.trim()
+            ? parsed.icon
+            : payload.icon,
+        badge:
+          typeof parsed.badge === "string" && parsed.badge.trim()
+            ? parsed.badge
+            : payload.badge
       };
     }
   } catch {
@@ -64,8 +75,10 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     self.registration.showNotification(payload.title, {
       body: payload.body,
-      icon: "/icons/icon-192.png",
-      badge: "/icons/icon-192.png",
+      // Android barra de estado: badge monocromo con alpha.
+      // icon también sin fondo opaco (si no, se ve un cuadrado blanco).
+      icon: payload.icon,
+      badge: payload.badge,
       tag: payload.tag,
       renotify: true,
       data: { href: payload.href }

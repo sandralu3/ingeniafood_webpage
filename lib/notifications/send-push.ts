@@ -9,6 +9,31 @@ type PushPayload = {
   tag?: string;
 };
 
+function getPublicOrigin(): string {
+  const site = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (site) return site.replace(/\/$/, "");
+
+  const production = process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim();
+  if (production) return `https://${production.replace(/^https?:\/\//, "")}`;
+
+  const vercel = process.env.VERCEL_URL?.trim();
+  if (vercel) return `https://${vercel.replace(/^https?:\/\//, "")}`;
+
+  return "https://ingeniafood.es";
+}
+
+function buildPushJson(payload: PushPayload): string {
+  const origin = getPublicOrigin();
+  return JSON.stringify({
+    title: payload.title,
+    body: payload.body,
+    href: payload.href ?? "/app-recetas/hoy",
+    tag: payload.tag ?? "ingeniafood",
+    icon: `${origin}/icons/notification-icon.png`,
+    badge: `${origin}/icons/notification-badge.png`
+  });
+}
+
 async function sendRawPushToUser(
   userId: string,
   payload: PushPayload,
@@ -35,12 +60,7 @@ async function sendRawPushToUser(
 
   if (error || !subscriptions?.length) return 0;
 
-  const body = JSON.stringify({
-    title: payload.title,
-    body: payload.body,
-    href: payload.href ?? "/app-recetas/hoy",
-    tag: payload.tag ?? "ingeniafood"
-  });
+  const body = buildPushJson(payload);
 
   let sent = 0;
 
