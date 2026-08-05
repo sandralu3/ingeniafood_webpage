@@ -17,7 +17,11 @@
     "title": "Notifications",
     "empty": "You don't have any notifications yet.",
     "markAllRead": "Mark all as read",
-    "loading": "Updating…"
+    "loading": "Updating…",
+    "pushOptInTitle": "Get these on your phone too",
+    "pushOptInBody": "Turn on alerts to track your progress and catch new updates.",
+    "pushOptInEnable": "Enable notifications",
+    "pushOptInBlocked": "Blocked in the browser. Enable them in system settings."
   },
   "Profile": {
     "title": "My Profile",
@@ -85,6 +89,12 @@
     "promoClaimCta": "Activate Premium for 24H",
     "promoClaimCtaShort": "Activate 24H ✨",
     "promoClaimSuccess": "Your 24-hour Premium pass is active! Enjoy the experience.",
+    "pushOptInTitle": "Don't miss your progress",
+    "pushOptInBody": "Turn on alerts to keep your streak and hear about new updates.",
+    "pushOptInEnable": "Enable",
+    "pushOptInLater": "Not now",
+    "pushOptInDismissAria": "Dismiss notification prompt",
+    "pushOptInBlocked": "Notifications are blocked in the browser. Enable them in system settings.",
     "scanBannerTitle": "Scan your pantry",
     "scanBannerSubtitle": "Healthy recipes in an instant",
     "scanHeroTitle": "Scan your pantry",

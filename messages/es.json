@@ -17,7 +17,11 @@
     "title": "Notificaciones",
     "empty": "No tienes notificaciones todavía.",
     "markAllRead": "Marcar todas como leídas",
-    "loading": "Actualizando…"
+    "loading": "Actualizando…",
+    "pushOptInTitle": "Recibe esto también en el móvil",
+    "pushOptInBody": "Activa avisos para seguir tu progreso y enterarte de novedades.",
+    "pushOptInEnable": "Activar notificaciones",
+    "pushOptInBlocked": "Están bloqueadas en el navegador. Actívalas en los ajustes del sistema."
   },
   "Profile": {
     "title": "Mi Perfil",
@@ -85,6 +89,12 @@
     "promoClaimCta": "Desbloquea tu experiencia premium",
     "promoClaimCtaShort": "Desbloquea tu experiencia premium",
     "promoClaimSuccess": "¡Tu pase Premium de 24 horas ya está activo! Disfruta la experiencia.",
+    "pushOptInTitle": "No te pierdas tu progreso",
+    "pushOptInBody": "Activa avisos para seguir tu racha y enterarte de novedades.",
+    "pushOptInEnable": "Activar",
+    "pushOptInLater": "Ahora no",
+    "pushOptInDismissAria": "Cerrar aviso de notificaciones",
+    "pushOptInBlocked": "Las notificaciones están bloqueadas en el navegador. Actívalas en los ajustes del sistema.",
     "scanBannerTitle": "Escanea tu despensa",
     "scanBannerSubtitle": "Recetas saludables al instante",
     "scanHeroTitle": "Escanea tu despensa",

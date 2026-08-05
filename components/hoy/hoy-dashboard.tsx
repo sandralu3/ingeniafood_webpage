@@ -7,6 +7,7 @@ import { DailyChallenges } from "@/components/hoy/daily-challenges";
 import { HoyGreetingHeader } from "@/components/hoy/hoy-greeting-header";
 import { ProgressBoard } from "@/components/hoy/progress-board/progress-board";
 import { PromoClaimBanner } from "@/components/hoy/promo-claim-banner";
+import { PushOptInBanner } from "@/components/hoy/push-opt-in-banner";
 import { TodayPlanNutrition } from "@/components/hoy/today-plan-nutrition";
 import { WaterGlassesTracker } from "@/components/hoy/water-glasses-tracker";
 import {
@@ -103,6 +104,7 @@ export function HoyDashboard() {
         )}
 
         <PromoClaimBanner />
+        <PushOptInBanner />
 
         {showPageSkeleton ? (
           <HoyProgressBoardSkeleton showSectionLabel={false} />

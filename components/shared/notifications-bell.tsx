@@ -9,6 +9,7 @@ import {
   Flame,
   Gift,
   Instagram,
+  Loader2,
   RefreshCw,
   Sparkles,
   UserPlus,
@@ -17,6 +18,7 @@ import {
 import { useTranslations } from "next-intl";
 import { useNotifications } from "@/hooks/use-notifications";
 import { useAppUpdate } from "@/hooks/use-app-update";
+import { usePushOptIn } from "@/hooks/use-push-opt-in";
 import type { NotificationType, UserNotification } from "@/lib/notifications/types";
 import { cn } from "@/lib/utils";
 
@@ -140,6 +142,13 @@ export function NotificationsBell() {
     markAllRead
   } = useNotifications();
   const { updateAvailable } = useAppUpdate();
+  const {
+    shouldShowBellCta,
+    permission,
+    isEnabling,
+    error: pushError,
+    enable: enablePush
+  } = usePushOptIn();
 
   useEffect(() => {
     if (!updateAvailable) return;
@@ -176,6 +185,20 @@ export function NotificationsBell() {
   const empty = t.has("empty") ? t("empty") : "No tienes notificaciones todavía.";
   const markAll = t.has("markAllRead") ? t("markAllRead") : "Marcar todas como leídas";
   const loadingLabel = t.has("loading") ? t("loading") : "Actualizando…";
+  const pushBlocked = permission === "denied";
+  const pushCtaTitle = t.has("pushOptInTitle")
+    ? t("pushOptInTitle")
+    : "Recibe esto también en el móvil";
+  const pushCtaBody = pushBlocked
+    ? t.has("pushOptInBlocked")
+      ? t("pushOptInBlocked")
+      : "Están bloqueadas en el navegador. Actívalas en los ajustes del sistema."
+    : t.has("pushOptInBody")
+      ? t("pushOptInBody")
+      : "Activa avisos para tu progreso y novedades.";
+  const pushEnableCta = t.has("pushOptInEnable")
+    ? t("pushOptInEnable")
+    : "Activar notificaciones";
 
   return (
     <div className="relative" ref={panelRef}>
@@ -229,6 +252,35 @@ export function NotificationsBell() {
               ))
             )}
           </div>
+
+          {shouldShowBellCta ? (
+            <div className="border-t border-stone-100 bg-[#F7F9F4] px-3 py-2.5">
+              <p className="text-[12px] font-semibold leading-snug text-stone-900">
+                {pushCtaTitle}
+              </p>
+              <p className="mt-0.5 text-[11px] leading-snug text-stone-600">{pushCtaBody}</p>
+              {!pushBlocked ? (
+                <button
+                  type="button"
+                  disabled={isEnabling}
+                  onClick={() => void enablePush()}
+                  className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-[#4c6633] px-3 py-2 text-[11px] font-semibold text-white transition hover:bg-[#556B2F] disabled:opacity-60"
+                >
+                  {isEnabling ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Bell className="h-3.5 w-3.5" strokeWidth={2} />
+                  )}
+                  {pushEnableCta}
+                </button>
+              ) : null}
+              {pushError ? (
+                <p className="mt-1.5 text-[10px] text-rose-600" role="alert">
+                  {pushError}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>

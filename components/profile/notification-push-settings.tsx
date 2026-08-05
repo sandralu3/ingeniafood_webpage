@@ -4,12 +4,11 @@ import { useCallback, useEffect, useState } from "react";
 import { Bell, BellOff, Loader2, Send } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { isSandraAdmin } from "@/lib/auth/sandra-admin";
+import { isPushSupported } from "@/lib/notifications/client-push";
 import {
-  isPushSupported,
-  serializePushSubscription,
-  subscribeUserToPush,
-  unsubscribeUserFromPush
-} from "@/lib/notifications/client-push";
+  disablePushOnThisDevice,
+  enablePushOnThisDevice
+} from "@/lib/notifications/push-client-actions";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import { cn } from "@/lib/utils";
 
@@ -79,34 +78,9 @@ export function NotificationPushSettings({ className }: Props) {
     setError(null);
     setTestMessage(null);
     try {
-      const vapidRes = await fetch("/api/notifications/push/vapid", { cache: "no-store" });
-      const vapid = (await vapidRes.json()) as { configured?: boolean; publicKey?: string | null };
-      if (!vapid.configured || !vapid.publicKey) {
-        throw new Error(
-          t.has("pushNotConfigured")
-            ? t("pushNotConfigured")
-            : "Las notificaciones push no están configuradas en el servidor."
-        );
-      }
-
-      const subscription = await subscribeUserToPush(vapid.publicKey);
-      const serialized = serializePushSubscription(subscription);
-
-      const response = await fetch("/api/notifications/push/subscribe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...serialized,
-          userAgent: typeof navigator !== "undefined" ? navigator.userAgent : undefined
-        })
-      });
-
-      if (!response.ok) {
-        const data = (await response.json().catch(() => ({}))) as { error?: string };
-        throw new Error(data.error || "No pudimos activar las notificaciones.");
-      }
-
+      await enablePushOnThisDevice();
       setEnabled(true);
+      window.dispatchEvent(new Event("ingeniafood:push-changed"));
     } catch (err) {
       setError(
         err instanceof Error
@@ -125,31 +99,9 @@ export function NotificationPushSettings({ className }: Props) {
     setError(null);
     setTestMessage(null);
     try {
-      let endpoint: string | undefined;
-      try {
-        const registration = await navigator.serviceWorker.getRegistration();
-        const subscription = await registration?.pushManager.getSubscription();
-        endpoint = subscription?.endpoint;
-        await unsubscribeUserFromPush();
-      } catch {
-        // seguir desactivando en servidor
-      }
-
-      const response = await fetch("/api/notifications/push/subscribe", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ endpoint })
-      });
-
-      if (!response.ok) {
-        await fetch("/api/notifications/push/preferences", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ enabled: false })
-        });
-      }
-
+      await disablePushOnThisDevice();
       setEnabled(false);
+      window.dispatchEvent(new Event("ingeniafood:push-changed"));
     } catch (err) {
       setError(
         err instanceof Error
