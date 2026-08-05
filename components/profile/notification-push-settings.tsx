@@ -1,14 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Bell, BellOff, Loader2 } from "lucide-react";
+import { Bell, BellOff, Loader2, Send } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { isSandraAdmin } from "@/lib/auth/sandra-admin";
 import {
   isPushSupported,
   serializePushSubscription,
   subscribeUserToPush,
   unsubscribeUserFromPush
 } from "@/lib/notifications/client-push";
+import { createSupabaseClient } from "@/lib/supabaseClient";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -20,15 +22,29 @@ export function NotificationPushSettings({ className }: Props) {
   const [supported, setSupported] = useState(false);
   const [configured, setConfigured] = useState(false);
   const [enabled, setEnabled] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isTesting, setIsTesting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [testMessage, setTestMessage] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
       setSupported(isPushSupported());
+
+      try {
+        const supabase = createSupabaseClient();
+        const {
+          data: { user }
+        } = await supabase.auth.getUser();
+        setIsAdmin(isSandraAdmin(user?.email));
+      } catch {
+        setIsAdmin(false);
+      }
+
       const response = await fetch("/api/notifications/push/preferences", {
         cache: "no-store"
       });
@@ -61,6 +77,7 @@ export function NotificationPushSettings({ className }: Props) {
   const enablePush = async () => {
     setIsSaving(true);
     setError(null);
+    setTestMessage(null);
     try {
       const vapidRes = await fetch("/api/notifications/push/vapid", { cache: "no-store" });
       const vapid = (await vapidRes.json()) as { configured?: boolean; publicKey?: string | null };
@@ -106,6 +123,7 @@ export function NotificationPushSettings({ className }: Props) {
   const disablePush = async () => {
     setIsSaving(true);
     setError(null);
+    setTestMessage(null);
     try {
       let endpoint: string | undefined;
       try {
@@ -145,6 +163,47 @@ export function NotificationPushSettings({ className }: Props) {
     }
   };
 
+  const sendTestPush = async () => {
+    setIsTesting(true);
+    setError(null);
+    setTestMessage(null);
+    try {
+      const response = await fetch("/api/notifications/push/test", { method: "POST" });
+      const data = (await response.json()) as {
+        ok?: boolean;
+        message?: string;
+        error?: string;
+        sent?: number;
+      };
+
+      if (!response.ok || !data.ok) {
+        throw new Error(
+          data.error ||
+            (t.has("pushTestError")
+              ? t("pushTestError")
+              : "No pudimos enviar la notificación de prueba.")
+        );
+      }
+
+      setTestMessage(
+        data.message ||
+          (t.has("pushTestSuccess")
+            ? t("pushTestSuccess")
+            : "Notificación de prueba enviada.")
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : t.has("pushTestError")
+            ? t("pushTestError")
+            : "No pudimos enviar la notificación de prueba."
+      );
+    } finally {
+      setIsTesting(false);
+    }
+  };
+
   const title = t.has("pushTitle") ? t("pushTitle") : "Notificaciones del móvil";
   const subtitle = t.has("pushSubtitle")
     ? t("pushSubtitle")
@@ -159,6 +218,7 @@ export function NotificationPushSettings({ className }: Props) {
   const notConfigured = t.has("pushNotConfigured")
     ? t("pushNotConfigured")
     : "Las notificaciones push no están configuradas en el servidor.";
+  const testCta = t.has("pushTestCta") ? t("pushTestCta") : "Probar notificación (admin)";
 
   return (
     <section
@@ -211,10 +271,16 @@ export function NotificationPushSettings({ className }: Props) {
         </p>
       ) : null}
 
+      {testMessage ? (
+        <p role="status" className="rounded-xl bg-[#F0F4ED] px-3 py-2 text-[11px] text-[#3e5219]">
+          {testMessage}
+        </p>
+      ) : null}
+
       {!isLoading && supported && configured ? (
         <button
           type="button"
-          disabled={isSaving}
+          disabled={isSaving || isTesting}
           onClick={() => void (enabled ? disablePush() : enablePush())}
           className={cn(
             "inline-flex w-full items-center justify-center gap-1.5 rounded-full px-4 py-2.5 text-[12px] font-semibold transition disabled:opacity-60",
@@ -225,6 +291,22 @@ export function NotificationPushSettings({ className }: Props) {
         >
           {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
           {enabled ? disableCta : enableCta}
+        </button>
+      ) : null}
+
+      {!isLoading && isAdmin ? (
+        <button
+          type="button"
+          disabled={isTesting || isSaving}
+          onClick={() => void sendTestPush()}
+          className="inline-flex w-full items-center justify-center gap-1.5 rounded-full border border-[#4C6B3F]/25 bg-[#F0F4ED] px-4 py-2.5 text-[12px] font-semibold text-[#3e5219] transition hover:bg-[#E5EEDF] disabled:opacity-60"
+        >
+          {isTesting ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Send className="h-3.5 w-3.5" strokeWidth={2} />
+          )}
+          {testCta}
         </button>
       ) : null}
     </section>

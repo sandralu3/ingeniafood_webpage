@@ -68,7 +68,10 @@
     "pushNotConfigured": "Push notifications are not configured on the server.",
     "pushLoadError": "Could not load notification status.",
     "pushEnableError": "Could not enable notifications.",
-    "pushDisableError": "Could not disable notifications."
+    "pushDisableError": "Could not disable notifications.",
+    "pushTestCta": "Test notification (admin)",
+    "pushTestSuccess": "Test notification sent.",
+    "pushTestError": "Could not send the test notification."
   },
   "Hoy": {
     "dayInProgress": "Your day in motion",

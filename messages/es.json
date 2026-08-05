@@ -68,7 +68,10 @@
     "pushNotConfigured": "Las notificaciones push no están configuradas en el servidor.",
     "pushLoadError": "No pudimos cargar el estado de las notificaciones.",
     "pushEnableError": "No pudimos activar las notificaciones.",
-    "pushDisableError": "No pudimos desactivar las notificaciones."
+    "pushDisableError": "No pudimos desactivar las notificaciones.",
+    "pushTestCta": "Probar notificación (admin)",
+    "pushTestSuccess": "Notificación de prueba enviada.",
+    "pushTestError": "No pudimos enviar la notificación de prueba."
   },
   "Hoy": {
     "dayInProgress": "Tu día en marcha",

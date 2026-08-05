@@ -9,17 +9,24 @@ type PushPayload = {
   tag?: string;
 };
 
-async function sendRawPushToUser(userId: string, payload: PushPayload): Promise<number> {
+async function sendRawPushToUser(
+  userId: string,
+  payload: PushPayload,
+  options?: { force?: boolean }
+): Promise<number> {
   if (!ensureWebPushConfigured()) return 0;
 
   const admin = getSupabaseAdminClient();
-  const { data: profile } = await admin
-    .from("profiles")
-    .select("push_notifications_enabled")
-    .eq("id", userId)
-    .maybeSingle();
 
-  if (!profile?.push_notifications_enabled) return 0;
+  if (!options?.force) {
+    const { data: profile } = await admin
+      .from("profiles")
+      .select("push_notifications_enabled")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (!profile?.push_notifications_enabled) return 0;
+  }
 
   const { data: subscriptions, error } = await admin
     .from("push_subscriptions")
@@ -68,6 +75,30 @@ async function sendRawPushToUser(userId: string, payload: PushPayload): Promise<
   );
 
   return sent;
+}
+
+/** Prueba admin: envía push aunque el flag del perfil esté off (si hay suscripción). */
+export async function sendAdminTestPush(userId: string): Promise<{
+  sent: number;
+  configured: boolean;
+}> {
+  const configured = ensureWebPushConfigured();
+  if (!configured) {
+    return { sent: 0, configured: false };
+  }
+
+  const sent = await sendRawPushToUser(
+    userId,
+    {
+      title: "Prueba IngeniaFood",
+      body: "Si ves esto, las notificaciones push del sistema funcionan.",
+      href: "/app-recetas/parametros",
+      tag: `admin_push_test:${Date.now()}`
+    },
+    { force: true }
+  );
+
+  return { sent, configured: true };
 }
 
 /** Envía push del sistema para notificaciones recién creadas en el inbox. */
