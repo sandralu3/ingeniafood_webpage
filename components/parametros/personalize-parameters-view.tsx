@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Droplets, Loader2, SlidersHorizontal } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { NutritionGoalsForm } from "@/components/profile/nutrition-goals-form";
+import { NotificationPushSettings } from "@/components/profile/notification-push-settings";
 import {
   PARAM_CHIP,
   PARAM_CONTROL,
@@ -245,6 +246,8 @@ export function PersonalizeParametersView() {
               </button>
             </div>
           </section>
+
+          <NotificationPushSettings />
         </div>
       )}
 

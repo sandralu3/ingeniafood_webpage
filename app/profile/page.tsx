@@ -6,7 +6,6 @@ import { useTranslations } from "next-intl";
 import { Camera, ChevronDown, LogOut, Pencil, Users, Wand2 } from "lucide-react";
 import { AvatarCropModal } from "@/components/profile/avatar-crop-modal";
 import { LanguageSelector } from "@/components/profile/language-selector";
-import { NotificationPushSettings } from "@/components/profile/notification-push-settings";
 import { PremiumBillingActions } from "@/components/profile/premium-billing-actions";
 import { TesterPromoResetButton } from "@/components/profile/tester-promo-reset-button";
 import { PremiumLabel } from "@/components/premium/premium-label";
@@ -567,8 +566,6 @@ export default function ProfilePage() {
             >
               {isSaving ? t("saving") : t("saveChanges")}
             </button>
-
-            <NotificationPushSettings />
 
             <button
               type="button"
