@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Info, Loader2, Pencil, Plus, Target, Trash2 } from "lucide-react";
+import { ChevronDown, Info, Loader2, Pencil, Plus, Target, Trash2 } from "lucide-react";
 import { CustomChallengeModal } from "@/components/hoy/custom-challenge-modal";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
@@ -27,6 +27,43 @@ import { getTodayWeekDay } from "@/lib/plan/week-utils";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "next-intl";
+
+const WEEKDAY_DAYS: WeekDay[] = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
+const WEEKEND_DAYS: WeekDay[] = ["Sábado", "Domingo"];
+
+const WEEK_DAY_LETTER: Record<WeekDay, string> = {
+  Lunes: "L",
+  Martes: "M",
+  Miércoles: "X",
+  Jueves: "J",
+  Viernes: "V",
+  Sábado: "S",
+  Domingo: "D"
+};
+
+function sameWeekDays(a: WeekDay[], b: readonly WeekDay[]) {
+  return a.length === b.length && b.every((day) => a.includes(day));
+}
+
+function formatActiveDaysSummary(
+  days: WeekDay[],
+  t: ReturnType<typeof useTranslations<"Retos">>
+) {
+  const normalized = normalizeChallengeWeekDays(days);
+  if (sameWeekDays(normalized, ALL_CHALLENGE_WEEK_DAYS)) {
+    return t("daysSummaryAll");
+  }
+  if (sameWeekDays(normalized, WEEKDAY_DAYS)) {
+    return t("daysSummaryWeekdays");
+  }
+  if (sameWeekDays(normalized, WEEKEND_DAYS)) {
+    return t("daysSummaryWeekend");
+  }
+  return t("daysSummaryCustom", {
+    days: normalized.map((day) => WEEK_DAY_SHORT[day]).join(", "),
+    count: normalized.length
+  });
+}
 
 function invalidateHoyAfterRetosChange(userId: string) {
   clearHoyCache(userId);
@@ -173,13 +210,10 @@ export function ChallengesConfigView() {
     }
   };
 
-  const setChallengeAllDays = async (challenge: ConfigurableChallenge) => {
+  const setChallengeDays = async (challenge: ConfigurableChallenge, days: WeekDay[]) => {
     if (!userId || !challenge.isActive || pendingId) return;
-    const nextDays = [...ALL_CHALLENGE_WEEK_DAYS];
-    if (
-      nextDays.length === challenge.activeDays.length &&
-      nextDays.every((day) => challenge.activeDays.includes(day))
-    ) {
+    const nextDays = normalizeChallengeWeekDays(days);
+    if (sameWeekDays(normalizeChallengeWeekDays(challenge.activeDays), nextDays)) {
       return;
     }
 
@@ -205,7 +239,7 @@ export function ChallengesConfigView() {
       );
       invalidateHoyAfterRetosChange(userId);
     } catch (error) {
-      console.error("[challenges-config] Error activando todos los días:", error);
+      console.error("[challenges-config] Error actualizando días del reto:", error);
       setChallenges((prev) =>
         prev.map((item) =>
           item.id === challenge.id ? { ...item, activeDays: previousDays } : item
@@ -351,7 +385,7 @@ export function ChallengesConfigView() {
                 disabled={!userId}
                 onToggle={(challenge) => void toggleActive(challenge)}
                 onToggleDay={(challenge, day) => void toggleChallengeDay(challenge, day)}
-                onSetAllDays={(challenge) => void setChallengeAllDays(challenge)}
+                onSetDays={(challenge, days) => void setChallengeDays(challenge, days)}
               />
 
               {customChallenges.length > 0 ? (
@@ -363,7 +397,7 @@ export function ChallengesConfigView() {
                   disabled={!userId}
                   onToggle={(challenge) => void toggleActive(challenge)}
                   onToggleDay={(challenge, day) => void toggleChallengeDay(challenge, day)}
-                  onSetAllDays={(challenge) => void setChallengeAllDays(challenge)}
+                  onSetDays={(challenge, days) => void setChallengeDays(challenge, days)}
                   onEdit={(challenge) => {
                     setModalErrorMessage(null);
                     setModalState({ mode: "edit", challenge });
@@ -444,7 +478,7 @@ function ChallengeSection({
   disabled,
   onToggle,
   onToggleDay,
-  onSetAllDays,
+  onSetDays,
   onEdit,
   onDelete
 }: {
@@ -455,12 +489,13 @@ function ChallengeSection({
   disabled: boolean;
   onToggle: (challenge: ConfigurableChallenge) => void;
   onToggleDay: (challenge: ConfigurableChallenge, day: WeekDay) => void;
-  onSetAllDays: (challenge: ConfigurableChallenge) => void;
+  onSetDays: (challenge: ConfigurableChallenge, days: WeekDay[]) => void;
   onEdit?: (challenge: ConfigurableChallenge) => void;
   onDelete?: (challenge: ConfigurableChallenge) => void;
 }) {
   const t = useTranslations("Retos");
   const [focusedChallengeId, setFocusedChallengeId] = useState<string | null>(null);
+  const [daysEditorId, setDaysEditorId] = useState<string | null>(null);
 
   return (
     <section className="rounded-2xl bg-white/90 px-2.5 py-2 shadow-sm shadow-stone-100/30">
@@ -478,12 +513,14 @@ function ChallengeSection({
         {challenges.map((challenge) => {
           const isPending = pendingId === challenge.id;
           const isFocused = focusedChallengeId === challenge.id;
+          const isDaysOpen = daysEditorId === challenge.id;
           const canManage = Boolean(onEdit && onDelete);
           const displayLabel = translateChallengeLabel(challenge, t);
           const activeDays = normalizeChallengeWeekDays(challenge.activeDays);
-          const allDaysSelected =
-            activeDays.length === ALL_CHALLENGE_WEEK_DAYS.length &&
-            ALL_CHALLENGE_WEEK_DAYS.every((day) => activeDays.includes(day));
+          const allDaysSelected = sameWeekDays(activeDays, ALL_CHALLENGE_WEEK_DAYS);
+          const weekdaysSelected = sameWeekDays(activeDays, WEEKDAY_DAYS);
+          const weekendSelected = sameWeekDays(activeDays, WEEKEND_DAYS);
+          const daysSummary = formatActiveDaysSummary(activeDays, t);
 
           return (
             <li
@@ -496,7 +533,12 @@ function ChallengeSection({
               <div className="flex items-center gap-1.5">
                 <button
                   type="button"
-                  onClick={() => onToggle(challenge)}
+                  onClick={() => {
+                    if (challenge.isActive && daysEditorId === challenge.id) {
+                      setDaysEditorId(null);
+                    }
+                    onToggle(challenge);
+                  }}
                   disabled={disabled || Boolean(pendingId)}
                   className={cn(
                     "flex min-w-0 flex-1 items-center gap-2 text-left",
@@ -579,42 +621,112 @@ function ChallengeSection({
               </div>
 
               {challenge.isActive ? (
-                <div className="mt-1.5 space-y-1 pl-11">
+                <div className="mt-1 space-y-1.5 pl-11">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-[10px] text-stone-500">{t("daysHint")}</p>
+                    <p className="min-w-0 truncate text-[10px] text-stone-500">
+                      <span className="font-medium text-stone-600">{daysSummary}</span>
+                    </p>
                     <button
                       type="button"
-                      onClick={() => onSetAllDays(challenge)}
-                      disabled={disabled || Boolean(pendingId) || allDaysSelected}
-                      className="shrink-0 text-[10px] font-medium text-[#556B2F] transition hover:text-[#3e5219] disabled:opacity-40"
+                      onClick={() =>
+                        setDaysEditorId((current) =>
+                          current === challenge.id ? null : challenge.id
+                        )
+                      }
+                      className="inline-flex shrink-0 items-center gap-0.5 text-xs font-medium text-brand-olive transition hover:text-[#3e5219]"
+                      aria-expanded={isDaysOpen}
+                      aria-controls={`days-editor-${challenge.id}`}
                     >
-                      {t("daysAll")}
+                      {isDaysOpen ? t("collapseDays") : t("customizeDays")}
+                      <ChevronDown
+                        className={cn(
+                          "h-3 w-3 transition-transform",
+                          isDaysOpen && "rotate-180"
+                        )}
+                      />
                     </button>
                   </div>
-                  <div className="flex flex-wrap gap-1" role="group" aria-label={t("daysHint")}>
-                    {WEEK_DAYS.map((day) => {
-                      const isSelected = activeDays.includes(day);
-                      return (
-                        <button
-                          key={day}
-                          type="button"
-                          onClick={() => onToggleDay(challenge, day)}
-                          disabled={disabled || Boolean(pendingId)}
-                          aria-pressed={isSelected}
-                          title={day}
-                          className={cn(
-                            "flex h-6 min-w-[1.75rem] items-center justify-center rounded-full px-1 text-[9px] font-semibold transition",
-                            isSelected
-                              ? "bg-[#556B2F] text-white"
-                              : "bg-white/80 text-stone-500 ring-1 ring-stone-200 hover:text-[#556B2F]",
-                            (disabled || pendingId) && "opacity-70"
-                          )}
-                        >
-                          {WEEK_DAY_SHORT[day]}
-                        </button>
-                      );
-                    })}
-                  </div>
+
+                  {isDaysOpen ? (
+                    <div
+                      id={`days-editor-${challenge.id}`}
+                      className="space-y-1.5"
+                    >
+                      <div
+                        className="flex flex-wrap gap-1"
+                        role="group"
+                        aria-label={t("daysHint")}
+                      >
+                        {(
+                          [
+                            {
+                              key: "all",
+                              label: t("daysPresetAll"),
+                              days: ALL_CHALLENGE_WEEK_DAYS,
+                              selected: allDaysSelected
+                            },
+                            {
+                              key: "weekdays",
+                              label: t("daysPresetWeekdays"),
+                              days: WEEKDAY_DAYS,
+                              selected: weekdaysSelected
+                            },
+                            {
+                              key: "weekend",
+                              label: t("daysPresetWeekend"),
+                              days: WEEKEND_DAYS,
+                              selected: weekendSelected
+                            }
+                          ] as const
+                        ).map((preset) => (
+                          <button
+                            key={preset.key}
+                            type="button"
+                            onClick={() => onSetDays(challenge, [...preset.days])}
+                            disabled={disabled || Boolean(pendingId) || preset.selected}
+                            className={cn(
+                              "rounded-full px-2 py-0.5 text-[10px] font-medium transition",
+                              preset.selected
+                                ? "bg-brand-olive/15 text-brand-olive ring-1 ring-brand-olive/30"
+                                : "bg-stone-100 text-stone-500 hover:bg-brand-olive/10 hover:text-brand-olive",
+                              (disabled || pendingId) && "opacity-70"
+                            )}
+                          >
+                            {preset.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div
+                        className="flex flex-wrap gap-1"
+                        role="group"
+                        aria-label={t("daysHint")}
+                      >
+                        {WEEK_DAYS.map((day) => {
+                          const isSelected = activeDays.includes(day);
+                          return (
+                            <button
+                              key={day}
+                              type="button"
+                              onClick={() => onToggleDay(challenge, day)}
+                              disabled={disabled || Boolean(pendingId)}
+                              aria-pressed={isSelected}
+                              title={day}
+                              className={cn(
+                                "flex h-7 w-7 items-center justify-center rounded-full text-xs transition",
+                                isSelected
+                                  ? "border border-brand-olive/30 bg-brand-olive/15 font-semibold text-brand-olive"
+                                  : "bg-gray-100 font-medium text-gray-400 hover:text-brand-olive",
+                                (disabled || pendingId) && "opacity-70"
+                              )}
+                            >
+                              {WEEK_DAY_LETTER[day]}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
 
