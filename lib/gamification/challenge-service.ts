@@ -270,20 +270,48 @@ export async function setRetoWeekdaysForHoy(params: {
     );
   }
 
-  const { error } = await supabase
+  const updated = await supabase
     .from("retos_hoy_activos")
     .update({ dias_semana: diasSemana })
     .eq("user_id", params.userId)
-    .eq("reto_id", params.retoId);
+    .eq("reto_id", params.retoId)
+    .select("dias_semana");
 
-  if (error) {
-    if (error.code === "PGRST204" || error.code === "42703") {
+  if (updated.error) {
+    if (updated.error.code === "PGRST204" || updated.error.code === "42703") {
       throw new Error(
         "Falta la columna dias_semana. Ejecuta la migración 20260804120000_retos_dias_semana.sql en Supabase."
       );
     }
-    console.error("[gamification] Error guardando días del reto:", error);
-    throw error;
+    console.error("[gamification] Error guardando días del reto:", updated.error);
+    throw updated.error;
+  }
+
+  if ((updated.data?.length ?? 0) > 0) {
+    return normalizeChallengeWeekDays(updated.data![0].dias_semana);
+  }
+
+  // Sin policy UPDATE (o fila ausente): reinsertar con INSERT+DELETE existentes.
+  const removed = await supabase
+    .from("retos_hoy_activos")
+    .delete()
+    .eq("user_id", params.userId)
+    .eq("reto_id", params.retoId);
+
+  if (removed.error) {
+    console.error("[gamification] Error recreando días del reto (delete):", removed.error);
+    throw removed.error;
+  }
+
+  const inserted = await supabase.from("retos_hoy_activos").insert({
+    user_id: params.userId,
+    reto_id: params.retoId,
+    dias_semana: diasSemana
+  });
+
+  if (inserted.error) {
+    console.error("[gamification] Error recreando días del reto (insert):", inserted.error);
+    throw inserted.error;
   }
 
   return diasSemana;
