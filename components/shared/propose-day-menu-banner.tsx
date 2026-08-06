@@ -57,7 +57,7 @@ export function ProposeDayMenuBanner({
     : hasPartialPlan
       ? tHoy.has("completeDayMenu")
         ? tHoy("completeDayMenu").replace(/✨/g, "").trim()
-        : "Completar comidas que faltan"
+        : "Sugerir comidas que faltan"
       : tHoy.has("proposeDayMenu")
         ? tHoy("proposeDayMenu").replace(/✨/g, "").trim()
         : tPlan.has("proposeDayMenu")

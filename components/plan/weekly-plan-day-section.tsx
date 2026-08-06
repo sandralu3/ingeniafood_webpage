@@ -100,29 +100,43 @@ export function WeeklyPlanDaySection({
                       {t(`meals.${mealType}`)}
                     </p>
 
-                    {meals.map((meal, index) => (
-                      <div key={meal.id} className="flex flex-col gap-1">
-                        {index > 0 ? (
-                          <p className="px-0.5 text-center text-[9px] font-semibold uppercase tracking-wide text-stone-400">
-                            {t.has("complementBadge") ? t("complementBadge") : "Complemento"}
-                          </p>
-                        ) : null}
-                        <PlanMealCard
-                          meal={meal}
-                          variant="slot"
-                          onMealRemoved={(removedType, planEntryId) =>
-                            onMealRemoved?.(day.label, removedType, planEntryId)
-                          }
-                          onRemoveError={onRemoveError ?? onSwapError}
-                          onChangeMeal={
-                            onChangeMeal
-                              ? (selected) => onChangeMeal(day.label, selected)
-                              : undefined
-                          }
-                          className="h-full"
-                        />
-                      </div>
-                    ))}
+                    {meals.map((meal, index) => {
+                      const isComplement = index > 0;
+                      return (
+                        <div
+                          key={meal.id}
+                          className={cn(
+                            "flex flex-col gap-1",
+                            isComplement && "ml-1 opacity-95"
+                          )}
+                        >
+                          {isComplement ? (
+                            <p className="px-0.5 text-center text-[9px] font-semibold uppercase tracking-wide text-stone-400">
+                              {t.has("complementBadge") ? t("complementBadge") : "Complemento"}
+                            </p>
+                          ) : null}
+                          <PlanMealCard
+                            meal={meal}
+                            variant="slot"
+                            isComplement={isComplement}
+                            onMealRemoved={(removedType, planEntryId) =>
+                              onMealRemoved?.(day.label, removedType, planEntryId)
+                            }
+                            onRemoveError={onRemoveError ?? onSwapError}
+                            onChangeMeal={
+                              onChangeMeal
+                                ? (selected) => onChangeMeal(day.label, selected)
+                                : undefined
+                            }
+                            className={cn(
+                              "h-full",
+                              isComplement &&
+                                "border-dashed border-stone-200/90 bg-stone-50/80 shadow-none"
+                            )}
+                          />
+                        </div>
+                      );
+                    })}
 
                     <EmptyMealSlot
                       variant="slot"

@@ -196,7 +196,7 @@ export function PlanDayMealsPanel({
           );
         }}
       >
-        <ul className="space-y-2">
+        <ul className="space-y-1.5">
           {MEAL_TYPES.map((mealType) => {
             const meals = day.slots[mealType] ?? [];
             const accent = getMealTypeSubtleAccent(mealType);
@@ -207,52 +207,65 @@ export function PlanDayMealsPanel({
                 <PlanMealDroppable
                   dayLabel={day.label}
                   mealType={mealType}
-                  className="space-y-1 p-0.5"
+                  className="space-y-1.5 p-0.5"
                 >
                   <PlanSectionDivider label={t(`meals.${mealType}`)} accent={accent} />
 
-                  {meals.map((meal, index) => (
-                    <PlanMealDraggable
-                      key={meal.id}
-                      data={{
-                        dayLabel: day.label,
-                        mealType,
-                        planEntryId: meal.id,
-                        title: meal.title,
-                        imageUrl: meal.imageUrl
-                      }}
-                      disabled={isMoving || isProposingDayMenu}
-                    >
-                      <div className="rounded-lg border border-stone-100/90 bg-white px-2 py-1.5 shadow-sm shadow-stone-100/20">
-                        {index > 0 ? (
-                          <p className="mb-1 text-[9px] font-semibold uppercase tracking-wide text-stone-400">
-                            {t.has("complementBadge") ? t("complementBadge") : "Complemento"}
-                          </p>
-                        ) : null}
-                        <PlanMealCard
-                          meal={meal}
-                          variant="panel"
-                          onMealRemoved={(removedMealType, planEntryId) =>
-                            onMealRemoved?.(day.label, removedMealType, planEntryId)
-                          }
-                          onRemoveError={onRemoveError ?? onSwapError}
-                          onChangeMeal={
-                            onChangeMeal
-                              ? (selected) => onChangeMeal(day.label, selected)
-                              : undefined
-                          }
-                        />
-                      </div>
-                    </PlanMealDraggable>
-                  ))}
+                  {meals.map((meal, index) => {
+                    const isComplement = index > 0;
+                    return (
+                      <PlanMealDraggable
+                        key={meal.id}
+                        data={{
+                          dayLabel: day.label,
+                          mealType,
+                          planEntryId: meal.id,
+                          title: meal.title,
+                          imageUrl: meal.imageUrl
+                        }}
+                        disabled={isMoving || isProposingDayMenu}
+                        className={isComplement ? "pl-5" : undefined}
+                      >
+                        <div
+                          className={cn(
+                            "w-full",
+                            isComplement
+                              ? "rounded-md border border-dashed border-stone-200/80 bg-stone-50/60 px-2.5 py-1.5 shadow-none"
+                              : "rounded-xl border border-stone-100/90 bg-white p-2.5 shadow-sm shadow-stone-100/20"
+                          )}
+                        >
+                          {isComplement ? (
+                            <p className="mb-1 pt-0.5 text-[8px] font-semibold uppercase tracking-wide text-stone-400">
+                              {t.has("complementBadge") ? t("complementBadge") : "Complemento"}
+                            </p>
+                          ) : null}
+                          <PlanMealCard
+                            meal={meal}
+                            variant="panel"
+                            isComplement={isComplement}
+                            onMealRemoved={(removedMealType, planEntryId) =>
+                              onMealRemoved?.(day.label, removedMealType, planEntryId)
+                            }
+                            onRemoveError={onRemoveError ?? onSwapError}
+                            onChangeMeal={
+                              onChangeMeal
+                                ? (selected) => onChangeMeal(day.label, selected)
+                                : undefined
+                            }
+                          />
+                        </div>
+                      </PlanMealDraggable>
+                    );
+                  })}
 
-                  <EmptyMealSlot
-                    mealType={mealType}
-                    isGenerating={slotGenerating}
-                    addComplement={meals.length > 0}
-                    onAdd={() => onAddMeal?.(day.label, mealType)}
-                    className={meals.length > 0 ? "border-dashed opacity-90" : undefined}
-                  />
+                  <div className={meals.length > 0 ? "pl-5" : undefined}>
+                    <EmptyMealSlot
+                      mealType={mealType}
+                      isGenerating={slotGenerating}
+                      addComplement={meals.length > 0}
+                      onAdd={() => onAddMeal?.(day.label, mealType)}
+                    />
+                  </div>
                 </PlanMealDroppable>
               </li>
             );

@@ -11,6 +11,8 @@ export type AdvisoryTone = "warning" | "info";
 export type BalanceAdvisory = {
   message: string;
   tone: AdvisoryTone;
+  /** Título positivo del popup (p. ej. recommendation_title de la IA). */
+  title?: string;
 };
 
 export function isRecipeAdvisoryAlert(message: string | null | undefined): boolean {
@@ -36,6 +38,8 @@ type PulseButtonProps = {
   message: string;
   /** Por defecto se infiere del texto. */
   tone?: AdvisoryTone;
+  /** Título del popup (recomendación positiva). */
+  title?: string;
   className?: string;
   /** Clase del contenedor absoluto (posición sobre la imagen). */
   positionClassName?: string;
@@ -49,6 +53,7 @@ type PulseButtonProps = {
 export function RecipeAdvisoryPulseButton({
   message,
   tone: toneProp,
+  title,
   className,
   positionClassName
 }: PulseButtonProps) {
@@ -117,6 +122,7 @@ export function RecipeAdvisoryPulseButton({
         onClose={() => setOpen(false)}
         message={trimmed}
         tone={tone}
+        title={title}
       />
     </>
   );
@@ -258,7 +264,7 @@ export function joinAdvisoryMessages(parts: Array<string | null | undefined>): s
 /**
  * Mensaje + tono para snack / comida fuera según el balance.
  * - mejorable → información
- * - poco_saludable → advertencia
+ * - poco_saludable → advertencia (tono UI; copy siempre empático)
  * - equilibrado → null (sin icono)
  */
 export function buildUnhealthyBalanceAdvisory(input: {
@@ -276,13 +282,15 @@ export function buildUnhealthyBalanceAdvisory(input: {
 
   const isPoor = balance === "poco_saludable";
   const title = isPoor
-    ? input.poorLabel?.trim() || "Poco saludable"
-    : input.fairLabel?.trim() || "Se puede mejorar";
+    ? input.poorLabel?.trim() || "¡A disfrutarlo!"
+    : input.fairLabel?.trim() || "¡Gran combinación de sabores!";
 
-  const message = joinAdvisoryMessages([title, ...tips]);
+  // Cuerpo = tips; el título va aparte (no duplicar en el mensaje).
+  const message = joinAdvisoryMessages(tips.length > 0 ? tips : [title]);
   if (!message) return null;
 
   return {
+    title,
     message,
     tone: isPoor ? "warning" : "info"
   };

@@ -35,6 +35,8 @@ type PlanRecipePickerModalProps = {
   mode?: "add" | "replace";
   /** Entrada del plan a sustituir cuando mode = "replace" */
   planEntryId?: string;
+  /** Platos ya en este bloque (desayuno/almuerzo/cena) para análisis acumulado. */
+  existingSlotMeals?: PlanMeal[];
   recipes: RecipePickerItem[];
   isLoading: boolean;
   isAssigning: boolean;
@@ -61,6 +63,7 @@ export function PlanRecipePickerModal({
   weekStartISO,
   mode = "add",
   planEntryId,
+  existingSlotMeals = [],
   recipes,
   isLoading,
   isAssigning,
@@ -415,6 +418,7 @@ export function PlanRecipePickerModal({
         mealType={mealType}
         weekStartISO={weekStartISO}
         replacePlanEntryId={mode === "replace" ? planEntryId : undefined}
+        existingSlotMeals={existingSlotMeals}
         onBusyChange={setExternalBusy}
         onClose={() => {
           if (externalBusy) return;

@@ -803,6 +803,13 @@ export function WeeklyPlanView() {
         weekStartISO={toISODateString(weekStartDate)}
         mode={pickerTarget?.mode ?? "add"}
         planEntryId={pickerTarget?.planEntryId}
+        existingSlotMeals={
+          pickerTarget
+            ? (days.find((day) => day.label === pickerTarget.dayLabel)?.slots[
+                pickerTarget.mealType
+              ] ?? [])
+            : []
+        }
         recipes={pickerRecipes}
         isLoading={isPickerLoading}
         isAssigning={isAssigning}
