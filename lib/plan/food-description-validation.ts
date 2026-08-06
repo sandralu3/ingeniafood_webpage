@@ -90,8 +90,8 @@ export function isLikelyFoodOrDrinkDescription(value: string): boolean {
 
 export function foodDescriptionRejectionMessage(context: "meal" | "snack" = "meal"): string {
   return context === "snack"
-    ? "Eso no parece un alimento o bebida. Describe el snack (por ejemplo: yogur con fresas, café con galleta)."
-    : "Eso no parece un alimento o bebida. Describe lo que comiste (por ejemplo: pizza margarita, ensalada de pollo).";
+    ? "No hemos podido detectar alimentos reales. Por favor, sube una foto de tu snack o escribe lo que has comido."
+    : "No hemos podido detectar alimentos reales en esta imagen. Por favor, sube una foto de tu plato o escribe lo que has comido.";
 }
 
 /**
