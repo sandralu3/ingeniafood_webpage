@@ -389,17 +389,19 @@ function HorizontalMealCard({
               </span>
             ) : null}
           </button>
-        ) : (
-          <div className="shrink-0 select-none">{thumbnail}</div>
-        )}
+        ) : null}
 
         {isComplement ? (
           <>
             <Link
               href={recipeDetailHref(meal.recipeId)}
+              data-no-dnd="true"
               className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden rounded-md py-0.5 transition hover:bg-stone-50/70"
               aria-label={viewRecipeAria}
             >
+              {!dragHandleProps ? (
+                <span className="shrink-0 select-none">{thumbnail}</span>
+              ) : null}
               <span className="min-w-0 truncate text-xs font-medium text-stone-700">
                 {meal.title}
               </span>
@@ -418,36 +420,42 @@ function HorizontalMealCard({
           <>
             <Link
               href={recipeDetailHref(meal.recipeId)}
-              className="min-w-0 flex-1 rounded-lg py-0.5 transition hover:bg-stone-50/60 active:bg-stone-50"
+              data-no-dnd="true"
+              className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg py-0.5 transition hover:bg-stone-50/60 active:bg-stone-50"
               aria-label={viewRecipeAria}
             >
-              {showMealType ? (
-                <p className="text-[9px] font-semibold uppercase tracking-wider text-stone-400">
-                  {mealTypeLabel}
-                </p>
+              {!dragHandleProps ? (
+                <span className="shrink-0 select-none">{thumbnail}</span>
               ) : null}
-              <h3
-                className={cn(
-                  "line-clamp-1 text-sm font-semibold leading-snug text-stone-800",
-                  showMealType && "mt-0.5"
-                )}
-              >
-                {meal.title}
-              </h3>
-              <div className="mt-1 flex min-w-0 flex-wrap items-center gap-2">
-                {meal.externalBadge ? (
-                  <ExternalMealBadgePill badge={meal.externalBadge} inline />
+              <span className="min-w-0 flex-1">
+                {showMealType ? (
+                  <p className="text-[9px] font-semibold uppercase tracking-wider text-stone-400">
+                    {mealTypeLabel}
+                  </p>
                 ) : null}
-                {meal.kcal ? (
-                  <span className="text-xs font-medium text-stone-500">{meal.kcal} kcal</span>
-                ) : null}
-                {getPrepMinutes(meal) ? (
-                  <span className="inline-flex items-center gap-1 text-[10px] font-medium text-stone-400">
-                    <Clock3 className="h-2.5 w-2.5" />
-                    {getPrepMinutes(meal)} min
-                  </span>
-                ) : null}
-              </div>
+                <h3
+                  className={cn(
+                    "line-clamp-1 text-sm font-semibold leading-snug text-stone-800",
+                    showMealType && "mt-0.5"
+                  )}
+                >
+                  {meal.title}
+                </h3>
+                <div className="mt-1 flex min-w-0 flex-wrap items-center gap-2">
+                  {meal.externalBadge ? (
+                    <ExternalMealBadgePill badge={meal.externalBadge} inline />
+                  ) : null}
+                  {meal.kcal ? (
+                    <span className="text-xs font-medium text-stone-500">{meal.kcal} kcal</span>
+                  ) : null}
+                  {getPrepMinutes(meal) ? (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-medium text-stone-400">
+                      <Clock3 className="h-2.5 w-2.5" />
+                      {getPrepMinutes(meal)} min
+                    </span>
+                  ) : null}
+                </div>
+              </span>
             </Link>
             {actions}
           </>
@@ -489,6 +497,7 @@ function HorizontalMealCard({
 
       <Link
         href={recipeDetailHref(meal.recipeId)}
+        data-no-dnd="true"
         className="flex min-w-0 flex-1 items-center gap-4 rounded-xl transition hover:bg-stone-50/60 active:bg-stone-50"
         aria-label={viewRecipeAria}
       >

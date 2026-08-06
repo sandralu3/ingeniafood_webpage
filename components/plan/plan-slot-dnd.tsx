@@ -44,10 +44,12 @@ export function parsePlanSlotDroppableId(
   };
 }
 
-/** Evita que Cambiar / Quitar inicien el drag. Los enlaces sí permiten arrastrar (como en Hoy). */
+/** Evita que enlaces (abrir receta) y botones (cambiar/quitar) inicien el drag. */
 function isActionControlTarget(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false;
-  return Boolean(target.closest('button, input, textarea, select, [data-no-dnd="true"]'));
+  return Boolean(
+    target.closest('a, button, input, textarea, select, [data-no-dnd="true"]')
+  );
 }
 
 class PlanPointerSensor extends PointerSensor {
