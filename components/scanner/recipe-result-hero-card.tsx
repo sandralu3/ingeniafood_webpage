@@ -32,6 +32,15 @@ type Props = {
   mealTypeAdvisory?: string | null;
   isGeneratingPhoto?: boolean;
   appliedFilters?: AppliedRecipeFilters | null;
+  /** contain = foto completa (p. ej. plato escaneado desde el plan). */
+  imageFit?: "cover" | "contain";
+  /** Badge sobre la foto (Escaneado / Comida fuera). */
+  heroBadge?: string | null;
+  /**
+   * Comida fuera / escaneada: sin pestaña Preparación ni Tip de Sandra.
+   * La alerta (mealTypeAdvisory) se mantiene.
+   */
+  loggedMeal?: boolean;
 };
 
 export function RecipeResultHeroCard({
@@ -39,7 +48,10 @@ export function RecipeResultHeroCard({
   pantryIngredients = [],
   mealTypeAdvisory = null,
   isGeneratingPhoto = false,
-  appliedFilters = null
+  appliedFilters = null,
+  imageFit = "cover",
+  heroBadge = null,
+  loggedMeal = false
 }: Props) {
   const t = useTranslations("Scanner");
   const tDetail = useTranslations("RecipeDetail");
@@ -118,8 +130,13 @@ export function RecipeResultHeroCard({
           : null;
 
   return (
-    <section>
-      <div className="relative h-64 w-full overflow-hidden bg-stone-200">
+    <section className="overflow-hidden rounded-3xl border border-stone-100 bg-white shadow-sm">
+      <div
+        className={cn(
+          "relative w-full overflow-hidden bg-stone-200",
+          imageFit === "contain" ? "h-72 sm:h-80" : "h-64"
+        )}
+      >
         {showGenerating ? (
           <div
             className="relative flex h-full w-full flex-col items-center justify-center bg-gradient-to-br from-[#F0F4ED] via-stone-50 to-[#E8EFE3]"
@@ -154,40 +171,91 @@ export function RecipeResultHeroCard({
             </p>
           </div>
         ) : heroImageUrl ? (
-          <img
-            src={heroImageUrl}
-            alt={
-              recipe.titulo
-                ? tDetail("dishPhotoAlt", { title: recipe.titulo })
-                : tDetail("dishPhotoAltFallback")
-            }
-            className="h-full w-full object-cover"
-            loading="eager"
-            decoding="async"
-            onError={() => {
-              if (primaryUrl && !imageFailed && heroImageUrl === primaryUrl) {
-                setImageFailed(true);
-                return;
+          imageFit === "contain" ? (
+            <>
+              {/* Blur backdrop: rellena el marco sin franjas negras */}
+              <img
+                src={heroImageUrl}
+                alt=""
+                aria-hidden
+                className="absolute inset-0 z-0 h-full w-full scale-110 object-cover opacity-60 blur-xl brightness-75"
+                draggable={false}
+              />
+              <div className="relative z-10 flex h-full w-full items-center justify-center">
+                <img
+                  src={heroImageUrl}
+                  alt={
+                    recipe.titulo
+                      ? tDetail("dishPhotoAlt", { title: recipe.titulo })
+                      : tDetail("dishPhotoAltFallback")
+                  }
+                  className="max-h-full max-w-full object-contain"
+                  loading="eager"
+                  decoding="async"
+                  onError={() => {
+                    if (primaryUrl && !imageFailed && heroImageUrl === primaryUrl) {
+                      setImageFailed(true);
+                      return;
+                    }
+                    if (referenceUrl && !imageFailed && heroImageUrl === referenceUrl) {
+                      setImageFailed(true);
+                      return;
+                    }
+                    setFallbackFailed(true);
+                  }}
+                />
+              </div>
+            </>
+          ) : (
+            <img
+              src={heroImageUrl}
+              alt={
+                recipe.titulo
+                  ? tDetail("dishPhotoAlt", { title: recipe.titulo })
+                  : tDetail("dishPhotoAltFallback")
               }
-              if (referenceUrl && !imageFailed && heroImageUrl === referenceUrl) {
-                setImageFailed(true);
-                return;
-              }
-              setFallbackFailed(true);
-            }}
-          />
+              className="relative z-10 h-full w-full object-cover"
+              loading="eager"
+              decoding="async"
+              onError={() => {
+                if (primaryUrl && !imageFailed && heroImageUrl === primaryUrl) {
+                  setImageFailed(true);
+                  return;
+                }
+                if (referenceUrl && !imageFailed && heroImageUrl === referenceUrl) {
+                  setImageFailed(true);
+                  return;
+                }
+                setFallbackFailed(true);
+              }}
+            />
+          )
         ) : (
-          <div className="h-full w-full bg-gradient-to-br from-[#556B2F]/40 via-stone-400 to-stone-600" />
+          <div className="relative z-10 h-full w-full bg-gradient-to-br from-[#556B2F]/40 via-stone-400 to-stone-600" />
         )}
 
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-black/45 to-transparent" />
+        <div
+          className={cn(
+            "pointer-events-none absolute inset-0 z-20",
+            imageFit === "contain"
+              ? "bg-gradient-to-t from-black/80 via-black/20 to-transparent"
+              : "bg-gradient-to-t from-black/80 via-black/45 to-transparent"
+          )}
+        />
         {mealTypeAdvisory?.trim() ? (
-          <RecipeAdvisoryPulseButton
-            message={mealTypeAdvisory}
-            tone={inferAdvisoryTone(mealTypeAdvisory)}
-          />
+          <div className="absolute inset-0 z-30 pointer-events-none [&>*]:pointer-events-auto">
+            <RecipeAdvisoryPulseButton
+              message={mealTypeAdvisory}
+              tone={inferAdvisoryTone(mealTypeAdvisory)}
+            />
+          </div>
         ) : null}
-        <div className="absolute inset-x-0 bottom-0 space-y-2 px-4 pb-3 pt-10">
+        {heroBadge?.trim() ? (
+          <span className="absolute left-3 top-3 z-30 inline-flex items-center rounded-full bg-black/40 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur-sm ring-1 ring-white/20">
+            {heroBadge}
+          </span>
+        ) : null}
+        <div className="absolute inset-x-0 bottom-0 z-30 space-y-2 px-4 pb-3 pt-10">
           <h1 className="font-serif text-lg font-semibold leading-snug text-white drop-shadow-md">
             {recipe.titulo}
           </h1>
@@ -200,79 +268,110 @@ export function RecipeResultHeroCard({
             onDark
             kcalLabel={t("macroKcal")}
             proteinLabel={t("macroProteinShort")}
+            hideTime={!recipe.tiempo_preparacion?.trim()}
           />
         </div>
       </div>
 
-      <div
-        className="border-b border-stone-100 bg-white px-4 pt-2"
-        role="tablist"
-        aria-label={t("recipeDetailTabs")}
-      >
-        <div className="grid grid-cols-2 gap-1">
-          <TabButton
-            active={tab === "ingredients"}
-            onClick={() => setTab("ingredients")}
-            label={tDetail("ingredients")}
-          />
-          <TabButton
-            active={tab === "preparation"}
-            onClick={() => setTab("preparation")}
-            label={tDetail("preparation")}
-          />
+      {!loggedMeal ? (
+        <div
+          className="border-b border-stone-100 bg-white px-4 pt-2"
+          role="tablist"
+          aria-label={t("recipeDetailTabs")}
+        >
+          <div className="grid grid-cols-2 gap-1">
+            <TabButton
+              active={tab === "ingredients"}
+              onClick={() => setTab("ingredients")}
+              label={tDetail("ingredients")}
+            />
+            <TabButton
+              active={tab === "preparation"}
+              onClick={() => setTab("preparation")}
+              label={tDetail("preparation")}
+            />
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="border-b border-stone-100 bg-white px-4 pt-3">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">
+            {tDetail.has("foodsLabel") ? tDetail("foodsLabel") : "Alimentos"}
+          </p>
+        </div>
+      )}
 
       <div className="bg-white px-4 py-3">
-        {tab === "ingredients" ? (
-          <>
-            <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-wide text-[#3e5219]">
-                {t("ingredientsYouHave")} ({pantrySplit.available.length})
-              </p>
-              <ul className="mt-2 space-y-1.5">
-                {pantrySplit.available.length > 0 ? (
-                  pantrySplit.available.map((item) => (
-                    <li
-                      key={`have-${item}`}
-                      className="text-[12px] leading-snug text-stone-700"
-                    >
-                      <span className="mr-1 text-[#556B2F]" aria-hidden>
-                        ✓
-                      </span>
-                      {item}
-                    </li>
-                  ))
-                ) : (
-                  <li className="text-[12px] text-stone-400">—</li>
-                )}
-              </ul>
-            </div>
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-wide text-amber-800">
-                {t("ingredientsMissing")} ({pantrySplit.missing.length})
-              </p>
-              <ul className="mt-2 space-y-1.5">
-                {pantrySplit.missing.length > 0 ? (
-                  pantrySplit.missing.map((item) => (
-                    <li
-                      key={`miss-${item}`}
-                      className="text-[12px] leading-snug text-stone-700"
-                    >
-                      <span className="mr-1 text-amber-600" aria-hidden>
-                        ·
-                      </span>
-                      {item}
-                    </li>
-                  ))
-                ) : (
-                  <li className="text-[12px] text-stone-400">{t("ingredientsAllCovered")}</li>
-                )}
-              </ul>
-            </div>
-          </div>
-          </>
+        {loggedMeal || tab === "ingredients" ? (
+          loggedMeal ? (
+            <ul className="space-y-1.5">
+              {recipe.ingredientes_detallados.length > 0 ? (
+                recipe.ingredientes_detallados.map((item) => (
+                  <li
+                    key={item}
+                    className="text-[12px] leading-snug text-stone-700"
+                  >
+                    <span className="mr-1 text-[#556B2F]" aria-hidden>
+                      ·
+                    </span>
+                    {item}
+                  </li>
+                ))
+              ) : (
+                <li className="text-[12px] text-stone-400">—</li>
+              )}
+            </ul>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-[#3e5219]">
+                    {t("ingredientsYouHave")} ({pantrySplit.available.length})
+                  </p>
+                  <ul className="mt-2 space-y-1.5">
+                    {pantrySplit.available.length > 0 ? (
+                      pantrySplit.available.map((item) => (
+                        <li
+                          key={`have-${item}`}
+                          className="text-[12px] leading-snug text-stone-700"
+                        >
+                          <span className="mr-1 text-[#556B2F]" aria-hidden>
+                            ✓
+                          </span>
+                          {item}
+                        </li>
+                      ))
+                    ) : (
+                      <li className="text-[12px] text-stone-400">—</li>
+                    )}
+                  </ul>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-amber-800">
+                    {t("ingredientsMissing")} ({pantrySplit.missing.length})
+                  </p>
+                  <ul className="mt-2 space-y-1.5">
+                    {pantrySplit.missing.length > 0 ? (
+                      pantrySplit.missing.map((item) => (
+                        <li
+                          key={`miss-${item}`}
+                          className="text-[12px] leading-snug text-stone-700"
+                        >
+                          <span className="mr-1 text-amber-600" aria-hidden>
+                            ·
+                          </span>
+                          {item}
+                        </li>
+                      ))
+                    ) : (
+                      <li className="text-[12px] text-stone-400">
+                        {t("ingredientsAllCovered")}
+                      </li>
+                    )}
+                  </ul>
+                </div>
+              </div>
+            </>
+          )
         ) : (
           <div className="space-y-3">
             {steps.length > 0 ? (
@@ -314,7 +413,8 @@ function HeroBadges({
   protein,
   onDark = false,
   kcalLabel,
-  proteinLabel
+  proteinLabel,
+  hideTime = false
 }: {
   timeLabel: string;
   mealTypeLabel?: string | null;
@@ -324,6 +424,7 @@ function HeroBadges({
   onDark?: boolean;
   kcalLabel: string;
   proteinLabel: string;
+  hideTime?: boolean;
 }) {
   const chip = onDark
     ? "inline-flex items-center gap-1 rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm"
@@ -332,7 +433,7 @@ function HeroBadges({
   return (
     <div className="flex flex-wrap gap-x-3 gap-y-1.5">
       {mealTypeLabel ? <span className={chip}>☀️ {mealTypeLabel}</span> : null}
-      <span className={chip}>⚡ {timeLabel}</span>
+      {!hideTime ? <span className={chip}>⚡ {timeLabel}</span> : null}
       {servingsLabel ? <span className={chip}>🍽️ {servingsLabel}</span> : null}
       {kcal != null ? (
         <span className={chip}>

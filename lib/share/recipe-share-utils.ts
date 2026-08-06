@@ -73,7 +73,7 @@ export function savedRecipeToShareable(recipe: SavedRecipeSource): ShareableReci
   });
   const external = isExternalMeal(tags);
 
-  const ingredientes = external ? [] : jsonToStringList(recipe.ingredients);
+  const ingredientes = jsonToStringList(recipe.ingredients);
   let pasos = external ? [] : recipe.steps ? jsonToStringList(recipe.steps) : [];
   if (!external && pasos.length === 0) {
     pasos = parseInstructionsToSteps(recipe.instructions);

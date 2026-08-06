@@ -15,7 +15,7 @@ import { RecipeShareCaptureHost } from "@/components/share/recipe-share-capture-
 import { useShareRecipeImage } from "@/hooks/use-share-recipe-image";
 import { isSandraAdmin } from "@/lib/auth/sandra-admin";
 import { translateMealType } from "@/lib/i18n/filter-labels";
-import { resolveExternalMealBadge } from "@/lib/plan/external-meal";
+import { resolveExternalMealBadge, externalMealBadgeLabel } from "@/lib/plan/external-meal";
 import { deleteSavedRecipe } from "@/lib/recipes/delete-saved-recipe";
 import {
   isRecipeFavorite,
@@ -445,23 +445,35 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
 
       {!isLoading && shareableRecipe && recipe && externalBadge ? (
         <div className="animate-detail-enter">
-          <ExternalMealDetailCard
-            title={recipe.title}
-            badge={externalBadge}
-            imageUrl={recipe.image_url}
-            calories={shareableRecipe.macronutrientes?.calorias ?? null}
-            proteinGrams={shareableRecipe.macronutrientes?.proteinas_g ?? null}
-            mealTypeLabel={mealTypeLabel}
-            foodLines={ingredientsJsonToDisplayStrings(recipe.ingredients)}
-            recommendations={(
-              recipe.meal_type_advisory ||
-              recipe.tip_sandra ||
-              ""
-            )
-              .split(/\n+/)
-              .map((tip) => tip.trim())
-              .filter((tip) => tip.length >= 8)}
-          />
+          {recipe.image_url?.trim() ? (
+            <RecipeResultHeroCard
+              recipe={shareableRecipe}
+              pantryIngredients={[]}
+              mealTypeAdvisory={recipe.meal_type_advisory || recipe.tip_sandra}
+              appliedFilters={appliedFilters}
+              imageFit="contain"
+              heroBadge={externalMealBadgeLabel(externalBadge)}
+              loggedMeal
+            />
+          ) : (
+            <ExternalMealDetailCard
+              title={recipe.title}
+              badge={externalBadge}
+              imageUrl={recipe.image_url}
+              calories={shareableRecipe.macronutrientes?.calorias ?? null}
+              proteinGrams={shareableRecipe.macronutrientes?.proteinas_g ?? null}
+              mealTypeLabel={mealTypeLabel}
+              foodLines={ingredientsJsonToDisplayStrings(recipe.ingredients)}
+              recommendations={(
+                recipe.meal_type_advisory ||
+                recipe.tip_sandra ||
+                ""
+              )
+                .split(/\n+/)
+                .map((tip) => tip.trim())
+                .filter((tip) => tip.length >= 8)}
+            />
+          )}
         </div>
       ) : null}
 
