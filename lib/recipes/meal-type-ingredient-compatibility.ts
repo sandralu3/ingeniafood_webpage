@@ -73,14 +73,17 @@ export function buildMealTypeCompatibilityPromptClause(mealType: RecipeMealType)
     "Los complementos de despensa básica (sal, aceite, especias, pan o huevo solo como apoyo) pueden añadirse, pero el protagonista debe ser de la lista del usuario.\n" +
     breakfastAdaptation +
     "\nREGLA 3 — CUÁNDO SÍ SE PUEDE RESERVAR/OMITIR UN INGREDIENTE: " +
-    "ÚNICAMENTE si el usuario ingresó MÚLTIPLES opciones (ej. Huevos + Pollo + Avena) y eliges las más adecuadas al momento del día. " +
-    "Si el ingrediente es EL ÚNICO o de los POCOS disponibles, ES OBLIGATORIO USARLO en la receta. " +
+    "Si el usuario ingresó MÚLTIPLES opciones, elige el subconjunto más adecuado al momento del día Y compatible entre sí " +
+    "(sentido común gastronómico: no mezclar sopa/caldo salado con fresas, café, cacao dulce, etc. en el mismo plato). " +
+    "Si el ingrediente es EL ÚNICO disponible, ES OBLIGATORIO USARLO (adáptalo al momento del día). " +
     "Nunca digas que el pollo \"no es habitual de desayuno\" para rechazarlo: adáptalo.\n" +
-    "REGLA 4 — NOTA DE OMISIÓN: solo genera ingredientes_omitidos_nota cuando REALMENTE omitas algún ingrediente seleccionado " +
-    "Y al mismo tiempo uses otros ingredientes seleccionados del usuario en la receta. " +
+    "REGLA 4 — NOTA DE OMISIÓN: genera ingredientes_omitidos_nota cuando omitas ingredientes de la despensa " +
+    "(por momento del día, incompatibilidad culinaria o ultraprocesados/golosinas) y uses otros de la lista en la receta. " +
     "Si usas el único ingrediente disponible, ingredientes_omitidos_nota debe ser \"\". " +
+    "Los omitidos NO van en pasos ni en ingredientes_detallados; NUNCA digas en la advertencia que los incluiste si no están en el plato. " +
+    "Como mucho, menciónalos en tip_sandra como snack/postre/bebida aparte. " +
     "También puedes usar advertencia_ingredientes para complementos de despensa no escaneados " +
-    "y DEBES usarlo si el usuario aportó alimentos poco saludables (ver REGLA AVISO ALIMENTO POCO SALUDABLE).\n" +
+    "y DEBES usarlo de forma coherente si el usuario aportó alimentos poco saludables (ver REGLA AVISO ALIMENTO POCO SALUDABLE).\n" +
     `El tipo de plato pedido es "${label}": genera un plato apetecible de ese momento del día SIN abandonar la despensa del usuario. ` +
     'Responde con {"error":"tipo_plato_incompatible","mensaje":"..."} SOLO en casos extremos en los que sea imposible adaptar nada de lo enviado a ' +
     `${label}.`

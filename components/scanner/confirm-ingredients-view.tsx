@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
-import { Camera, Check, ChevronDown, ChevronUp, Loader2, SlidersHorizontal, Sparkles, X } from "lucide-react";
+import { Camera, Check, ChevronUp, Loader2, SlidersHorizontal, Sparkles, X } from "lucide-react";
 import { AdvancedRecipeFilters } from "@/components/scanner/advanced-recipe-filters";
 import { IngredientChip } from "@/components/scanner/ingredient-chip";
 import { IngredientCombobox } from "@/components/scanner/ingredient-combobox";
@@ -43,12 +43,18 @@ type ConfirmIngredientsViewProps = {
   onBack?: () => void;
 };
 
-/** peek = panel alto (filtros visibles) · expanded = casi pantalla · hidden = solo tirador */
+/**
+ * peek ≈ comentarios IG (~58% sheet, foto visible arriba)
+ * expanded ≈ sheet alto, franja de foto arriba
+ * hidden ≈ solo tirador; la foto usa casi toda la pantalla
+ */
 type SheetSnap = "hidden" | "peek" | "expanded";
 
-/** Altura del sheet en modo peek (debe dejar ver chips + buscador + «Más filtros»). */
-const PEEK_SHEET_HEIGHT_CLASS = "h-[min(62dvh,34rem)] max-h-[70dvh]";
-const PEEK_FOCUS_BOTTOM_CLASS = "bottom-[min(62dvh,34rem)]";
+const SHEET_HEIGHT: Record<SheetSnap, string> = {
+  hidden: "h-14 max-h-14 shrink-0",
+  peek: "h-[min(58dvh,32rem)] max-h-[62dvh] shrink-0",
+  expanded: "h-[min(82dvh,42rem)] max-h-[88dvh] shrink-0"
+};
 
 function BoundingBoxOverlay({
   ingredients
@@ -102,29 +108,14 @@ function BoundingBoxOverlay({
   );
 }
 
-function ScannerFocusFrame({
-  active,
-  sheetSnap
-}: {
-  active: boolean;
-  sheetSnap: SheetSnap;
-}) {
+function ScannerFocusFrame({ active }: { active: boolean }) {
   return (
-    <div
-      className={cn(
-        "pointer-events-none absolute inset-x-0 top-0 z-10 flex items-center justify-center",
-        sheetSnap === "hidden"
-          ? "bottom-14"
-          : sheetSnap === "peek"
-            ? PEEK_FOCUS_BOTTOM_CLASS
-            : "bottom-[15vh]"
-      )}
-    >
-      <div className="relative h-[min(42vh,18rem)] w-[min(78vw,20rem)]">
-        <span className="absolute left-0 top-0 h-10 w-10 rounded-tl-2xl border-l-[3px] border-t-[3px] border-[#88AB75] shadow-[0_0_12px_rgba(136,171,117,0.45)]" />
-        <span className="absolute right-0 top-0 h-10 w-10 rounded-tr-2xl border-r-[3px] border-t-[3px] border-[#88AB75] shadow-[0_0_12px_rgba(136,171,117,0.45)]" />
-        <span className="absolute bottom-0 left-0 h-10 w-10 rounded-bl-2xl border-b-[3px] border-l-[3px] border-[#88AB75] shadow-[0_0_12px_rgba(136,171,117,0.45)]" />
-        <span className="absolute bottom-0 right-0 h-10 w-10 rounded-br-2xl border-b-[3px] border-r-[3px] border-[#88AB75] shadow-[0_0_12px_rgba(136,171,117,0.45)]" />
+    <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
+      <div className="relative h-[min(48%,14rem)] w-[min(78%,18rem)]">
+        <span className="absolute left-0 top-0 h-9 w-9 rounded-tl-2xl border-l-[3px] border-t-[3px] border-[#88AB75] shadow-[0_0_12px_rgba(136,171,117,0.45)]" />
+        <span className="absolute right-0 top-0 h-9 w-9 rounded-tr-2xl border-r-[3px] border-t-[3px] border-[#88AB75] shadow-[0_0_12px_rgba(136,171,117,0.45)]" />
+        <span className="absolute bottom-0 left-0 h-9 w-9 rounded-bl-2xl border-b-[3px] border-l-[3px] border-[#88AB75] shadow-[0_0_12px_rgba(136,171,117,0.45)]" />
+        <span className="absolute bottom-0 right-0 h-9 w-9 rounded-br-2xl border-b-[3px] border-r-[3px] border-[#88AB75] shadow-[0_0_12px_rgba(136,171,117,0.45)]" />
 
         {active ? (
           <div className="absolute inset-x-3 inset-y-3 overflow-hidden rounded-sm">
@@ -137,7 +128,8 @@ function ScannerFocusFrame({
 }
 
 /**
- * Vista inmersiva a pantalla completa: foto como “cámara” + overlays + bottom sheet.
+ * Vista estilo comentarios Instagram: foto en el espacio superior + bottom sheet persistente debajo.
+ * La imagen NO queda tapada; se redimensiona al hueco disponible encima del panel.
  */
 export function ConfirmIngredientsView({
   imageUrl,
@@ -188,7 +180,6 @@ export function ConfirmIngredientsView({
     };
   }, [mounted]);
 
-  // Al terminar la detección: mostrar peek + pista de swipe ↑
   useEffect(() => {
     if (wasDetectingRef.current && !isDetecting) {
       setSnap("peek");
@@ -232,10 +223,8 @@ export function ConfirmIngredientsView({
 
       if (didDragRef.current) {
         if (deltaY < -40) {
-          // swipe up
           setSnap((current) => (current === "hidden" ? "peek" : "expanded"));
         } else if (deltaY > 40) {
-          // swipe down
           setSnap((current) => {
             if (current === "expanded") return "peek";
             if (current === "peek") {
@@ -322,62 +311,83 @@ export function ConfirmIngredientsView({
   if (!mounted) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[80] min-h-[100dvh] w-full overflow-hidden bg-stone-950">
-      <div className="absolute inset-0 z-0 h-full w-full">
-        <Image
-          src={imageUrl}
-          alt={t.has("scannedFridgeAlt") ? t("scannedFridgeAlt") : "Foto de tu nevera"}
-          fill
-          unoptimized
-          priority
-          className="object-cover object-center"
-          sizes="100vw"
-        />
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/35 via-transparent to-black/40" />
-        <BoundingBoxOverlay ingredients={ingredients} />
-        <ScannerFocusFrame active={isDetecting} sheetSnap={snap} />
-      </div>
-
-      <div className="absolute inset-x-0 top-0 z-20 flex items-start justify-between px-4 pb-3 pt-[max(0.5rem,env(safe-area-inset-top))]">
-        <button
-          type="button"
-          onClick={handleClose}
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white shadow-lg backdrop-blur-md transition hover:bg-black/55"
-          aria-label={t.has("backToPantry") ? t("backToPantry") : "Cerrar"}
-        >
-          <X className="h-5 w-5" strokeWidth={2.25} />
-        </button>
-
-        <div className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-black/35 px-2.5 py-1 shadow-lg backdrop-blur-md">
-          <span className="text-xs font-semibold tracking-tight text-white">
-            <span>Ingenia</span>
-            <span className="text-[#B8D4A8]">Food</span>
-          </span>
-          <BetaBadge size="sm" />
-        </div>
-
-        <button
-          type="button"
-          onClick={onRetake}
-          disabled={isBusy || isDetecting}
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white shadow-lg backdrop-blur-md transition hover:bg-black/55 disabled:opacity-50"
-          aria-label={t.has("retakePhoto") ? t("retakePhoto") : "Otra foto"}
-        >
-          <Camera className="h-4 w-4" strokeWidth={2.25} />
-        </button>
-      </div>
-
-      {/* Bottom sheet: hidden | peek | expanded */}
+    <div className="fixed inset-0 z-[80] flex min-h-[100dvh] w-full flex-col overflow-hidden bg-black">
+      {/* Zona foto estilo IG: margen negro + esquinas redondeadas cuando el sheet está abierto. */}
       <div
         className={cn(
-          "absolute bottom-0 left-0 right-0 z-30 flex w-full flex-col overflow-hidden rounded-t-3xl bg-white px-3 pt-1 pb-12 shadow-2xl transition-[transform,height] duration-300 ease-out md:pb-4",
-          snap === "expanded" && "h-[88dvh] max-h-[88dvh] translate-y-0",
-          snap === "peek" && `${PEEK_SHEET_HEIGHT_CLASS} translate-y-0`,
-          snap === "hidden" && `${PEEK_SHEET_HEIGHT_CLASS} translate-y-[calc(100%-3.5rem)]`,
-          playSwipeHint && snap === "peek" && "sheet-swipe-hint"
+          "relative flex min-h-[7.5rem] w-full flex-1 flex-col transition-[padding] duration-300 ease-out",
+          sheetVisible
+            ? "px-2.5 pb-1.5 pt-[max(0.35rem,env(safe-area-inset-top))]"
+            : "px-0 pb-0 pt-0"
         )}
       >
-        {/* Tirador / zona de gesto */}
+        <div
+          className={cn(
+            "relative min-h-0 w-full flex-1 overflow-hidden bg-stone-950 transition-[border-radius] duration-300 ease-out",
+            sheetVisible ? "rounded-[1.35rem] sm:rounded-[1.5rem]" : "rounded-none"
+          )}
+        >
+          <Image
+            src={imageUrl}
+            alt={t.has("scannedFridgeAlt") ? t("scannedFridgeAlt") : "Foto de tu nevera"}
+            fill
+            unoptimized
+            priority
+            className="object-cover object-center"
+            sizes="100vw"
+          />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/35 via-transparent to-black/20" />
+          <BoundingBoxOverlay ingredients={ingredients} />
+          <ScannerFocusFrame active={isDetecting} />
+
+          <div
+            className={cn(
+              "absolute inset-x-0 top-0 z-20 flex items-start justify-between px-3 pb-3",
+              sheetVisible
+                ? "pt-3"
+                : "pt-[max(0.5rem,env(safe-area-inset-top))] px-4"
+            )}
+          >
+            <button
+              type="button"
+              onClick={handleClose}
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white shadow-lg backdrop-blur-md transition hover:bg-black/55"
+              aria-label={t.has("backToPantry") ? t("backToPantry") : "Cerrar"}
+            >
+              <X className="h-5 w-5" strokeWidth={2.25} />
+            </button>
+
+            <div className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-black/35 px-2.5 py-1 shadow-lg backdrop-blur-md">
+              <span className="text-xs font-semibold tracking-tight text-white">
+                <span>Ingenia</span>
+                <span className="text-[#B8D4A8]">Food</span>
+              </span>
+              <BetaBadge size="sm" />
+            </div>
+
+            <button
+              type="button"
+              onClick={onRetake}
+              disabled={isBusy || isDetecting}
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white shadow-lg backdrop-blur-md transition hover:bg-black/55 disabled:opacity-50"
+              aria-label={t.has("retakePhoto") ? t("retakePhoto") : "Otra foto"}
+            >
+              <Camera className="h-4 w-4" strokeWidth={2.25} />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom sheet persistente: empuja la foto hacia arriba (estilo comentarios IG). */}
+      <section
+        className={cn(
+          "relative z-30 flex w-full flex-col overflow-hidden rounded-t-3xl bg-white px-3 pt-1 shadow-[0_-8px_30px_rgba(0,0,0,0.18)] transition-[height] duration-300 ease-out",
+          SHEET_HEIGHT[snap],
+          sheetVisible ? "pb-[max(0.75rem,env(safe-area-inset-bottom))]" : "pb-2",
+          playSwipeHint && snap === "peek" && "sheet-swipe-hint"
+        )}
+        aria-label={headline}
+      >
         <header className="w-full flex-shrink-0">
           <div
             role="button"
@@ -387,7 +397,7 @@ export function ConfirmIngredientsView({
                 ? "Mostrar panel de ingredientes"
                 : snap === "expanded"
                   ? "Reducir panel"
-                  : "Expandir o ocultar panel"
+                  : "Expandir o minimizar panel"
             }
             aria-expanded={snap !== "hidden"}
             onPointerDown={handleDragPointerDown}
@@ -406,7 +416,7 @@ export function ConfirmIngredientsView({
           >
             <div className="mx-auto my-1.5 h-1.5 w-12 cursor-grab rounded-full bg-gray-300 active:cursor-grabbing" />
             {snap === "hidden" ? (
-              <p className="flex items-center justify-center gap-1 pb-2 text-[11px] font-semibold text-stone-500">
+              <p className="flex items-center justify-center gap-1 pb-1 text-[11px] font-semibold text-stone-500">
                 <ChevronUp className="h-3.5 w-3.5" />
                 {reopenHint}
               </p>
@@ -429,7 +439,7 @@ export function ConfirmIngredientsView({
                     setSnap("hidden");
                   }}
                   className="shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold text-stone-400 transition hover:bg-stone-100 hover:text-stone-600"
-                  aria-label="Ocultar panel y ver foto"
+                  aria-label="Maximizar foto"
                 >
                   Ver foto
                 </button>
@@ -444,7 +454,6 @@ export function ConfirmIngredientsView({
           ) : null}
         </header>
 
-        {/* Único contenedor con scroll vertical */}
         {sheetVisible ? (
           <div
             ref={scrollBodyRef}
@@ -550,7 +559,7 @@ export function ConfirmIngredientsView({
             </button>
           </div>
         ) : null}
-      </div>
+      </section>
     </div>,
     document.body
   );

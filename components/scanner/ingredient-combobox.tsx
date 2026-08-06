@@ -156,11 +156,6 @@ export function IngredientCombobox({
     resetPicker();
   };
 
-  const handleAddExisting = () => {
-    if (!exactMatch || disabled) return;
-    commitSelection(exactMatch);
-  };
-
   const openCategoryPicker = () => {
     if (disabled) return;
     if (!canOfferCreate) {
@@ -170,6 +165,21 @@ export function IngredientCombobox({
     setLocalError(null);
     setPendingCustomName(trimmedQuery);
     setIsOpen(true);
+  };
+
+  const handleAddOrCreate = () => {
+    if (disabled || isCreating) return;
+    if (exactMatch) {
+      commitSelection(exactMatch);
+      return;
+    }
+    if (canOfferCreate) {
+      openCategoryPicker();
+      return;
+    }
+    if (trimmedQuery) {
+      rejectNonFoodMessage();
+    }
   };
 
   const handleConfirmCategory = async (category: PantryCategoryDb) => {
@@ -189,7 +199,11 @@ export function IngredientCombobox({
       if (created) {
         commitSelection(created);
       } else {
-        rejectNonFoodMessage();
+        setLocalError(
+          t.has("customCreateError")
+            ? t("customCreateError")
+            : "No pudimos crear el alimento. Inténtalo de nuevo."
+        );
         setPendingCustomName(null);
       }
     } finally {
@@ -276,16 +290,22 @@ export function IngredientCombobox({
       />
       <button
         type="button"
-        onClick={handleAddExisting}
-        disabled={disabled || isCreating || !canAddExisting}
+        onClick={handleAddOrCreate}
+        disabled={disabled || isCreating || (!canAddExisting && !canOfferCreate)}
         className={cn(
           "absolute right-1.5 top-1/2 flex -translate-y-1/2 items-center justify-center transition",
           variant === "pantry" ? "h-7 w-7 rounded-lg" : "h-8 w-8 rounded-lg",
-          canAddExisting
+          canAddExisting || canOfferCreate
             ? "bg-[#3E5A3A] text-white hover:bg-[#2D432A]"
             : "cursor-not-allowed bg-stone-100 text-stone-400"
         )}
-        aria-label={t("addValidatedIngredientAria")}
+        aria-label={
+          canOfferCreate && !canAddExisting
+            ? t.has("createCustomIngredientAria")
+              ? t("createCustomIngredientAria")
+              : "Crear e incluir este alimento"
+            : t("addValidatedIngredientAria")
+        }
       >
         <Plus className="h-4 w-4" strokeWidth={2} />
       </button>
@@ -300,7 +320,7 @@ export function IngredientCombobox({
         ? createPortal(
             <div
               className={cn(
-                "fixed inset-0 z-[60] flex items-end justify-center px-4 pt-6 sm:items-center sm:pb-6",
+                "fixed inset-0 z-[100] flex items-end justify-center px-4 pt-6 sm:items-center sm:pb-6",
                 hasBottomNav
                   ? "pb-[calc(var(--app-scan-footer-height)+var(--app-bottom-nav-height)+0.75rem)]"
                   : "pb-[calc(var(--app-scan-footer-height)+0.75rem)]"

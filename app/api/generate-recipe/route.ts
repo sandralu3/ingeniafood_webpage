@@ -62,36 +62,77 @@ export const maxDuration = 180;
 export const runtime = "nodejs";
 
 const PANTRY_PRIORITY_RULE =
-  "REGLA ABSOLUTA DE INGREDIENTES PRINCIPALES: La receta DEBE construirse PRINCIPALMENTE con los ingredientes que el usuario proporcionó (selección manual y/o detección en imagen). " +
-  "PROHIBIDO generar un plato donde el usuario no use casi ninguno de sus ingredientes activos (\"YA TIENES\" no puede quedar en 0 si envió ingredientes). " +
-  "PROHIBIDO sustituir el protagonista (ej. pollo) por otros ingredientes inventados (ej. solo huevos) solo porque el tipo de plato sea Desayuno. " +
-  "PROHIBIDO introducir ingredientes principales que no estén en esa lista. " +
-  "Puedes añadir condimentos básicos (sal, pimienta, aceite, agua, ajo) y, si el tipo de plato lo requiere, un soporte mínimo de despensa (pan, huevo, especias) SOLO como acompañamiento del ingrediente del usuario. " +
-  "Al menos el 80% del protagonismo del plato debe venir de la lista del usuario o de la imagen. " +
-  "Si no hay suficientes ingredientes para una receta coherente, simplifica el plato adaptando lo que SÍ tienen al momento del día, en lugar de inventar un menú distinto.\n\n";
+  "DESPENSA DISPONIBLE (NO lista obligatoria): los ingredientes del usuario (selección manual y/o detección en imagen) " +
+  "son lo que HAY en nevera/despensa, NO una lista que debas forzar entera en la misma preparación. " +
+  "Selecciona ÚNICAMENTE el subconjunto que combine de forma lógica, sabrosa y nutricionalmente coherente en UN plato. " +
+  "PROHIBIDO meter todos los ítems en la misma receta si chocan entre sí (ej. caldo/sopa salada + fresas + café). " +
+  "La receta DEBE usar AL MENOS UNO de los ingredientes del usuario como protagonista (\"YA TIENES\" no puede quedar en 0 si envió ingredientes). " +
+  "PROHIBIDO sustituir ese protagonista por ingredientes inventados (ej. solo huevos) si el usuario sí aportó proteína/vegetal usable. " +
+  "PROHIBIDO introducir ingredientes principales ajenos a la despensa del usuario. " +
+  "Puedes añadir condimentos básicos (sal, pimienta, aceite, agua, ajo) y, si el tipo de plato lo requiere, un soporte mínimo de despensa " +
+  "(pan, huevo, especias) SOLO como acompañamiento del subconjunto elegido. " +
+  "Si con el subconjunto coherente no alcanza para un plato completo, simplifica adaptando lo compatible al momento del día; " +
+  "no inventes un menú distinto ni mezcles lo incompatible para \"usar de todo\".\n\n";
+
+/** Evita platos absurtos (sopa+café+fresas) cuando la despensa mezcla perfiles incompatibles. */
+const CULINARY_COHERENCE_RULE =
+  "FILTRO DE SENTIDO COMÚN GASTRONÓMICO (obligatorio, antes de redactar el plato):\n" +
+  "1) Evalúa compatibilidad organoléptica (sabor/aroma/temperatura/función culinaria) entre los ingredientes disponibles.\n" +
+  "2) PROHIBIDO mezclar en el MISMO plato principal bases saladas o caldos (sopa, consomé, caldo de pollo/verduras, guisos, carnes/salsas saladas) " +
+  "con elementos dulces, de repostería o infusiones/bebidas incompatibles (fresas u otras frutas dulces/ácidas usadas como postre, café, cacao dulce, té dulce, mermelada, etc.).\n" +
+  "3) Si hay varios \"clusters\" coherentes (ej. salado: sopa+leche/crema; dulce: fresas+leche; bebida: café), elige UNO como preparación principal " +
+  "según el tipo de plato pedido y la mejor opción nutricional; no fusiones clusters incompatibles.\n" +
+  "4) INGREDIENTES OMITIDOS POR INCOMPATIBILIDAD: no los incluyas en ingredientes_detallados ni en pasos_ordenados. " +
+  "Puedes (a) ignorarlos en la preparación, y/o (b) sugerirlos SOLO en tip_sandra como acompañamiento/snack/postre/bebida INDEPENDIENTE " +
+  "(ej. \"Disfruta las fresas frescas de postre\" o \"Acompaña con un café aparte\"), nunca cocinados dentro del plato principal.\n" +
+  "5) Documenta omisiones en ingredientes_omitidos_nota (qué usaste vs qué reservaste y por qué, en 1 frase).\n\n";
 
 const HEALTHY_NUTRITION_RULE =
   "PRIORIDAD NUTRICIONAL INGENIAFOOD: Todas las recetas deben ser saludables, equilibradas y con ingredientes reales de alto valor nutricional. " +
-  "PROHIBIDO inventar o añadir como ingrediente principal harina de trigo, harina blanca, harinas refinadas, azúcar refinada en gran cantidad, frituras en aceite abundante o ingredientes ultraprocesados, SALVO que el usuario los haya seleccionado explícitamente o aparezcan claramente en la imagen. " +
-  "Si el usuario SÍ aportó un alimento poco saludable, GENERA la receta con él y avisa en advertencia_ingredientes (ver REGLA AVISO ALIMENTO POCO SALUDABLE). " +
+  "PROHIBIDO inventar o añadir como ingrediente principal harina de trigo, harina blanca, harinas refinadas, azúcar refinada en gran cantidad, frituras en aceite abundante o ingredientes ultraprocesados, SALVO que el usuario los haya seleccionado explícitamente o aparezcan claramente en la imagen Y además los uses de verdad en el plato. " +
+  "Si la despensa mezcla alimentos saludables con ultraprocesados/golosinas (gominolas, piruletas, chuches, nubes, dulces industriales, etc.), " +
+  "PRIORIZA el subconjunto saludable para la receta principal y DESCARTA los ultraprocesados del plato (ver coherencia de advertencias). " +
+  "Solo si el único ingrediente usable es poco saludable, genera la receta CON él y avisa con sinceridad en advertencia_ingredientes. " +
   "Prioriza verduras, proteínas magras, huevos, legumbres, grasas saludables (aceite de oliva, aguacate), cereales integrales (avena, arroz integral, quinoa) y preparaciones al horno, salteado ligero, plancha o airfryer. " +
   "Si los ingredientes del usuario no permiten un plato tradicional con harina, propón una versión saludable alternativa con lo que SÍ tienen (ej. queso al horno con verduras, tortilla, bowl proteico), sin inventar masas fritas ni rebozados. " +
   "Evita recetas tipo empanada, tequeños, buñuelos o frituras con harina si el usuario no aportó harina.\n\n";
 
 /**
- * Obliga pasos accionables (tiempos, fuego, técnica) frente a frases genéricas.
+ * Evita contradicciones: no decir "lo incluimos" si el ítem no está en ingredientes_detallados.
+ */
+const ADVISORY_COHERENCE_RULE =
+  "COHERENCIA DE ADVERTENCIAS Y OMISIONES (obligatoria, sin excepciones):\n" +
+  "1) COHERENCIA TOTAL CON LOS INGREDIENTES MOSTRADOS: si un ítem fue descartado o no aparece en ingredientes_detallados / ingredientes_estructurados " +
+  "(ej. gominolas, piruletas, dulces, café incompatible), NUNCA digas que \"lo incluiste\", \"forma parte de la receta\", \"lo usamos porque está en tu despensa\" " +
+  "ni ninguna variante equivalente.\n" +
+  "2) REDACCIÓN PRECISA PARA OMITIDOS: si descartas ultraprocesados, golosinas o elementos incompatibles por nutrición o gastronomía, sé transparente y directo. " +
+  "Ejemplo correcto: \"Se han utilizado únicamente el aguacate y el ajo para esta preparación salada. Se descartaron las gominolas y dulces por ser productos ultraprocesados no aptos para una receta saludable principal.\" " +
+  "Usa ingredientes_omitidos_nota y/o advertencia_ingredientes para eso (pueden complementarse; no se contradigan).\n" +
+  "3) SIN FALSAS AFIRMACIONES: queda PROHIBIDO afirmar que un ingrediente está en el plato si no figura en la lista de ingredientes de esa receta. " +
+  "Antes de escribir advertencia_ingredientes, verifica mentalmente qué ítems están realmente en ingredientes_detallados.\n" +
+  "4) Si SÍ usaste un alimento poco saludable en el plato, entonces sí puedes avisar: \"Ten en cuenta: X no es saludable; está en la receta porque lo pediste / lo usamos a propósito\".\n\n";
+
+/**
+ * Obliga pasos ultra detallados: granularidad, fuego/tiempo, señales visuales, utensilios e imperativo.
  */
 const DETAILED_STEPS_RULE =
-  "PASOS DE PREPARACIÓN (obligatorio, calidad alta): en pasos_ordenados escribe instrucciones que una persona pueda seguir sin improvisar. " +
-  "PROHIBIDO pasos vagos de una sola frase genérica (ej. \"Cocinar el arroz hasta que esté tierno\", \"Mezclar e integrar\", \"Servir caliente\"). " +
-  "Cada paso DEBE incluir, cuando aplique: (1) utensilio o superficie (olla, sartén, horno, airfryer, bowl); " +
-  "(2) fuego o temperatura (ej. fuego medio, 180 °C, 190 °C airfryer); " +
-  "(3) tiempo aproximado (ej. 8-10 min, 12-15 min); " +
-  "(4) señal de punto o textura (ej. \"hasta que doren\", \"hasta que el arroz absorba el agua y quede al dente\", \"hasta que cuajen sin resecarse\"). " +
-  "Incluye también cortes/preparación previa (lavar, picar en..., escurrir, reservar) y cómo ensamblar/emplatar al final. " +
-  "Usa cantidades concretas del listado de ingredientes cuando ayuden (ej. \"añade 1 cda de pasta de tomate\"). " +
-  "Cada paso: 1-3 oraciones claras en tono imperativo; mínimo 4 pasos por receta salvo que el nivel Fácil indique otro rango, " +
-  "pero incluso en Fácil cada paso debe ser detallado (nunca un resumen superficial).\n\n";
+  "PASOS DE PREPARACIÓN (obligatorio, ultra detallados y fáciles de seguir) — campo pasos_ordenados:\n" +
+  "1) GRANULARIDAD Y CLARIDAD TOTAL: NO resumas varios procedimientos en un solo paso genérico. " +
+  "Divide la preparación en pasos lógicos, secuenciales y concretos (mise en place → cocción → ensamblaje → emplatado). " +
+  "PROHIBIDO frases vagas tipo \"Cocinar el arroz hasta que esté tierno\", \"Mezclar e integrar\", \"Servir caliente\". " +
+  "Detalla la técnica aplicada (ej. \"picar en dados pequeños de 1 cm\", \"sofreír a fuego medio-bajo\", \"batir enérgicamente hasta integrar\").\n" +
+  "2) TIEMPOS Y FUEGO/TEMPERATURA PRECISOS: en cada paso de cocción o reposo especifica SIEMPRE el nivel de fuego o temperatura " +
+  "(fuego bajo, medio, medio-alto, alto, o °C de horno/airfryer) y una estimación de tiempo concreta " +
+  "(ej. \"cocinar durante 4-5 minutos hasta que la cebolla esté transparente\", \"hornear a 180 °C durante 12-15 min\").\n" +
+  "3) INDICADORES VISUALES Y DE TEXTURA: no te limites al reloj; explica cómo debe verse o sentirse el alimento para saber que está listo " +
+  "(ej. \"hasta que adquiera un color dorado\", \"hasta que al pinchar con un tenedor esté tierno\", \"hasta obtener una mezcla homogénea sin grumos\", \"hasta que el arroz absorba el agua y quede al dente\").\n" +
+  "4) UTENSILIOS ESPECÍFICOS: menciona el utensilio o superficie en cada paso cuando aplique " +
+  "(sartén antiadherente, olla mediana, batidora de mano, cuenco hondo, colador fino, tabla, horno, airfryer, etc.).\n" +
+  "5) TONO CERCANO E INSTRUCCIÓN CLARA: redacta cada paso en imperativo directo (\"Lava...\", \"Corta...\", \"Vierte...\", \"Coloca...\"). " +
+  "Lenguaje accesible, profesional y sin ambigüedades. 1-3 oraciones por paso; usa cantidades del listado cuando ayuden " +
+  "(ej. \"añade 1 cda de pasta de tomate\").\n" +
+  "Mínimo 5 pasos por receta (salvo que el nivel Fácil indique otro rango, y aun así cada paso debe ser detallado, nunca un resumen superficial). " +
+  "Incluye cortes/preparación previa y el ensamblaje o emplatado final.\n\n";
 
 const INGREDIENT_VALIDATION_RULE =
   "PRIMERA TAREA OBLIGATORIA (antes de cualquier receta): analiza minuciosamente la lista de ingredientes del usuario. " +
@@ -107,7 +148,8 @@ const VISION_SYSTEM_PREFIX =
   "Tu primera tarea es analizar si la imagen contiene ingredientes, alimentos o comida. " +
   "Si la imagen NO muestra nada comestible (objetos, personas, paisajes, animales, utensilios vacíos), " +
   'responde ÚNICAMENTE {"error":"NOT_FOOD","mensaje":"No hemos detectado alimentos en la foto."}. No generes ninguna receta. ' +
-  "Si la imagen SÍ tiene comida, identifica los ingredientes comestibles visibles y úsalos junto con los seleccionados manualmente (si son válidos).\n\n";
+  "Si la imagen SÍ tiene comida, identifica los ingredientes comestibles visibles y trátalos, junto con la selección manual, " +
+  "como DESPENSA DISPONIBLE: elige un subconjunto coherente; no fuerces mezclas incompatibles.\n\n";
 
 const TEXT_ONLY_VALIDATION_PREFIX =
   "MODO TEXTO (sin imagen): NO hables de comida visible. " +
@@ -566,7 +608,6 @@ export async function POST(request: Request) {
     const mealTypePantryClause = buildMealTypePantryExpansionClause(resolvedFilters.mealType);
     const nutritionGoals = await fetchUserNutritionGoals(user.id, supabase);
     const dietPromptClause = buildPreferredDietPromptClause(nutritionGoals.preferredDiet);
-    const dietPromptBlock = dietPromptClause ? `${dietPromptClause}\n\n` : "";
     const dietWarningClause = buildDietIncompatibilityWarningPromptClause(
       nutritionGoals.preferredDiet
     );
@@ -647,20 +688,28 @@ export async function POST(request: Request) {
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const selectedList = selectedIngredients.join(", ");
+    const userIngredients = selectedIngredients.join(", ");
+    const dietaryPreferences =
+      dietPromptClause.trim() ||
+      "DIETA DEL USUARIO: sin restricciones específicas (estándar). Respeta igual el sentido común gastronómico.";
     const configuredModel = process.env.GOOGLE_GENERATIVE_AI_MODEL?.trim();
     const modelCandidates = buildModelCandidates(configuredModel);
     const recipeIdea =
       typeof body.recipeIdea === "string" ? body.recipeIdea.trim().slice(0, 160) : "";
     const recipeIdeaClause = recipeIdea
       ? `IDEA ORIENTATIVA DEL COACH/USUARIO: "${recipeIdea}". ` +
-        "Genera una receta que encaje con esa idea usando los ingredientes seleccionados como base principal. " +
-        "El título debe reflejar la idea de forma realista y apetitosa, sin inventar ingredientes principales fuera de la lista."
+        "Genera una receta que encaje con esa idea usando un SUBCONJUNTO coherente de la despensa del usuario. " +
+        "El título debe reflejar la idea de forma realista y apetitosa, sin inventar ingredientes principales fuera de la lista " +
+        "ni forzar ítems incompatibles solo para \"usarlos todos\"."
       : "";
 
-    const manualClause = selectedIngredients.length
-      ? `Usa como base OBLIGATORIA y PRINCIPAL los ingredientes seleccionados manualmente: [${selectedList}]. La receta debe girar en torno a ellos. Combínalos de forma coherente con lo visible en la imagen (si aplica). NO sustituyas ni añadas ingredientes principales ajenos a esta lista.`
+    const pantryContextClause = selectedIngredients.length
+      ? `DESPENSA DEL USUARIO (userIngredients): [${userIngredients}]. ` +
+        "Trátala como inventario disponible. Elige un subconjunto coherente; no fuerces todos los ítems en el mismo plato. " +
+        "Combina solo lo compatible con lo visible en la imagen (si aplica). NO sustituyas ni añadas ingredientes principales ajenos a esta despensa."
       : "El usuario no seleccionó ingredientes manualmente; infiere los ingredientes únicamente desde la imagen si es posible y no inventes ingredientes principales que no se vean.";
+
+    const dietaryPreferencesClause = `PREFERENCIAS DIETÉTICAS (dietaryPreferences):\n${dietaryPreferences}\n`;
 
     const recipeJsonShape =
       '{ "variant": "classic"|"quick"|"light", "emoji": string, "nombre_corto": string, "titulo": string, "tiempo_preparacion": string, "ingredientes_detallados": string[], "ingredientes_estructurados": [{"name": string, "amount": number, "unit": string, "optional": boolean}], "pasos_ordenados": string[], "tip_sandra": string, "etiquetas": string[], "macronutrientes": {"proteinas_g": number, "carbohidratos_g": number, "grasas_g": number, "calorias": number} }';
@@ -670,7 +719,8 @@ export async function POST(request: Request) {
       "Opción 1 (variant=\"classic\"): la más equilibrada/tradicional. " +
       "Opción 2 (variant=\"quick\"): ultra rápida, tiempo_preparacion menor a 20 minutos. " +
       "Opción 3 (variant=\"light\"): ligera/fit o creativa, más fresca o creativa. " +
-      "Las 3 deben usar los mismos ingredientes base del usuario pero con enfoques claramente distintos (titulo, pasos y tiempos diferentes). " +
+      "Las 3 deben partir del MISMO subconjunto coherente de la despensa (no inventar tres fusiones absurdas distintas) " +
+      "pero con enfoques claramente distintos (titulo, pasos y tiempos diferentes). " +
       "Incluye emoji (1 emoji) y nombre_corto (max 28 chars) en cada opción. ";
 
     const unhealthyWarningClause = buildUnhealthyIngredientWarningPromptClause();
@@ -678,57 +728,70 @@ export async function POST(request: Request) {
     const jsonRules =
       languagePromptClause +
       PANTRY_PRIORITY_RULE +
+      CULINARY_COHERENCE_RULE +
       HEALTHY_NUTRITION_RULE +
+      ADVISORY_COHERENCE_RULE +
       unhealthyWarningClause +
       dietWarningClause +
       DETAILED_STEPS_RULE +
       ingredientQuantityRule +
       MACRO_ESTIMATION_RULE +
       `${filtersPromptClause}\n\n${mealTypeCompatibilityClause}\n\n${mealTypePantryClause}\n\n` +
-      dietPromptBlock +
+      `${dietaryPreferencesClause}\n` +
       (recipeIdeaClause ? `${recipeIdeaClause}\n\n` : "") +
       "Solo JSON valido. Formato esperado: { \"advertencia_ingredientes\": \"\", \"ingredientes_omitidos_nota\": \"\", \"recipes\": [ " +
       recipeJsonShape +
       ", ...exactamente 3 ] }. " +
       multiRecipeRules +
-      "advertencia_ingredientes: texto breve (idioma de salida). Úsalo para: (a) avisar si el usuario aportó alimento(s) poco saludable(s) — OBLIGATORIO en ese caso, nombrándolos; " +
-      "(b) avisar si algún alimento NO es apto para la dieta preferida del usuario (gluten, keto, vegana, etc.) — OBLIGATORIO si aplica, nombrando el alimento y por qué; " +
-      "(c) opcionalmente, complementos de despensa no escaneados. Si no aplica nada, usa \"\". " +
-      "ingredientes_omitidos_nota: SOLO si el usuario envió VARIOS ingredientes y omitiste alguno porque usaste otros de su lista en la receta; explica qué reservaste y qué usaste. Si el usuario tiene un solo ingrediente (o pocos) y lo usas, DEBE ser \"\". NUNCA omitas el único ingrediente disponible ni inventes un plato sin él. " +
+      "advertencia_ingredientes / ingredientes_omitidos_nota (idioma de salida, coherentes entre sí y con ingredients_detallados): " +
+      "(a) Si descartaste ultraprocesados/golosinas/incompatibles, EXPLICA qué usaste y qué descartaste y POR QUÉ; " +
+      "NUNCA digas que los incluiste si no están en ingredientes_detallados. " +
+      "(b) Si SÍ usaste un alimento poco saludable en el plato, avisa nombrándolo y que está en la receta. " +
+      "(c) Si algún alimento no es apto para la dieta preferida y lo usaste, avisa; si lo omitiste por dieta, dilo como omisión. " +
+      "(d) Opcionalmente, complementos de despensa no escaneados. Si no aplica nada, usa \"\". " +
+      "ingredientes_omitidos_nota: si el usuario envió VARIOS ingredientes y omitiste alguno (incompatibilidad, ultraprocesado o momento del día), " +
+      "explica qué usaste en el plato y qué reservaste/descartaste (1-2 frases, honestas). Si el usuario tiene un solo ingrediente y lo usas, DEBE ser \"\". " +
+      "NUNCA omitas el único ingrediente disponible ni inventes un plato sin él. " +
       "ETIQUETAS (campo etiquetas): array de 0 a 3 strings. Valores permitidos SOLO: \"Sin Harinas\", \"Apto para Airfryer\", \"Alto en Proteína\". " +
       "NO incluyas Desayuno, Cena, Snack, Almuerzo ni Postre en etiquetas (el momento del plato ya se define por filtros del usuario). " +
       "Reglas estrictas: incluye \"Sin Harinas\" solo si la receta no usa harinas ni cereales refinados; incluye \"Apto para Airfryer\" solo si la cocción principal es en airfryer; incluye \"Alto en Proteína\" solo si aplica de verdad. Si ninguna aplica, devuelve etiquetas: []. " +
-      "REGLA DE ORO DE INVENTARIO (obligatoria): el ingrediente PRINCIPAL debe ser lo detectado en la imagen o seleccionado por el usuario. " +
+      "REGLA DE ORO DE INVENTARIO: el protagonista debe salir de la despensa/imagen del usuario (subconjunto coherente). " +
       "Puedes añadir condimentos y complementos de despensa según el tipo de plato (ver DESPENSA AMPLIADA arriba). " +
       "Si el titulo incluye una especia o sabor (como curry o pimenton), ese ingrediente DEBE figurar en ingredientes_detallados y estar respaldado por evidencia visual o seleccion manual. " +
-      "PRIORIDAD DE ATRIBUTOS: el titulo debe ser una descripcion tecnica y real de los ingredientes capturados; no inventes sabores externos para hacerlo atractivo. " +
+      "PRIORIDAD DE ATRIBUTOS: el titulo debe describir de forma real los ingredientes USADOS en el plato (no los omitidos); no inventes sabores externos. " +
       "VALIDACION CRUZADA obligatoria antes de responder: verifica internamente si todos los elementos del titulo estan presentes en ingredientes_detallados; si no, renombra la receta para que coincida. " +
-      "AJUSTE EN TIP DE SANDRA: si consideras que falta algun ingrediente para mejorar sabor (ej. curry), NO lo agregues a la receta principal; incluyelo solo como sugerencia opcional en tip_sandra. " +
+      "AJUSTE EN TIP DE SANDRA: (1) si falta un condimento para mejorar sabor, NO lo agregues al plato; sugiérelo en tip_sandra; " +
+      "(2) si omitiste ítems incompatibles o ultraprocesados de la despensa, puedes sugerirlos ahí como snack/postre/bebida aparte (sin fingir que van en el plato). " +
       "Genera un 'Tip de Sandra' para cada receta (máximo 2 frases) en el idioma de salida indicado arriba, con tono profesional, cercano y motivador.";
 
     const systemInstruction = hasImage
-      ? `${INGREDIENT_VALIDATION_RULE}${ingredientQuantityRule}${VISION_SYSTEM_PREFIX}${jsonRules} ${manualClause}`
+      ? `${INGREDIENT_VALIDATION_RULE}${ingredientQuantityRule}${VISION_SYSTEM_PREFIX}` +
+        `${dietaryPreferencesClause}${pantryContextClause}\n\n${jsonRules}`
       : `${INGREDIENT_VALIDATION_RULE}${TEXT_ONLY_VALIDATION_PREFIX}${ingredientQuantityRule}` +
-        `Ingredientes del usuario: [${selectedList}]. ${multiRecipeRules} ` +
+        `${dietaryPreferencesClause}` +
+        `userIngredients (despensa disponible): [${userIngredients || "ninguno"}]. ` +
+        `${pantryContextClause} ${multiRecipeRules} ` +
         `Formato si son válidos: { "advertencia_ingredientes": "", "ingredientes_omitidos_nota": "", "recipes": [${recipeJsonShape}, ...] }. ${jsonRules}`;
 
     const promptTail =
       selectedIngredients.length && hasImage
-        ? "Incluye en ingredientes_detallados (con cantidades) los seleccionados por el usuario más los inferidos de la imagen que uses en la receta."
+        ? "En ingredientes_detallados (con cantidades) incluye SOLO el subconjunto coherente elegido de la despensa/imagen (más condimentos básicos si aplica). No listes los omitidos."
         : selectedIngredients.length
-          ? "Incluye en ingredientes_detallados (con cantidades) los ingredientes seleccionados por el usuario en la receta."
+          ? "En ingredientes_detallados (con cantidades) incluye SOLO el subconjunto coherente elegido de userIngredients (más condimentos básicos si aplica). No listes los omitidos por incompatibilidad."
           : "Completa ingredientes_detallados (con cantidades) con lo que propongas para la receta.";
 
     const prompt = hasImage
       ? "Primero valida si hay comida visible. Si NO hay comida, responde solo {\"error\":\"NOT_FOOD\"} y termina sin texto adicional. " +
         "Si sí hay comida, responde exclusivamente con JSON valido (sin markdown, sin bloques de codigo) usando esta estructura exacta: " +
         `{ "advertencia_ingredientes": string, "ingredientes_omitidos_nota": string, "recipes": [${recipeJsonShape}, ${recipeJsonShape}, ${recipeJsonShape}] }. ` +
-        `${multiRecipeRules}${promptTail} No inventes ingredientes principales imposibles; prioriza exclusivamente lo visible y lo indicado arriba. El titulo debe reflejar los ingredientes reales del usuario, no sabores inventados.`
+        `${multiRecipeRules}${promptTail} No inventes ingredientes principales imposibles; prioriza lo visible y un subconjunto coherente de la despensa. ` +
+        "El titulo debe reflejar los ingredientes REALMENTE usados, no sabores inventados ni ítems omitidos."
       : "PRIMERO valida la lista de ingredientes. Si alguno NO es alimento/bebida/condimento, responde SOLO " +
         "{\"error\":\"NOT_FOOD\",\"mensaje\":\"Eso no es un alimento válido. Quita lo que no sea comida e inténtalo de nuevo.\"} " +
         "sin array recipes. Si todos son válidos, responde exclusivamente con JSON válido (sin markdown): " +
         `{ "advertencia_ingredientes": string, "ingredientes_omitidos_nota": string, "recipes": [${recipeJsonShape}, ${recipeJsonShape}, ${recipeJsonShape}] }. ` +
-        `${multiRecipeRules}${promptTail} PROHIBIDO inventar una receta a partir de no-alimentos.`;
+        `${multiRecipeRules}${promptTail} PROHIBIDO inventar una receta a partir de no-alimentos. ` +
+        "PROHIBIDO forzar todos los ingredientes en un solo plato si son incompatibles.";
 
     let rawResponse = "";
 
@@ -973,8 +1036,6 @@ export async function POST(request: Request) {
     const namesFromRecipes = safeRecipes
       .flatMap((recipe) => recipe.ingredientes_detallados)
       .slice(0, 60);
-    const namesForUnhealthyCheck =
-      selectedIngredients.length > 0 ? selectedIngredients : namesFromRecipes;
     // Dieta: revisar lo escaneado y lo que la IA puso en las recetas.
     const namesForDietCheck = (() => {
       const seen = new Set<string>();
@@ -994,7 +1055,9 @@ export async function POST(request: Request) {
     const mealTypeAdvisory = ensureDietIncompatibilityAdvisory({
       existingAdvisory: ensureUnhealthyIngredientAdvisory({
         existingAdvisory: parseOutcome.mealTypeAdvisory,
-        ingredientNames: namesForUnhealthyCheck,
+        ingredientNames:
+          selectedIngredients.length > 0 ? selectedIngredients : namesFromRecipes,
+        usedIngredientNames: namesFromRecipes,
         locale: recipeLocale
       }),
       ingredientNames: namesForDietCheck,
