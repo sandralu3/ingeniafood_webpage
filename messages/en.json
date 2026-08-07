@@ -870,7 +870,21 @@
     "publishSandraPublishing": "Publishing to the global bank...",
     "publishSandraConfirm": "Publish this recipe to the global bank with the «Sandra’s Recipe» badge? All users will be able to see and use it.",
     "publishSandraSuccess": "Done! It’s published as Sandra’s Recipe in the global bank.",
-    "publishSandraError": "We couldn’t publish the recipe. Make sure it has a photo and at least 3 preparation steps."
+    "publishSandraError": "We couldn’t publish the recipe. Make sure it has a photo and at least 3 preparation steps.",
+    "adminEditTitle": "Edit recipe (Admin)",
+    "adminEditHint": "Adjust ingredients and steps before publishing to Sandra’s cookbook.",
+    "adminEditAddIngredient": "Add",
+    "adminEditAddStep": "Add step",
+    "adminEditIngredientPlaceholder": "E.g. 200 g chicken breast",
+    "adminEditStepPlaceholder": "Describe the preparation step…",
+    "adminEditRemoveIngredient": "Remove ingredient",
+    "adminEditRemoveStep": "Remove step",
+    "adminEditSave": "Save changes",
+    "adminEditSaving": "Saving…",
+    "adminEditSuccess": "Ingredients and preparation updated.",
+    "adminEditError": "We couldn’t save the changes.",
+    "adminEditNeedIngredients": "Add at least one ingredient.",
+    "adminEditNeedSteps": "Add at least one preparation step."
   },
   "Common": {
     "loading": "Loading...",

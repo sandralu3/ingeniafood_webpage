@@ -10,6 +10,7 @@ import { RecipeAppliedFiltersBadges } from "@/components/recipes/recipe-applied-
 import { RecipeInstagramAdminForm } from "@/components/recipes/recipe-instagram-admin-form";
 import { PublishSandraRecipeButton } from "@/components/recipes/publish-sandra-recipe-button";
 import { SandraRecipeBadge } from "@/components/recipes/sandra-recipe-badge";
+import { SandraRecipeContentEditor } from "@/components/recipes/sandra-recipe-content-editor";
 import { RecipeInstagramLink } from "@/components/recipes/recipe-instagram-link";
 import { PremiumUpgradeDialog } from "@/components/premium/premium-upgrade-dialog";
 import { AddToPlanSheet } from "@/components/scanner/add-to-plan-sheet";
@@ -36,15 +37,19 @@ import {
   saveSystemRecipeToLibrary
 } from "@/lib/recipes/save-system-recipe";
 import { normalizeRecipeTags } from "@/lib/recipes/recipe-tags";
-import { ingredientsJsonToDisplayStrings } from "@/lib/recipes/structured-ingredients";
+import {
+  ingredientsJsonToDisplayStrings,
+  stringsToStructuredIngredients,
+  structuredIngredientsToJson
+} from "@/lib/recipes/structured-ingredients";
+import { jsonToStepList, savedRecipeToShareable } from "@/lib/share/recipe-share-utils";
+import { createSupabaseClient } from "@/lib/supabaseClient";
+import { cn } from "@/lib/utils";
+import type { Database, Json } from "@/types/database.types";
 import {
   parseStoredAppliedFilters
 } from "@/lib/recipes/save-generated-recipe";
 import { parseRecipeMealType } from "@/lib/recipes/premium-recipe-filters";
-import { savedRecipeToShareable } from "@/lib/share/recipe-share-utils";
-import { createSupabaseClient } from "@/lib/supabaseClient";
-import { cn } from "@/lib/utils";
-import type { Database } from "@/types/database.types";
 
 type RecipeRow = Database["public"]["Tables"]["recipes"]["Row"];
 
@@ -389,6 +394,41 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
   const isSavedToLibrary = Boolean(savedCopyId);
   const canPublishAsSandra =
     isAdmin && isOwnedRecipe && Boolean(recipe) && !isSandraRecipe;
+  const canEditSandraContent = isAdmin && isOwnedRecipe && Boolean(recipe);
+
+  const adminEditIngredients = useMemo(
+    () => (recipe ? ingredientsJsonToDisplayStrings(recipe.ingredients) : []),
+    [recipe]
+  );
+  const adminEditSteps = useMemo(() => {
+    if (!recipe) return [];
+    const fromSteps = jsonToStepList(recipe.steps as Json);
+    if (fromSteps.length > 0) return fromSteps;
+    return (recipe.instructions || "")
+      .split(/\n+/)
+      .map((line) => line.replace(/^\d+\.\s*/, "").trim())
+      .filter(Boolean);
+  }, [recipe]);
+
+  const handleSandraContentSaved = useCallback(
+    (payload: { ingredients: string[]; steps: string[] }) => {
+      setRecipe((current) => {
+        if (!current) return current;
+        const instructions = payload.steps
+          .map((step, index) => `${index + 1}. ${step}`)
+          .join("\n");
+        return {
+          ...current,
+          ingredients: structuredIngredientsToJson(
+            stringsToStructuredIngredients(payload.ingredients)
+          ),
+          steps: payload.steps,
+          instructions
+        };
+      });
+    },
+    []
+  );
 
   const handlePublishedAsSandra = useCallback(() => {
     setRecipe((current) => {
@@ -595,6 +635,15 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
                 .filter((tip) => tip.length >= 8)}
             />
           )}
+          {canEditSandraContent ? (
+            <SandraRecipeContentEditor
+              recipeId={recipe.id}
+              initialIngredients={adminEditIngredients}
+              initialSteps={adminEditSteps}
+              disabled={actionsBusy}
+              onSaved={handleSandraContentSaved}
+            />
+          ) : null}
           {canPublishAsSandra ? (
             <PublishSandraRecipeButton
               recipeId={recipe.id}
@@ -628,6 +677,15 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
             hasGeneratedRealPhoto={hasGeneratedRealPhoto}
             onRequestPremium={() => setShowPremiumDialog(true)}
           />
+          {canEditSandraContent ? (
+            <SandraRecipeContentEditor
+              recipeId={recipe.id}
+              initialIngredients={adminEditIngredients}
+              initialSteps={adminEditSteps}
+              disabled={actionsBusy}
+              onSaved={handleSandraContentSaved}
+            />
+          ) : null}
           {canPublishAsSandra ? (
             <PublishSandraRecipeButton
               recipeId={recipe.id}

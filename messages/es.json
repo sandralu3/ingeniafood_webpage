@@ -941,7 +941,21 @@
     "publishSandraPublishing": "Publicando en el banco global...",
     "publishSandraConfirm": "¿Publicar esta receta en el banco global con la insignia «Receta de Sandra»? Todos los usuarios podrán verla y usarla.",
     "publishSandraSuccess": "¡Lista! Ya está publicada como Receta de Sandra en el banco global.",
-    "publishSandraError": "No pudimos publicar la receta. Revisa que tenga foto y al menos 3 pasos de preparación."
+    "publishSandraError": "No pudimos publicar la receta. Revisa que tenga foto y al menos 3 pasos de preparación.",
+    "adminEditTitle": "Editar receta (Admin)",
+    "adminEditHint": "Ajusta ingredientes y pasos antes de publicar en el recetario de Sandra.",
+    "adminEditAddIngredient": "Añadir",
+    "adminEditAddStep": "Añadir paso",
+    "adminEditIngredientPlaceholder": "Ej. 200 g pechuga de pollo",
+    "adminEditStepPlaceholder": "Describe el paso de preparación…",
+    "adminEditRemoveIngredient": "Quitar ingrediente",
+    "adminEditRemoveStep": "Quitar paso",
+    "adminEditSave": "Guardar cambios",
+    "adminEditSaving": "Guardando…",
+    "adminEditSuccess": "Ingredientes y preparación actualizados.",
+    "adminEditError": "No pudimos guardar los cambios.",
+    "adminEditNeedIngredients": "Añade al menos un ingrediente.",
+    "adminEditNeedSteps": "Añade al menos un paso de preparación."
   },
   "Common": {
     "loading": "Cargando...",

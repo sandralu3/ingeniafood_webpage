@@ -749,7 +749,21 @@
     "publishSandraPublishing": "A publicar no catálogo global...",
     "publishSandraConfirm": "Publicar esta receita no catálogo global com o distintivo «Receita da Sandra»? Todos os utilizadores poderão vê-la e usá-la.",
     "publishSandraSuccess": "Pronto! Já está publicada como Receita da Sandra no catálogo global.",
-    "publishSandraError": "Não foi possível publicar a receita. Confirme que tem fotografia e pelo menos 3 passos de preparação."
+    "publishSandraError": "Não foi possível publicar a receita. Confirme que tem fotografia e pelo menos 3 passos de preparação.",
+    "adminEditTitle": "Editar receita (Admin)",
+    "adminEditHint": "Ajuste ingredientes e passos antes de publicar no livro da Sandra.",
+    "adminEditAddIngredient": "Adicionar",
+    "adminEditAddStep": "Adicionar passo",
+    "adminEditIngredientPlaceholder": "Ex. 200 g peito de frango",
+    "adminEditStepPlaceholder": "Descreva o passo de preparação…",
+    "adminEditRemoveIngredient": "Remover ingrediente",
+    "adminEditRemoveStep": "Remover passo",
+    "adminEditSave": "Guardar alterações",
+    "adminEditSaving": "A guardar…",
+    "adminEditSuccess": "Ingredientes e preparação atualizados.",
+    "adminEditError": "Não foi possível guardar as alterações.",
+    "adminEditNeedIngredients": "Adicione pelo menos um ingrediente.",
+    "adminEditNeedSteps": "Adicione pelo menos um passo de preparação."
   },
   "Common": {
     "loading": "A carregar...",

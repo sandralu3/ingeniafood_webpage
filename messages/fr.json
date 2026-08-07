@@ -749,7 +749,21 @@
     "publishSandraPublishing": "Publication dans le catalogue global...",
     "publishSandraConfirm": "Publier cette recette dans le catalogue global avec le badge « Recette de Sandra » ? Tous les utilisateurs pourront la voir et l'utiliser.",
     "publishSandraSuccess": "C’est fait ! Publiée comme Recette de Sandra dans le catalogue global.",
-    "publishSandraError": "Impossible de publier la recette. Vérifiez qu’elle a une photo et au moins 3 étapes de préparation."
+    "publishSandraError": "Impossible de publier la recette. Vérifiez qu’elle a une photo et au moins 3 étapes de préparation.",
+    "adminEditTitle": "Modifier la recette (Admin)",
+    "adminEditHint": "Ajustez les ingrédients et les étapes avant de publier dans le livre de Sandra.",
+    "adminEditAddIngredient": "Ajouter",
+    "adminEditAddStep": "Ajouter une étape",
+    "adminEditIngredientPlaceholder": "Ex. 200 g de blanc de poulet",
+    "adminEditStepPlaceholder": "Décrivez l’étape de préparation…",
+    "adminEditRemoveIngredient": "Retirer l’ingrédient",
+    "adminEditRemoveStep": "Retirer l’étape",
+    "adminEditSave": "Enregistrer",
+    "adminEditSaving": "Enregistrement…",
+    "adminEditSuccess": "Ingrédients et préparation mis à jour.",
+    "adminEditError": "Impossible d’enregistrer les modifications.",
+    "adminEditNeedIngredients": "Ajoutez au moins un ingrédient.",
+    "adminEditNeedSteps": "Ajoutez au moins une étape de préparation."
   },
   "Common": {
     "loading": "Chargement...",

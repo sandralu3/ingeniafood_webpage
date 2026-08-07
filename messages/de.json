@@ -749,7 +749,21 @@
     "publishSandraPublishing": "Wird im globalen Katalog veröffentlicht...",
     "publishSandraConfirm": "Dieses Rezept mit dem Badge «Sandras Rezept» im globalen Katalog veröffentlichen? Alle Nutzer können es sehen und verwenden.",
     "publishSandraSuccess": "Fertig! Als Sandras Rezept im globalen Katalog veröffentlicht.",
-    "publishSandraError": "Rezept konnte nicht veröffentlicht werden. Es braucht ein Foto und mindestens 3 Zubereitungsschritte."
+    "publishSandraError": "Rezept konnte nicht veröffentlicht werden. Es braucht ein Foto und mindestens 3 Zubereitungsschritte.",
+    "adminEditTitle": "Rezept bearbeiten (Admin)",
+    "adminEditHint": "Passe Zutaten und Schritte an, bevor du im Sandra-Kochbuch veröffentlichst.",
+    "adminEditAddIngredient": "Hinzufügen",
+    "adminEditAddStep": "Schritt hinzufügen",
+    "adminEditIngredientPlaceholder": "z. B. 200 g Hähnchenbrust",
+    "adminEditStepPlaceholder": "Beschreibe den Zubereitungsschritt…",
+    "adminEditRemoveIngredient": "Zutat entfernen",
+    "adminEditRemoveStep": "Schritt entfernen",
+    "adminEditSave": "Änderungen speichern",
+    "adminEditSaving": "Wird gespeichert…",
+    "adminEditSuccess": "Zutaten und Zubereitung aktualisiert.",
+    "adminEditError": "Änderungen konnten nicht gespeichert werden.",
+    "adminEditNeedIngredients": "Füge mindestens eine Zutat hinzu.",
+    "adminEditNeedSteps": "Füge mindestens einen Zubereitungsschritt hinzu."
   },
   "Common": {
     "loading": "Wird geladen...",
