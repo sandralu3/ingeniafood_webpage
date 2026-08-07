@@ -1,4 +1,5 @@
 import type { WeekDay } from "@/lib/plan/constants";
+import type { SnackSuggestion } from "@/lib/plan/frequent-snacks";
 import { findSnackPreset, type PlanSnack, type PlanSnackSource } from "@/lib/plan/snack-presets";
 import { canRegisterExternalMealForPlanDay } from "@/lib/plan/week-utils";
 import { createSupabaseClient } from "@/lib/supabaseClient";
@@ -81,6 +82,40 @@ export async function addQuickSnackToPlan(params: {
     fatGrams: preset.fatGrams,
     source: "quick",
     emoji: preset.emoji,
+    imageUrl: null
+  });
+}
+
+/** Añade un chip de sugerencia (frecuente del usuario o preset). */
+export async function addSuggestedSnackToPlan(params: {
+  userId: string;
+  dayLabel: WeekDay;
+  weekStartISO: string;
+  suggestion: SnackSuggestion;
+}): Promise<{ snack: PlanSnack } | { error: string }> {
+  if (!canRegisterExternalMealForPlanDay(params.weekStartISO, params.dayLabel)) {
+    return {
+      error: "Solo puedes registrar snacks en hoy o días pasados."
+    };
+  }
+
+  const suggestion = params.suggestion;
+  const presetId = suggestion.id.startsWith("preset:")
+    ? suggestion.id.slice("preset:".length)
+    : null;
+  const preset = presetId ? findSnackPreset(presetId) : null;
+
+  return insertSnack({
+    userId: params.userId,
+    dayLabel: params.dayLabel,
+    weekStartISO: params.weekStartISO,
+    title: (preset?.title ?? suggestion.title).trim().slice(0, 120) || "Snack",
+    kcal: Math.max(0, Math.round(preset?.kcal ?? suggestion.kcal)),
+    proteinGrams: Math.max(0, Math.round(preset?.proteinGrams ?? suggestion.proteinGrams)),
+    carbsGrams: Math.max(0, Math.round(preset?.carbsGrams ?? suggestion.carbsGrams)),
+    fatGrams: Math.max(0, Math.round(preset?.fatGrams ?? suggestion.fatGrams)),
+    source: "quick",
+    emoji: preset?.emoji ?? suggestion.emoji ?? "🍪",
     imageUrl: null
   });
 }

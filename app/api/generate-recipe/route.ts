@@ -1089,8 +1089,8 @@ export async function POST(request: Request) {
       );
     }
 
-    // Banco de fotos: Premium. Free solo con match local.
-    // OpenAI: Free = nunca; Premium = 1x; admin = ilimitado.
+    // Banco de fotos: cualquier Premium vigente (Stripe, 24h, admin/tester).
+    // OpenAI: Free = nunca; Premium = 1x lifetime; admin = ilimitado.
     const userWantsDishPhoto = body.useDishPhoto === true;
     const dishPhotoAccess = await getOpenAiDishPhotoAccess(
       supabase,
@@ -1098,7 +1098,8 @@ export async function POST(request: Request) {
       user.email
     );
     const canGenerateDishPhoto = userWantsDishPhoto && dishPhotoAccess.allowed;
-    const canUseDishImages = premiumAccess.isPaidPremium || canGenerateDishPhoto;
+    const canUseDishImages =
+      premiumAccess.canUsePremiumFeatures || canGenerateDishPhoto;
     const dishPhotoBlockedReason =
       userWantsDishPhoto && !dishPhotoAccess.allowed ? dishPhotoAccess.reason : null;
 

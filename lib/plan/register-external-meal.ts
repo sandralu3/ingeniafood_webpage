@@ -8,7 +8,11 @@ import {
 } from "@/lib/plan/external-meal";
 import { assignRecipeToPlan, replacePlanMealRecipe } from "@/lib/plan/plan-service";
 import { canRegisterExternalMealForPlanDay } from "@/lib/plan/week-utils";
-import { saveGeneratedRecipeToLibrary } from "@/lib/recipes/save-generated-recipe";
+import {
+  parseCookingMinutesFromLabel,
+  saveGeneratedRecipeToLibrary
+} from "@/lib/recipes/save-generated-recipe";
+import { normalizeRecipeSteps } from "@/lib/recipes/sentence-case";
 import {
   stringsToStructuredIngredients,
   structuredIngredientsToJson
@@ -21,10 +25,15 @@ function mapMealTypeToFilter(mealType: MealType): "desayuno" | "almuerzo" | "cen
   return "almuerzo";
 }
 
+function buildInstructionsFromSteps(steps: string[]): string {
+  return steps.map((step, index) => `${index + 1}. ${step}`).join("\n");
+}
+
 /**
  * Persiste la estimación como registro privado (sin módulo de receta) y la asigna al plan.
  * Solo guarda imageUrl cuando el usuario escaneó el plato; texto = sin imagen.
  * Si `replacePlanEntryId` está definido, sustituye esa entrada en lugar de añadir.
+ * Admin: si la estimación trae pasos_ordenados, se guardan como preparación (foto = imagen oficial).
  */
 export async function registerExternalMealToPlan(params: {
   userId: string;
@@ -62,6 +71,16 @@ export async function registerExternalMealToPlan(params: {
       ? params.estimate.alimentos.map(formatExternalMealFoodLine)
       : [];
   const adviceText = formatExternalMealRecommendations(params.estimate);
+  const cookingSteps = normalizeRecipeSteps(
+    (params.estimate.pasos_ordenados ?? [])
+      .filter((step) => typeof step === "string" && step.trim().length > 0)
+      .map((step) => step.trim())
+  );
+  const hasCookingSteps = cookingSteps.length >= 2;
+  const tipSandra = params.estimate.tip_sandra?.trim() || adviceText || "";
+  const cookingMinutes = params.estimate.tiempo_preparacion
+    ? parseCookingMinutesFromLabel(params.estimate.tiempo_preparacion)
+    : null;
 
   const saveResult = await saveGeneratedRecipeToLibrary(supabase, {
     userId: params.userId,
@@ -69,14 +88,16 @@ export async function registerExternalMealToPlan(params: {
     ingredients: structuredIngredientsToJson(
       stringsToStructuredIngredients(ingredientLines)
     ),
-    steps: [],
-    instructions: "Registro de comida externa (sin preparación).",
-    tipSandra: adviceText || "",
+    steps: hasCookingSteps ? cookingSteps : [],
+    instructions: hasCookingSteps
+      ? buildInstructionsFromSteps(cookingSteps)
+      : "Registro de comida externa (sin preparación).",
+    tipSandra,
     isAirfryer: false,
     isFlourless: false,
     tags,
     macronutrientes: macros,
-    cookingTimeMinutes: null,
+    cookingTimeMinutes: hasCookingSteps ? cookingMinutes : null,
     imageUrl: platePhoto,
     referenceImageUrl: null,
     appliedFilters: {

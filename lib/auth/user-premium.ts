@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { clearExpiredCodePremium } from "@/lib/premium/redeem-access-code";
+import { clearExpiredCodePremium } from "@/lib/premium/claim-referral-promo";
 import {
   resolvePremiumAccess,
   type PremiumAccess
@@ -42,7 +42,7 @@ export async function getUserPremiumAccess(
   return { access };
 }
 
-/** Compat: true si el usuario puede usar funciones Premium (suscripción / código / rol). */
+/** Compat: true si el usuario puede usar funciones Premium (suscripción / pase temporal / rol). */
 export async function getUserIsPremium(
   supabase: AppSupabaseClient,
   userId: string,

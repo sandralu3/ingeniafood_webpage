@@ -61,6 +61,15 @@ export type ExternalMealEstimate = {
   recomendaciones: string[];
   /** Título empático del aviso (opcional, viene de la IA). */
   recommendation_title?: string;
+  /**
+   * Solo Admin (escaneo foto): pasos de cocina para publicar como Receta de Sandra.
+   * Los usuarios normales no reciben este campo.
+   */
+  pasos_ordenados?: string[];
+  /** Tiempo estimado de preparación (p. ej. "25 min"), solo Admin. */
+  tiempo_preparacion?: string;
+  /** Tip de cocina de Sandra, solo Admin cuando hay pasos. */
+  tip_sandra?: string;
 };
 
 export function normalizeExistingMealItems(raw: unknown): ExistingMealItem[] {

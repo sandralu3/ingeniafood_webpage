@@ -1,13 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Cookie, Plus, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { PlanSectionDivider } from "@/components/plan/plan-section-divider";
 import type { WeekDay } from "@/lib/plan/constants";
+import {
+  fetchSnackSuggestionsForUser,
+  type SnackSuggestion
+} from "@/lib/plan/frequent-snacks";
 import type { PlanSnack } from "@/lib/plan/snack-presets";
 import { SNACK_PRESETS } from "@/lib/plan/snack-presets";
-import { addQuickSnackToPlan, removeSnackFromPlan } from "@/lib/plan/snack-service";
+import { addSuggestedSnackToPlan, removeSnackFromPlan } from "@/lib/plan/snack-service";
 import { canRegisterExternalMealForPlanDay } from "@/lib/plan/week-utils";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import { cn } from "@/lib/utils";
@@ -107,11 +111,47 @@ export function PlanSnacksSection({
   const t = useTranslations("Plan");
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [quickBusyId, setQuickBusyId] = useState<string | null>(null);
+  const [chipSuggestions, setChipSuggestions] = useState<SnackSuggestion[]>(() =>
+    SNACK_PRESETS.slice(0, 4).map((preset) => ({
+      id: `preset:${preset.id}`,
+      emoji: preset.emoji,
+      title: preset.title,
+      kcal: preset.kcal,
+      proteinGrams: preset.proteinGrams,
+      carbsGrams: preset.carbsGrams,
+      fatGrams: preset.fatGrams,
+      origin: "preset" as const
+    }))
+  );
 
   const isHoy = variant === "hoy";
   const canRegister =
     !readOnly &&
     (canRegisterProp ?? canRegisterExternalMealForPlanDay(weekStartISO, dayLabel));
+
+  useEffect(() => {
+    if (readOnly || isHoy) return;
+
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const supabase = createSupabaseClient();
+        const {
+          data: { user }
+        } = await supabase.auth.getUser();
+        if (!user) return;
+        const next = await fetchSnackSuggestionsForUser(user.id, { limit: 4 });
+        if (!cancelled) setChipSuggestions(next);
+      } catch (error) {
+        console.warn("[plan-snacks] suggestions", error);
+      }
+    };
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [isHoy, readOnly, snacks.length]);
 
   const snackKcal = snacks.reduce((sum, snack) => sum + snack.kcal, 0);
   const sectionLabel = t.has("snacksSectionLabel")
@@ -153,9 +193,9 @@ export function PlanSnacksSection({
     }
   };
 
-  const handleQuickChip = async (presetId: string) => {
+  const handleQuickChip = async (suggestion: SnackSuggestion) => {
     if (!canRegister || quickBusyId) return;
-    setQuickBusyId(presetId);
+    setQuickBusyId(suggestion.id);
     try {
       const supabase = createSupabaseClient();
       const {
@@ -165,11 +205,11 @@ export function PlanSnacksSection({
         onError?.("Inicia sesión para registrar el snack.");
         return;
       }
-      const result = await addQuickSnackToPlan({
+      const result = await addSuggestedSnackToPlan({
         userId: user.id,
         dayLabel,
         weekStartISO,
-        presetId
+        suggestion
       });
       if ("error" in result) {
         onError?.(result.error);
@@ -283,15 +323,15 @@ export function PlanSnacksSection({
         ) : canRegister ? (
           <div className="space-y-2">
             <div className="flex flex-wrap gap-1.5">
-              {SNACK_PRESETS.slice(0, 4).map((preset) => (
+              {chipSuggestions.map((suggestion) => (
                 <button
-                  key={preset.id}
+                  key={suggestion.id}
                   type="button"
                   disabled={quickBusyId !== null}
-                  onClick={() => void handleQuickChip(preset.id)}
+                  onClick={() => void handleQuickChip(suggestion)}
                   className="inline-flex items-center gap-1 rounded-full border border-stone-200/80 bg-stone-50 px-2 py-1 text-[10px] font-semibold text-stone-700 transition hover:border-amber-300 hover:bg-amber-50 hover:text-amber-900 disabled:opacity-50"
                 >
-                  {preset.emoji} +{preset.title.split(" ")[0]}
+                  {suggestion.emoji} +{suggestion.title.split(" ")[0]}
                 </button>
               ))}
             </div>

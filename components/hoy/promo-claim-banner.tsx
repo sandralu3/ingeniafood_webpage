@@ -22,7 +22,26 @@ export function PromoClaimBanner({ className, onClaimed }: Props) {
   const [success, setSuccess] = useState<string | null>(null);
 
   useEffect(() => {
-    void refresh({ showLoading: false });
+    let cancelled = false;
+
+    const prepareWelcomePromo = async () => {
+      try {
+        await fetch("/api/premium/ensure-welcome", {
+          method: "POST",
+          credentials: "include"
+        });
+      } catch {
+        // silencioso
+      }
+      if (!cancelled) {
+        await refresh({ showLoading: false });
+      }
+    };
+
+    void prepareWelcomePromo();
+    return () => {
+      cancelled = true;
+    };
   }, [refresh]);
 
   if (isLoading || isPremium || !hasPromoClaimable) {

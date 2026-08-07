@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Crown, Loader2, Settings2 } from "lucide-react";
-import { PremiumCodeRedeemForm } from "@/components/premium/premium-code-redeem-form";
 import { PremiumRichText } from "@/components/premium/premium-label";
 import { usePremium } from "@/hooks/use-premium";
 import { createSupabaseClient } from "@/lib/supabaseClient";
@@ -92,10 +91,16 @@ export function PremiumBillingActions() {
   }, [userId]);
 
   useEffect(() => {
+    if (!isTester) {
+      setBilling({ hasActiveSubscription: false, hasPaddleCustomer: false });
+      setIsBillingLoading(false);
+      return;
+    }
     void refreshBilling();
-  }, [refreshBilling]);
+  }, [isTester, refreshBilling]);
 
   useEffect(() => {
+    if (!isTester) return;
     const params = new URLSearchParams(window.location.search);
     const checkout = params.get("checkout");
     if (checkout !== "canceled") return;
@@ -107,15 +112,24 @@ export function PremiumBillingActions() {
     params.delete("session_id");
     const next = `${window.location.pathname}${params.toString() ? `?${params}` : ""}`;
     window.history.replaceState({}, "", next);
-  }, [refresh, refreshBilling]);
+  }, [isTester, refresh, refreshBilling]);
 
-  if (isPremiumLoading || isBillingLoading || !userId) {
+  if (isPremiumLoading || !userId) {
+    return null;
+  }
+
+  // Suscripción / checkout Paddle: solo testers.
+  if (!isTester) {
+    return null;
+  }
+
+  if (isBillingLoading) {
     return null;
   }
 
   const canManageSubscription =
-    isTester && billing.hasActiveSubscription && billing.hasPaddleCustomer;
-  const canStartSubscription = isTester && !billing.hasActiveSubscription;
+    billing.hasActiveSubscription && billing.hasPaddleCustomer;
+  const canStartSubscription = !billing.hasActiveSubscription;
 
   const handleUpgrade = async () => {
     setIsCheckoutLoading(true);
@@ -186,7 +200,7 @@ export function PremiumBillingActions() {
             ? t("codePremiumActive", {
                 date: new Date(premiumExpiresAt).toLocaleString()
               })
-            : `Premium por código activo hasta ${new Date(premiumExpiresAt).toLocaleString()}`}
+            : `Premium temporal activo hasta ${new Date(premiumExpiresAt).toLocaleString()}`}
         </div>
       ) : null}
 
@@ -218,8 +232,6 @@ export function PremiumBillingActions() {
             : t("photoCreditExhausted")}
         </div>
       ) : null}
-
-      {!isPremium ? <PremiumCodeRedeemForm onRedeemed={() => void refresh()} /> : null}
 
       {canStartSubscription ? (
         <button

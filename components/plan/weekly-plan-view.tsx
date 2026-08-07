@@ -91,7 +91,8 @@ export function WeeklyPlanView() {
   const [swapNotice, setSwapNotice] = useState<string | null>(null);
 
   const [pickerTarget, setPickerTarget] = useState<PickerTarget | null>(null);
-  const [pickerRecipes, setPickerRecipes] = useState<RecipePickerItem[]>([]);
+  const [pickerSystemRecipes, setPickerSystemRecipes] = useState<RecipePickerItem[]>([]);
+  const [pickerSavedRecipes, setPickerSavedRecipes] = useState<RecipePickerItem[]>([]);
   const [isPickerLoading, setIsPickerLoading] = useState(false);
   const [isAssigning, setIsAssigning] = useState(false);
   const [pickerError, setPickerError] = useState<string | null>(null);
@@ -242,10 +243,12 @@ export function WeeklyPlanView() {
 
     try {
       const recipes = await fetchRecipesForPicker(userId);
-      setPickerRecipes(recipes);
+      setPickerSystemRecipes(recipes.system);
+      setPickerSavedRecipes(recipes.saved);
     } catch (error) {
       console.error("[weekly-plan] Error cargando recetas para picker:", error);
-      setPickerRecipes([]);
+      setPickerSystemRecipes([]);
+      setPickerSavedRecipes([]);
       setPickerError(t("pickerLoadError"));
     } finally {
       setIsPickerLoading(false);
@@ -812,7 +815,8 @@ export function WeeklyPlanView() {
               ] ?? [])
             : []
         }
-        recipes={pickerRecipes}
+        recipes={pickerSavedRecipes}
+        systemRecipes={pickerSystemRecipes}
         isLoading={isPickerLoading}
         isAssigning={isAssigning}
         errorMessage={pickerError}

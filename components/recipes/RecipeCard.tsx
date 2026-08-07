@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { Heart, Loader2, Play, Share2, Trash2 } from "lucide-react";
 import { RecipeInstagramLink } from "@/components/recipes/recipe-instagram-link";
+import { SandraRecipeBadge } from "@/components/recipes/sandra-recipe-badge";
 import {
   getRecipeImageFallback,
   pickStoredRecipeImageUrl
@@ -20,6 +21,7 @@ type RecipeCardProps = {
   referenceImageUrl?: string | null;
   instagramUrl?: string | null;
   isSocialVideo?: boolean;
+  isSandraRecipe?: boolean;
   className?: string;
   onShare?: () => void;
   isSharing?: boolean;
@@ -123,6 +125,7 @@ export function RecipeCard({
   referenceImageUrl,
   instagramUrl,
   isSocialVideo = false,
+  isSandraRecipe = false,
   className,
   onShare,
   isSharing = false,
@@ -176,11 +179,14 @@ export function RecipeCard({
       >
         <h3 className="mb-0.5 truncate text-[11px] font-bold text-stone-800">{title}</h3>
 
-        {categoryLabel ? (
-          <span className="w-fit rounded-md bg-[#F5EBE6] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[#C06A4F]">
-            {categoryLabel}
-          </span>
-        ) : null}
+        <div className="flex flex-wrap items-center gap-1">
+          {isSandraRecipe ? <SandraRecipeBadge compact /> : null}
+          {categoryLabel ? (
+            <span className="w-fit rounded-md bg-[#F5EBE6] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[#C06A4F]">
+              {categoryLabel}
+            </span>
+          ) : null}
+        </div>
       </Link>
 
       <div className="flex h-full shrink-0 flex-col items-end justify-between">

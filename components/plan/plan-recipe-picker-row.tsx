@@ -2,6 +2,7 @@
 
 import { ChevronRight, Play } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { SandraRecipeBadge } from "@/components/recipes/sandra-recipe-badge";
 import { getRecipePlaceholder } from "@/lib/recipes/recipe-placeholder";
 import type { RecipePickerItem } from "@/lib/plan/plan-service";
 import { getRecipePickerCardLabel } from "@/lib/recipes/saved-recipes-filter";
@@ -37,6 +38,9 @@ function PickerThumbnail({
           alt={title ? imageAlt : ""}
           className="h-full w-full object-cover"
           loading="lazy"
+          onError={(event) => {
+            event.currentTarget.style.display = "none";
+          }}
         />
       </div>
     );
@@ -120,11 +124,14 @@ export function PlanRecipePickerRow({ recipe, disabled = false, onSelect }: Prop
 
       <div className="flex h-full min-w-0 flex-1 flex-col justify-center px-3">
         <h3 className="mb-0.5 truncate text-[11px] font-bold text-stone-800">{recipe.title}</h3>
-        {categoryLabel ? (
-          <span className="w-fit rounded-md bg-[#F5EBE6] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[#C06A4F]">
-            {categoryLabel}
-          </span>
-        ) : null}
+        <div className="flex flex-wrap items-center gap-1">
+          {recipe.is_sandra_recipe ? <SandraRecipeBadge compact /> : null}
+          {categoryLabel ? (
+            <span className="w-fit rounded-md bg-[#F5EBE6] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[#C06A4F]">
+              {categoryLabel}
+            </span>
+          ) : null}
+        </div>
       </div>
 
       <div className="flex h-full shrink-0 items-center pl-1">

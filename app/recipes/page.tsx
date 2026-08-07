@@ -63,6 +63,7 @@ export default function RecipesPage() {
   const locale = useLocale();
   const router = useRouter();
   const [recipes, setRecipes] = useState<RecipeRow[]>([]);
+  const [viewerUserId, setViewerUserId] = useState<string | null>(null);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -113,13 +114,22 @@ export default function RecipesPage() {
           }
           return next;
         });
+        // Si solo estaba en la lista por favorito (banco sistema), quítala al desmarcar.
+        if (!result.isFavorite) {
+          setRecipes((previous) =>
+            previous.filter((recipe) => {
+              if (recipe.id !== recipeId) return true;
+              return Boolean(viewerUserId && recipe.user_id === viewerUserId);
+            })
+          );
+        }
       } else {
         setActionMessage(result.error);
       }
 
       setTogglingFavoriteId(null);
     },
-    [favoriteIds, togglingFavoriteId]
+    [favoriteIds, togglingFavoriteId, viewerUserId]
   );
 
   const handleDeleteRecipe = useCallback(
@@ -176,16 +186,20 @@ export default function RecipesPage() {
       if (!user) {
         setErrorMessage("No encontramos tu sesion activa. Inicia sesion para ver tus recetas.");
         setRecipes([]);
+        setViewerUserId(null);
         setIsLoading(false);
         return;
       }
 
+      setViewerUserId(user.id);
+
+      const recipeSelect =
+        "id,title,description,cooking_time,is_airfryer,is_flourless,is_public,created_at,user_id,ingredients,steps,instructions,image_url,reference_image_url,tip_sandra,instagram_url,meal_type,tags,is_system_recipe,is_sandra_recipe";
+
       const [primaryQuery, favoritesResult] = await Promise.all([
         supabase
           .from("recipes")
-          .select(
-            "id,title,description,cooking_time,is_airfryer,is_flourless,is_public,created_at,user_id,ingredients,steps,instructions,image_url,reference_image_url,tip_sandra,instagram_url,meal_type,tags"
-          )
+          .select(recipeSelect)
           .eq("user_id", user.id)
           .order("created_at", { ascending: false }),
         fetchFavoriteRecipeIds()
@@ -198,7 +212,9 @@ export default function RecipesPage() {
         isMissingOptionalRecipesColumnError(recipesError, "tip_sandra") ||
         isMissingOptionalRecipesColumnError(recipesError, "reference_image_url") ||
         isMissingOptionalRecipesColumnError(recipesError, "meal_type") ||
-        isMissingOptionalRecipesColumnError(recipesError, "tags")
+        isMissingOptionalRecipesColumnError(recipesError, "tags") ||
+        isMissingOptionalRecipesColumnError(recipesError, "is_system_recipe") ||
+        isMissingOptionalRecipesColumnError(recipesError, "is_sandra_recipe")
       ) {
         const fallbackQuery = await supabase
           .from("recipes")
@@ -214,7 +230,9 @@ export default function RecipesPage() {
           tip_sandra: null,
           reference_image_url: null,
           meal_type: null,
-          tags: null
+          tags: null,
+          is_system_recipe: false,
+          is_sandra_recipe: false
         })) ?? null;
       }
 
@@ -225,16 +243,54 @@ export default function RecipesPage() {
         return;
       }
 
-      if (favoritesResult.success) {
-        setFavoriteIds(favoritesResult.ids);
-      } else {
-        setFavoriteIds(new Set());
+      const favoriteIdSet = favoritesResult.success
+        ? favoritesResult.ids
+        : new Set<string>();
+      setFavoriteIds(favoriteIdSet);
+
+      const owned = (recipesData ?? []).filter((recipe) => !isScannerDraftRecipe(recipe));
+      const ownedIds = new Set(owned.map((recipe) => recipe.id));
+      const missingFavoriteIds = Array.from(favoriteIdSet).filter((id) => !ownedIds.has(id));
+
+      let merged = owned;
+      if (missingFavoriteIds.length > 0) {
+        const favoritedQuery = await supabase
+          .from("recipes")
+          .select(recipeSelect)
+          .in("id", missingFavoriteIds);
+
+        if (!favoritedQuery.error && favoritedQuery.data) {
+          const extras = (favoritedQuery.data as RecipeRow[]).filter(
+            (recipe) => !isScannerDraftRecipe(recipe)
+          );
+          merged = [...owned, ...extras];
+        } else if (
+          isMissingOptionalRecipesColumnError(favoritedQuery.error, "is_system_recipe") ||
+          isMissingOptionalRecipesColumnError(favoritedQuery.error, "is_sandra_recipe") ||
+          isMissingOptionalRecipesColumnError(favoritedQuery.error, "tags")
+        ) {
+          const fallbackFavorites = await supabase
+            .from("recipes")
+            .select(
+              "id,title,description,cooking_time,is_airfryer,is_flourless,is_public,created_at,user_id,ingredients,steps,instructions,image_url"
+            )
+            .in("id", missingFavoriteIds);
+          if (!fallbackFavorites.error && fallbackFavorites.data) {
+            const extras = (fallbackFavorites.data as RecipeRow[]).map((recipe) => ({
+              ...recipe,
+              tip_sandra: null,
+              reference_image_url: null,
+              meal_type: null,
+              tags: null,
+              is_system_recipe: false,
+              is_sandra_recipe: false
+            }));
+            merged = [...owned, ...extras];
+          }
+        }
       }
 
-      // Borradores del escáner no son guardadas reales; comidas fuera sí se listan.
-      setRecipes(
-        (recipesData ?? []).filter((recipe) => !isScannerDraftRecipe(recipe))
-      );
+      setRecipes(merged);
       setIsLoading(false);
     };
 
@@ -250,14 +306,22 @@ export default function RecipesPage() {
     [activeFilter, recipes, searchTerm]
   );
 
+  const ownedFilteredRecipes = useMemo(
+    () =>
+      viewerUserId
+        ? filteredRecipes.filter((recipe) => recipe.user_id === viewerUserId)
+        : filteredRecipes,
+    [filteredRecipes, viewerUserId]
+  );
+
   const cookableRecipes = useMemo(
-    () => filteredRecipes.filter((recipe) => !isExternalMeal(recipe.tags)),
-    [filteredRecipes]
+    () => ownedFilteredRecipes.filter((recipe) => !isExternalMeal(recipe.tags)),
+    [ownedFilteredRecipes]
   );
 
   const outsideRecipes = useMemo(
-    () => filteredRecipes.filter((recipe) => isExternalMeal(recipe.tags)),
-    [filteredRecipes]
+    () => ownedFilteredRecipes.filter((recipe) => isExternalMeal(recipe.tags)),
+    [ownedFilteredRecipes]
   );
 
   const favoriteRecipes = useMemo(
@@ -331,6 +395,9 @@ export default function RecipesPage() {
             isSocialVideo={Boolean(
               recipe.instagram_url && !recipe.image_url && !recipe.reference_image_url
             )}
+            isSandraRecipe={Boolean(
+              (recipe as RecipeRow & { is_sandra_recipe?: boolean }).is_sandra_recipe
+            )}
             detailHref={`/app-recetas/recipes/${recipe.id}`}
             onPrefetch={() => router.prefetch(`/app-recetas/recipes/${recipe.id}`)}
             isFavorite={favoriteIds.has(recipe.id)}
@@ -342,7 +409,11 @@ export default function RecipesPage() {
             onShare={() => handleShareRecipe(recipe)}
             isSharing={sharingRecipeId === recipe.id}
             isShareDisabled={Boolean(sharingRecipeId && sharingRecipeId !== recipe.id)}
-            onDelete={() => void handleDeleteRecipe(recipe.id, recipe.title)}
+            onDelete={
+              viewerUserId && recipe.user_id === viewerUserId
+                ? () => void handleDeleteRecipe(recipe.id, recipe.title)
+                : undefined
+            }
             isDeleting={deletingRecipeId === recipe.id}
             isDeleteDisabled={Boolean(deletingRecipeId && deletingRecipeId !== recipe.id)}
             favoriteAriaLabel={
@@ -364,7 +435,8 @@ export default function RecipesPage() {
       router,
       sharingRecipeId,
       t,
-      togglingFavoriteId
+      togglingFavoriteId,
+      viewerUserId
     ]
   );
 

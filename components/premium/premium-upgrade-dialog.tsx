@@ -5,7 +5,6 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { Loader2, Lock, Sparkles, X } from "lucide-react";
 import { PlanSectionDivider } from "@/components/plan/plan-section-divider";
-import { PremiumCodeRedeemForm } from "@/components/premium/premium-code-redeem-form";
 import { PremiumLabel, PremiumRichText } from "@/components/premium/premium-label";
 import { usePremium } from "@/hooks/use-premium";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
@@ -24,11 +23,10 @@ export function PremiumUpgradeDialog({
   onUpgraded,
   featureLabel = "Filtros avanzados"
 }: Props) {
-  const { userId, isPremium, isCodePremium, refresh } = usePremium();
+  const { userId, isPremium, isCodePremium, isTester, refresh } = usePremium();
   const [isUpgrading, setIsUpgrading] = useState(false);
   const [upgradeError, setUpgradeError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
-  const [redeemFestivity, setRedeemFestivity] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -36,7 +34,6 @@ export function PremiumUpgradeDialog({
 
   useEffect(() => {
     if (!open) {
-      setRedeemFestivity(null);
       setUpgradeError(null);
       return;
     }
@@ -107,7 +104,7 @@ export function PremiumUpgradeDialog({
     <PremiumRichText text="Inicia sesión para desbloquear Premium." size="xs" />
   ) : isPremium ? (
     isCodePremium
-      ? "Acceso Premium temporal activo por código."
+      ? "Acceso Premium temporal activo."
       : `${featureLabel} incluido en tu plan.`
   ) : (
     <PremiumRichText text={`${featureLabel} requiere Premium.`} size="xs" />
@@ -170,12 +167,6 @@ export function PremiumUpgradeDialog({
             </p>
           ) : null}
 
-          {redeemFestivity ? (
-            <p className="rounded-lg border border-[#556B2F]/20 bg-[#F0F4ED] px-2.5 py-2 text-center text-[12px] font-semibold text-[#3e5219]">
-              {redeemFestivity}
-            </p>
-          ) : null}
-
           {!userId ? (
             <button
               type="button"
@@ -196,7 +187,7 @@ export function PremiumUpgradeDialog({
             >
               Continuar
             </button>
-          ) : (
+          ) : isTester ? (
             <>
               <button
                 type="button"
@@ -207,15 +198,6 @@ export function PremiumUpgradeDialog({
                 {isUpgrading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                 Desbloquear <PremiumLabel size="xs" />
               </button>
-
-              <PremiumCodeRedeemForm
-                compact
-                onRedeemed={(message) => {
-                  setRedeemFestivity(message);
-                  onUpgraded?.();
-                }}
-              />
-
               <p className="text-center text-[10px] text-stone-400">
                 <Link
                   href={APP_ROUTES.perfil}
@@ -225,6 +207,27 @@ export function PremiumUpgradeDialog({
                   Ver opciones en Perfil
                 </Link>
               </p>
+            </>
+          ) : (
+            <>
+              <p className="text-center text-[11px] leading-snug text-stone-500">
+                Si tienes un pase de 24 horas pendiente, actívalo desde{" "}
+                <Link
+                  href={APP_ROUTES.hoy}
+                  onClick={onClose}
+                  className="font-semibold text-[#556B2F] underline-offset-2 hover:underline"
+                >
+                  Hoy
+                </Link>
+                .
+              </p>
+              <button
+                type="button"
+                onClick={onClose}
+                className="w-full rounded-full bg-[#556B2F] py-2 text-sm font-semibold text-white transition hover:bg-[#4a5f28]"
+              >
+                Entendido
+              </button>
             </>
           )}
         </div>

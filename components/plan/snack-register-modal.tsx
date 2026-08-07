@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Camera, Loader2, PenLine, Trash2, X, Zap } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { ModalSheetBackButton } from "@/components/ui/modal-sheet-back-button";
+import { PremiumUpgradeDialog } from "@/components/premium/premium-upgrade-dialog";
+import { usePremium } from "@/hooks/use-premium";
 import type { MealType, WeekDay } from "@/lib/plan/constants";
 import {
   EXTERNAL_MEAL_UNITS,
@@ -23,8 +25,12 @@ import {
 } from "@/lib/plan/food-description-validation";
 import { SNACK_PRESETS, type PlanSnack } from "@/lib/plan/snack-presets";
 import {
+  fetchSnackSuggestionsForUser,
+  type SnackSuggestion
+} from "@/lib/plan/frequent-snacks";
+import {
   addEstimatedSnackToPlan,
-  addQuickSnackToPlan
+  addSuggestedSnackToPlan
 } from "@/lib/plan/snack-service";
 import { uploadExternalMealPhoto } from "@/lib/plan/upload-external-meal-photo";
 import { canRegisterExternalMealForPlanDay } from "@/lib/plan/week-utils";
@@ -70,6 +76,7 @@ export function SnackRegisterModal({
 }: Props) {
   const t = useTranslations("Plan");
   const locale = useLocale();
+  const { isPremium, isLoading: isPremiumLoading, refresh: refreshPremium } = usePremium();
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const [mode, setMode] = useState<Mode>("menu");
@@ -78,9 +85,12 @@ export function SnackRegisterModal({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [showSourcePicker, setShowSourcePicker] = useState(true);
+  const [showPremiumPaywall, setShowPremiumPaywall] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [busyPresetId, setBusyPresetId] = useState<string | null>(null);
+  const [suggestions, setSuggestions] = useState<SnackSuggestion[]>([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [estimate, setEstimate] = useState<ExternalMealEstimate | null>(null);
   const [foodItems, setFoodItems] = useState<ExternalMealFoodItem[]>([]);
@@ -103,6 +113,7 @@ export function SnackRegisterModal({
     setIsSaving(false);
     setBusyPresetId(null);
     setShowSourcePicker(true);
+    setShowPremiumPaywall(false);
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(null);
   };
@@ -113,6 +124,64 @@ export function SnackRegisterModal({
       resetState();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reset on open/close
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    let cancelled = false;
+    const loadSuggestions = async () => {
+      setSuggestionsLoading(true);
+      try {
+        const supabase = createSupabaseClient();
+        const {
+          data: { user }
+        } = await supabase.auth.getUser();
+        if (!user) {
+          if (!cancelled) {
+            setSuggestions(
+              SNACK_PRESETS.map((preset) => ({
+                id: `preset:${preset.id}`,
+                emoji: preset.emoji,
+                title: preset.title,
+                kcal: preset.kcal,
+                proteinGrams: preset.proteinGrams,
+                carbsGrams: preset.carbsGrams,
+                fatGrams: preset.fatGrams,
+                origin: "preset" as const
+              })).slice(0, 6)
+            );
+          }
+          return;
+        }
+
+        const next = await fetchSnackSuggestionsForUser(user.id, { limit: 6 });
+        if (!cancelled) setSuggestions(next);
+      } catch (err) {
+        console.warn("[snack-register] suggestions", err);
+        if (!cancelled) {
+          setSuggestions(
+            SNACK_PRESETS.map((preset) => ({
+              id: `preset:${preset.id}`,
+              emoji: preset.emoji,
+              title: preset.title,
+              kcal: preset.kcal,
+              proteinGrams: preset.proteinGrams,
+              carbsGrams: preset.carbsGrams,
+              fatGrams: preset.fatGrams,
+              origin: "preset" as const
+            })).slice(0, 6)
+          );
+        }
+      } finally {
+        if (!cancelled) setSuggestionsLoading(false);
+      }
+    };
+
+    void loadSuggestions();
+    return () => {
+      cancelled = true;
+    };
   }, [open]);
 
   useEffect(() => {
@@ -172,6 +241,10 @@ export function SnackRegisterModal({
   };
 
   const handleFileChange = (file: File | null) => {
+    if (!isPremium) {
+      setShowPremiumPaywall(true);
+      return;
+    }
     if (!file || !file.type.startsWith("image/")) return;
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setSelectedFile(file);
@@ -186,11 +259,30 @@ export function SnackRegisterModal({
   };
 
   const openCamera = () => {
+    if (!isPremium) {
+      setShowPremiumPaywall(true);
+      return;
+    }
     window.setTimeout(() => cameraInputRef.current?.click(), 0);
   };
 
   const openGallery = () => {
+    if (!isPremium) {
+      setShowPremiumPaywall(true);
+      return;
+    }
     window.setTimeout(() => galleryInputRef.current?.click(), 0);
+  };
+
+  const handlePhotoOptionClick = () => {
+    if (!canRegister || isPremiumLoading) return;
+    if (!isPremium) {
+      setShowPremiumPaywall(true);
+      return;
+    }
+    setShowSourcePicker(true);
+    setStep("input");
+    setMode("photo");
   };
 
   const requireUser = async () => {
@@ -207,7 +299,7 @@ export function SnackRegisterModal({
     return user;
   };
 
-  const handleQuickPreset = async (presetId: string) => {
+  const handleQuickSuggestion = async (suggestion: SnackSuggestion) => {
     if (isAnalyzing || isSaving || busyPresetId) return;
     if (!canRegister) {
       setError(
@@ -218,17 +310,17 @@ export function SnackRegisterModal({
       return;
     }
 
-    setBusyPresetId(presetId);
+    setBusyPresetId(suggestion.id);
     setError(null);
     try {
       const user = await requireUser();
       if (!user) return;
 
-      const result = await addQuickSnackToPlan({
+      const result = await addSuggestedSnackToPlan({
         userId: user.id,
         dayLabel,
         weekStartISO,
-        presetId
+        suggestion
       });
 
       if ("error" in result) {
@@ -514,6 +606,7 @@ export function SnackRegisterModal({
 
   // Misma cáscara que PlanRecipePickerModal (items-end + max-h-[88vh]).
   return (
+    <>
     <div
       className="fixed inset-0 z-[160] flex items-end justify-center bg-black/45 px-0 backdrop-blur-[2px] sm:items-center sm:px-4"
       onClick={(event) => {
@@ -886,51 +979,65 @@ export function SnackRegisterModal({
                 </button>
                 <button
                   type="button"
-                  disabled={!canRegister}
-                  onClick={() => {
-                    setShowSourcePicker(true);
-                    setStep("input");
-                    setMode("photo");
-                  }}
+                  disabled={!canRegister || isPremiumLoading}
+                  onClick={handlePhotoOptionClick}
                   className="inline-flex items-center gap-2 rounded-2xl border border-sky-200/80 bg-sky-50/50 px-3 py-3 text-left text-sm font-semibold text-sky-950 transition hover:bg-sky-50 disabled:opacity-50"
                 >
                   <Camera className="h-4 w-4 shrink-0" />
-                  {t.has("snackOptionPhoto")
-                    ? t("snackOptionPhoto")
-                    : "📸 Foto instantánea"}
+                  <span className="min-w-0 flex-1">
+                    {t.has("snackOptionPhoto")
+                      ? t("snackOptionPhoto")
+                      : "📸 Foto instantánea"}
+                  </span>
+                  {!isPremium ? (
+                    <span className="shrink-0 text-[9px] font-bold tracking-wide text-amber-800">
+                      👑 PRO
+                    </span>
+                  ) : null}
                 </button>
               </div>
 
               <div>
                 <p className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-stone-400">
                   <Zap className="h-3.5 w-3.5" />
-                  {t.has("snackOptionQuick")
-                    ? t("snackOptionQuick")
-                    : "Sugerencias frecuentes"}
+                  {suggestions.some((item) => item.origin === "frequent")
+                    ? t.has("snackOptionFrequent")
+                      ? t("snackOptionFrequent")
+                      : "Tus snacks frecuentes"
+                    : t.has("snackOptionQuick")
+                      ? t("snackOptionQuick")
+                      : "Sugerencias rápidas"}
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  {SNACK_PRESETS.map((preset) => (
-                    <button
-                      key={preset.id}
-                      type="button"
-                      disabled={!canRegister || busyPresetId !== null}
-                      onClick={() => void handleQuickPreset(preset.id)}
-                      className={cn(
-                        "inline-flex items-center gap-1 rounded-full border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 shadow-sm transition",
-                        "hover:border-[#4D6638]/35 hover:bg-[#4D6638]/5 disabled:opacity-50"
-                      )}
-                    >
-                      {busyPresetId === preset.id ? (
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                      ) : (
-                        <span aria-hidden>{preset.emoji}</span>
-                      )}
-                      + {preset.title}
-                      <span className="text-[10px] font-medium text-stone-400">
-                        {preset.kcal} kcal
-                      </span>
-                    </button>
-                  ))}
+                  {suggestionsLoading && suggestions.length === 0
+                    ? Array.from({ length: 4 }).map((_, index) => (
+                        <span
+                          key={`snack-skel-${index}`}
+                          className="h-8 w-24 animate-pulse rounded-full bg-stone-100"
+                        />
+                      ))
+                    : suggestions.map((suggestion) => (
+                        <button
+                          key={suggestion.id}
+                          type="button"
+                          disabled={!canRegister || busyPresetId !== null}
+                          onClick={() => void handleQuickSuggestion(suggestion)}
+                          className={cn(
+                            "inline-flex items-center gap-1 rounded-full border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 shadow-sm transition",
+                            "hover:border-[#4D6638]/35 hover:bg-[#4D6638]/5 disabled:opacity-50"
+                          )}
+                        >
+                          {busyPresetId === suggestion.id ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <span aria-hidden>{suggestion.emoji}</span>
+                          )}
+                          + {suggestion.title}
+                          <span className="text-[10px] font-medium text-stone-400">
+                            {suggestion.kcal} kcal
+                          </span>
+                        </button>
+                      ))}
                 </div>
               </div>
             </>
@@ -1298,5 +1405,20 @@ export function SnackRegisterModal({
         )}
       </div>
     </div>
+
+      <PremiumUpgradeDialog
+        open={showPremiumPaywall}
+        onClose={() => setShowPremiumPaywall(false)}
+        onUpgraded={() => {
+          setShowPremiumPaywall(false);
+          void refreshPremium();
+        }}
+        featureLabel={
+          t.has("snackPhotoPremiumFeature")
+            ? t("snackPhotoPremiumFeature")
+            : "Foto instantánea de snacks"
+        }
+      />
+    </>
   );
 }

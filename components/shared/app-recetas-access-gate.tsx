@@ -235,22 +235,40 @@ export function AppRecetasAccessGate({ children }: { children: React.ReactNode }
       }
 
       const referralCode = readStashedReferralCode();
-      if (!referralCode) return;
+      let attachedPromo = false;
 
-      try {
-        const response = await fetch("/api/premium/attach-referral", {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ref: referralCode })
-        });
-        if (!cancelled && response.ok) {
-          window.dispatchEvent(new Event("ingeniafood:premium-changed"));
+      if (referralCode) {
+        try {
+          const response = await fetch("/api/premium/attach-referral", {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ref: referralCode })
+          });
+          attachedPromo = response.ok;
+        } catch {
+          // El stash se limpia igual.
+        } finally {
+          if (!cancelled) clearStashedReferralCode();
         }
-      } catch {
-        // El stash se limpia igual.
-      } finally {
-        if (!cancelled) clearStashedReferralCode();
+      } else {
+        // Sin referido: pasa 24h de bienvenida si nunca tuvo promo.
+        try {
+          const response = await fetch("/api/premium/ensure-welcome", {
+            method: "POST",
+            credentials: "include"
+          });
+          if (response.ok) {
+            const payload = (await response.json()) as { attached?: boolean };
+            attachedPromo = Boolean(payload.attached);
+          }
+        } catch {
+          // silencioso
+        }
+      }
+
+      if (!cancelled && attachedPromo) {
+        window.dispatchEvent(new Event("ingeniafood:premium-changed"));
       }
     };
 

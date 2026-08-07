@@ -67,7 +67,7 @@ export async function resolveDishPhotoAccess(
 }
 
 export const REAL_PHOTO_USED_MESSAGE =
-  "Ya has utilizado tu único intento de foto real. Actualiza a la versión completa o contacta al administrador si necesitas más generaciones.";
+  "Ya has utilizado tu único intento de foto real. Las siguientes recetas usarán imagen de referencia.";
 
 export const REAL_PHOTO_PREMIUM_REQUIRED_MESSAGE =
   "La foto real del plato no está disponible en la cuenta Free. Activa Premium para usarla.";

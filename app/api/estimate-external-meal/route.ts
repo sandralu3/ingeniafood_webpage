@@ -1,8 +1,10 @@
 import { GoogleGenerativeAI, type Part } from "@google/generative-ai";
 import { NextResponse } from "next/server";
 import { createSupabaseRouteClient } from "@/lib/supabaseRoute";
+import { isSandraAdmin } from "@/lib/auth/sandra-admin";
 import { getRouteUser } from "@/lib/auth/get-route-user";
 import { getUserIsPremium } from "@/lib/auth/user-premium";
+import { normalizeRecipeSteps } from "@/lib/recipes/sentence-case";
 import {
   EXTERNAL_MEAL_BADGE,
   applyExternalMealAdvice,
@@ -390,6 +392,28 @@ function normalizeEstimate(
   const balance =
     normalizeBalance(obj.balance ?? obj.equilibrio ?? obj.health_balance) ?? undefined;
 
+  const pasosRaw =
+    obj.pasos_ordenados ?? obj.preparation_steps ?? obj.steps ?? obj.pasos;
+  const pasos_ordenados = Array.isArray(pasosRaw)
+    ? normalizeRecipeSteps(
+        pasosRaw
+          .filter((step): step is string => typeof step === "string" && step.trim().length > 0)
+          .map((step) => step.trim())
+          .slice(0, 16)
+      )
+    : undefined;
+
+  const tiempoRaw =
+    obj.tiempo_preparacion ?? obj.cooking_time ?? obj.prep_time ?? obj.tiempo;
+  const tiempo_preparacion =
+    typeof tiempoRaw === "string" && tiempoRaw.trim()
+      ? tiempoRaw.trim().slice(0, 40)
+      : undefined;
+
+  const tipRaw = obj.tip_sandra ?? obj.sandra_tip ?? obj.tip;
+  const tip_sandra =
+    typeof tipRaw === "string" && tipRaw.trim() ? tipRaw.trim().slice(0, 400) : undefined;
+
   const base: ExternalMealEstimate = {
     nombre_plato: nombre.slice(0, 120),
     calorias_est: calorias,
@@ -399,7 +423,10 @@ function normalizeEstimate(
     alimentos,
     balance: balance ?? "mejorable",
     recomendaciones,
-    recommendation_title: recommendationTitle?.slice(0, 80)
+    recommendation_title: recommendationTitle?.slice(0, 80),
+    ...(pasos_ordenados && pasos_ordenados.length >= 2
+      ? { pasos_ordenados, tiempo_preparacion, tip_sandra }
+      : {})
   };
 
   return base;
@@ -548,10 +575,12 @@ function buildPrompt(
     mealMoment: string;
     userDietType: string;
     existingMealItems: ExistingMealItem[];
+    /** Admin foto: generar receta completa (pasos) para publicar como Receta de Sandra. */
+    includeCookingRecipe?: boolean;
   }
 ): string {
   const isSnack = context === "snack";
-  const { mealMoment, userDietType, existingMealItems } = options;
+  const { mealMoment, userDietType, existingMealItems, includeCookingRecipe } = options;
   const lang =
     locale === "en"
       ? "Write dish_name, detected_items names, recommendation_title and recommendation_message in clear English."
@@ -620,12 +649,27 @@ function buildPrompt(
 
   const badge = mode === "photo" ? "escaneado" : "comida_fuera";
 
+  const cookingRecipeBlock = includeCookingRecipe
+    ? "MODO CREADORA / ADMIN (obligatorio):\n" +
+      "Además de estimar macros, convierte la foto en una RECETA COMPLETA publicable.\n" +
+      "Incluye pasos_ordenados: entre 5 y 12 pasos claros, accionables y en orden " +
+      "(preparación de ingredientes, cocción, emplatado). Un paso = una acción concreta.\n" +
+      'Incluye tiempo_preparacion (ej. "25 min") y tip_sandra (1 consejo breve de cocina casera).\n' +
+      "dish_name debe ser un título de receta apetitoso y específico (no genérico).\n" +
+      "detected_items deben servir como lista de ingredientes con cantidades.\n\n"
+    : "";
+
+  const jsonShape = includeCookingRecipe
+    ? `{"is_valid_food":true,"meal_type_detected":"${mealMoment}","dish_name":"string","total_calories":510,"total_proteins_g":21,"tiene_vegetales":true,"badge":"${badge}","detected_items":[{"name":"Pechuga de pollo","quantity":180,"unit":"g","calorias":280,"proteinas_g":45}],"pasos_ordenados":["Paso 1 concreto...","Paso 2..."],"tiempo_preparacion":"25 min","tip_sandra":"Consejo breve.","balance":"equilibrado","recommendation_title":"¡Gran combinación!","recommendation_message":"Disfruta el plato.","error_message":null}`
+    : `{"is_valid_food":true,"meal_type_detected":"${mealMoment}","dish_name":"string","total_calories":510,"total_proteins_g":21,"tiene_vegetales":true,"badge":"${badge}","detected_items":[{"name":"Pan integral","quantity":2,"unit":"rebanada","calorias":160,"proteinas_g":6}],"balance":"equilibrado","recommendation_title":"¡Gran combinación de sabores!","recommendation_message":"Un plato completo y variado. Disfruta del contraste entre lo salado y lo dulce.","error_message":null}`;
+
   return (
     validationBlock +
     `${source}\n${lang}\n\n` +
     contextBlock +
     existingBlock +
     empathyBlock +
+    cookingRecipeBlock +
     "Lista cada alimento con cantidad estimada (g/ml/unidades) y macros para ESA cantidad. " +
     "Los totales del elemento actual deben coincidir con la suma de detected_items.\n" +
     "Indica tiene_vegetales si hay verdura significativa EN EL ELEMENTO ACTUAL " +
@@ -637,7 +681,7 @@ function buildPrompt(
         : "Evalúa el menú con tono positivo; si falta algo, sugiere opciones opcionales sin juzgar.\n") +
     foodRange +
     "Responde SOLO un objeto JSON válido (sin markdown) con esta forma:\n" +
-    `{"is_valid_food":true,"meal_type_detected":"${mealMoment}","dish_name":"string","total_calories":510,"total_proteins_g":21,"tiene_vegetales":true,"badge":"${badge}","detected_items":[{"name":"Pan integral","quantity":2,"unit":"rebanada","calorias":160,"proteinas_g":6}],"balance":"equilibrado","recommendation_title":"¡Gran combinación de sabores!","recommendation_message":"Un plato completo y variado. Disfruta del contraste entre lo salado y lo dulce.","error_message":null}\n` +
+    `${jsonShape}\n` +
     'balance (solo interno): "equilibrado" | "mejorable" | "poco_saludable" — sin usar esas palabras en recommendation_title/message.\n' +
     'unit preferida: g, ml, unidad, rebanada, cda, cdta, taza o porción.\n' +
     "También aceptamos claves legacy: nombre_plato, calorias_est, proteinas_est_g, alimentos, recomendaciones."
@@ -667,15 +711,6 @@ export async function POST(request: Request) {
     if (premiumError) {
       return jsonResponse({ error: premiumError, code: "PREMIUM_CHECK_FAILED" }, 503);
     }
-    if (!isPremium) {
-      return jsonResponse(
-        {
-          error: "Registrar comida fuera requiere Premium.",
-          code: "PREMIUM_REQUIRED"
-        },
-        403
-      );
-    }
 
     let body: EstimatePayload;
     try {
@@ -692,6 +727,22 @@ export async function POST(request: Request) {
     }
     const mode = body.mode === "photo" ? "photo" : "text";
     const context = body.context === "snack" ? "snack" : "meal";
+
+    // Free: snack por texto. Premium: foto (snack/comida) y comida fuera completa.
+    const requiresPremium = context === "meal" || mode === "photo";
+    if (requiresPremium && !isPremium) {
+      return jsonResponse(
+        {
+          error:
+            mode === "photo"
+              ? "La foto del snack o plato requiere Premium."
+              : "Registrar comida fuera requiere Premium.",
+          code: "PREMIUM_REQUIRED"
+        },
+        403
+      );
+    }
+
     const mealMoment = resolveMealMomentLabel(
       context,
       typeof body.mealType === "string" ? body.mealType : undefined
@@ -763,11 +814,15 @@ export async function POST(request: Request) {
       );
     }
 
+    const includeCookingRecipe =
+      isSandraAdmin(auth.user.email) && mode === "photo" && context === "meal";
+
     const genAI = new GoogleGenerativeAI(apiKey);
     const prompt = buildPrompt(mode, description, body.locale, context, {
       mealMoment,
       userDietType,
-      existingMealItems
+      existingMealItems,
+      includeCookingRecipe
     });
     const parts: Part[] =
       mode === "photo"

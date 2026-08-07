@@ -154,21 +154,25 @@ function MealThumbnail({
   imageAlt: string;
   imageAltFallback: string;
 }) {
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const sizeClass = mini
     ? "h-8 w-8 rounded-lg"
     : compact
       ? "h-12 w-12 rounded-xl"
       : "h-20 w-20 rounded-xl";
   const iconSize = mini ? "h-3.5 w-3.5" : compact ? "h-4 w-4" : "h-7 w-7";
+  const resolvedUrl =
+    imageUrl && imageUrl.startsWith("http") && imageUrl !== failedUrl ? imageUrl : null;
 
-  if (imageUrl) {
+  if (resolvedUrl) {
     return (
       <img
-        src={imageUrl}
+        src={resolvedUrl}
         alt={title ? imageAlt : imageAltFallback}
         className={cn("shrink-0 object-cover ring-1 ring-stone-100", sizeClass)}
         loading="lazy"
         draggable={false}
+        onError={() => setFailedUrl(resolvedUrl)}
       />
     );
   }

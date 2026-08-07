@@ -32,19 +32,17 @@ import {
   groupSnacksByDay
 } from "@/lib/plan/snack-service";
 import type { PlanSnack } from "@/lib/plan/snack-presets";
-import { normalizeRecipeTags } from "@/lib/recipes/recipe-tags";
+import { isScannerDraftRecipe } from "@/lib/recipes/scanner-draft";
 
 type PlanRow = Database["public"]["Tables"]["plan_semanal"]["Row"];
 type RecipeRow = Database["public"]["Tables"]["recipes"]["Row"];
 
-/** Recetas sintéticas de snack/comida fuera: no sirven como plato del plan. */
+/** Recetas sintéticas de comida fuera: no sirven como plato del plan. */
 function isNonAssignablePlanRecipe(recipe: {
   meal_type?: string | null;
   tags?: unknown;
 }): boolean {
-  if (resolveExternalMealBadge(recipe.tags) != null) return true;
-  if ((recipe.meal_type ?? "").toLowerCase() === "snack") return true;
-  return normalizeRecipeTags(recipe.tags).some((tag) => tag.toLowerCase() === "snack");
+  return resolveExternalMealBadge(recipe.tags) != null;
 }
 
 export type RecipePickerItem = Pick<
@@ -57,7 +55,18 @@ export type RecipePickerItem = Pick<
   | "is_airfryer"
   | "is_flourless"
   | "created_at"
->;
+> & {
+  meal_type?: string | null;
+  tags?: unknown;
+  is_system_recipe?: boolean;
+  is_sandra_recipe?: boolean;
+  description?: string | null;
+};
+
+export type RecipesForPicker = {
+  system: RecipePickerItem[];
+  saved: RecipePickerItem[];
+};
 
 type PlanRecipeBase = Pick<
   RecipeRow,
@@ -341,50 +350,91 @@ export async function fetchWeeklyPlan(
   };
 }
 
-export async function fetchRecipesForPicker(userId: string): Promise<RecipePickerItem[]> {
+const PICKER_SELECT_WITH_META =
+  "id, title, image_url, instagram_url, cooking_time, is_airfryer, is_flourless, created_at, tags, meal_type, description, is_system_recipe, is_sandra_recipe";
+const PICKER_SELECT_WITH_SYSTEM =
+  "id, title, image_url, instagram_url, cooking_time, is_airfryer, is_flourless, created_at, tags, meal_type, description, is_system_recipe";
+const PICKER_SELECT_FALLBACK =
+  "id, title, image_url, instagram_url, cooking_time, is_airfryer, is_flourless, created_at, tags, meal_type, description";
+
+function mapPickerRows(
+  rows: Array<RecipePickerItem & { tags?: unknown; meal_type?: string | null; description?: string | null }>
+): RecipePickerItem[] {
+  return rows
+    .filter((recipe) => !isScannerDraftRecipe(recipe))
+    .filter((recipe) => !isNonAssignablePlanRecipe(recipe));
+}
+
+export async function fetchRecipesForPicker(userId: string): Promise<RecipesForPicker> {
   const supabase = createSupabaseClient();
 
-  const withMeta = await supabase
-    .from("recipes")
-    .select(
-      "id, title, image_url, instagram_url, cooking_time, is_airfryer, is_flourless, created_at, tags, meal_type"
-    )
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false });
-
-  if (!withMeta.error) {
-    return ((withMeta.data ?? []) as Array<
-      RecipePickerItem & { tags?: unknown; meal_type?: string | null }
-    >).filter((recipe) => !isNonAssignablePlanRecipe(recipe));
-  }
-
-  const withTags = await supabase
-    .from("recipes")
-    .select(
-      "id, title, image_url, instagram_url, cooking_time, is_airfryer, is_flourless, created_at, tags"
-    )
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false });
-
-  if (!withTags.error) {
-    return ((withTags.data ?? []) as Array<RecipePickerItem & { tags?: unknown }>).filter(
-      (recipe) => !isNonAssignablePlanRecipe(recipe)
+  const loadSaved = async (select: string, excludeSystem: boolean) => {
+    let query = supabase
+      .from("recipes")
+      .select(select)
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+    if (excludeSystem) {
+      query = query.eq("is_system_recipe", false);
+    }
+    const { data, error } = await query;
+    if (error) throw error;
+    return mapPickerRows(
+      (data ?? []) as unknown as Array<
+        RecipePickerItem & { tags?: unknown; meal_type?: string | null; description?: string | null }
+      >
     );
+  };
+
+  const loadSystem = async (select: string) => {
+    const { data, error } = await supabase
+      .from("recipes")
+      .select(select)
+      .eq("is_system_recipe", true)
+      .order("created_at", { ascending: true });
+    if (error) throw error;
+    return mapPickerRows(
+      (data ?? []) as unknown as Array<
+        RecipePickerItem & { tags?: unknown; meal_type?: string | null; description?: string | null }
+      >
+    );
+  };
+
+  try {
+    const [saved, system] = await Promise.all([
+      loadSaved(PICKER_SELECT_WITH_META, true),
+      loadSystem(PICKER_SELECT_WITH_META)
+    ]);
+    return { saved, system };
+  } catch {
+    // is_sandra_recipe aún no migrada → intentar solo is_system_recipe.
+    try {
+      const [saved, system] = await Promise.all([
+        loadSaved(PICKER_SELECT_WITH_SYSTEM, true),
+        loadSystem(PICKER_SELECT_WITH_SYSTEM)
+      ]);
+      return { saved, system };
+    } catch {
+      // Columna is_system_recipe aún no migrada → solo biblioteca del usuario.
+      try {
+        const saved = await loadSaved(PICKER_SELECT_FALLBACK, false);
+        return { saved, system: [] };
+      } catch {
+        const { data, error } = await supabase
+          .from("recipes")
+          .select(
+            "id, title, image_url, instagram_url, cooking_time, is_airfryer, is_flourless, created_at"
+          )
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false });
+        if (error) throw error;
+        return {
+          saved: (data ?? []) as RecipePickerItem[],
+          system: []
+        };
+      }
+    }
   }
-
-  const { data, error } = await supabase
-    .from("recipes")
-    .select(
-      "id, title, image_url, instagram_url, cooking_time, is_airfryer, is_flourless, created_at"
-    )
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    throw error;
-  }
-
-  return data ?? [];
 }
 
 export async function assignRecipeToPlan(params: {

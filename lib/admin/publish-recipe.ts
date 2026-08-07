@@ -90,7 +90,9 @@ export async function publishStructuredRecipe(params: {
       is_airfryer,
       is_flourless,
       is_public: true,
-      es_instagram: true
+      es_instagram: true,
+      is_system_recipe: true,
+      is_sandra_recipe: true
     })
     .select("id")
     .single();

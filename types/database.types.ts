@@ -407,6 +407,8 @@ export type Database = {
           is_flourless: boolean;
           is_public: boolean;
           es_instagram: boolean;
+          is_system_recipe: boolean;
+          is_sandra_recipe: boolean;
           macros: Json | null;
           created_at: string;
           updated_at: string;
@@ -434,6 +436,8 @@ export type Database = {
           is_flourless?: boolean;
           is_public?: boolean;
           es_instagram?: boolean;
+          is_system_recipe?: boolean;
+          is_sandra_recipe?: boolean;
           macros?: Json | null;
           created_at?: string;
           updated_at?: string;
@@ -461,6 +465,8 @@ export type Database = {
           is_flourless?: boolean;
           is_public?: boolean;
           es_instagram?: boolean;
+          is_system_recipe?: boolean;
+          is_sandra_recipe?: boolean;
           macros?: Json | null;
           created_at?: string;
           updated_at?: string;

@@ -24,6 +24,12 @@ type RecipeImageSource = {
   tags?: string[] | null;
 };
 
+function trimUrl(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
 /**
  * Elige la mejor URL disponible en el objeto receta (sin red).
  */
@@ -36,9 +42,8 @@ export function pickStoredRecipeImageUrl(recipe: RecipeImageSource): string | nu
     recipe.reference_image_url
   ];
   for (const value of candidates) {
-    if (typeof value === "string" && value.trim().length > 0) {
-      return value.trim();
-    }
+    const url = trimUrl(value);
+    if (url) return url;
   }
   return null;
 }
@@ -78,34 +83,68 @@ export function getRecipeImageFallback(recipe: RecipeImageSource): string {
 }
 
 /**
- * Normaliza URLs de imagen para persistir / renderizar.
- * Recetas normales: siempre hay al menos un fallback de stock.
- * Comidas fuera: solo foto real (o vacío).
+ * Normaliza URLs para persistir / renderizar.
+ * - Foto real (OpenAI): imageUrl ≠ referenceImageUrl
+ * - Solo referencia/stock: ambas iguales (así el UI no la trata como foto real)
+ * - Comidas fuera: solo foto del plato
  */
 export function normalizeRecipeImageFields(recipe: RecipeImageSource): {
   image: string;
   imageUrl: string;
   referenceImageUrl: string | null;
 } {
-  const stored = pickStoredRecipeImageUrl(recipe);
+  const primary = trimUrl(recipe.imageUrl) || trimUrl(recipe.image_url) || trimUrl(recipe.image);
+  const reference =
+    trimUrl(recipe.referenceImageUrl) || trimUrl(recipe.reference_image_url);
+
   if (isExternalMeal(recipe.tags)) {
+    const plate = primary || reference || "";
     return {
-      image: stored ?? "",
-      imageUrl: stored ?? "",
+      image: plate,
+      imageUrl: plate,
       referenceImageUrl: null
     };
   }
 
-  const fallback = getRecipeImageFallback(recipe);
-  const imageUrl = stored || fallback;
-  const reference =
-    (typeof recipe.referenceImageUrl === "string" && recipe.referenceImageUrl.trim()) ||
-    (typeof recipe.reference_image_url === "string" && recipe.reference_image_url.trim()) ||
-    null;
+  // Foto real distinta de la referencia.
+  if (primary && reference && primary !== reference) {
+    return {
+      image: primary,
+      imageUrl: primary,
+      referenceImageUrl: reference
+    };
+  }
 
+  // Banco provisional (misma URL en ambos) o solo una URL de stock.
+  if (primary && reference && primary === reference) {
+    return {
+      image: primary,
+      imageUrl: primary,
+      referenceImageUrl: reference
+    };
+  }
+
+  if (primary && !reference) {
+    // Legacy / ambigua: tratar como referencia para no fingir foto real.
+    return {
+      image: primary,
+      imageUrl: primary,
+      referenceImageUrl: primary
+    };
+  }
+
+  if (!primary && reference) {
+    return {
+      image: reference,
+      imageUrl: reference,
+      referenceImageUrl: reference
+    };
+  }
+
+  const fallback = getRecipeImageFallback(recipe);
   return {
-    image: imageUrl,
-    imageUrl,
-    referenceImageUrl: reference && reference !== imageUrl ? reference : stored ? null : null
+    image: fallback,
+    imageUrl: fallback,
+    referenceImageUrl: fallback
   };
 }

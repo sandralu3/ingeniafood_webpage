@@ -181,6 +181,7 @@ export function matchesSavedRecipeCategory(recipe: RecipeRow, filter: SavedRecip
       if (mealType) return mealType === "cena";
       return includesAnyKeyword(blob, DINNER_KEYWORDS);
     case "Snacks":
+      if (mealType === "snack" || mealType === "postre") return true;
       return isExplicitSnackRecipe(recipe);
     default:
       return true;
@@ -269,6 +270,7 @@ export function matchesPickerRecipeCategory(
       if (mealType) return mealType === "cena";
       return includesAnyKeyword(blob, DINNER_KEYWORDS);
     case "Snacks":
+      if (mealType === "snack" || mealType === "postre") return true;
       return isExplicitSnackRecipe({
         meal_type: source.meal_type ?? null,
         tags: source.tags,

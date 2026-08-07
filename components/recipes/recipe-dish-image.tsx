@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { ImageOff } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { RecipeImageLoader } from "@/components/recipes/RecipeImageLoader";
+import { hasDistinctRealDishPhoto } from "@/lib/recipes/dish-image-kind";
 import { usePremium } from "@/hooks/use-premium";
 import { DEFAULT_DISH_HERO_FALLBACK } from "@/lib/recipes/dish-image-fallback";
 import { cn } from "@/lib/utils";
@@ -28,7 +29,7 @@ export function RecipeDishImage({
   isGeneratingPhoto = false
 }: Props) {
   const t = useTranslations("RecipeDetail");
-  const { isPaidPremium, isLoading } = usePremium();
+  const { isPremium, hasGeneratedRealPhoto, isLoading } = usePremium();
   const [realImageFailed, setRealImageFailed] = useState(false);
   const [referenceImageFailed, setReferenceImageFailed] = useState(false);
   const [fallbackFailed, setFallbackFailed] = useState(false);
@@ -82,21 +83,21 @@ export function RecipeDishImage({
     return null;
   }
 
-  // Fotos: Premium de pago (banco + OpenAI) o Free con foto comprada (imageUrl).
-  const showRealImage = Boolean(imageUrl && !realImageFailed);
+  // Fotos: Premium de pago (banco + OpenAI) o Free con foto comprada (imageUrl distinta).
+  const showRealImage = Boolean(
+    imageUrl &&
+      !realImageFailed &&
+      hasDistinctRealDishPhoto({ imageUrl, referenceImageUrl })
+  );
   const showGeneratingSkeleton = Boolean(isGeneratingPhoto && !showRealImage);
 
-  if (!isPaidPremium && !showRealImage && !showGeneratingSkeleton) {
-    return null;
-  }
-
-  const effectiveReferenceUrl = isPaidPremium ? referenceImageUrl ?? null : null;
+  const effectiveReferenceUrl = referenceImageUrl ?? null;
   const effectiveRealUrl = imageUrl ?? null;
   const showReferenceImage = Boolean(
-    effectiveReferenceUrl &&
+    (effectiveReferenceUrl || (!showRealImage && effectiveRealUrl)) &&
       !referenceImageFailed &&
       !showGeneratingSkeleton &&
-      (!showRealImage || effectiveReferenceUrl !== effectiveRealUrl)
+      !showRealImage
   );
   const showReferenceOnly = showReferenceImage && !showRealImage;
 
@@ -132,12 +133,25 @@ export function RecipeDishImage({
     );
   }
 
-  if (showReferenceOnly) {
+  if (showReferenceOnly || (!isPremium && !showRealImage && !showGeneratingSkeleton)) {
+    const refSrc =
+      effectiveReferenceUrl && !referenceImageFailed
+        ? effectiveReferenceUrl
+        : effectiveRealUrl && !realImageFailed
+          ? effectiveRealUrl
+          : !fallbackFailed
+            ? DEFAULT_DISH_HERO_FALLBACK
+            : null;
+
+    if (!refSrc) {
+      return null;
+    }
+
     return (
       <div className={cn("mx-auto w-full max-w-[13rem] space-y-2", className)}>
         <div className="relative aspect-[4/3] overflow-hidden rounded-xl border border-stone-200/80 bg-stone-100">
           <img
-            src={effectiveReferenceUrl!}
+            src={refSrc}
             alt={
               recipeTitle
                 ? t("referenceImageAlt", { title: recipeTitle })
@@ -146,12 +160,29 @@ export function RecipeDishImage({
             className="h-full w-full object-cover opacity-90"
             loading="lazy"
             decoding="async"
-            onError={() => setReferenceImageFailed(true)}
+            onError={() => {
+              if (effectiveReferenceUrl && refSrc === effectiveReferenceUrl) {
+                setReferenceImageFailed(true);
+                return;
+              }
+              if (effectiveRealUrl && refSrc === effectiveRealUrl) {
+                setRealImageFailed(true);
+                return;
+              }
+              setFallbackFailed(true);
+            }}
           />
         </div>
         <p className="text-center text-[10px] leading-snug text-stone-500">
-          {t("referenceImageNote")}
+          {isPremium && hasGeneratedRealPhoto
+            ? t("referenceImageAfterRealPhoto")
+            : t("referenceImageNote")}
         </p>
+        {!isPremium ? (
+          <p className="text-center text-[10px] font-semibold leading-snug text-[#556B2F]">
+            {t("premiumRealPhotoPrompt")}
+          </p>
+        ) : null}
       </div>
     );
   }

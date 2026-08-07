@@ -32,6 +32,7 @@ type Props = {
   isSavingFavorites?: boolean;
   isSavedFavorites?: boolean;
   isGeneratingPhoto?: boolean;
+  hasGeneratedRealPhoto?: boolean;
 };
 
 export function RecipeResultView({
@@ -50,7 +51,9 @@ export function RecipeResultView({
   appliedFilters = null,
   showAppliedFilters = false,
   mealTypeAdvisory = null,
-  isGeneratingPhoto = false
+  showPhotoBanner = false,
+  isGeneratingPhoto = false,
+  hasGeneratedRealPhoto = false
 }: Props) {
   const t = useTranslations("Scanner");
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
@@ -106,6 +109,9 @@ export function RecipeResultView({
             mealTypeAdvisory={mealTypeAdvisory}
             isGeneratingPhoto={isGeneratingPhoto}
             appliedFilters={appliedFilters}
+            isPremium={isPremium}
+            hasGeneratedRealPhoto={hasGeneratedRealPhoto}
+            onRequestPremium={() => setShowPremiumDialog(true)}
           />
         </div>
 
@@ -139,19 +145,21 @@ export function RecipeResultView({
             <button
               type="button"
               onClick={handleShareImage}
-              disabled={isGenerating}
+              disabled={actionsDisabled}
               className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full border border-stone-200/70 bg-white px-3 py-2 text-[12px] font-semibold text-[#556B2F] transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isGenerating ? (
+              {isGenerating || isGeneratingPhoto ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
               ) : (
                 <Share2 className="h-3.5 w-3.5" strokeWidth={2} />
               )}
               {isGenerating
                 ? t("generatingImage")
-                : t.has("shareRecipe")
-                  ? t("shareRecipe")
-                  : "Compartir"}
+                : isGeneratingPhoto
+                  ? t("generatingImage")
+                  : t.has("shareRecipe")
+                    ? t("shareRecipe")
+                    : "Compartir"}
             </button>
 
             <button

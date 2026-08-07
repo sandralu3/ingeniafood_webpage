@@ -3,24 +3,39 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CalendarPlus, Heart, Loader2, Share2, Trash2 } from "lucide-react";
+import { ArrowLeft, Bookmark, CalendarPlus, Heart, Loader2, Share2, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { ExternalMealDetailCard } from "@/components/plan/external-meal-detail-card";
 import { RecipeAppliedFiltersBadges } from "@/components/recipes/recipe-applied-filters-badges";
 import { RecipeInstagramAdminForm } from "@/components/recipes/recipe-instagram-admin-form";
+import { PublishSandraRecipeButton } from "@/components/recipes/publish-sandra-recipe-button";
+import { SandraRecipeBadge } from "@/components/recipes/sandra-recipe-badge";
 import { RecipeInstagramLink } from "@/components/recipes/recipe-instagram-link";
+import { PremiumUpgradeDialog } from "@/components/premium/premium-upgrade-dialog";
 import { AddToPlanSheet } from "@/components/scanner/add-to-plan-sheet";
 import { RecipeResultHeroCard } from "@/components/scanner/recipe-result-hero-card";
 import { RecipeShareCaptureHost } from "@/components/share/recipe-share-capture-host";
 import { useShareRecipeImage } from "@/hooks/use-share-recipe-image";
+import { usePremium } from "@/hooks/use-premium";
 import { isSandraAdmin } from "@/lib/auth/sandra-admin";
 import { translateMealType } from "@/lib/i18n/filter-labels";
-import { resolveExternalMealBadge, externalMealBadgeLabel } from "@/lib/plan/external-meal";
+import {
+  EXTERNAL_MEAL_TAG,
+  SCANNED_MEAL_TAG,
+  resolveExternalMealBadge,
+  externalMealBadgeLabel
+} from "@/lib/plan/external-meal";
 import { deleteSavedRecipe } from "@/lib/recipes/delete-saved-recipe";
 import {
+  addRecipeFavorite,
   isRecipeFavorite,
   toggleRecipeFavorite
 } from "@/lib/recipes/recipe-favorites";
+import {
+  findSavedSystemRecipeCopyId,
+  saveSystemRecipeToLibrary
+} from "@/lib/recipes/save-system-recipe";
+import { normalizeRecipeTags } from "@/lib/recipes/recipe-tags";
 import { ingredientsJsonToDisplayStrings } from "@/lib/recipes/structured-ingredients";
 import {
   parseStoredAppliedFilters
@@ -47,7 +62,7 @@ function isMissingOptionalColumnError(
 }
 
 const RECIPE_DETAIL_COLUMNS =
-  "id,title,description,cooking_time,is_airfryer,is_flourless,is_public,es_instagram,created_at,user_id,ingredients,steps,instructions,image_url,reference_image_url,tip_sandra,instagram_url,macros,meal_type,cuisine_style,servings,complexity,meal_type_advisory,tags" as const;
+  "id,title,description,cooking_time,is_airfryer,is_flourless,is_public,es_instagram,is_system_recipe,is_sandra_recipe,created_at,user_id,ingredients,steps,instructions,image_url,reference_image_url,tip_sandra,instagram_url,macros,meal_type,cuisine_style,servings,complexity,meal_type_advisory,tags" as const;
 
 const RECIPE_DETAIL_COLUMNS_LEGACY =
   "id,title,description,cooking_time,is_airfryer,is_flourless,is_public,es_instagram,created_at,user_id,ingredients,steps,instructions,image_url,tip_sandra,instagram_url,macros" as const;
@@ -60,16 +75,21 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
   const t = useTranslations("RecipeDetail");
   const tScanner = useTranslations("Scanner");
   const router = useRouter();
+  const { isPremium, hasGeneratedRealPhoto } = usePremium();
   const [recipeId, setRecipeId] = useState<string>("");
+  const [viewerUserId, setViewerUserId] = useState<string | null>(null);
   const [recipe, setRecipe] = useState<RecipeRow | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isFavorite, setIsFavorite] = useState(false);
   const [isTogglingFavorite, setIsTogglingFavorite] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isSavingToLibrary, setIsSavingToLibrary] = useState(false);
+  const [savedCopyId, setSavedCopyId] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isPlanSheetOpen, setIsPlanSheetOpen] = useState(false);
   const [planSuccessMessage, setPlanSuccessMessage] = useState<string | null>(null);
+  const [showPremiumDialog, setShowPremiumDialog] = useState(false);
   const {
     captureRef,
     captureRecipe,
@@ -126,97 +146,76 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
         return;
       }
 
+      setViewerUserId(user.id);
       setIsAdmin(isSandraAdmin(user.email));
 
-      const primaryQuery = await supabase
-        .from("recipes")
-        .select(RECIPE_DETAIL_COLUMNS)
-        .eq("id", recipeId)
-        .eq("user_id", user.id)
-        .maybeSingle();
+      // Solo por id: RLS permite propia, pública o is_system_recipe (no filtrar por user_id).
+      const fetchById = async (columns: string) =>
+        supabase.from("recipes").select(columns).eq("id", recipeId).maybeSingle();
 
+      let primaryQuery = await fetchById(RECIPE_DETAIL_COLUMNS);
       let recipeData = primaryQuery.data as RecipeRow | null;
       let recipeError = primaryQuery.error;
 
       if (
+        isMissingOptionalColumnError(recipeError, "is_system_recipe") ||
+        isMissingOptionalColumnError(recipeError, "is_sandra_recipe") ||
         isMissingOptionalColumnError(recipeError, "reference_image_url") ||
         isMissingOptionalColumnError(recipeError, "meal_type") ||
         isMissingOptionalColumnError(recipeError, "tags")
       ) {
-        const legacyQuery = await supabase
-          .from("recipes")
-          .select(RECIPE_DETAIL_COLUMNS_LEGACY)
-          .eq("id", recipeId)
-          .eq("user_id", user.id)
-          .maybeSingle();
-
+        const legacyQuery = await fetchById(RECIPE_DETAIL_COLUMNS_LEGACY);
         recipeError = legacyQuery.error;
         recipeData = legacyQuery.data
           ? ({
-              ...legacyQuery.data,
+              ...(legacyQuery.data as unknown as RecipeRow),
               reference_image_url: null,
               meal_type: null,
               cuisine_style: null,
               servings: null,
               complexity: null,
               meal_type_advisory: null,
-              tags: null
+              tags: null,
+              is_system_recipe: false,
+              is_sandra_recipe: false
             } as RecipeRow)
           : null;
       }
 
       if (isMissingOptionalColumnError(recipeError, "tip_sandra")) {
-        const fallbackQuery = await supabase
-          .from("recipes")
-          .select(
-            "id,title,description,cooking_time,is_airfryer,is_flourless,is_public,created_at,user_id,ingredients,steps,instructions,image_url,instagram_url"
-          )
-          .eq("id", recipeId)
-          .eq("user_id", user.id)
-          .maybeSingle();
-
+        const fallbackQuery = await fetchById(
+          "id,title,description,cooking_time,is_airfryer,is_flourless,is_public,created_at,user_id,ingredients,steps,instructions,image_url,instagram_url"
+        );
         recipeError = fallbackQuery.error;
         recipeData = fallbackQuery.data
           ? ({
-              ...fallbackQuery.data,
+              ...(fallbackQuery.data as unknown as RecipeRow),
               tip_sandra: null
             } as RecipeRow)
           : null;
       }
 
       if (isMissingOptionalColumnError(recipeError, "instagram_url")) {
-        const fallbackQuery = await supabase
-          .from("recipes")
-          .select(
-            "id,title,description,cooking_time,is_airfryer,is_flourless,is_public,created_at,user_id,ingredients,steps,instructions,image_url,tip_sandra"
-          )
-          .eq("id", recipeId)
-          .eq("user_id", user.id)
-          .maybeSingle();
-
+        const fallbackQuery = await fetchById(
+          "id,title,description,cooking_time,is_airfryer,is_flourless,is_public,created_at,user_id,ingredients,steps,instructions,image_url,tip_sandra"
+        );
         recipeError = fallbackQuery.error;
         recipeData = fallbackQuery.data
           ? ({
-              ...fallbackQuery.data,
+              ...(fallbackQuery.data as unknown as RecipeRow),
               instagram_url: null
             } as RecipeRow)
           : null;
       }
 
       if (isMissingOptionalColumnError(recipeError, "macros")) {
-        const fallbackQuery = await supabase
-          .from("recipes")
-          .select(
-            "id,title,description,cooking_time,is_airfryer,is_flourless,is_public,created_at,user_id,ingredients,steps,instructions,image_url,tip_sandra,instagram_url"
-          )
-          .eq("id", recipeId)
-          .eq("user_id", user.id)
-          .maybeSingle();
-
+        const fallbackQuery = await fetchById(
+          "id,title,description,cooking_time,is_airfryer,is_flourless,is_public,created_at,user_id,ingredients,steps,instructions,image_url,tip_sandra,instagram_url"
+        );
         recipeError = fallbackQuery.error;
         recipeData = fallbackQuery.data
           ? ({
-              ...fallbackQuery.data,
+              ...(fallbackQuery.data as unknown as RecipeRow),
               macros: null
             } as RecipeRow)
           : null;
@@ -233,8 +232,21 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
       if (recipeData) {
         const favorite = await isRecipeFavorite(recipeData.id);
         setIsFavorite(favorite);
+        const isSystem =
+          "is_system_recipe" in recipeData
+            ? Boolean(
+                (recipeData as RecipeRow & { is_system_recipe?: boolean }).is_system_recipe
+              )
+            : false;
+        if (isSystem) {
+          const copyId = await findSavedSystemRecipeCopyId(recipeData.id);
+          setSavedCopyId(copyId);
+        } else {
+          setSavedCopyId(null);
+        }
       } else {
         setIsFavorite(false);
+        setSavedCopyId(null);
       }
       setIsLoading(false);
     };
@@ -257,6 +269,18 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
     [recipe]
   );
 
+  const cookingStepsCount = useMemo(() => {
+    if (!recipe || !Array.isArray(recipe.steps)) return 0;
+    return recipe.steps.filter(
+      (step): step is string => typeof step === "string" && step.trim().length > 0
+    ).length;
+  }, [recipe]);
+
+  /** Admin con pasos reales: mostrar receta completa (no solo ficha de comida fuera). */
+  const showExternalMealLayout = Boolean(
+    externalBadge && !(isAdmin && cookingStepsCount >= 2)
+  );
+
   const mealTypeLabel = useMemo(() => {
     const mealType =
       appliedFilters?.mealType ??
@@ -265,7 +289,7 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
   }, [appliedFilters?.mealType, recipe?.meal_type, tScanner]);
 
   const handleToggleFavorite = useCallback(async () => {
-    if (!recipe || isTogglingFavorite || isDeleting) return;
+    if (!recipe || isTogglingFavorite || isDeleting || isSavingToLibrary) return;
 
     setIsTogglingFavorite(true);
     setErrorMessage(null);
@@ -279,10 +303,41 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
     }
 
     setIsTogglingFavorite(false);
-  }, [isDeleting, isFavorite, isTogglingFavorite, recipe]);
+  }, [isDeleting, isFavorite, isSavingToLibrary, isTogglingFavorite, recipe]);
+
+  const handleSaveSystemRecipe = useCallback(async () => {
+    if (!recipe || isSavingToLibrary || isDeleting || isTogglingFavorite) return;
+
+    setIsSavingToLibrary(true);
+    setErrorMessage(null);
+    setPlanSuccessMessage(null);
+
+    const result = await saveSystemRecipeToLibrary(recipe.id);
+
+    if (!result.success) {
+      setErrorMessage(result.error);
+      setIsSavingToLibrary(false);
+      return;
+    }
+
+    setSavedCopyId(result.recipeId);
+
+    // También marcar favorito sobre la receta del banco (y la copia si hace falta).
+    if (!isFavorite) {
+      const fav = await addRecipeFavorite(recipe.id);
+      if (fav.success) {
+        setIsFavorite(true);
+      }
+    }
+
+    setPlanSuccessMessage(
+      result.alreadySaved ? t("alreadyInLibrary") : t("savedToLibrary")
+    );
+    setIsSavingToLibrary(false);
+  }, [isDeleting, isFavorite, isSavingToLibrary, isTogglingFavorite, recipe, t]);
 
   const handleDeleteRecipe = useCallback(async () => {
-    if (!recipe || isDeleting || isTogglingFavorite || isSharing) return;
+    if (!recipe || isDeleting || isTogglingFavorite || isSharing || isSavingToLibrary) return;
 
     const confirmed = window.confirm(t("deleteConfirm", { title: recipe.title }));
     if (!confirmed) return;
@@ -299,7 +354,7 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
 
     setErrorMessage(result.error);
     setIsDeleting(false);
-  }, [isDeleting, isSharing, isTogglingFavorite, recipe, router, t]);
+  }, [isDeleting, isSavingToLibrary, isSharing, isTogglingFavorite, recipe, router, t]);
 
   const handleShareRecipe = useCallback(() => {
     if (!recipe || !shareableRecipe || isSharing || isDeleting) return;
@@ -317,7 +372,45 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
 
   const persistRecipeId = useCallback(async () => recipe?.id ?? null, [recipe]);
 
-  const actionsBusy = isTogglingFavorite || isDeleting || isSharing;
+  const actionsBusy = isTogglingFavorite || isDeleting || isSharing || isSavingToLibrary;
+  const isOwnedRecipe = Boolean(recipe && viewerUserId && recipe.user_id === viewerUserId);
+  const isSystemRecipe = Boolean(
+    recipe &&
+      ("is_system_recipe" in recipe
+        ? (recipe as RecipeRow & { is_system_recipe?: boolean }).is_system_recipe
+        : false)
+  );
+  const isSandraRecipe = Boolean(
+    recipe &&
+      ("is_sandra_recipe" in recipe
+        ? (recipe as RecipeRow & { is_sandra_recipe?: boolean }).is_sandra_recipe
+        : false)
+  );
+  const isSavedToLibrary = Boolean(savedCopyId);
+  const canPublishAsSandra =
+    isAdmin && isOwnedRecipe && Boolean(recipe) && !isSandraRecipe;
+
+  const handlePublishedAsSandra = useCallback(() => {
+    setRecipe((current) => {
+      if (!current) return current;
+      const cleanedTags = normalizeRecipeTags(current.tags).filter((tag) => {
+        const lower = tag.toLowerCase();
+        return (
+          lower !== EXTERNAL_MEAL_TAG &&
+          lower !== SCANNED_MEAL_TAG &&
+          lower !== "comida fuera"
+        );
+      });
+      return {
+        ...current,
+        tags: cleanedTags,
+        is_system_recipe: true,
+        is_sandra_recipe: true,
+        is_public: true
+      };
+    });
+    setPlanSuccessMessage(t("publishSandraSuccess"));
+  }, [t]);
 
   return (
     <section className="space-y-5 pb-8">
@@ -325,14 +418,14 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
 
       <div className="flex items-center justify-between gap-3">
         <Link
-          href={externalBadge ? "/app-recetas/plan" : "/app-recetas/recipes"}
+          href={externalBadge || isSystemRecipe ? "/app-recetas/plan" : "/app-recetas/recipes"}
           className="inline-flex items-center gap-2 text-xs font-medium text-[#4c6633]/80 transition hover:text-[#4c6633]"
         >
           <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.5} />
-          {externalBadge ? "Volver al plan" : t("backToRecipes")}
+          {externalBadge || isSystemRecipe ? "Volver al plan" : t("backToRecipes")}
         </Link>
 
-        {!isLoading && recipe && !externalBadge ? (
+        {!isLoading && recipe && !showExternalMealLayout ? (
           <div className="flex items-center gap-1.5">
             <button
               type="button"
@@ -367,6 +460,32 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
               )}
             </button>
 
+            {isSystemRecipe ? (
+              <button
+                type="button"
+                onClick={() => void handleSaveSystemRecipe()}
+                disabled={actionsBusy || isSavedToLibrary}
+                aria-label={isSavedToLibrary ? t("alreadyInLibraryAria") : t("saveToLibraryAria")}
+                title={isSavedToLibrary ? t("alreadyInLibrary") : t("saveToLibrary")}
+                className={cn(
+                  "inline-flex h-10 w-10 items-center justify-center rounded-full border transition",
+                  isSavedToLibrary
+                    ? "border-[#556B2F]/30 bg-[#eef4e6] text-[#556B2F]"
+                    : "border-stone-200 bg-white text-stone-500 hover:border-[#556B2F]/30 hover:bg-[#eef4e6] hover:text-[#556B2F]",
+                  "disabled:cursor-not-allowed disabled:opacity-50"
+                )}
+              >
+                {isSavingToLibrary ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Bookmark
+                    className={cn("h-4 w-4", isSavedToLibrary ? "fill-current" : "")}
+                    strokeWidth={1.5}
+                  />
+                )}
+              </button>
+            ) : null}
+
             <button
               type="button"
               onClick={() => void handleToggleFavorite()}
@@ -391,22 +510,24 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
               )}
             </button>
 
-            <button
-              type="button"
-              onClick={() => void handleDeleteRecipe()}
-              disabled={actionsBusy}
-              aria-label={t("deleteAria")}
-              className={cn(
-                "inline-flex h-10 w-10 items-center justify-center rounded-full border border-stone-200 bg-white text-stone-400 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600",
-                "disabled:cursor-not-allowed disabled:opacity-50"
-              )}
-            >
-              {isDeleting ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Trash2 className="h-4 w-4" strokeWidth={1.5} />
-              )}
-            </button>
+            {isOwnedRecipe && !isSystemRecipe ? (
+              <button
+                type="button"
+                onClick={() => void handleDeleteRecipe()}
+                disabled={actionsBusy}
+                aria-label={t("deleteAria")}
+                className={cn(
+                  "inline-flex h-10 w-10 items-center justify-center rounded-full border border-stone-200 bg-white text-stone-400 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600",
+                  "disabled:cursor-not-allowed disabled:opacity-50"
+                )}
+              >
+                {isDeleting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4" strokeWidth={1.5} />
+                )}
+              </button>
+            ) : null}
           </div>
         ) : null}
       </div>
@@ -443,8 +564,8 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
         </p>
       ) : null}
 
-      {!isLoading && shareableRecipe && recipe && externalBadge ? (
-        <div className="animate-detail-enter">
+      {!isLoading && shareableRecipe && recipe && showExternalMealLayout ? (
+        <div className="animate-detail-enter space-y-4">
           {recipe.image_url?.trim() ? (
             <RecipeResultHeroCard
               recipe={shareableRecipe}
@@ -452,13 +573,13 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
               mealTypeAdvisory={recipe.meal_type_advisory || recipe.tip_sandra}
               appliedFilters={appliedFilters}
               imageFit="contain"
-              heroBadge={externalMealBadgeLabel(externalBadge)}
+              heroBadge={externalBadge ? externalMealBadgeLabel(externalBadge) : undefined}
               loggedMeal
             />
           ) : (
             <ExternalMealDetailCard
               title={recipe.title}
-              badge={externalBadge}
+              badge={externalBadge!}
               imageUrl={recipe.image_url}
               calories={shareableRecipe.macronutrientes?.calorias ?? null}
               proteinGrams={shareableRecipe.macronutrientes?.proteinas_g ?? null}
@@ -474,11 +595,19 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
                 .filter((tip) => tip.length >= 8)}
             />
           )}
+          {canPublishAsSandra ? (
+            <PublishSandraRecipeButton
+              recipeId={recipe.id}
+              disabled={actionsBusy}
+              onPublished={handlePublishedAsSandra}
+            />
+          ) : null}
         </div>
       ) : null}
 
-      {!isLoading && shareableRecipe && recipe && !externalBadge ? (
+      {!isLoading && shareableRecipe && recipe && !showExternalMealLayout ? (
         <article className="animate-detail-enter space-y-4">
+          {isSandraRecipe ? <SandraRecipeBadge /> : null}
           {recipe.instagram_url ? (
             <RecipeInstagramLink url={recipe.instagram_url} />
           ) : null}
@@ -495,7 +624,17 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
             pantryIngredients={[]}
             mealTypeAdvisory={recipe.meal_type_advisory}
             appliedFilters={appliedFilters}
+            isPremium={isPremium}
+            hasGeneratedRealPhoto={hasGeneratedRealPhoto}
+            onRequestPremium={() => setShowPremiumDialog(true)}
           />
+          {canPublishAsSandra ? (
+            <PublishSandraRecipeButton
+              recipeId={recipe.id}
+              disabled={actionsBusy}
+              onPublished={handlePublishedAsSandra}
+            />
+          ) : null}
           {isAdmin ? (
             <RecipeInstagramAdminForm
               recipeId={recipe.id}
@@ -506,7 +645,7 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
         </article>
       ) : null}
 
-      {!isLoading && recipe && !externalBadge ? (
+      {!isLoading && recipe && !showExternalMealLayout ? (
         <AddToPlanSheet
           isOpen={isPlanSheetOpen}
           onClose={() => setIsPlanSheetOpen(false)}
@@ -517,6 +656,12 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
           }}
         />
       ) : null}
+
+      <PremiumUpgradeDialog
+        open={showPremiumDialog}
+        onClose={() => setShowPremiumDialog(false)}
+        featureLabel={t("realPhotoFeature")}
+      />
 
       <style jsx>{`
         @keyframes detailEnter {

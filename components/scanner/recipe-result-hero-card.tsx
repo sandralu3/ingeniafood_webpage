@@ -2,12 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
+import { Crown } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { ShareableRecipe } from "@/lib/share/recipe-share-image";
 import { formatTimeLabel } from "@/lib/share/recipe-share-utils";
 import { normalizeRecipeSteps } from "@/lib/recipes/sentence-case";
 import { partitionIngredientsByPantry } from "@/lib/recipes/recipe-options";
-import { DEFAULT_DISH_HERO_FALLBACK } from "@/lib/recipes/dish-image-fallback";
+import { DEFAULT_DISH_HERO_FALLBACK, getRecipeImageFallback } from "@/lib/recipes/dish-image-fallback";
+import { isShowingReferenceDishImage } from "@/lib/recipes/dish-image-kind";
 import type { AppliedRecipeFilters } from "@/lib/recipes/premium-recipe-filters";
 import {
   inferAdvisoryTone,
@@ -41,6 +43,11 @@ type Props = {
    * La alerta (mealTypeAdvisory) se mantiene.
    */
   loggedMeal?: boolean;
+  /** Si false, al mostrar imagen de referencia se anima a Premium. */
+  isPremium?: boolean;
+  /** Ya usó su único intento de foto real (prueba 24h / Premium once). */
+  hasGeneratedRealPhoto?: boolean;
+  onRequestPremium?: () => void;
 };
 
 export function RecipeResultHeroCard({
@@ -51,7 +58,10 @@ export function RecipeResultHeroCard({
   appliedFilters = null,
   imageFit = "cover",
   heroBadge = null,
-  loggedMeal = false
+  loggedMeal = false,
+  isPremium = false,
+  hasGeneratedRealPhoto = false,
+  onRequestPremium
 }: Props) {
   const t = useTranslations("Scanner");
   const tDetail = useTranslations("RecipeDetail");
@@ -119,6 +129,15 @@ export function RecipeResultHeroCard({
   const showGenerating = Boolean(isGeneratingPhoto && !primaryUrl);
   const loaderMessageKey =
     LOADER_MESSAGE_KEYS[loaderMessageIndex] ?? LOADER_MESSAGE_KEYS[0];
+  const catalogFallback = useMemo(
+    () =>
+      getRecipeImageFallback({
+        titulo: recipe.titulo,
+        ingredientes_detallados: recipe.ingredientes_detallados,
+        tags: recipe.tags
+      }),
+    [recipe.titulo, recipe.ingredientes_detallados, recipe.tags]
+  );
   const heroImageUrl = showGenerating
     ? null
     : primaryUrl && !imageFailed
@@ -126,8 +145,17 @@ export function RecipeResultHeroCard({
       : !isGeneratingPhoto && referenceUrl && !imageFailed
         ? referenceUrl
         : !isGeneratingPhoto && !fallbackFailed
-          ? DEFAULT_DISH_HERO_FALLBACK
+          ? catalogFallback || DEFAULT_DISH_HERO_FALLBACK
           : null;
+
+  const showingReferenceImage =
+    !loggedMeal &&
+    !showGenerating &&
+    isShowingReferenceDishImage({
+      recipe,
+      heroImageUrl,
+      imageFailed
+    });
 
   return (
     <section className="overflow-hidden rounded-3xl border border-stone-100 bg-white shadow-sm">
@@ -255,6 +283,16 @@ export function RecipeResultHeroCard({
             {heroBadge}
           </span>
         ) : null}
+        {showingReferenceImage ? (
+          <span
+            className={cn(
+              "absolute z-30 inline-flex items-center rounded-full bg-black/55 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-white backdrop-blur-sm ring-1 ring-white/20",
+              heroBadge?.trim() ? "left-3 top-12" : "left-3 top-3"
+            )}
+          >
+            {tDetail("referenceImageBadge")}
+          </span>
+        ) : null}
         <div className="absolute inset-x-0 bottom-0 z-30 space-y-2 px-4 pb-3 pt-10">
           <h1 className="font-serif text-lg font-semibold leading-snug text-white drop-shadow-md">
             {recipe.titulo}
@@ -270,6 +308,29 @@ export function RecipeResultHeroCard({
             proteinLabel={t("macroProteinShort")}
             hideTime={!recipe.tiempo_preparacion?.trim()}
           />
+          {showingReferenceImage ? (
+            <div className="rounded-xl bg-black/45 px-2.5 py-2 backdrop-blur-sm ring-1 ring-white/15">
+              <p className="text-[10px] leading-snug text-white/90">
+                {isPremium && hasGeneratedRealPhoto
+                  ? tDetail("referenceImageAfterRealPhoto")
+                  : tDetail("referenceImageNote")}
+              </p>
+              {!isPremium && onRequestPremium ? (
+                <button
+                  type="button"
+                  onClick={onRequestPremium}
+                  className="mt-1.5 inline-flex items-center gap-1 text-[10px] font-semibold text-[#F5E6A6] underline-offset-2 hover:underline"
+                >
+                  <Crown className="h-3 w-3" strokeWidth={2} aria-hidden />
+                  {tDetail("premiumRealPhotoPrompt")}
+                </button>
+              ) : !isPremium ? (
+                <p className="mt-1.5 text-[10px] font-semibold text-[#F5E6A6]">
+                  {tDetail("premiumRealPhotoPrompt")}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </div>
 

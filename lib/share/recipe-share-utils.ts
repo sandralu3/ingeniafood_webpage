@@ -39,6 +39,31 @@ export function jsonToStringList(value: Json): string[] {
   return [];
 }
 
+/** Pasos de preparación: no pasar por el parser de ingredientes (Title Case). */
+export function jsonToStepList(value: Json): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => {
+        if (typeof item === "string") return item.trim();
+        if (item && typeof item === "object" && "text" in item && typeof (item as { text: unknown }).text === "string") {
+          return (item as { text: string }).text.trim();
+        }
+        if (item && typeof item === "object" && "step" in item && typeof (item as { step: unknown }).step === "string") {
+          return (item as { step: string }).step.trim();
+        }
+        return String(item ?? "").trim();
+      })
+      .filter(Boolean);
+  }
+  if (typeof value === "string") {
+    return value
+      .split("\n")
+      .map((line) => line.replace(/^\d+[.)]\s*/, "").trim())
+      .filter(Boolean);
+  }
+  return [];
+}
+
 export function parseInstructionsToSteps(instructions: string): string[] {
   return instructions
     .split("\n")
@@ -74,32 +99,46 @@ export function savedRecipeToShareable(recipe: SavedRecipeSource): ShareableReci
   const external = isExternalMeal(tags);
 
   const ingredientes = jsonToStringList(recipe.ingredients);
-  let pasos = external ? [] : recipe.steps ? jsonToStringList(recipe.steps) : [];
-  if (!external && pasos.length === 0) {
+  // Si hay pasos reales (p. ej. escaneo Admin), mostrarlos aunque siga etiquetada como comida fuera.
+  let pasos = recipe.steps ? jsonToStepList(recipe.steps) : [];
+  if (pasos.length === 0 && !external) {
     pasos = parseInstructionsToSteps(recipe.instructions);
   }
 
   const tiempo =
     recipe.cooking_time && recipe.cooking_time > 0
       ? `${recipe.cooking_time} min`
-      : external
+      : external && pasos.length === 0
         ? ""
         : "25 min";
 
   const storedImage = recipe.image_url?.trim() || null;
   const storedReference = recipe.reference_image_url?.trim() || null;
-  // Comida fuera: solo foto del plato (o ninguna). Nunca banco/stock.
-  const resolvedImage = external
-    ? storedImage
-    : storedImage ||
-      storedReference ||
-      getRecipeImageFallback({
+  const isExternalPlateOnly = external && pasos.length === 0;
+
+  let imageUrl: string | null = storedImage;
+  let referenceImageUrl: string | null = isExternalPlateOnly ? null : storedReference;
+
+  if (!isExternalPlateOnly) {
+    if (imageUrl && referenceImageUrl && imageUrl === referenceImageUrl) {
+      // Banco / stock: mantener ambas iguales.
+    } else if (imageUrl && !referenceImageUrl) {
+      // Legacy free/stock guardado solo en image_url → tratar como referencia.
+      referenceImageUrl = imageUrl;
+    } else if (!imageUrl && referenceImageUrl) {
+      imageUrl = referenceImageUrl;
+    } else if (!imageUrl && !referenceImageUrl) {
+      const fallback = getRecipeImageFallback({
         title: recipe.title,
-        image_url: storedImage,
-        reference_image_url: storedReference,
-        ingredients: jsonToStringList(recipe.ingredients),
+        image_url: null,
+        reference_image_url: null,
+        ingredients: ingredientes,
         tags
       });
+      imageUrl = fallback;
+      referenceImageUrl = fallback;
+    }
+  }
 
   return {
     titulo: recipe.title,
@@ -109,8 +148,7 @@ export function savedRecipeToShareable(recipe: SavedRecipeSource): ShareableReci
     tip_sandra: recipe.tip_sandra ?? "",
     tags,
     macronutrientes: parseMacrosFromJson(recipe.macros),
-    imageUrl: resolvedImage,
-    referenceImageUrl:
-      !external && storedReference && storedReference !== resolvedImage ? storedReference : null
+    imageUrl: isExternalPlateOnly ? storedImage : imageUrl,
+    referenceImageUrl: isExternalPlateOnly ? null : referenceImageUrl
   };
 }

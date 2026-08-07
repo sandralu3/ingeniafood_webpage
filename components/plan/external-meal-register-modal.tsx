@@ -280,7 +280,18 @@ export function ExternalMealRegisterModal({
         balance: data.estimate.balance ?? "mejorable",
         recomendaciones: Array.isArray(data.estimate.recomendaciones)
           ? data.estimate.recomendaciones
-          : []
+          : [],
+        pasos_ordenados: Array.isArray(data.estimate.pasos_ordenados)
+          ? data.estimate.pasos_ordenados
+              .filter((step): step is string => typeof step === "string" && step.trim().length > 0)
+              .map((step) => step.trim())
+          : undefined,
+        tiempo_preparacion:
+          typeof data.estimate.tiempo_preparacion === "string"
+            ? data.estimate.tiempo_preparacion
+            : undefined,
+        tip_sandra:
+          typeof data.estimate.tip_sandra === "string" ? data.estimate.tip_sandra : undefined
       },
       { existingMealItems }
     );
@@ -839,6 +850,44 @@ export function ExternalMealRegisterModal({
               ))}
             </div>
           </div>
+
+          {liveEstimate.pasos_ordenados && liveEstimate.pasos_ordenados.length >= 2 ? (
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between gap-2 px-0.5">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-[#556B2F]">
+                  {t.has("externalMealPrepLabel")
+                    ? t("externalMealPrepLabel")
+                    : "Preparación"}
+                </p>
+                {liveEstimate.tiempo_preparacion ? (
+                  <p className="text-[10px] font-medium text-stone-400">
+                    {liveEstimate.tiempo_preparacion}
+                  </p>
+                ) : null}
+              </div>
+              <p className="px-0.5 text-[10px] leading-snug text-stone-500">
+                {t.has("externalMealPrepHint")
+                  ? t("externalMealPrepHint")
+                  : "Pasos generados para publicar como Receta de Sandra."}
+              </p>
+              <ol className="space-y-2 overflow-hidden rounded-xl border border-[#556B2F]/20 bg-[#eef4e6]/40 px-3 py-2.5">
+                {liveEstimate.pasos_ordenados.map((paso, index) => (
+                  <li key={`prep-${index}`} className="flex gap-2 text-[12px] leading-snug text-stone-700">
+                    <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#556B2F] text-[10px] font-bold text-white">
+                      {index + 1}
+                    </span>
+                    <span className="min-w-0 flex-1 pt-0.5">{paso}</span>
+                  </li>
+                ))}
+              </ol>
+              {liveEstimate.tip_sandra?.trim() ? (
+                <p className="rounded-lg bg-white/80 px-2.5 py-2 text-[11px] leading-snug text-stone-600 ring-1 ring-stone-200/80">
+                  <span className="font-semibold text-[#556B2F]">Tip: </span>
+                  {liveEstimate.tip_sandra.trim()}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       ) : null}
 

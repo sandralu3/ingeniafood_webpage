@@ -6,6 +6,9 @@ import {
 } from "@/lib/auth/premium-access";
 
 const PROMO_DURATION_HOURS = 24;
+/** Promo de bienvenida para nuevos registros (sin ?ref=). */
+export const WELCOME_PROMO_REF = "WELCOME";
+
 
 export type AttachReferralPromoResult =
   | { ok: true; alreadyClaimable: boolean; attached: boolean }
@@ -118,6 +121,82 @@ export async function attachReferralPromo(
   }
 
   return { ok: true, alreadyClaimable: false, attached: true };
+}
+
+/**
+ * Otorga el pase 24h reclamable de bienvenida si la cuenta nunca tuvo promo.
+ * No pisa una promo de referido pendiente ni una ya consumida.
+ */
+export async function ensureWelcomePromoClaimable(
+  userId: string
+): Promise<{ attached: boolean; alreadyClaimable: boolean }> {
+  const trimmedUserId = userId.trim();
+  if (!trimmedUserId) {
+    return { attached: false, alreadyClaimable: false };
+  }
+
+  const admin = getSupabaseAdminClient();
+  const { data: profile, error } = await admin
+    .from("profiles")
+    .select(
+      "has_promo_claimable, promo_code_ref, premium_expires_at, redeemed_code, is_premium, role, is_tester"
+    )
+    .eq("id", trimmedUserId)
+    .maybeSingle();
+
+  if (error || !profile) {
+    if (error) {
+      console.error("[referral-promo] welcome read", error.message);
+    }
+    return { attached: false, alreadyClaimable: false };
+  }
+
+  if (profile.has_promo_claimable === true) {
+    return { attached: false, alreadyClaimable: true };
+  }
+
+  if (isPremiumExpiryActive(profile.premium_expires_at)) {
+    return { attached: false, alreadyClaimable: false };
+  }
+
+  if (hasConsumedPromo(profile)) {
+    return { attached: false, alreadyClaimable: false };
+  }
+
+  const role = resolveUserRole(
+    {
+      is_premium: profile.is_premium,
+      role: profile.role,
+      is_tester: profile.is_tester
+    },
+    null
+  );
+  // Admin/tester permanentes ya tienen Premium; no hace falta banner de bienvenida.
+  if (role === "admin" || role === "tester") {
+    return { attached: false, alreadyClaimable: false };
+  }
+
+  const nowIso = new Date().toISOString();
+  const { data: updated, error: updateError } = await admin
+    .from("profiles")
+    .update({
+      has_promo_claimable: true,
+      promo_code_ref: WELCOME_PROMO_REF,
+      updated_at: nowIso
+    })
+    .eq("id", trimmedUserId)
+    .eq("has_promo_claimable", false)
+    .is("promo_code_ref", null)
+    .is("redeemed_code", null)
+    .select("id")
+    .maybeSingle();
+
+  if (updateError) {
+    console.error("[referral-promo] welcome update", updateError.message);
+    return { attached: false, alreadyClaimable: false };
+  }
+
+  return { attached: Boolean(updated?.id), alreadyClaimable: false };
 }
 
 /**

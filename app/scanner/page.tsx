@@ -275,6 +275,8 @@ export default function ScannerPage() {
   const [isSavingRecipe, setIsSavingRecipe] = useState(false);
   const [isRecipeSaved, setIsRecipeSaved] = useState(false);
   const [savedRecipeId, setSavedRecipeId] = useState<string | null>(null);
+  /** Ids de opciones ya guardadas (borrador promovido o insert nuevo). */
+  const [savedOptionIds, setSavedOptionIds] = useState<Set<string>>(() => new Set());
   const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null);
   const [saveErrorMessage, setSaveErrorMessage] = useState<string | null>(null);
   const [rateLimitSecondsLeft, setRateLimitSecondsLeft] = useState(0);
@@ -444,6 +446,7 @@ export default function ScannerPage() {
     setSaveErrorMessage(null);
     setIsRecipeSaved(false);
     setSavedRecipeId(null);
+    setSavedOptionIds(new Set());
     setRateLimitSecondsLeft(0);
     setAppliedRecipeFilters(null);
     setMealTypeAdvisory(null);
@@ -854,6 +857,7 @@ export default function ScannerPage() {
     setMealTypeMismatchMessage(null);
     setIsRecipeSaved(false);
     setSavedRecipeId(null);
+    setSavedOptionIds(new Set());
     setSaveErrorMessage(null);
     setRateLimitSecondsLeft(0);
 
@@ -1080,6 +1084,7 @@ export default function ScannerPage() {
       // No marcar como "ya guardada": el usuario debe poder pulsar Guardar.
       setSavedRecipeId(autoSavedId);
       setIsRecipeSaved(false);
+      setSavedOptionIds(new Set());
       setSaveErrorMessage(null);
       if (typeof payload.generationsLeft === "number") {
         setGenerationsLeft(payload.generationsLeft);
@@ -1234,12 +1239,13 @@ export default function ScannerPage() {
       selectedRecipeIndexRef.current = index;
       setSelectedRecipeIndex(index);
       setRecipe(next);
-      setIsRecipeSaved(false);
+      const optionKey = next.savedRecipeId ?? `opt-${index}`;
+      setIsRecipeSaved(savedOptionIds.has(optionKey));
       setSavedRecipeId(next.savedRecipeId ?? null);
       setSaveErrorMessage(null);
       return options;
     });
-  }, []);
+  }, [savedOptionIds]);
 
   const handleFindRecipes = () => {
     if (canOfferRealDishPhoto) {
@@ -1251,12 +1257,28 @@ export default function ScannerPage() {
     void generarReceta({ useDishPhoto: false });
   };
 
+  const markOptionSaved = useCallback((optionKey: string, recipeId: string) => {
+    setSavedOptionIds((prev) => {
+      const next = new Set(prev);
+      next.add(optionKey);
+      next.add(recipeId);
+      return next;
+    });
+    setSavedRecipeId(recipeId);
+    setIsRecipeSaved(true);
+  }, []);
+
   const persistGeneratedRecipe = useCallback(async (): Promise<string | null> => {
     if (!recipe || isGeneratingDishPhoto) return null;
 
     const selectedOption = recipeOptions[selectedRecipeIndex] ?? null;
     const source = selectedOption ?? recipe;
-    const draftId = selectedOption?.savedRecipeId ?? recipe.savedRecipeId ?? savedRecipeId;
+    const draftId = selectedOption?.savedRecipeId ?? recipe.savedRecipeId ?? null;
+    const optionKey = draftId ?? `opt-${selectedRecipeIndex}`;
+
+    if (savedOptionIds.has(optionKey) || (draftId && savedOptionIds.has(draftId))) {
+      return draftId ?? savedRecipeId;
+    }
 
     const supabase = createSupabaseClient();
     const {
@@ -1277,7 +1299,7 @@ export default function ScannerPage() {
       tags: recipeTags
     });
 
-    // Si ya existe el borrador de esta opción (foto OpenAI), promoverlo y borrar el resto.
+    // Borrador Premium (foto OpenAI): promover solo esta opción; las otras siguen disponibles.
     if (draftId) {
       const promoteResult = await promoteScannerDraftRecipe(supabase, {
         userId: user.id,
@@ -1292,22 +1314,9 @@ export default function ScannerPage() {
         return null;
       }
 
-      const siblingDrafts = scannerDraftIdsRef.current.filter((id) => id !== draftId);
-      if (siblingDrafts.length > 0) {
-        await deleteScannerDraftRecipes(supabase, {
-          userId: user.id,
-          recipeIds: siblingDrafts
-        });
-      }
-      scannerDraftIdsRef.current = [];
-
-      setSavedRecipeId(draftId);
-      setIsRecipeSaved(true);
+      scannerDraftIdsRef.current = scannerDraftIdsRef.current.filter((id) => id !== draftId);
+      markOptionSaved(optionKey, draftId);
       return draftId;
-    }
-
-    if (savedRecipeId) {
-      return savedRecipeId;
     }
 
     const instructions = (source.pasos_ordenados ?? [])
@@ -1343,15 +1352,26 @@ export default function ScannerPage() {
       return null;
     }
 
-    setSavedRecipeId(saveResult.recipeId);
-    setIsRecipeSaved(true);
+    markOptionSaved(optionKey, saveResult.recipeId);
+    setRecipeOptions((current) =>
+      current.map((option, index) =>
+        index === selectedRecipeIndex
+          ? { ...option, savedRecipeId: saveResult.recipeId }
+          : option
+      )
+    );
+    setRecipe((current) =>
+      current ? { ...current, savedRecipeId: saveResult.recipeId } : current
+    );
     return saveResult.recipeId;
   }, [
     appliedRecipeFilters,
     isGeneratingDishPhoto,
+    markOptionSaved,
     mealTypeAdvisory,
     recipe,
     recipeOptions,
+    savedOptionIds,
     savedRecipeId,
     selectedRecipeIndex
   ]);
@@ -1379,8 +1399,6 @@ export default function ScannerPage() {
         return;
       }
 
-      setIsRecipeSaved(true);
-
       const pending = readPendingPlanAssignment();
       if (pending) {
         const assignment = await completePendingPlanAssignment(user.id, recipeId);
@@ -1403,10 +1421,16 @@ export default function ScannerPage() {
         return;
       }
 
-      setSaveSuccessMessage("¡Receta guardada con éxito!");
-      window.setTimeout(() => {
-        window.location.assign(APP_ROUTES.guardadas);
-      }, 600);
+      const remainingOptions = recipeOptions.length > 1;
+      setSaveSuccessMessage(
+        remainingOptions
+          ? t.has("savedSuccessKeepBrowsing")
+            ? t("savedSuccessKeepBrowsing")
+            : "¡Receta guardada! Puedes guardar también las otras opciones."
+          : t.has("savedSuccess")
+            ? t("savedSuccess")
+            : "¡Receta guardada con éxito!"
+      );
     } catch (error) {
       console.error("[save-recipe] Error guardando receta:", error);
       setSaveErrorMessage("No pudimos guardar la receta. Inténtalo nuevamente.");
@@ -1557,6 +1581,7 @@ export default function ScannerPage() {
               isGeneratingDishPhoto &&
               !(recipeOptions[selectedRecipeIndex] ?? recipe)?.imageUrl
             }
+            hasGeneratedRealPhoto={hasGeneratedRealPhoto}
           />
         </section>
       ) : null}
