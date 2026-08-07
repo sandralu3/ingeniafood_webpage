@@ -8,11 +8,13 @@ import { PremiumRichText } from "@/components/premium/premium-label";
 import { usePremium } from "@/hooks/use-premium";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import { evaluateSubscriptionAccess } from "@/lib/billing/has-valid-subscription";
+import { openPaddleCheckoutOverlay } from "@/lib/paddle/browser";
+import { isPaddleCustomerId } from "@/lib/paddle/ids";
 import type { SubscriptionRow } from "@/types/subscription";
 import { cn } from "@/lib/utils";
 
-async function redirectToStripeUrl(endpoint: string): Promise<void> {
-  const response = await fetch(endpoint, {
+async function redirectToPortal(): Promise<void> {
+  const response = await fetch("/api/paddle/portal-session", {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" }
@@ -21,7 +23,7 @@ async function redirectToStripeUrl(endpoint: string): Promise<void> {
   const payload = (await response.json()) as { url?: string; error?: string };
 
   if (!response.ok || !payload.url) {
-    throw new Error(payload.error ?? "No pudimos conectar con Stripe.");
+    throw new Error(payload.error ?? "No pudimos conectar con Paddle.");
   }
 
   window.location.assign(payload.url);
@@ -29,12 +31,12 @@ async function redirectToStripeUrl(endpoint: string): Promise<void> {
 
 type BillingState = {
   hasActiveSubscription: boolean;
-  hasStripeCustomer: boolean;
+  hasPaddleCustomer: boolean;
 };
 
 /**
- * Suscripción Stripe: solo visible para perfiles con `is_tester`.
- * Sin suscripción activa → checkout. Con suscripción activa + customer → portal.
+ * Suscripción Paddle: solo visible para perfiles con `is_tester`.
+ * Sin suscripción activa → checkout overlay. Con suscripción activa + customer → portal.
  */
 export function PremiumBillingActions() {
   const t = useTranslations("Profile");
@@ -55,13 +57,13 @@ export function PremiumBillingActions() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [billing, setBilling] = useState<BillingState>({
     hasActiveSubscription: false,
-    hasStripeCustomer: false
+    hasPaddleCustomer: false
   });
   const [isBillingLoading, setIsBillingLoading] = useState(true);
 
   const refreshBilling = useCallback(async () => {
     if (!userId) {
-      setBilling({ hasActiveSubscription: false, hasStripeCustomer: false });
+      setBilling({ hasActiveSubscription: false, hasPaddleCustomer: false });
       setIsBillingLoading(false);
       return;
     }
@@ -72,7 +74,7 @@ export function PremiumBillingActions() {
       const { data } = await supabase
         .from("subscriptions")
         .select(
-          "user_id, stripe_customer_id, stripe_subscription_id, status, price_id, current_period_end, created_at, updated_at"
+          "user_id, paddle_customer_id, paddle_subscription_id, status, price_id, current_period_end, created_at, updated_at"
         )
         .eq("user_id", userId)
         .maybeSingle();
@@ -80,10 +82,10 @@ export function PremiumBillingActions() {
       const access = evaluateSubscriptionAccess((data as SubscriptionRow | null) ?? null);
       setBilling({
         hasActiveSubscription: access.hasValidSubscription,
-        hasStripeCustomer: Boolean(access.stripeCustomerId?.trim())
+        hasPaddleCustomer: isPaddleCustomerId(access.paddleCustomerId)
       });
     } catch {
-      setBilling({ hasActiveSubscription: false, hasStripeCustomer: false });
+      setBilling({ hasActiveSubscription: false, hasPaddleCustomer: false });
     } finally {
       setIsBillingLoading(false);
     }
@@ -111,18 +113,45 @@ export function PremiumBillingActions() {
     return null;
   }
 
-  // Solo portal si hay suscripción Stripe real. is_premium manual no basta.
   const canManageSubscription =
-    isTester && billing.hasActiveSubscription && billing.hasStripeCustomer;
+    isTester && billing.hasActiveSubscription && billing.hasPaddleCustomer;
   const canStartSubscription = isTester && !billing.hasActiveSubscription;
 
   const handleUpgrade = async () => {
     setIsCheckoutLoading(true);
     setErrorMessage(null);
     try {
-      await redirectToStripeUrl("/api/stripe/checkout-session");
+      const response = await fetch("/api/paddle/checkout-session", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ interval: "month" })
+      });
+      const payload = (await response.json()) as {
+        priceId?: string;
+        clientToken?: string;
+        environment?: string;
+        customer?: { email?: string };
+        customData?: Record<string, unknown>;
+        settings?: { successUrl?: string };
+        error?: string;
+      };
+
+      if (!response.ok || !payload.priceId || !payload.customer?.email) {
+        throw new Error(payload.error ?? t("billingError"));
+      }
+
+      await openPaddleCheckoutOverlay({
+        priceId: payload.priceId,
+        customerEmail: payload.customer.email,
+        customData: payload.customData ?? {},
+        successUrl: payload.settings?.successUrl,
+        clientToken: payload.clientToken,
+        environment: payload.environment
+      });
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : t("billingError"));
+    } finally {
       setIsCheckoutLoading(false);
     }
   };
@@ -131,7 +160,7 @@ export function PremiumBillingActions() {
     setIsPortalLoading(true);
     setErrorMessage(null);
     try {
-      await redirectToStripeUrl("/api/stripe/portal-session");
+      await redirectToPortal();
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : t("billingError"));
       setIsPortalLoading(false);

@@ -56,19 +56,36 @@ export function PremiumUpgradeDialog({
     setUpgradeError(null);
 
     try {
-      const response = await fetch("/api/stripe/checkout-session", {
+      const response = await fetch("/api/paddle/checkout-session", {
         method: "POST",
         credentials: "include",
-        headers: { "Content-Type": "application/json" }
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ interval: "month" })
       });
-      const payload = (await response.json()) as { url?: string; error?: string };
+      const payload = (await response.json()) as {
+        priceId?: string;
+        clientToken?: string;
+        environment?: string;
+        customer?: { email?: string };
+        customData?: Record<string, unknown>;
+        settings?: { successUrl?: string };
+        error?: string;
+      };
 
-      if (!response.ok || !payload.url) {
+      if (!response.ok || !payload.priceId || !payload.customer?.email) {
         setUpgradeError(payload.error ?? "No pudimos abrir el pago de Premium.");
         return;
       }
 
-      window.location.assign(payload.url);
+      const { openPaddleCheckoutOverlay } = await import("@/lib/paddle/browser");
+      await openPaddleCheckoutOverlay({
+        priceId: payload.priceId,
+        customerEmail: payload.customer.email,
+        customData: payload.customData ?? {},
+        successUrl: payload.settings?.successUrl,
+        clientToken: payload.clientToken,
+        environment: payload.environment
+      });
     } catch {
       setUpgradeError("No pudimos abrir el pago de Premium.");
     } finally {

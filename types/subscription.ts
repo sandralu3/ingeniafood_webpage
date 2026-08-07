@@ -1,6 +1,6 @@
 /**
- * Tipos de suscripción Premium (Stripe Billing).
- * Alineados con public.subscriptions y los estados de Stripe Subscription.
+ * Tipos de suscripción Premium (Paddle Billing).
+ * Alineados con public.subscriptions y estados Paddle Subscription.
  */
 
 export const SUBSCRIPTION_STATUSES = [
@@ -41,8 +41,8 @@ export function isValidSubscriptionStatus(
 /** Fila de public.subscriptions (shape de app, camelCase). */
 export type UserSubscription = {
   userId: string;
-  stripeCustomerId: string | null;
-  stripeSubscriptionId: string | null;
+  paddleCustomerId: string | null;
+  paddleSubscriptionId: string | null;
   status: SubscriptionStatus;
   priceId: string | null;
   currentPeriodEnd: string | null;
@@ -53,8 +53,8 @@ export type UserSubscription = {
 /** Fila cruda de Supabase (snake_case). */
 export type SubscriptionRow = {
   user_id: string;
-  stripe_customer_id: string | null;
-  stripe_subscription_id: string | null;
+  paddle_customer_id: string | null;
+  paddle_subscription_id: string | null;
   status: string;
   price_id: string | null;
   current_period_end: string | null;
@@ -68,8 +68,8 @@ export type SubscriptionAccess = {
   status: SubscriptionStatus | null;
   priceId: string | null;
   currentPeriodEnd: string | null;
-  stripeCustomerId: string | null;
-  stripeSubscriptionId: string | null;
+  paddleCustomerId: string | null;
+  paddleSubscriptionId: string | null;
 };
 
 export const EMPTY_SUBSCRIPTION_ACCESS: SubscriptionAccess = {
@@ -77,15 +77,15 @@ export const EMPTY_SUBSCRIPTION_ACCESS: SubscriptionAccess = {
   status: null,
   priceId: null,
   currentPeriodEnd: null,
-  stripeCustomerId: null,
-  stripeSubscriptionId: null
+  paddleCustomerId: null,
+  paddleSubscriptionId: null
 };
 
 export function mapSubscriptionRow(row: SubscriptionRow): UserSubscription {
   return {
     userId: row.user_id,
-    stripeCustomerId: row.stripe_customer_id,
-    stripeSubscriptionId: row.stripe_subscription_id,
+    paddleCustomerId: row.paddle_customer_id,
+    paddleSubscriptionId: row.paddle_subscription_id,
     status: isSubscriptionStatus(row.status) ? row.status : "inactive",
     priceId: row.price_id,
     currentPeriodEnd: row.current_period_end,

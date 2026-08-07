@@ -342,8 +342,8 @@ export type Database = {
       subscriptions: {
         Row: {
           user_id: string;
-          stripe_customer_id: string | null;
-          stripe_subscription_id: string | null;
+          paddle_customer_id: string | null;
+          paddle_subscription_id: string | null;
           status: string;
           price_id: string | null;
           current_period_end: string | null;
@@ -352,8 +352,8 @@ export type Database = {
         };
         Insert: {
           user_id: string;
-          stripe_customer_id?: string | null;
-          stripe_subscription_id?: string | null;
+          paddle_customer_id?: string | null;
+          paddle_subscription_id?: string | null;
           status?: string;
           price_id?: string | null;
           current_period_end?: string | null;
@@ -362,8 +362,8 @@ export type Database = {
         };
         Update: {
           user_id?: string;
-          stripe_customer_id?: string | null;
-          stripe_subscription_id?: string | null;
+          paddle_customer_id?: string | null;
+          paddle_subscription_id?: string | null;
           status?: string;
           price_id?: string | null;
           current_period_end?: string | null;

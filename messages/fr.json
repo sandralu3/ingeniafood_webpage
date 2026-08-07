@@ -46,9 +46,9 @@
     "billingSubtitle": "Filtres avancés, photo réelle du plat et outils de cuisine exclusifs.",
     "billingUpgrade": "Passer à Premium",
     "billingManage": "Gérer l'abonnement",
-    "billingRedirecting": "Redirection vers Stripe...",
+    "billingRedirecting": "Ouverture de Paddle...",
     "billingOpeningPortal": "Ouverture du portail...",
-    "billingError": "Impossible de se connecter à Stripe. Réessayez.",
+    "billingError": "Impossible de se connecter à Paddle. Réessayez.",
     "codePremiumActive": "Premium par code actif jusqu’au {date}.",
     "photoCreditAvailable": "Vous avez {count, plural, one {# génération} other {# générations}} de vraie photo du plat. Elle s’utilise automatiquement à la création d’une recette.",
     "photoCreditExhausted": "Vous avez utilisé votre génération de vraie photo. Les prochaines recettes utiliseront une image de référence."

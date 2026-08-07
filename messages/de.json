@@ -46,9 +46,9 @@
     "billingSubtitle": "Erweiterte Filter, echte Gerichtfotos und exklusive Koch-Tools.",
     "billingUpgrade": "Auf Premium upgraden",
     "billingManage": "Abo verwalten",
-    "billingRedirecting": "Weiterleitung zu Stripe...",
+    "billingRedirecting": "Paddle wird geöffnet...",
     "billingOpeningPortal": "Portal wird geöffnet...",
-    "billingError": "Verbindung zu Stripe fehlgeschlagen. Bitte erneut versuchen.",
+    "billingError": "Verbindung zu Paddle fehlgeschlagen. Bitte erneut versuchen.",
     "codePremiumActive": "Code-Premium aktiv bis {date}.",
     "photoCreditAvailable": "Du hast {count, plural, one {# Generierung} other {# Generierungen}} für ein echtes Gerichtfoto. Sie wird automatisch beim Erstellen eines Rezepts verwendet.",
     "photoCreditExhausted": "Du hast deine Generierung für ein echtes Gerichtfoto verbraucht. Weitere Rezepte nutzen ein Referenzbild."

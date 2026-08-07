@@ -22,7 +22,7 @@ export function getRequestOrigin(request: NextRequest): string {
 }
 
 export function buildCheckoutSuccessUrl(origin: string): string {
-  return `${origin}${APP_ROUTES.scanner}?checkout=success&session_id={CHECKOUT_SESSION_ID}`;
+  return `${origin}${APP_ROUTES.scanner}?checkout=success`;
 }
 
 export function buildCheckoutCancelUrl(origin: string): string {

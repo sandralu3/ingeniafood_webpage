@@ -142,8 +142,8 @@ export default function AdminUsuariosPage() {
 
       setSuccessMessage(
         nextValue
-          ? "Usuario marcado como tester (Premium / Stripe visibles)."
-          : "Usuario ya no es tester (sin acceso a Premium / Stripe)."
+          ? "Usuario marcado como tester (Premium / Paddle visibles)."
+          : "Usuario ya no es tester (sin acceso a Premium / Paddle)."
       );
     } catch (error) {
       setErrorMessage(

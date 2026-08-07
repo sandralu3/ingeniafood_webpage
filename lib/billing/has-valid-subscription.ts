@@ -12,7 +12,7 @@ import {
 type AppSupabaseClient = SupabaseClient<Database>;
 
 const SUBSCRIPTION_SELECT =
-  "user_id, stripe_customer_id, stripe_subscription_id, status, price_id, current_period_end, created_at, updated_at" as const;
+  "user_id, paddle_customer_id, paddle_subscription_id, status, price_id, current_period_end, created_at, updated_at" as const;
 
 /**
  * True si el periodo de facturación aún no ha terminado.
@@ -51,13 +51,13 @@ export function evaluateSubscriptionAccess(
     status,
     priceId: row.price_id,
     currentPeriodEnd: row.current_period_end,
-    stripeCustomerId: row.stripe_customer_id,
-    stripeSubscriptionId: row.stripe_subscription_id
+    paddleCustomerId: row.paddle_customer_id,
+    paddleSubscriptionId: row.paddle_subscription_id
   };
 }
 
 /**
- * Comprueba suscripción Stripe (sin exigir tester).
+ * Comprueba suscripción Paddle (sin exigir tester).
  */
 export async function getSubscriptionAccess(
   supabase: AppSupabaseClient,
@@ -88,8 +88,8 @@ export async function getSubscriptionAccess(
 }
 
 /**
- * Premium Stripe efectivo: tester obligatorio + status active|trialing y periodo vigente.
- * Si no es tester → false aunque tenga suscripción en Stripe.
+ * Premium de pago efectivo: tester obligatorio + status active|trialing y periodo vigente.
+ * Si no es tester → false aunque tenga suscripción en Paddle.
  */
 export async function hasValidSubscription(
   supabase: AppSupabaseClient,
