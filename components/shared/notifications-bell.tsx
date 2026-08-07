@@ -13,6 +13,7 @@ import {
   Loader2,
   RefreshCw,
   Sparkles,
+  Trash2,
   UserPlus,
   BookOpen,
   X
@@ -64,10 +65,14 @@ function formatRelativeTime(iso: string): string {
 
 function NotificationRow({
   item,
-  onActivate
+  deleteLabel,
+  onActivate,
+  onDelete
 }: {
   item: UserNotification;
+  deleteLabel: string;
   onActivate: (item: UserNotification) => void;
+  onDelete: (id: string) => void;
 }) {
   const Icon = notificationIcon(item.type);
   const unread = !item.read_at;
@@ -94,7 +99,7 @@ function NotificationRow({
       >
         <Icon className="h-4 w-4" strokeWidth={1.85} />
       </span>
-      <div className="min-w-0 flex-1 pl-1">
+      <div className="min-w-0 flex-1 pl-1 pr-8">
         <p
           className={cn(
             "text-[13px] leading-snug",
@@ -120,27 +125,55 @@ function NotificationRow({
 
   if (item.href) {
     return (
-      <Link
-        href={item.href}
-        onClick={(event) => {
-          event.preventDefault();
-          onActivate(item);
-        }}
-        className="block cursor-pointer border-b border-stone-100 last:border-0"
-      >
-        {content}
-      </Link>
+      <div className="relative border-b border-stone-100 last:border-0">
+        <Link
+          href={item.href}
+          onClick={(event) => {
+            event.preventDefault();
+            onActivate(item);
+          }}
+          className="block cursor-pointer"
+        >
+          {content}
+        </Link>
+        <button
+          type="button"
+          aria-label={deleteLabel}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onDelete(item.id);
+          }}
+          className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full text-stone-300 transition hover:bg-rose-50 hover:text-rose-500"
+        >
+          <Trash2 className="h-3.5 w-3.5" strokeWidth={1.9} />
+        </button>
+      </div>
     );
   }
 
   return (
-    <button
-      type="button"
-      className="block w-full cursor-pointer border-b border-stone-100 text-left last:border-0"
-      onClick={() => onActivate(item)}
-    >
-      {content}
-    </button>
+    <div className="relative border-b border-stone-100 last:border-0">
+      <button
+        type="button"
+        className="block w-full cursor-pointer text-left"
+        onClick={() => onActivate(item)}
+      >
+        {content}
+      </button>
+      <button
+        type="button"
+        aria-label={deleteLabel}
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          onDelete(item.id);
+        }}
+        className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full text-stone-300 transition hover:bg-rose-50 hover:text-rose-500"
+      >
+        <Trash2 className="h-3.5 w-3.5" strokeWidth={1.9} />
+      </button>
+    </div>
   );
 }
 
@@ -156,7 +189,9 @@ export function NotificationsBell() {
     setIsOpen,
     sync,
     markRead,
-    markAllRead
+    markAllRead,
+    deleteOne,
+    deleteAll
   } = useNotifications();
   const { updateAvailable } = useAppUpdate();
   const {
@@ -212,6 +247,8 @@ export function NotificationsBell() {
     : t.has("markAllRead")
       ? t("markAllRead")
       : "Marcar leídas";
+  const deleteOneLabel = t.has("deleteOne") ? t("deleteOne") : "Eliminar notificación";
+  const deleteAllLabel = t.has("deleteAll") ? t("deleteAll") : "Eliminar todas";
   const closeLabel = t.has("close") ? t("close") : "Cerrar";
   const loadingLabel = t.has("loading") ? t("loading") : "Actualizando…";
   const pushBlocked = permission === "denied";
@@ -275,7 +312,16 @@ export function NotificationsBell() {
                 <p className="text-[10px] text-stone-400">{loadingLabel}</p>
               ) : null}
             </div>
-            <div className="flex shrink-0 items-center gap-2">
+            <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+              {notifications.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => void deleteAll()}
+                  className="text-xs font-medium text-stone-500 transition hover:text-rose-600 hover:underline"
+                >
+                  {deleteAllLabel}
+                </button>
+              ) : null}
               {unreadCount > 0 ? (
                 <button
                   type="button"
@@ -301,7 +347,13 @@ export function NotificationsBell() {
               <p className="px-3 py-8 text-center text-xs text-stone-500">{empty}</p>
             ) : (
               notifications.map((item) => (
-                <NotificationRow key={item.id} item={item} onActivate={handleActivate} />
+                <NotificationRow
+                  key={item.id}
+                  item={item}
+                  deleteLabel={deleteOneLabel}
+                  onActivate={handleActivate}
+                  onDelete={(id) => void deleteOne(id)}
+                />
               ))
             )}
           </div>

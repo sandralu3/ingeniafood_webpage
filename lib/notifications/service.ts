@@ -36,6 +36,7 @@ export async function listUserNotifications(
     .from("user_notifications")
     .select("*")
     .eq("user_id", userId)
+    .is("dismissed_at", null)
     .order("created_at", { ascending: false })
     .limit(limit);
 
@@ -54,6 +55,7 @@ export async function countUnreadNotifications(
     .from("user_notifications")
     .select("id", { count: "exact", head: true })
     .eq("user_id", userId)
+    .is("dismissed_at", null)
     .is("read_at", null);
 
   if (error) throw error;
@@ -99,6 +101,7 @@ export async function markNotificationRead(
     .update({ read_at: new Date().toISOString() })
     .eq("id", notificationId)
     .eq("user_id", userId)
+    .is("dismissed_at", null)
     .is("read_at", null);
 
   if (error) throw error;
@@ -112,7 +115,36 @@ export async function markAllNotificationsRead(
     .from("user_notifications")
     .update({ read_at: new Date().toISOString() })
     .eq("user_id", userId)
+    .is("dismissed_at", null)
     .is("read_at", null);
+
+  if (error) throw error;
+}
+
+export async function dismissNotification(
+  client: Client,
+  userId: string,
+  notificationId: string
+): Promise<void> {
+  const { error } = await client
+    .from("user_notifications")
+    .update({ dismissed_at: new Date().toISOString() })
+    .eq("id", notificationId)
+    .eq("user_id", userId)
+    .is("dismissed_at", null);
+
+  if (error) throw error;
+}
+
+export async function dismissAllNotifications(
+  client: Client,
+  userId: string
+): Promise<void> {
+  const { error } = await client
+    .from("user_notifications")
+    .update({ dismissed_at: new Date().toISOString() })
+    .eq("user_id", userId)
+    .is("dismissed_at", null);
 
   if (error) throw error;
 }

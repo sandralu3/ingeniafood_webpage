@@ -17,6 +17,10 @@
     "title": "Benachrichtigungen",
     "empty": "Du hast noch keine Benachrichtigungen.",
     "markAllRead": "Alle als gelesen markieren",
+    "markAllReadShort": "Gelesen",
+    "deleteOne": "Benachrichtigung löschen",
+    "deleteAll": "Alle löschen",
+    "close": "Schließen",
     "loading": "Wird aktualisiert…"
   },
   "Profile": {

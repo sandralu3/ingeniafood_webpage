@@ -15,6 +15,8 @@ type NotificationsState = {
   sync: (options?: { updateVersion?: string | null }) => Promise<void>;
   markRead: (id: string) => Promise<void>;
   markAllRead: () => Promise<void>;
+  deleteOne: (id: string) => Promise<void>;
+  deleteAll: () => Promise<void>;
 };
 
 export function useNotifications(): NotificationsState {
@@ -117,6 +119,48 @@ export function useNotifications(): NotificationsState {
     }
   }, [refresh]);
 
+  const deleteOne = useCallback(
+    async (id: string) => {
+      let removedUnread = false;
+      setNotifications((current) => {
+        const target = current.find((item) => item.id === id);
+        removedUnread = Boolean(target && !target.read_at);
+        return current.filter((item) => item.id !== id);
+      });
+      if (removedUnread) {
+        setUnreadCount((count) => Math.max(0, count - 1));
+      }
+
+      try {
+        const response = await fetch("/api/notifications/delete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id })
+        });
+        if (!response.ok) void refresh();
+      } catch {
+        void refresh();
+      }
+    },
+    [refresh]
+  );
+
+  const deleteAll = useCallback(async () => {
+    setNotifications([]);
+    setUnreadCount(0);
+
+    try {
+      const response = await fetch("/api/notifications/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ all: true })
+      });
+      if (!response.ok) void refresh();
+    } catch {
+      void refresh();
+    }
+  }, [refresh]);
+
   useEffect(() => {
     void sync();
     const intervalId = window.setInterval(() => {
@@ -134,6 +178,8 @@ export function useNotifications(): NotificationsState {
     refresh,
     sync,
     markRead,
-    markAllRead
+    markAllRead,
+    deleteOne,
+    deleteAll
   };
 }

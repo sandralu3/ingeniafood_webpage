@@ -234,6 +234,7 @@ export type Database = {
           dedupe_key: string;
           payload: Json;
           read_at: string | null;
+          dismissed_at: string | null;
           created_at: string;
         };
         Insert: {
@@ -246,6 +247,7 @@ export type Database = {
           dedupe_key: string;
           payload?: Json;
           read_at?: string | null;
+          dismissed_at?: string | null;
           created_at?: string;
         };
         Update: {
@@ -258,6 +260,7 @@ export type Database = {
           dedupe_key?: string;
           payload?: Json;
           read_at?: string | null;
+          dismissed_at?: string | null;
           created_at?: string;
         };
         Relationships: [

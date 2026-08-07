@@ -17,6 +17,10 @@
     "title": "Notifications",
     "empty": "Vous n'avez pas encore de notifications.",
     "markAllRead": "Tout marquer comme lu",
+    "markAllReadShort": "Tout lu",
+    "deleteOne": "Supprimer la notification",
+    "deleteAll": "Tout supprimer",
+    "close": "Fermer",
     "loading": "Mise à jour…"
   },
   "Profile": {

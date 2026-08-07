@@ -17,6 +17,10 @@
     "title": "Notificações",
     "empty": "Ainda não tem notificações.",
     "markAllRead": "Marcar todas como lidas",
+    "markAllReadShort": "Marcar lidas",
+    "deleteOne": "Eliminar notificação",
+    "deleteAll": "Eliminar todas",
+    "close": "Fechar",
     "loading": "A atualizar…"
   },
   "Profile": {

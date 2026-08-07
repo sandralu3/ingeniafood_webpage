@@ -18,6 +18,8 @@
     "empty": "No tienes notificaciones todavía.",
     "markAllRead": "Marcar todas como leídas",
     "markAllReadShort": "Marcar leídas",
+    "deleteOne": "Eliminar notificación",
+    "deleteAll": "Eliminar todas",
     "close": "Cerrar",
     "loading": "Actualizando…",
     "pushOptInTitle": "Recibe esto también en el móvil",
