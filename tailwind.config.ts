@@ -48,7 +48,10 @@ const config: Config = {
         sm: "calc(0.75rem - 4px)"
       },
       fontFamily: {
-        serif: ['"Noto Serif"', "Georgia", "Cambria", "Times New Roman", "serif"]
+        sans: ['"Manrope"', "ui-sans-serif", "system-ui", "sans-serif"],
+        serif: ['"Noto Serif"', "Georgia", "Cambria", "Times New Roman", "serif"],
+        body: ['"Manrope"', "ui-sans-serif", "system-ui", "sans-serif"],
+        headline: ['"Noto Serif"', "Georgia", "Cambria", "Times New Roman", "serif"]
       }
     }
   },

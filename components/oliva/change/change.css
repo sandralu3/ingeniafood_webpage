@@ -1,0 +1,107 @@
+/* Oliva — Change section (Sprint 1.5) */
+
+.oliva-change-card {
+  --change-lift: 0px;
+  --change-illust-shift: 0px;
+  transition:
+    transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.45s ease;
+  transform: translateY(var(--change-lift));
+}
+
+.oliva-change-card:hover {
+  --change-lift: -2px;
+  --change-illust-shift: -3px;
+}
+
+.oliva-change-card:hover {
+  border-color: #cfc7b8;
+  box-shadow:
+    0 1px 2px rgb(27 28 25 / 0.03),
+    0 8px 24px rgb(27 28 25 / 0.05);
+}
+
+.oliva-change-illust {
+  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  transform: translateY(var(--change-illust-shift));
+}
+
+.oliva-change-enter {
+  opacity: 0;
+  transform: translateY(16px) scale(0.985);
+  animation: oliva-change-fade-in 0.85s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: var(--change-delay, 0ms);
+}
+
+@keyframes oliva-change-fade-in {
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Illustration micro-motions on hover */
+.oliva-change-card:hover .oliva-illust-bookmark {
+  transform: translateY(-2px);
+}
+
+.oliva-change-card:hover .oliva-illust-cal-dot {
+  transform: scale(1.15);
+}
+
+.oliva-change-card:hover .oliva-illust-ing {
+  transform: translateY(-2px);
+}
+
+.oliva-change-card:hover .oliva-illust-stack-1 {
+  transform: translate(1px, -2px) rotate(-1deg);
+}
+
+.oliva-change-card:hover .oliva-illust-stack-2 {
+  transform: translate(-1px, -1px) rotate(1deg);
+}
+
+.oliva-change-card:hover .oliva-illust-check {
+  transform: scale(1.06);
+}
+
+.oliva-change-card:hover .oliva-illust-bar {
+  transform: scaleY(1.08);
+  transform-origin: bottom center;
+}
+
+.oliva-illust-bookmark,
+.oliva-illust-cal-dot,
+.oliva-illust-ing,
+.oliva-illust-stack-1,
+.oliva-illust-stack-2,
+.oliva-illust-check,
+.oliva-illust-bar {
+  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .oliva-change-card,
+  .oliva-change-illust,
+  .oliva-illust-bookmark,
+  .oliva-illust-cal-dot,
+  .oliva-illust-ing,
+  .oliva-illust-stack-1,
+  .oliva-illust-stack-2,
+  .oliva-illust-check,
+  .oliva-illust-bar {
+    transition: none;
+  }
+
+  .oliva-change-card:hover {
+    --change-lift: 0px;
+    --change-illust-shift: 0px;
+  }
+
+  .oliva-change-enter {
+    opacity: 1;
+    transform: none;
+    animation: none;
+  }
+}

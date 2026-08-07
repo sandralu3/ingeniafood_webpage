@@ -1,0 +1,243 @@
+/* ── Full-screen scroll snap (single page scroll) ── */
+
+html:has(.oliva-landing) {
+  scroll-snap-type: y mandatory;
+  scroll-behavior: smooth;
+}
+
+.oliva-snap-section {
+  position: relative;
+  display: flex;
+  min-height: 100svh;
+  min-height: 100dvh;
+  flex-direction: column;
+  justify-content: center;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  scroll-margin-top: 0;
+  isolation: isolate;
+}
+
+.oliva-snap-section--start {
+  justify-content: flex-start;
+}
+
+.oliva-snap-inner {
+  width: 100%;
+  padding-top: 3rem;
+  padding-bottom: 3rem;
+}
+
+@media (min-width: 1024px) {
+  .oliva-snap-inner {
+    padding-top: 4rem;
+    padding-bottom: 4rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:has(.oliva-landing) {
+    scroll-snap-type: none;
+    scroll-behavior: auto;
+  }
+
+  .oliva-snap-section {
+    scroll-snap-stop: normal;
+  }
+}
+
+.oliva-hero-enter {
+  opacity: 0;
+  animation: oliva-hero-enter 1s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: var(--hero-delay, 0ms);
+}
+
+@keyframes oliva-hero-enter {
+  from {
+    opacity: 0;
+    transform: translateY(22px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.oliva-hero-glow {
+  background:
+    radial-gradient(
+      ellipse 70% 55% at 78% 42%,
+      rgb(85 107 47 / 0.1) 0%,
+      transparent 58%
+    ),
+    radial-gradient(
+      ellipse 80% 45% at 50% 100%,
+      rgb(85 107 47 / 0.05) 0%,
+      transparent 65%
+    );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .oliva-hero-enter {
+    opacity: 1;
+    animation: none;
+  }
+}
+
+
+/* ── Scroll reveal ── */
+
+.oliva-scroll-reveal {
+  opacity: 0;
+  transition:
+    opacity 0.95s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.95s cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: var(--reveal-delay, 0ms);
+  will-change: opacity, transform;
+}
+
+.oliva-scroll-reveal--up {
+  transform: translateY(32px);
+}
+
+.oliva-scroll-reveal--scale {
+  transform: translateY(24px) scale(0.97);
+}
+
+.oliva-scroll-reveal--fade {
+  transform: none;
+}
+
+.oliva-scroll-reveal--left {
+  transform: translateX(-28px);
+}
+
+.oliva-scroll-reveal--right {
+  transform: translateX(28px);
+}
+
+.oliva-scroll-reveal.oliva-revealed {
+  opacity: 1;
+  transform: none;
+}
+
+.oliva-section-subtitle {
+  opacity: 0;
+  transform: translateY(14px);
+  transition:
+    opacity 0.85s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.85s cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: 120ms;
+}
+
+.oliva-scroll-reveal.oliva-revealed .oliva-section-subtitle {
+  opacity: 1;
+  transform: none;
+}
+
+/* ── Section shells ── */
+
+.oliva-section {
+  position: relative;
+  isolation: isolate;
+}
+
+.oliva-section--cream {
+  background-color: #fbf9f4;
+}
+
+.oliva-section--paper {
+  background-color: #fffcf7;
+}
+
+.oliva-section--sand {
+  background-color: #f3efe6;
+}
+
+.oliva-section--linen {
+  background: linear-gradient(180deg, #faf7f0 0%, #f5f1e8 100%);
+}
+
+.oliva-section--divider::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  z-index: 1;
+  width: min(90%, 720px);
+  height: 1px;
+  transform: translateX(-50%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgb(85 107 47 / 0.14) 50%,
+    transparent 100%
+  );
+}
+
+.oliva-section-glow {
+  pointer-events: none;
+}
+
+.oliva-section-glow--center {
+  background: radial-gradient(
+    ellipse 65% 50% at 50% 35%,
+    rgb(85 107 47 / 0.07) 0%,
+    rgb(85 107 47 / 0.02) 45%,
+    transparent 70%
+  );
+}
+
+.oliva-section-glow--left {
+  background: radial-gradient(
+    ellipse 55% 60% at 8% 50%,
+    rgb(85 107 47 / 0.08) 0%,
+    rgb(85 107 47 / 0.02) 50%,
+    transparent 72%
+  );
+}
+
+.oliva-section-glow--right {
+  background: radial-gradient(
+    ellipse 55% 60% at 92% 45%,
+    rgb(85 107 47 / 0.08) 0%,
+    rgb(85 107 47 / 0.02) 50%,
+    transparent 72%
+  );
+}
+
+/* Subtle paper grain on alternating sections */
+.oliva-section--paper::after,
+.oliva-section--sand::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.018;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .oliva-scroll-reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  .oliva-section-subtitle {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
+/* If client JS never loads (blocked tunnel origin, etc.), keep content visible */
+@media (scripting: none) {
+  .oliva-scroll-reveal,
+  .oliva-section-subtitle,
+  .oliva-hero-enter {
+    opacity: 1 !important;
+    transform: none !important;
+    animation: none !important;
+  }
+}

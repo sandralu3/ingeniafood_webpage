@@ -1,0 +1,389 @@
+/* Oliva — fixed header + immersive section nav */
+
+.oliva-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 80;
+  pointer-events: none;
+  transition: padding 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.oliva-header-bar {
+  pointer-events: auto;
+  transition:
+    background-color 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    border-radius 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    padding 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.oliva-header--hero .oliva-header-bar {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.oliva-header--scrolled {
+  padding: 0.5rem 0.75rem;
+}
+
+.oliva-header--scrolled .oliva-header-bar {
+  width: fit-content;
+  max-width: calc(100% - 1.5rem);
+  margin-inline: auto;
+  padding: 0.3rem 0.45rem 0.3rem 0.85rem;
+  gap: 0.625rem;
+  border-radius: 9999px;
+  border: 1px solid rgb(232 226 214 / 0.92);
+  background: rgb(255 252 247 / 0.92);
+  box-shadow:
+    0 2px 8px rgb(27 28 25 / 0.05),
+    0 8px 24px rgb(27 28 25 / 0.06);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.oliva-header-logo--compact {
+  font-size: 0.875rem;
+  line-height: 1.2;
+}
+
+.oliva-header-menu-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border-radius: 9999px;
+  border: 1px solid rgb(224 217 204 / 0.95);
+  background: rgb(255 252 247 / 1);
+  padding: 0.3rem 0.55rem 0.3rem 0.65rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #53433e;
+  transition:
+    transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 0.25s ease,
+    border-color 0.25s ease,
+    color 0.25s ease;
+}
+
+.oliva-header-menu-btn:hover {
+  transform: translateY(-1px);
+  border-color: #cfc7b8;
+  background: #f5f2eb;
+  color: #1b1c19;
+}
+
+.oliva-header-menu-btn[data-open="true"] {
+  background: #556b2f;
+  border-color: #556b2f;
+  color: #fff;
+}
+
+.oliva-header-menu-btn--icon {
+  height: 1.75rem;
+  width: 1.75rem;
+  justify-content: center;
+  padding: 0;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.oliva-header-home-btn {
+  color: #556b2f;
+  border-color: rgb(85 107 47 / 0.22);
+  background: rgb(85 107 47 / 0.08);
+}
+
+.oliva-header-home-btn:hover {
+  border-color: rgb(85 107 47 / 0.4);
+  background: rgb(85 107 47 / 0.14);
+  color: #3f5123;
+}
+
+.oliva-header-menu-btn--hero {
+  height: 2.5rem;
+  width: 2.5rem;
+  border-color: rgb(217 210 196 / 0.9);
+  background: rgb(233 150 122 / 0.35);
+  color: #682e19;
+}
+
+.oliva-header-menu-btn--hero:hover {
+  background: rgb(233 150 122 / 0.55);
+  border-color: #d9d2c4;
+  color: #682e19;
+}
+
+/* Page depth when nav open */
+.oliva-landing.oliva-nav-open > main {
+  transform: scale(0.97);
+  filter: blur(3px);
+  transition:
+    transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.oliva-landing > main {
+  transition:
+    transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ── Full-screen nav ── */
+
+.oliva-nav-stage {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  pointer-events: none;
+}
+
+.oliva-nav-stage[data-open="true"] {
+  pointer-events: auto;
+}
+
+.oliva-nav-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgb(27 28 25 / 0.35);
+  opacity: 0;
+  backdrop-filter: blur(0);
+  -webkit-backdrop-filter: blur(0);
+  transition:
+    opacity 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    backdrop-filter 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.oliva-nav-stage[data-open="true"] .oliva-nav-backdrop {
+  opacity: 1;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.oliva-nav-canvas {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  overflow: hidden;
+  background: #fbf9f4;
+  clip-path: inset(0 0 100% 0 round 0);
+  transition: clip-path 0.65s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.oliva-nav-stage[data-open="true"] .oliva-nav-canvas {
+  clip-path: inset(0 0 0 0 round 0);
+}
+
+.oliva-nav-canvas-glow {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(
+      ellipse 70% 50% at 20% 0%,
+      rgb(85 107 47 / 0.1) 0%,
+      transparent 55%
+    ),
+    radial-gradient(
+      ellipse 50% 40% at 90% 100%,
+      rgb(143 76 53 / 0.06) 0%,
+      transparent 50%
+    );
+  pointer-events: none;
+}
+
+.oliva-nav-canvas-inner {
+  position: relative;
+  display: flex;
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
+  padding: 1.25rem 1.25rem 1.5rem;
+}
+
+@media (min-width: 640px) {
+  .oliva-nav-canvas-inner {
+    padding: 2rem 2.5rem 2.5rem;
+  }
+}
+
+.oliva-nav-top {
+  display: block;
+  opacity: 0;
+  transform: translateY(-12px);
+  transition:
+    opacity 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.12s,
+    transform 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.12s;
+}
+
+.oliva-nav-stage[data-open="true"] .oliva-nav-top {
+  opacity: 1;
+  transform: none;
+}
+
+.oliva-nav-list {
+  margin-top: 1.5rem;
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+@media (min-width: 640px) {
+  .oliva-nav-list {
+    margin-top: 2.5rem;
+  }
+}
+
+.oliva-nav-item {
+  opacity: 0;
+  transform: translateY(18px);
+  transition:
+    opacity 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: calc(0.08s * var(--nav-i) + 0.18s);
+}
+
+.oliva-nav-stage[data-open="true"] .oliva-nav-item {
+  opacity: 1;
+  transform: none;
+}
+
+.oliva-nav-link {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+  border-radius: 1rem;
+  padding: 0.85rem 0.75rem;
+  transition:
+    background-color 0.25s ease,
+    transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (min-width: 640px) {
+  .oliva-nav-link {
+    gap: 1.25rem;
+    padding: 1rem 1rem;
+  }
+}
+
+.oliva-nav-link:hover {
+  background: rgb(85 107 47 / 0.05);
+  transform: translateX(4px);
+}
+
+.oliva-nav-index {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: rgb(85 107 47 / 0.45);
+  transition: color 0.25s ease;
+}
+
+.oliva-nav-label {
+  display: block;
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: #1b1c19;
+  transition: color 0.25s ease;
+}
+
+@media (min-width: 640px) {
+  .oliva-nav-label {
+    font-size: 1.5rem;
+  }
+}
+
+.oliva-nav-hint {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.8125rem;
+  color: #86736d;
+}
+
+.oliva-nav-arrow {
+  font-size: 1.125rem;
+  color: rgb(85 107 47 / 0);
+  transform: translateX(-6px);
+  transition:
+    color 0.25s ease,
+    transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.oliva-nav-link:hover .oliva-nav-arrow {
+  color: rgb(85 107 47 / 0.7);
+  transform: translateX(0);
+}
+
+.oliva-nav-link[data-active="true"] {
+  background: rgb(85 107 47 / 0.07);
+}
+
+.oliva-nav-link[data-active="true"] .oliva-nav-index {
+  color: #556b2f;
+}
+
+.oliva-nav-link[data-active="true"] .oliva-nav-label {
+  color: #556b2f;
+}
+
+.oliva-nav-link[data-active="true"] .oliva-nav-arrow {
+  color: #556b2f;
+  transform: translateX(0);
+}
+
+.oliva-nav-footer {
+  margin-top: 1rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid #e8e2d6;
+  opacity: 0;
+  transform: translateY(12px);
+  transition:
+    opacity 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.55s,
+    transform 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.55s;
+}
+
+.oliva-nav-stage[data-open="true"] .oliva-nav-footer {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .oliva-header,
+  .oliva-header-bar,
+  .oliva-header-menu-btn,
+  .oliva-landing > main,
+  .oliva-nav-backdrop,
+  .oliva-nav-canvas,
+  .oliva-nav-top,
+  .oliva-nav-item,
+  .oliva-nav-link,
+  .oliva-nav-arrow,
+  .oliva-nav-footer {
+    transition: none;
+  }
+
+  .oliva-nav-stage[data-open="false"] {
+    visibility: hidden;
+  }
+
+  .oliva-nav-stage[data-open="false"] .oliva-nav-canvas {
+    clip-path: inset(0 0 100% 0);
+  }
+
+  .oliva-nav-item,
+  .oliva-nav-top,
+  .oliva-nav-footer {
+    opacity: 1;
+    transform: none;
+  }
+}

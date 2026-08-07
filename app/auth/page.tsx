@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { IngeniaFoodLogo } from "@/components/shared/ingenia-food-logo";
 import { PasswordInput } from "@/components/ui/password-input";
+import { MobileOnlyAuthGate } from "@/components/oliva/try/MobileOnlyAuthGate";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import {
   getPersonNameValidationError,
@@ -22,7 +23,9 @@ import { APP_ROUTES } from "@/lib/navigation/app-routes";
 export default function AuthPage() {
   return (
     <Suspense fallback={<AuthFallback />}>
-      <AuthForm />
+      <MobileOnlyAuthGate>
+        <AuthForm />
+      </MobileOnlyAuthGate>
     </Suspense>
   );
 }

@@ -1,0 +1,188 @@
+/*
+ * Motion strategy (crisp UI + fluid feel):
+ * - Phone UI stays STATIC → text always sharp (no transform/top on text nodes).
+ * - “Floating” comes from a GPU shadow + orbiting ingredients (transform OK).
+ * - Halos / sweep stay on non-text layers.
+ */
+
+@keyframes oliva-shadow-float {
+  0%,
+  100% {
+    transform: translate3d(-50%, 0, 0) scale(1, 1);
+    opacity: 0.4;
+  }
+  50% {
+    transform: translate3d(-50%, 5px, 0) scale(0.9, 0.85);
+    opacity: 0.22;
+  }
+}
+
+@keyframes oliva-phone-breathe {
+  0%,
+  100% {
+    box-shadow: 0 22px 44px -18px rgba(27, 28, 25, 0.16);
+  }
+  50% {
+    box-shadow: 0 30px 56px -14px rgba(27, 28, 25, 0.28);
+  }
+}
+
+@keyframes oliva-ingredient-drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) rotate(var(--oliva-rot-start, -6deg));
+  }
+  50% {
+    transform: translate3d(0, var(--oliva-drift, -8px), 0)
+      rotate(var(--oliva-rot-end, 6deg));
+  }
+}
+
+@keyframes oliva-halo-travel {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0) scale(0.6);
+  }
+  8% {
+    opacity: 0.8;
+  }
+  35% {
+    opacity: 0.5;
+  }
+  45% {
+    opacity: 0;
+    transform: translate3d(var(--oliva-halo-x), var(--oliva-halo-y), 0)
+      scale(0.35);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--oliva-halo-x), var(--oliva-halo-y), 0)
+      scale(0.35);
+  }
+}
+
+@keyframes oliva-chip-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes oliva-elevate-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes oliva-light-sweep {
+  0%,
+  55% {
+    transform: translate3d(-120%, 0, 0);
+    opacity: 0;
+  }
+  60% {
+    opacity: 1;
+  }
+  78% {
+    transform: translate3d(120%, 0, 0);
+    opacity: 0.9;
+  }
+  100% {
+    transform: translate3d(120%, 0, 0);
+    opacity: 0;
+  }
+}
+
+.oliva-phone-shadow {
+  position: absolute;
+  left: 50%;
+  bottom: 10px;
+  z-index: 0;
+  width: 68%;
+  height: 18px;
+  border-radius: 100%;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(27, 28, 25, 0.28) 0%,
+    rgba(27, 28, 25, 0) 70%
+  );
+  filter: blur(6px);
+  pointer-events: none;
+  animation: oliva-shadow-float 9s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.oliva-phone-device {
+  position: relative;
+  z-index: 1;
+  animation: oliva-phone-breathe 9s ease-in-out infinite;
+}
+
+.oliva-orbit-item {
+  animation: oliva-ingredient-drift var(--oliva-duration, 7s) ease-in-out
+    infinite;
+  animation-delay: var(--oliva-delay, 0s);
+  will-change: transform;
+}
+
+.oliva-halo {
+  animation: oliva-halo-travel 9s ease-in-out infinite;
+  animation-delay: var(--oliva-halo-delay, 0s);
+  will-change: transform, opacity;
+}
+
+.oliva-chip-enter {
+  opacity: 0;
+  animation: oliva-chip-in 250ms ease-out forwards;
+  animation-delay: var(--oliva-chip-delay, 0ms);
+}
+
+.oliva-cta-elevate {
+  opacity: 0;
+  animation: oliva-elevate-in 350ms ease-out forwards;
+  animation-delay: 2.35s;
+}
+
+.oliva-scan-sweep {
+  isolation: isolate;
+}
+
+.oliva-scan-sweep::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    105deg,
+    transparent 35%,
+    rgba(255, 255, 255, 0.45) 50%,
+    transparent 65%
+  );
+  transform: translate3d(-120%, 0, 0);
+  pointer-events: none;
+  animation: oliva-light-sweep 5.5s ease-in-out 2.35s 1 forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .oliva-phone-shadow,
+  .oliva-phone-device,
+  .oliva-orbit-item,
+  .oliva-halo {
+    animation: none;
+  }
+
+  .oliva-chip-enter,
+  .oliva-cta-elevate {
+    opacity: 1;
+    animation: none;
+  }
+
+  .oliva-scan-sweep::after {
+    display: none;
+  }
+}

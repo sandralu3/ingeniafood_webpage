@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Download } from "lucide-react";
 import AuthPage from "@/app/auth/page";
 import { resolveSupabaseAuthLandingUrl } from "@/lib/auth/resolve-supabase-auth-landing";
@@ -20,6 +20,10 @@ import {
 } from "@/lib/referral/referral";
 import { Header } from "@/components/shared/header";
 import { BottomNav } from "@/components/shared/bottom-nav";
+import {
+  DESKTOP_APP_PATH,
+  isLocalDevHost
+} from "@/lib/mobile-only-access";
 
 type AuthState = "loading" | "authenticated" | "unauthenticated";
 type BeforeInstallPromptEvent = Event & {
@@ -38,8 +42,12 @@ function detectStandaloneMode() {
 
 function canUseWebAccessInCurrentHost() {
   if (typeof window === "undefined") return false;
-  const host = window.location.hostname.toLowerCase();
-  return host === "localhost" || host === "127.0.0.1" || host.endsWith(".local");
+  return isLocalDevHost(window.location.hostname);
+}
+
+function isDesktopViewport() {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia("(min-width: 768px)").matches;
 }
 
 function InstallationLanding({
@@ -120,6 +128,7 @@ function InstallationLanding({
 
 export function AppRecetasAccessGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const isScannerRoute =
     pathname === APP_ROUTES.scanner || pathname.startsWith(`${APP_ROUTES.scanner}/`);
   const [isStandalone, setIsStandalone] = useState(false);
@@ -133,6 +142,12 @@ export function AppRecetasAccessGate({ children }: { children: React.ReactNode }
   const [pendingAuthRedirect, setPendingAuthRedirect] = useState(true);
 
   useEffect(() => {
+    // Desktop + tunnel/prod: never render the PWA shell — send to QR page.
+    if (isDesktopViewport() && !canUseWebAccessInCurrentHost()) {
+      router.replace(DESKTOP_APP_PATH);
+      return;
+    }
+
     const target = resolveSupabaseAuthLandingUrl({
       pathname: window.location.pathname,
       search: window.location.search,
@@ -146,7 +161,7 @@ export function AppRecetasAccessGate({ children }: { children: React.ReactNode }
     }
 
     setPendingAuthRedirect(false);
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     setAllowWebAccess(canUseWebAccessInCurrentHost());
@@ -272,6 +287,19 @@ export function AppRecetasAccessGate({ children }: { children: React.ReactNode }
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
   }, [authState, authenticatedUserId]);
+
+  useEffect(() => {
+    if (authState !== "unauthenticated") return;
+    if (!isStandalone && !allowWebAccess) return;
+    if (typeof window === "undefined") return;
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("mode")) return;
+
+    params.set("mode", "signup");
+    const query = params.toString();
+    router.replace(`${pathname}${query ? `?${query}` : ""}`);
+  }, [allowWebAccess, authState, isStandalone, pathname, router]);
 
   // El scroll debe vivir solo en <main>; si el documento hace scroll, el header se va.
   useEffect(() => {

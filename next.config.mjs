@@ -4,7 +4,16 @@ const isDev = process.env.NODE_ENV !== "production";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  allowedDevOrigins: ["192.168.1.13", "localhost", "127.0.0.1"],
+  allowedDevOrigins: [
+    "192.168.1.13",
+    "localhost",
+    "127.0.0.1",
+    "*.ngrok-free.app",
+    "*.ngrok-free.dev",
+    "*.ngrok.app",
+    "*.ngrok.io",
+    "*.trycloudflare.com"
+  ],
 
   // Fotos del plato / escáner llegan como base64; el default (~10MB) corta el JSON.
   experimental: {

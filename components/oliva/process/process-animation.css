@@ -1,0 +1,269 @@
+/* Process Section — 14s narrative loop */
+
+@keyframes oliva-process-chip-in {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0) scale(0.94);
+  }
+  8% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  28% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  40% {
+    opacity: 0;
+    transform: translate3d(48px, -12px, 0) scale(0.72);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(48px, -12px, 0) scale(0.72);
+  }
+}
+
+@keyframes oliva-process-analyzer {
+  0%,
+  24% {
+    opacity: 0.35;
+    transform: scale(0.96);
+  }
+  32% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  48% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  56% {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+}
+
+@keyframes oliva-process-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes oliva-process-orbit-emoji {
+  0%,
+  28% {
+    opacity: 0;
+  }
+  34% {
+    opacity: 1;
+  }
+  48% {
+    opacity: 1;
+  }
+  54% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes oliva-process-recipe {
+  0%,
+  48% {
+    opacity: 0;
+    transform: translateY(14px) scale(0.98);
+  }
+  56% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  70% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  82% {
+    opacity: 0.15;
+    transform: translate(72px, 48px) scale(0.72);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(72px, 48px) scale(0.72);
+  }
+}
+
+@keyframes oliva-process-planner-slot {
+  0%,
+  74% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  82% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  94% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(4px) scale(0.98);
+  }
+}
+
+@keyframes oliva-process-step-label {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+}
+
+@keyframes oliva-process-label-1 {
+  0%,
+  4% {
+    opacity: 0.35;
+    color: #86736d;
+  }
+  8%,
+  26% {
+    opacity: 1;
+    color: #1b1c19;
+  }
+  36%,
+  100% {
+    opacity: 0.35;
+    color: #86736d;
+  }
+}
+
+@keyframes oliva-process-label-2 {
+  0%,
+  26% {
+    opacity: 0.35;
+    color: #86736d;
+  }
+  32%,
+  48% {
+    opacity: 1;
+    color: #1b1c19;
+  }
+  56%,
+  100% {
+    opacity: 0.35;
+    color: #86736d;
+  }
+}
+
+@keyframes oliva-process-label-3 {
+  0%,
+  50% {
+    opacity: 0.35;
+    color: #86736d;
+  }
+  56%,
+  70% {
+    opacity: 1;
+    color: #1b1c19;
+  }
+  80%,
+  100% {
+    opacity: 0.35;
+    color: #86736d;
+  }
+}
+
+@keyframes oliva-process-label-4 {
+  0%,
+  74% {
+    opacity: 0.35;
+    color: #86736d;
+  }
+  80%,
+  94% {
+    opacity: 1;
+    color: #1b1c19;
+  }
+  100% {
+    opacity: 0.35;
+    color: #86736d;
+  }
+}
+
+.oliva-process-chip {
+  animation: oliva-process-chip-in 14s ease-in-out infinite;
+  animation-delay: var(--chip-delay, 0s);
+  will-change: transform, opacity;
+}
+
+.oliva-process-analyzer {
+  animation: oliva-process-analyzer 14s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.oliva-process-spinner {
+  animation: oliva-process-spin 1.4s linear infinite;
+}
+
+.oliva-process-orbit-emoji {
+  animation: oliva-process-orbit-emoji 14s ease-in-out infinite;
+  will-change: opacity;
+}
+
+.oliva-process-recipe {
+  animation: oliva-process-recipe 14s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.oliva-process-slot {
+  animation: oliva-process-planner-slot 14s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.oliva-process-label-1 {
+  animation: oliva-process-label-1 14s ease-in-out infinite;
+}
+.oliva-process-label-2 {
+  animation: oliva-process-label-2 14s ease-in-out infinite;
+}
+.oliva-process-label-3 {
+  animation: oliva-process-label-3 14s ease-in-out infinite;
+}
+.oliva-process-label-4 {
+  animation: oliva-process-label-4 14s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .oliva-process-chip,
+  .oliva-process-analyzer,
+  .oliva-process-spinner,
+  .oliva-process-orbit-emoji,
+  .oliva-process-recipe,
+  .oliva-process-slot,
+  .oliva-process-label-1,
+  .oliva-process-label-2,
+  .oliva-process-label-3,
+  .oliva-process-label-4 {
+    animation: none;
+  }
+
+  .oliva-process-chip,
+  .oliva-process-analyzer,
+  .oliva-process-recipe,
+  .oliva-process-slot {
+    opacity: 1;
+    transform: none;
+  }
+
+  .oliva-process-label-1,
+  .oliva-process-label-2,
+  .oliva-process-label-3,
+  .oliva-process-label-4 {
+    opacity: 1;
+    color: #1b1c19;
+  }
+}

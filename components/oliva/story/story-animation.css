@@ -1,0 +1,217 @@
+/* El dilema — section chrome + anime.js scene layout */
+
+.oliva-dilema {
+  background-color: #3a432c;
+  color: #fbf9f4;
+}
+
+.oliva-dilema-atmosphere {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.oliva-dilema-glow {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(72px);
+}
+
+.oliva-dilema-glow--a {
+  width: min(60vw, 28rem);
+  height: min(60vw, 28rem);
+  left: -10%;
+  top: 10%;
+  background: rgb(85 107 47 / 0.35);
+}
+
+.oliva-dilema-glow--b {
+  width: min(50vw, 22rem);
+  height: min(50vw, 22rem);
+  right: -8%;
+  bottom: 5%;
+  background: rgb(143 76 53 / 0.22);
+}
+
+.oliva-dilema-grain {
+  position: absolute;
+  inset: 0;
+  opacity: 0.08;
+  mix-blend-mode: soft-light;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+}
+
+/* ── Stage (anime.js drives motion) ── */
+
+.oliva-dilema-stage {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  aspect-ratio: 1;
+  margin-inline: auto;
+  isolation: isolate;
+  contain: layout style;
+}
+
+.oliva-dilema-constellation {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+.oliva-dilema-rings {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.oliva-dilema-ring {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.oliva-dilema-plate-wrap {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 38%;
+  max-width: 152px;
+  will-change: transform, opacity;
+}
+
+.oliva-dilema-plate {
+  display: block;
+  width: 100%;
+  height: auto;
+  filter: drop-shadow(0 12px 24px rgb(0 0 0 / 0.32));
+}
+
+.oliva-dilema-question {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  z-index: 3;
+  will-change: transform, opacity;
+}
+
+.oliva-dilema-question-mark {
+  position: relative;
+  z-index: 1;
+  font-size: 1.65rem;
+  font-weight: 600;
+  line-height: 1;
+  color: #e9967a;
+}
+
+.oliva-dilema-question-pulse {
+  position: absolute;
+  width: 2.85rem;
+  height: 2.85rem;
+  border-radius: 9999px;
+  border: 1px solid rgb(233 150 122 / 0.45);
+  background: rgb(143 76 53 / 0.22);
+}
+
+.oliva-dilema-ing {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 4;
+  display: flex;
+  height: 2.55rem;
+  width: 2.55rem;
+  margin-left: -1.275rem;
+  margin-top: -1.275rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  border: 1px solid rgb(255 252 247 / 0.55);
+  background: #fffcf7;
+  font-size: 1.15rem;
+  line-height: 1;
+  box-shadow: 0 8px 18px -10px rgb(0 0 0 / 0.4);
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+}
+
+.oliva-dilema-ghosts {
+  position: absolute;
+  inset: 10% 6%;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.oliva-dilema-ghost {
+  position: absolute;
+  display: inline-flex;
+  flex-direction: column;
+  will-change: transform, opacity;
+}
+
+.oliva-dilema-ghost:nth-child(1) {
+  left: 2%;
+  top: 6%;
+}
+
+.oliva-dilema-ghost:nth-child(2) {
+  right: 0;
+  top: 18%;
+}
+
+.oliva-dilema-ghost:nth-child(3) {
+  left: 4%;
+  bottom: 14%;
+}
+
+.oliva-dilema-ghost-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: rgb(251 249 244 / 0.5);
+  white-space: nowrap;
+}
+
+.oliva-dilema-ghost-svg {
+  display: block;
+  width: 100%;
+  height: 10px;
+  margin-top: -2px;
+  overflow: visible;
+}
+
+.oliva-dilema-strike {
+  opacity: 0.85;
+}
+
+/* Reduced motion: show the unresolved scene statically */
+.oliva-dilema-stage[data-reduced="true"] .oliva-dilema-plate-wrap,
+.oliva-dilema-stage[data-reduced="true"] .oliva-dilema-question,
+.oliva-dilema-stage[data-reduced="true"] .oliva-dilema-ing {
+  opacity: 1;
+  transform: none;
+}
+
+.oliva-dilema-stage[data-reduced="true"] .oliva-dilema-ing {
+  transform: translate3d(var(--ing-x, 0), var(--ing-y, 0), 0);
+}
+
+.oliva-dilema-stage[data-reduced="true"] .oliva-dilema-ghost {
+  opacity: 0.45;
+}
+
+.oliva-dilema-stage[data-reduced="true"] .oliva-dilema-ghost-label {
+  text-decoration: line-through;
+  text-decoration-color: rgb(233 150 122 / 0.65);
+}
+
+.oliva-dilema-stage[data-reduced="true"] .oliva-dilema-strike {
+  opacity: 0.7;
+}

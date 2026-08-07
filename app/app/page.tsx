@@ -12,11 +12,11 @@ import {
 import { TryQrScreen } from "@/components/oliva/try/TryQrScreen";
 
 /**
- * /registro must not open signup on large screens outside localhost.
- * Desktop → QR to /app.
- * Mobile → /app-recetas (install first, then register inside the PWA).
+ * Entry for try/open app:
+ * - Desktop (tunnel/prod): always show QR (even if the URL is pasted).
+ * - Mobile / localhost: go to /app-recetas (install gate → then auth).
  */
-export default function RegistroPage() {
+export default function AppEntryPage() {
   const router = useRouter();
   const [mode, setMode] = useState<"loading" | "qr" | "redirect">("loading");
 

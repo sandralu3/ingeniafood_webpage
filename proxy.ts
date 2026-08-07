@@ -1,6 +1,7 @@
 /**
  * Proxy (Next.js 16; equivalente a middleware.ts):
  * - Auth / acceso PWA a /app-recetas
+ * - Mobile-only: en hosts no locales, escritorio no abre app ni signup (QR)
  * - Entry points localizados /es y /en → set cookie NEXT_LOCALE + redirect sin prefijo
  * - Si no hay cookie, fija idioma desde Accept-Language
  *
@@ -19,6 +20,18 @@ import {
   type AppLocale
 } from "@/i18n/config";
 import { negotiateLocaleFromAcceptLanguage } from "@/lib/i18n/negotiate-locale";
+import {
+  APP_PATH,
+  DESKTOP_APP_PATH,
+  TRY_PATH,
+  isAppRecetasPath,
+  isAuthEntryPath,
+  isDesktopAuthException,
+  isLocalDevHost,
+  isMobileUserAgent,
+  resolvePublicHostname,
+  shouldEnforceMobileOnly
+} from "@/lib/mobile-only-access";
 
 function setLocaleCookie(response: NextResponse, locale: AppLocale) {
   response.cookies.set(LOCALE_COOKIE_NAME, locale, {
@@ -30,12 +43,14 @@ function setLocaleCookie(response: NextResponse, locale: AppLocale) {
 
 const PUBLIC_ROUTES = new Set([
   "/",
+  "/oliva",
   "/auth",
   "/auth/callback",
   "/auth/confirm-email",
   "/auth/reset-password",
   "/login",
   "/registro",
+  "/app",
   "/app-recetas",
   "/desktop-app-recetas",
   "/descargar-app"
@@ -43,15 +58,17 @@ const PUBLIC_ROUTES = new Set([
 const APP_ACCESS_COOKIE = "ingeniafood_app_access";
 const APP_ACCESS_QUERY_KEY = "k";
 
-function isMobileUserAgent(userAgent: string) {
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(
-    userAgent
-  );
-}
-
 export async function proxy(request: NextRequest) {
   const { pathname, protocol } = request.nextUrl;
   const forwardedProto = request.headers.get("x-forwarded-proto");
+  const userAgent = request.headers.get("user-agent") ?? "";
+  const isMobile = isMobileUserAgent(userAgent);
+  const hostname = resolvePublicHostname({
+    nextHostname: request.nextUrl.hostname,
+    forwardedHost: request.headers.get("x-forwarded-host"),
+    hostHeader: request.headers.get("host")
+  });
+  const enforceMobileOnly = shouldEnforceMobileOnly(hostname, userAgent);
 
   // Refuerzo: en producción forzar HTTPS para cumplir requisitos PWA en móviles.
   if (
@@ -73,7 +90,10 @@ export async function proxy(request: NextRequest) {
   const localePathMatch = pathname.match(/^\/(es|en|fr|pt|de)(\/.*)?$/);
   if (localePathMatch) {
     const locale = localePathMatch[1] as AppLocale;
-    const rest = localePathMatch[2] && localePathMatch[2].length > 0 ? localePathMatch[2] : "/";
+    const rest =
+      localePathMatch[2] && localePathMatch[2].length > 0
+        ? localePathMatch[2]
+        : "/";
     const targetUrl = request.nextUrl.clone();
     targetUrl.pathname = rest;
     const redirectResponse = NextResponse.redirect(targetUrl);
@@ -81,13 +101,49 @@ export async function proxy(request: NextRequest) {
     return redirectResponse;
   }
 
-  const userAgent = request.headers.get("user-agent") ?? "";
-  const isMobile = isMobileUserAgent(userAgent);
+  // ── Mobile-only gates (ngrok / production desktop) ──
+  if (enforceMobileOnly) {
+    // Direct app URLs → QR page
+    if (isAppRecetasPath(pathname)) {
+      const blocked = request.nextUrl.clone();
+      blocked.pathname = DESKTOP_APP_PATH;
+      blocked.search = "";
+      return NextResponse.redirect(blocked);
+    }
+
+    // Legacy app-adjacent routes
+    if (
+      pathname === "/scanner" ||
+      pathname.startsWith("/scanner/") ||
+      pathname === "/recipes" ||
+      pathname.startsWith("/recipes/") ||
+      pathname === "/profile" ||
+      pathname.startsWith("/profile/") ||
+      pathname === "/test-premium" ||
+      pathname.startsWith("/test-premium/")
+    ) {
+      const blocked = request.nextUrl.clone();
+      blocked.pathname = DESKTOP_APP_PATH;
+      blocked.search = "";
+      return NextResponse.redirect(blocked);
+    }
+
+    // Login / auth / registro → /app (QR). Keep recovery & confirm flows.
+    if (
+      isAuthEntryPath(pathname) &&
+      !isDesktopAuthException(pathname, request.nextUrl.searchParams)
+    ) {
+      const tryUrl = request.nextUrl.clone();
+      tryUrl.pathname = TRY_PATH;
+      tryUrl.search = "";
+      return NextResponse.redirect(tryUrl);
+    }
+  }
+
   const isProtectedAppRoute =
-    pathname === "/app-recetas" ||
-    pathname.startsWith("/app-recetas/") ||
-    pathname === "/desktop-app-recetas" ||
-    pathname.startsWith("/desktop-app-recetas");
+    isAppRecetasPath(pathname) ||
+    pathname === DESKTOP_APP_PATH ||
+    pathname.startsWith(`${DESKTOP_APP_PATH}/`);
 
   // En producción, solo permite acceso a la app con enlace secreto.
   if (process.env.NODE_ENV === "production" && isProtectedAppRoute) {
@@ -126,7 +182,8 @@ export async function proxy(request: NextRequest) {
 
   if (pathname === "/descargar-app") {
     const targetUrl = request.nextUrl.clone();
-    targetUrl.pathname = isMobile ? "/app-recetas" : "/desktop-app-recetas";
+    targetUrl.pathname =
+      isMobile || isLocalDevHost(hostname) ? APP_PATH : DESKTOP_APP_PATH;
     return NextResponse.redirect(targetUrl);
   }
 
@@ -169,19 +226,25 @@ export async function proxy(request: NextRequest) {
     data: { session }
   } = await supabase.auth.getSession();
 
-  const isAppRoute = pathname === "/app-recetas" || pathname.startsWith("/app-recetas/");
-  const isPublicRoute = PUBLIC_ROUTES.has(pathname) || isAppRoute;
+  const isAppRoute = isAppRecetasPath(pathname);
+  const isOlivaRoute = pathname === "/oliva" || pathname.startsWith("/oliva/");
+  const isPublicRoute =
+    PUBLIC_ROUTES.has(pathname) || isAppRoute || isOlivaRoute;
 
   if (
     session &&
-    (pathname === "/login" || pathname === "/auth" || pathname === "/registro")
+    (pathname === "/login" ||
+      pathname === "/auth" ||
+      pathname === "/registro" ||
+      pathname === TRY_PATH)
   ) {
     const isPasswordResetSuccess =
-      pathname === "/login" && request.nextUrl.searchParams.get("reset") === "1";
+      pathname === "/login" &&
+      request.nextUrl.searchParams.get("reset") === "1";
 
     if (!isPasswordResetSuccess) {
       const targetUrl = request.nextUrl.clone();
-      targetUrl.pathname = "/app-recetas";
+      targetUrl.pathname = enforceMobileOnly ? DESKTOP_APP_PATH : APP_PATH;
       targetUrl.search = "";
       return NextResponse.redirect(targetUrl);
     }
@@ -189,8 +252,13 @@ export async function proxy(request: NextRequest) {
 
   if (!session && !isPublicRoute) {
     const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = "/login";
-    redirectUrl.searchParams.set("next", pathname);
+    if (enforceMobileOnly) {
+      redirectUrl.pathname = TRY_PATH;
+      redirectUrl.search = "";
+    } else {
+      redirectUrl.pathname = "/login";
+      redirectUrl.searchParams.set("next", pathname);
+    }
     return NextResponse.redirect(redirectUrl);
   }
 
