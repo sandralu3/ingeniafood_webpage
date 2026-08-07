@@ -86,6 +86,7 @@ export async function publishStructuredRecipe(params: {
       steps: recipe.preparacion,
       instructions: buildInstructions(recipe.preparacion),
       image_url: imageUrl,
+      reference_image_url: null,
       instagram_url: instagramUrl,
       is_airfryer,
       is_flourless,

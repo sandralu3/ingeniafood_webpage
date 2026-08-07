@@ -125,7 +125,7 @@ function MealPhotoCard({
   const slotLabel = t.has(mealLabelKey(mealType)) ? t(mealLabelKey(mealType)) : mealType;
   const PlannedIcon = mealType === "Desayuno" ? Coffee : mealType === "Cena" ? Moon : Leaf;
   const href = meal?.recipeId
-    ? `/app-recetas/recipes/${meal.recipeId}`
+    ? `/app-recetas/recipes/${meal.recipeId}?from=hoy`
     : APP_ROUTES.plan;
   const unplanned = t.has("mealUnplanned") ? t("mealUnplanned") : "Sin planificar";
   const addLabel = t.has("addMeal") ? t("addMeal") : "Añadir";

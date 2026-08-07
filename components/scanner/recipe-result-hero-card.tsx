@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import { Crown } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -47,6 +47,17 @@ type Props = {
   isPremium?: boolean;
   /** Ya usó su único intento de foto real (prueba 24h / Premium once). */
   hasGeneratedRealPhoto?: boolean;
+  /** Receta oficial de Sandra: la foto es siempre la real; sin avisos de referencia. */
+  isSandraRecipe?: boolean;
+  /** Badges debajo de la foto (p. ej. Receta de Sandra / filtros). */
+  headerBadges?: ReactNode;
+  /**
+   * hero = imagen a ancho completo (detalle).
+   * card = tarjeta con margen (escáner / embebido).
+   */
+  layout?: "hero" | "card";
+  /** Barra flotante sobre la foto (Volver + acciones). Solo con layout="hero". */
+  heroChrome?: ReactNode;
   onRequestPremium?: () => void;
 };
 
@@ -56,11 +67,15 @@ export function RecipeResultHeroCard({
   mealTypeAdvisory = null,
   isGeneratingPhoto = false,
   appliedFilters = null,
-  imageFit = "cover",
+  imageFit: _imageFit = "cover",
   heroBadge = null,
   loggedMeal = false,
   isPremium = false,
   hasGeneratedRealPhoto = false,
+  isSandraRecipe = false,
+  headerBadges = null,
+  layout = "card",
+  heroChrome = null,
   onRequestPremium
 }: Props) {
   const t = useTranslations("Scanner");
@@ -149,6 +164,7 @@ export function RecipeResultHeroCard({
           : null;
 
   const showingReferenceImage =
+    !isSandraRecipe &&
     !loggedMeal &&
     !showGenerating &&
     isShowingReferenceDishImage({
@@ -157,12 +173,41 @@ export function RecipeResultHeroCard({
       imageFailed
     });
 
+  const isHeroLayout = layout === "hero";
+  /** Solo en resultado de escáner con despensa: Ya tienes / Te faltan. */
+  const showPantrySplit = pantryIngredients.length > 0;
+
+  const handleHeroImageError = () => {
+    if (primaryUrl && !imageFailed && heroImageUrl === primaryUrl) {
+      setImageFailed(true);
+      return;
+    }
+    if (referenceUrl && !imageFailed && heroImageUrl === referenceUrl) {
+      setImageFailed(true);
+      return;
+    }
+    setFallbackFailed(true);
+  };
+
+  const dishPhotoAlt = recipe.titulo
+    ? tDetail("dishPhotoAlt", { title: recipe.titulo })
+    : tDetail("dishPhotoAltFallback");
+
   return (
-    <section className="overflow-hidden rounded-3xl border border-stone-100 bg-white shadow-sm">
+    <section
+      className={cn(
+        "overflow-hidden bg-white",
+        isHeroLayout
+          ? "rounded-none border-0 shadow-none"
+          : "rounded-2xl border border-stone-100 shadow-sm"
+      )}
+    >
       <div
         className={cn(
           "relative w-full overflow-hidden bg-stone-200",
-          imageFit === "contain" ? "h-72 sm:h-80" : "h-64"
+          isHeroLayout
+            ? "aspect-video w-full"
+            : "mx-3 mt-3 aspect-video rounded-xl"
         )}
       >
         {showGenerating ? (
@@ -179,7 +224,7 @@ export function RecipeResultHeroCard({
                   "radial-gradient(circle at 20% 20%, rgba(85,107,47,0.12), transparent 45%), radial-gradient(circle at 80% 70%, rgba(201,162,39,0.10), transparent 40%)"
               }}
             />
-            <div className="relative flex w-full max-w-[12rem] flex-1 items-center justify-center pt-4">
+            <div className="relative flex w-full max-w-[10rem] flex-1 items-center justify-center pt-2">
               <DotLottieReact
                 src={LOTTIE_SRC}
                 loop
@@ -189,7 +234,7 @@ export function RecipeResultHeroCard({
             </div>
             <p
               className={cn(
-                "relative z-10 mb-10 min-h-[2.25rem] px-4 text-center text-[11px] font-medium leading-snug text-[#3e5219] transition-all duration-300 ease-out",
+                "relative z-10 mb-6 min-h-[2rem] px-3 text-center text-[11px] font-medium leading-snug text-[#3e5219] transition-all duration-300 ease-out",
                 loaderMessageVisible
                   ? "translate-y-0 opacity-100"
                   : "translate-y-1 opacity-0"
@@ -199,118 +244,75 @@ export function RecipeResultHeroCard({
             </p>
           </div>
         ) : heroImageUrl ? (
-          imageFit === "contain" ? (
-            <>
-              {/* Blur backdrop: rellena el marco sin franjas negras */}
+          <>
+            {/*
+              Fondo borroso: scale alto para que el blur no deje
+              bordes transparentes (que se veían como franjas negras).
+            */}
+            <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden>
               <img
                 src={heroImageUrl}
                 alt=""
-                aria-hidden
-                className="absolute inset-0 z-0 h-full w-full scale-110 object-cover opacity-60 blur-xl brightness-75"
+                className="absolute left-1/2 top-1/2 h-[135%] w-[135%] max-w-none -translate-x-1/2 -translate-y-1/2 object-cover opacity-80 blur-2xl saturate-[1.35] brightness-105"
                 draggable={false}
               />
-              <div className="relative z-10 flex h-full w-full items-center justify-center">
-                <img
-                  src={heroImageUrl}
-                  alt={
-                    recipe.titulo
-                      ? tDetail("dishPhotoAlt", { title: recipe.titulo })
-                      : tDetail("dishPhotoAltFallback")
-                  }
-                  className="max-h-full max-w-full object-contain"
-                  loading="eager"
-                  decoding="async"
-                  onError={() => {
-                    if (primaryUrl && !imageFailed && heroImageUrl === primaryUrl) {
-                      setImageFailed(true);
-                      return;
-                    }
-                    if (referenceUrl && !imageFailed && heroImageUrl === referenceUrl) {
-                      setImageFailed(true);
-                      return;
-                    }
-                    setFallbackFailed(true);
-                  }}
-                />
-              </div>
-            </>
-          ) : (
-            <img
-              src={heroImageUrl}
-              alt={
-                recipe.titulo
-                  ? tDetail("dishPhotoAlt", { title: recipe.titulo })
-                  : tDetail("dishPhotoAltFallback")
-              }
-              className="relative z-10 h-full w-full object-cover"
-              loading="eager"
-              decoding="async"
-              onError={() => {
-                if (primaryUrl && !imageFailed && heroImageUrl === primaryUrl) {
-                  setImageFailed(true);
-                  return;
-                }
-                if (referenceUrl && !imageFailed && heroImageUrl === referenceUrl) {
-                  setImageFailed(true);
-                  return;
-                }
-                setFallbackFailed(true);
-              }}
-            />
-          )
+              {/* Suaviza laterales para que el blur no se vea como franja plana */}
+              <div className="absolute inset-0 bg-gradient-to-r from-black/25 via-transparent to-black/25" />
+            </div>
+            {/* Capa frontal: foto completa, sin recortar */}
+            <div className="absolute inset-0 z-10 flex items-center justify-center">
+              <img
+                src={heroImageUrl}
+                alt={dishPhotoAlt}
+                className="h-full max-h-full w-full max-w-full object-contain"
+                loading="eager"
+                decoding="async"
+                onError={handleHeroImageError}
+              />
+            </div>
+          </>
         ) : (
           <div className="relative z-10 h-full w-full bg-gradient-to-br from-[#556B2F]/40 via-stone-400 to-stone-600" />
         )}
 
-        <div
-          className={cn(
-            "pointer-events-none absolute inset-0 z-20",
-            imageFit === "contain"
-              ? "bg-gradient-to-t from-black/80 via-black/20 to-transparent"
-              : "bg-gradient-to-t from-black/80 via-black/45 to-transparent"
-          )}
-        />
-        {mealTypeAdvisory?.trim() ? (
-          <div className="absolute inset-0 z-30 pointer-events-none [&>*]:pointer-events-auto">
-            <RecipeAdvisoryPulseButton
-              message={mealTypeAdvisory}
-              tone={inferAdvisoryTone(mealTypeAdvisory)}
-            />
+        {isHeroLayout || heroChrome ? (
+          <div className="pointer-events-none absolute inset-x-0 top-0 z-40 bg-gradient-to-b from-black/40 via-black/15 to-transparent pb-10 pt-3">
+            <div className="pointer-events-auto flex items-center justify-between gap-2 px-3">
+              {heroChrome}
+            </div>
           </div>
         ) : null}
+
         {heroBadge?.trim() ? (
-          <span className="absolute left-3 top-3 z-30 inline-flex items-center rounded-full bg-black/40 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur-sm ring-1 ring-white/20">
+          <span
+            className={cn(
+              "absolute z-30 inline-flex items-center rounded-full bg-black/40 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm ring-1 ring-white/20",
+              isHeroLayout || heroChrome ? "left-3 top-14" : "left-2.5 top-2.5"
+            )}
+          >
             {heroBadge}
           </span>
         ) : null}
         {showingReferenceImage ? (
           <span
             className={cn(
-              "absolute z-30 inline-flex items-center rounded-full bg-black/55 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-white backdrop-blur-sm ring-1 ring-white/20",
-              heroBadge?.trim() ? "left-3 top-12" : "left-3 top-3"
+              "absolute z-30 inline-flex items-center rounded-full bg-black/50 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-white/95 backdrop-blur-sm",
+              isHeroLayout || heroChrome
+                ? heroBadge?.trim()
+                  ? "left-3 top-[4.75rem]"
+                  : "left-3 top-14"
+                : heroBadge?.trim()
+                  ? "left-2.5 top-10"
+                  : "left-2.5 top-2.5"
             )}
           >
             {tDetail("referenceImageBadge")}
           </span>
         ) : null}
-        <div className="absolute inset-x-0 bottom-0 z-30 space-y-2 px-4 pb-3 pt-10">
-          <h1 className="font-serif text-lg font-semibold leading-snug text-white drop-shadow-md">
-            {recipe.titulo}
-          </h1>
-          <HeroBadges
-            timeLabel={timeLabel}
-            mealTypeLabel={mealTypeLabel}
-            servingsLabel={servingsLabel}
-            kcal={macros ? Math.round(macros.calorias) : null}
-            protein={macros ? Math.round(macros.proteinas_g) : null}
-            onDark
-            kcalLabel={t("macroKcal")}
-            proteinLabel={t("macroProteinShort")}
-            hideTime={!recipe.tiempo_preparacion?.trim()}
-          />
-          {showingReferenceImage ? (
-            <div className="rounded-xl bg-black/45 px-2.5 py-2 backdrop-blur-sm ring-1 ring-white/15">
-              <p className="text-[10px] leading-snug text-white/90">
+        {showingReferenceImage ? (
+          <div className="absolute inset-x-0 bottom-0 z-30 px-3 pb-3 pr-14">
+            <div className="rounded-full border border-white/25 bg-black/35 px-3 py-1.5 shadow-sm backdrop-blur-md">
+              <p className="text-[10px] leading-snug text-white/95">
                 {isPremium && hasGeneratedRealPhoto
                   ? tDetail("referenceImageAfterRealPhoto")
                   : tDetail("referenceImageNote")}
@@ -319,24 +321,65 @@ export function RecipeResultHeroCard({
                 <button
                   type="button"
                   onClick={onRequestPremium}
-                  className="mt-1.5 inline-flex items-center gap-1 text-[10px] font-semibold text-[#F5E6A6] underline-offset-2 hover:underline"
+                  className="mt-0.5 inline-flex items-center gap-1 text-[10px] font-semibold text-[#F5E6A6] underline-offset-2 hover:underline"
                 >
                   <Crown className="h-3 w-3" strokeWidth={2} aria-hidden />
                   {tDetail("premiumRealPhotoPrompt")}
                 </button>
               ) : !isPremium ? (
-                <p className="mt-1.5 text-[10px] font-semibold text-[#F5E6A6]">
+                <p className="mt-0.5 text-[10px] font-semibold text-[#F5E6A6]">
                   {tDetail("premiumRealPhotoPrompt")}
                 </p>
               ) : null}
             </div>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
+        {mealTypeAdvisory?.trim() ? (
+          <RecipeAdvisoryPulseButton
+            message={mealTypeAdvisory}
+            tone={inferAdvisoryTone(mealTypeAdvisory)}
+          />
+        ) : null}
+      </div>
+
+      <div
+        className={cn(
+          "space-y-2 border-b border-stone-100 bg-white",
+          isHeroLayout ? "px-4 pb-3 pt-3" : "px-3 pb-2.5 pt-2.5"
+        )}
+      >
+        {headerBadges ? (
+          <div className="flex flex-nowrap items-center gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {headerBadges}
+          </div>
+        ) : null}
+        <h1
+          className={cn(
+            "font-serif font-semibold leading-snug tracking-tight text-stone-900",
+            isHeroLayout ? "text-xl" : "text-lg"
+          )}
+        >
+          {recipe.titulo}
+        </h1>
+        <HeroBadges
+          timeLabel={timeLabel}
+          mealTypeLabel={mealTypeLabel}
+          servingsLabel={servingsLabel}
+          kcal={macros ? Math.round(macros.calorias) : null}
+          protein={macros ? Math.round(macros.proteinas_g) : null}
+          kcalLabel={t("macroKcal")}
+          proteinLabel={t("macroProteinShort")}
+          hideTime={!recipe.tiempo_preparacion?.trim()}
+          compact
+        />
       </div>
 
       {!loggedMeal ? (
         <div
-          className="border-b border-stone-100 bg-white px-4 pt-2"
+          className={cn(
+            "border-b border-stone-100 bg-white pt-1.5",
+            isHeroLayout ? "px-4" : "px-3"
+          )}
           role="tablist"
           aria-label={t("recipeDetailTabs")}
         >
@@ -354,16 +397,21 @@ export function RecipeResultHeroCard({
           </div>
         </div>
       ) : (
-        <div className="border-b border-stone-100 bg-white px-4 pt-3">
+        <div
+          className={cn(
+            "border-b border-stone-100 bg-white pt-2.5",
+            isHeroLayout ? "px-4" : "px-3"
+          )}
+        >
           <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">
             {tDetail.has("foodsLabel") ? tDetail("foodsLabel") : "Alimentos"}
           </p>
         </div>
       )}
 
-      <div className="bg-white px-4 py-3">
+      <div className={cn("bg-white py-2.5", isHeroLayout ? "px-4" : "px-3")}>
         {loggedMeal || tab === "ingredients" ? (
-          loggedMeal ? (
+          loggedMeal || !showPantrySplit ? (
             <ul className="space-y-1.5">
               {recipe.ingredientes_detallados.length > 0 ? (
                 recipe.ingredientes_detallados.map((item) => (
@@ -382,56 +430,54 @@ export function RecipeResultHeroCard({
               )}
             </ul>
           ) : (
-            <>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-[#3e5219]">
-                    {t("ingredientsYouHave")} ({pantrySplit.available.length})
-                  </p>
-                  <ul className="mt-2 space-y-1.5">
-                    {pantrySplit.available.length > 0 ? (
-                      pantrySplit.available.map((item) => (
-                        <li
-                          key={`have-${item}`}
-                          className="text-[12px] leading-snug text-stone-700"
-                        >
-                          <span className="mr-1 text-[#556B2F]" aria-hidden>
-                            ✓
-                          </span>
-                          {item}
-                        </li>
-                      ))
-                    ) : (
-                      <li className="text-[12px] text-stone-400">—</li>
-                    )}
-                  </ul>
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-amber-800">
-                    {t("ingredientsMissing")} ({pantrySplit.missing.length})
-                  </p>
-                  <ul className="mt-2 space-y-1.5">
-                    {pantrySplit.missing.length > 0 ? (
-                      pantrySplit.missing.map((item) => (
-                        <li
-                          key={`miss-${item}`}
-                          className="text-[12px] leading-snug text-stone-700"
-                        >
-                          <span className="mr-1 text-amber-600" aria-hidden>
-                            ·
-                          </span>
-                          {item}
-                        </li>
-                      ))
-                    ) : (
-                      <li className="text-[12px] text-stone-400">
-                        {t("ingredientsAllCovered")}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wide text-[#3e5219]">
+                  {t("ingredientsYouHave")} ({pantrySplit.available.length})
+                </p>
+                <ul className="mt-2 space-y-1.5">
+                  {pantrySplit.available.length > 0 ? (
+                    pantrySplit.available.map((item) => (
+                      <li
+                        key={`have-${item}`}
+                        className="text-[12px] leading-snug text-stone-700"
+                      >
+                        <span className="mr-1 text-[#556B2F]" aria-hidden>
+                          ✓
+                        </span>
+                        {item}
                       </li>
-                    )}
-                  </ul>
-                </div>
+                    ))
+                  ) : (
+                    <li className="text-[12px] text-stone-400">—</li>
+                  )}
+                </ul>
               </div>
-            </>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wide text-amber-800">
+                  {t("ingredientsMissing")} ({pantrySplit.missing.length})
+                </p>
+                <ul className="mt-2 space-y-1.5">
+                  {pantrySplit.missing.length > 0 ? (
+                    pantrySplit.missing.map((item) => (
+                      <li
+                        key={`miss-${item}`}
+                        className="text-[12px] leading-snug text-stone-700"
+                      >
+                        <span className="mr-1 text-amber-600" aria-hidden>
+                          ·
+                        </span>
+                        {item}
+                      </li>
+                    ))
+                  ) : (
+                    <li className="text-[12px] text-stone-400">
+                      {t("ingredientsAllCovered")}
+                    </li>
+                  )}
+                </ul>
+              </div>
+            </div>
           )
         ) : (
           <div className="space-y-3">
@@ -472,27 +518,34 @@ function HeroBadges({
   servingsLabel,
   kcal,
   protein,
-  onDark = false,
   kcalLabel,
   proteinLabel,
-  hideTime = false
+  hideTime = false,
+  compact = false
 }: {
   timeLabel: string;
   mealTypeLabel?: string | null;
   servingsLabel?: string | null;
   kcal: number | null;
   protein: number | null;
-  onDark?: boolean;
   kcalLabel: string;
   proteinLabel: string;
   hideTime?: boolean;
+  compact?: boolean;
 }) {
-  const chip = onDark
-    ? "inline-flex items-center gap-1 rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm"
-    : "inline-flex items-center gap-1 rounded-full border border-stone-200/80 bg-white px-2 py-0.5 text-[10px] font-semibold text-stone-700 shadow-sm";
+  const chip = compact
+    ? "inline-flex shrink-0 items-center gap-0.5 whitespace-nowrap rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-semibold text-stone-700"
+    : "inline-flex items-center gap-1 rounded-full border border-stone-200/80 bg-[#F7F5F1] px-2 py-0.5 text-[10px] font-semibold text-stone-700";
 
   return (
-    <div className="flex flex-wrap gap-x-3 gap-y-1.5">
+    <div
+      className={cn(
+        "flex gap-1.5",
+        compact
+          ? "flex-nowrap overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          : "flex-wrap gap-y-1.5"
+      )}
+    >
       {mealTypeLabel ? <span className={chip}>☀️ {mealTypeLabel}</span> : null}
       {!hideTime ? <span className={chip}>⚡ {timeLabel}</span> : null}
       {servingsLabel ? <span className={chip}>🍽️ {servingsLabel}</span> : null}

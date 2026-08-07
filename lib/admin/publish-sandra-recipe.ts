@@ -101,6 +101,8 @@ export async function publishSandraRecipe(params: {
       steps,
       instructions: nextInstructions,
       tags: cleanedTags,
+      // La foto del plato es la oficial: no marcarla como imagen de referencia.
+      reference_image_url: null,
       is_system_recipe: true,
       is_sandra_recipe: true,
       is_public: true,

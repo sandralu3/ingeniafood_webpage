@@ -84,6 +84,7 @@ type SavedRecipeSource = {
   tip_sandra?: string | null;
   is_airfryer?: boolean;
   is_flourless?: boolean;
+  is_sandra_recipe?: boolean | null;
   tags?: Json;
   macros?: Json | null;
   image_url?: string | null;
@@ -115,11 +116,16 @@ export function savedRecipeToShareable(recipe: SavedRecipeSource): ShareableReci
   const storedImage = recipe.image_url?.trim() || null;
   const storedReference = recipe.reference_image_url?.trim() || null;
   const isExternalPlateOnly = external && pasos.length === 0;
+  const isSandraRecipe = Boolean(recipe.is_sandra_recipe);
 
   let imageUrl: string | null = storedImage;
   let referenceImageUrl: string | null = isExternalPlateOnly ? null : storedReference;
 
-  if (!isExternalPlateOnly) {
+  if (isSandraRecipe) {
+    // Foto oficial del plato: nunca duplicar como imagen de referencia.
+    imageUrl = storedImage || storedReference;
+    referenceImageUrl = null;
+  } else if (!isExternalPlateOnly) {
     if (imageUrl && referenceImageUrl && imageUrl === referenceImageUrl) {
       // Banco / stock: mantener ambas iguales.
     } else if (imageUrl && !referenceImageUrl) {
@@ -149,6 +155,6 @@ export function savedRecipeToShareable(recipe: SavedRecipeSource): ShareableReci
     tags,
     macronutrientes: parseMacrosFromJson(recipe.macros),
     imageUrl: isExternalPlateOnly ? storedImage : imageUrl,
-    referenceImageUrl: isExternalPlateOnly ? null : referenceImageUrl
+    referenceImageUrl: isExternalPlateOnly || isSandraRecipe ? null : referenceImageUrl
   };
 }

@@ -105,7 +105,7 @@ function buildNutritionPills(
 }
 
 function recipeDetailHref(recipeId: string) {
-  return `/app-recetas/recipes/${recipeId}`;
+  return `/app-recetas/recipes/${recipeId}?from=plan`;
 }
 
 function getMealPlaceholderStyle(mealType: MealType): {

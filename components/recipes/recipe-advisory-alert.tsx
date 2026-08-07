@@ -46,9 +46,9 @@ type PulseButtonProps = {
 };
 
 /**
- * Icono parpadeante sobre la imagen. Al tocarlo abre el mensaje en un popup.
- * - warning → advertencia (ámbar)
- * - info → información (azul suave)
+ * Icono discreto sobre la foto (glassmorphism). Al tocarlo abre el mensaje.
+ * - warning → triángulo ámbar
+ * - info → información blanca
  */
 export function RecipeAdvisoryPulseButton({
   message,
@@ -79,8 +79,8 @@ export function RecipeAdvisoryPulseButton({
     <>
       <div
         className={cn(
-          "pointer-events-auto absolute right-3 top-3 z-20",
-          positionClassName
+          "pointer-events-auto absolute z-30",
+          positionClassName ?? "bottom-3 right-3"
         )}
       >
         <button
@@ -90,28 +90,20 @@ export function RecipeAdvisoryPulseButton({
             setOpen(true);
           }}
           aria-label={ariaLabel}
+          title={ariaLabel}
           className={cn(
-            "relative flex h-8 w-8 items-center justify-center rounded-full shadow-md backdrop-blur-sm",
-            "transition focus-visible:outline-none focus-visible:ring-2",
-            isWarning
-              ? "bg-yellow-300/70 text-[#8B6914] shadow-yellow-900/20 ring-1 ring-[#8B6914]/85 hover:bg-yellow-300/85 focus-visible:ring-[#A67C00]/50"
-              : "bg-sky-300/70 text-sky-900 shadow-sky-900/15 ring-1 ring-sky-700/70 hover:bg-sky-300/85 focus-visible:ring-sky-500/50",
+            "relative flex h-9 w-9 items-center justify-center rounded-full",
+            "border border-white/20 bg-black/40 text-white shadow-sm backdrop-blur-md",
+            "transition hover:bg-black/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40",
             className
           )}
         >
-          <span
-            className={cn(
-              "absolute inset-0 animate-ping rounded-full",
-              isWarning ? "bg-yellow-200/50" : "bg-sky-200/55"
-            )}
-            aria-hidden
-          />
           <Icon
             className={cn(
-              "relative z-[1] h-5 w-5 animate-pulse",
-              isWarning ? "text-[#7A5C10]" : "text-sky-800"
+              "relative z-[1] h-4 w-4",
+              isWarning ? "text-amber-300" : "text-white"
             )}
-            strokeWidth={2.5}
+            strokeWidth={2.25}
             aria-hidden
           />
         </button>

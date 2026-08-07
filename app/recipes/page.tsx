@@ -398,8 +398,10 @@ export default function RecipesPage() {
             isSandraRecipe={Boolean(
               (recipe as RecipeRow & { is_sandra_recipe?: boolean }).is_sandra_recipe
             )}
-            detailHref={`/app-recetas/recipes/${recipe.id}`}
-            onPrefetch={() => router.prefetch(`/app-recetas/recipes/${recipe.id}`)}
+            detailHref={`/app-recetas/recipes/${recipe.id}?from=recipes`}
+            onPrefetch={() =>
+              router.prefetch(`/app-recetas/recipes/${recipe.id}?from=recipes`)
+            }
             isFavorite={favoriteIds.has(recipe.id)}
             onToggleFavorite={() => void handleToggleFavorite(recipe.id)}
             isTogglingFavorite={togglingFavoriteId === recipe.id}

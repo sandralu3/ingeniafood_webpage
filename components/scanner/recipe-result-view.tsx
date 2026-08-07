@@ -1,17 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowLeft, Bookmark, Loader2, Share2 } from "lucide-react";
+import { ArrowLeft, Bookmark, CalendarPlus, Loader2, Share2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { AddToPlanSheet } from "@/components/scanner/add-to-plan-sheet";
 import { RecipeOptionsSelector } from "@/components/scanner/recipe-options-selector";
 import { RecipeResultHeroCard } from "@/components/scanner/recipe-result-hero-card";
+import { RecipeAppliedFiltersBadges } from "@/components/recipes/recipe-applied-filters-badges";
 import { PremiumUpgradeDialog } from "@/components/premium/premium-upgrade-dialog";
 import { RecipeShareCapture } from "@/components/share/recipe-share-capture";
 import { useShareRecipeImage } from "@/hooks/use-share-recipe-image";
 import type { ShareableRecipe } from "@/lib/share/recipe-share-image";
 import type { AppliedRecipeFilters } from "@/lib/recipes/premium-recipe-filters";
 import type { RecipeOption } from "@/lib/recipes/recipe-options";
+import { cn } from "@/lib/utils";
 
 type Props = {
   recipe: ShareableRecipe;
@@ -51,7 +53,6 @@ export function RecipeResultView({
   appliedFilters = null,
   showAppliedFilters = false,
   mealTypeAdvisory = null,
-  showPhotoBanner = false,
   isGeneratingPhoto = false,
   hasGeneratedRealPhoto = false
 }: Props) {
@@ -69,29 +70,76 @@ export function RecipeResultView({
   const actionsDisabled = isGenerating || isSavingFavorites || isGeneratingPhoto;
   const showOptions = recipeOptions.length > 1 && Boolean(onSelectRecipeIndex);
 
+  const overlayBtnClass =
+    "inline-flex h-9 w-9 items-center justify-center rounded-full bg-black/35 text-white shadow-sm backdrop-blur-sm ring-1 ring-white/25 transition hover:bg-black/50 disabled:cursor-not-allowed disabled:opacity-50";
+
+  const scannerHeroChrome = (
+    <>
+      {onNewSearch ? (
+        <button
+          type="button"
+          onClick={onNewSearch}
+          aria-label={t("newSearch")}
+          className={overlayBtnClass}
+        >
+          <ArrowLeft className="h-4 w-4" strokeWidth={1.75} />
+        </button>
+      ) : (
+        <span />
+      )}
+      <div className="flex items-center gap-1.5">
+        <button
+          type="button"
+          onClick={() => setIsPlanModalOpen(true)}
+          disabled={actionsDisabled}
+          aria-label={t("cookOrSaveToPlan")}
+          className={overlayBtnClass}
+        >
+          <CalendarPlus className="h-4 w-4" strokeWidth={1.5} />
+        </button>
+        <button
+          type="button"
+          onClick={handleShareImage}
+          disabled={actionsDisabled}
+          aria-label={t.has("shareRecipe") ? t("shareRecipe") : "Compartir"}
+          className={overlayBtnClass}
+        >
+          {isGenerating || isGeneratingPhoto ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Share2 className="h-4 w-4" strokeWidth={1.5} />
+          )}
+        </button>
+        {onSaveFavorites ? (
+          <button
+            type="button"
+            onClick={onSaveFavorites}
+            disabled={actionsDisabled || isSavedFavorites}
+            aria-label={isSavedFavorites ? t("saved") : t("saveToCookbook")}
+            className={cn(
+              overlayBtnClass,
+              isSavedFavorites && "bg-[#556B2F]/85 ring-[#eef4e6]/40"
+            )}
+          >
+            {isSavingFavorites || isGeneratingPhoto ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Bookmark
+                className={cn("h-4 w-4", isSavedFavorites ? "fill-current" : "")}
+                strokeWidth={1.5}
+              />
+            )}
+          </button>
+        ) : null}
+      </div>
+    </>
+  );
+
   return (
     <article className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden duration-500">
-      <div className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-y-contain px-0 pb-6 touch-pan-y [-webkit-overflow-scrolling:touch]">
-        {onNewSearch ? (
-          <div data-share-exclude className="px-4">
-            <button
-              type="button"
-              onClick={onNewSearch}
-              className="inline-flex items-center gap-1 text-[11px] font-semibold leading-none text-[#556B2F] transition hover:text-[#3e5219]"
-            >
-              <ArrowLeft className="h-3.5 w-3.5" strokeWidth={2} />
-              {t("newSearch")}
-            </button>
-          </div>
-        ) : null}
-
+      <div className="min-h-0 flex-1 space-y-0 overflow-y-auto overscroll-y-contain px-0 pb-6 touch-pan-y [-webkit-overflow-scrolling:touch]">
         {showOptions ? (
-          <div data-share-exclude className="mb-1 px-4">
-            <p className="mb-1 text-[9px] font-bold uppercase tracking-widest text-slate-400">
-              {t.has("aiSuggestions")
-                ? t("aiSuggestions")
-                : "Sugerencias de la IA"}
-            </p>
+          <div data-share-exclude className="mb-2 px-4 pt-1">
             <RecipeOptionsSelector
               options={recipeOptions}
               selectedIndex={selectedRecipeIndex}
@@ -112,6 +160,16 @@ export function RecipeResultView({
             isPremium={isPremium}
             hasGeneratedRealPhoto={hasGeneratedRealPhoto}
             onRequestPremium={() => setShowPremiumDialog(true)}
+            layout="hero"
+            heroChrome={scannerHeroChrome}
+            headerBadges={
+              showAppliedFilters && appliedFilters ? (
+                <RecipeAppliedFiltersBadges
+                  filters={appliedFilters}
+                  omit={["mealType", "servings"]}
+                />
+              ) : null
+            }
           />
         </div>
 
@@ -134,55 +192,13 @@ export function RecipeResultView({
         {errorMessage ? (
           <p
             data-share-exclude
-            className="mx-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-[11px] text-red-700"
+            className="mx-4 mt-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-[11px] text-red-700"
           >
             {errorMessage}
           </p>
         ) : null}
 
-        <div data-share-exclude className="space-y-2 px-4 pt-1">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleShareImage}
-              disabled={actionsDisabled}
-              className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full border border-stone-200/70 bg-white px-3 py-2 text-[12px] font-semibold text-[#556B2F] transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isGenerating || isGeneratingPhoto ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Share2 className="h-3.5 w-3.5" strokeWidth={2} />
-              )}
-              {isGenerating
-                ? t("generatingImage")
-                : isGeneratingPhoto
-                  ? t("generatingImage")
-                  : t.has("shareRecipe")
-                    ? t("shareRecipe")
-                    : "Compartir"}
-            </button>
-
-            <button
-              type="button"
-              onClick={onSaveFavorites}
-              disabled={actionsDisabled || isSavedFavorites}
-              className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full border border-stone-200/70 bg-[#F0F4ED] px-3 py-2 text-[12px] font-semibold text-[#3e5219] transition hover:bg-[#E9F0E6] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isGeneratingPhoto ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Bookmark className="h-3.5 w-3.5" strokeWidth={2} />
-              )}
-              {isGeneratingPhoto
-                ? t("generatingImage")
-                : isSavedFavorites
-                  ? t("saved")
-                  : isSavingFavorites
-                    ? t("saving")
-                    : t("saveToCookbook")}
-            </button>
-          </div>
-
+        <div data-share-exclude className="space-y-2 px-4 pt-3">
           <button
             type="button"
             onClick={() => setIsPlanModalOpen(true)}
