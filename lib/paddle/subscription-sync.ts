@@ -95,6 +95,28 @@ export async function resolveUserIdFromPaddleSubscription(
   return data?.user_id ?? null;
 }
 
+/** Resuelve user_id por email del customer Paddle (auth admin). */
+export async function resolveUserIdFromPaddleCustomerEmail(
+  email: string
+): Promise<string | null> {
+  const trimmed = email.trim().toLowerCase();
+  if (!trimmed) return null;
+
+  const admin = getSupabaseAdminClient();
+  const perPage = 200;
+  for (let page = 1; page <= 10; page += 1) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage });
+    if (error) {
+      console.error("[paddle] resolveUserIdFromPaddleCustomerEmail", error);
+      return null;
+    }
+    const match = data.users.find((user) => user.email?.toLowerCase() === trimmed);
+    if (match) return match.id;
+    if (data.users.length < perPage) break;
+  }
+  return null;
+}
+
 export async function upsertSubscriptionAndPremiumCache(
   input: SubscriptionSyncInput
 ): Promise<void> {
@@ -139,7 +161,11 @@ export async function upsertSubscriptionAndPremiumCache(
 
 export async function syncPaddleSubscriptionToSupabase(
   subscription: PaddleSubscriptionLike,
-  options?: { userId?: string | null; paddleCustomerId?: string | null }
+  options?: {
+    userId?: string | null;
+    paddleCustomerId?: string | null;
+    resolveCustomerEmail?: (customerId: string) => Promise<string | null>;
+  }
 ): Promise<{ userId: string } | null> {
   const customerId = options?.paddleCustomerId ?? subscription.customerId ?? null;
 
@@ -156,8 +182,19 @@ export async function syncPaddleSubscriptionToSupabase(
     userId = await resolveUserIdFromPaddleSubscription(subscription.id);
   }
 
+  if (!userId && customerId && options?.resolveCustomerEmail) {
+    const email = await options.resolveCustomerEmail(customerId);
+    if (email) {
+      userId = await resolveUserIdFromPaddleCustomerEmail(email);
+    }
+  }
+
   if (!userId) {
-    console.warn("[paddle] No se pudo resolver user_id para subscription", subscription.id);
+    console.warn("[paddle] No se pudo resolver user_id para subscription", {
+      subscriptionId: subscription.id,
+      customerId,
+      customData: subscription.customData ?? null
+    });
     return null;
   }
 

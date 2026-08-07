@@ -4,7 +4,11 @@ let paddleClient: Paddle | null = null;
 
 function readEnv(name: string): string {
   const raw = process.env[name]?.trim() ?? "";
-  return raw.replace(/^["']|["']$/g, "").trim();
+  return raw
+    .replace(/^\uFEFF/, "")
+    .replace(/^["']|["']$/g, "")
+    .replace(/\r?\n/g, "")
+    .trim();
 }
 
 function resolvePaddleEnvironment(): Environment {
@@ -37,7 +41,7 @@ export function getPaddle(): Paddle {
 }
 
 export function getPaddleWebhookSecret(): string {
-  const secret = readEnv("PADDLE_WEBHOOK_SECRET");
+  const secret = readEnv("PADDLE_WEBHOOK_SECRET") || readEnv("PADDLE_NOTIFICATION_WEBHOOK_SECRET");
   if (!secret) {
     throw new Error("Falta PADDLE_WEBHOOK_SECRET en el entorno.");
   }
