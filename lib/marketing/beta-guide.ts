@@ -112,7 +112,7 @@ export function markdownGuideToHtml(markdown: string): {
       const level = hMatch[1].length;
       const raw = hMatch[2].trim();
       const id = slugify(raw);
-      const label = raw.replace(/^[\d.]+\s*/, "").trim();
+      const label = raw.replace(/^\d+\.\s*/, "").trim();
       if (level === 1) {
         htmlParts.push(`<h1 id="${id}" class="guide-h1">${inlineMarkdown(raw)}</h1>`);
       } else if (level === 2) {
