@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { MoreVertical, Search } from "lucide-react";
+import { Search, SlidersHorizontal } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { RecipeCard } from "@/components/recipes/RecipeCard";
@@ -13,6 +13,7 @@ import {
   fetchFavoriteRecipeIds,
   toggleRecipeFavorite
 } from "@/lib/recipes/recipe-favorites";
+import { parseMacrosFromJson } from "@/lib/recipes/recipe-macros";
 import {
   filterSavedRecipes,
   getRecipeCardLabel,
@@ -20,7 +21,11 @@ import {
   SAVED_RECIPE_FILTERS,
   type SavedRecipeFilter
 } from "@/lib/recipes/saved-recipes-filter";
-import { isExternalMeal } from "@/lib/plan/external-meal";
+import {
+  externalMealBadgeLabel,
+  isExternalMeal,
+  resolveExternalMealBadge
+} from "@/lib/plan/external-meal";
 import { isScannerDraftRecipe } from "@/lib/recipes/scanner-draft";
 import {
   translateSavedCardLabel,
@@ -32,7 +37,7 @@ import { cn } from "@/lib/utils";
 import type { Database } from "@/types/database.types";
 
 type RecipeRow = Database["public"]["Tables"]["recipes"]["Row"];
-type LibraryTab = "saved" | "favorites" | "outside";
+type LibraryTab = "saved" | "sandra" | "favorites" | "outside";
 
 const FILTER_CHIPS = SAVED_RECIPE_FILTERS;
 
@@ -46,6 +51,12 @@ function isMissingOptionalRecipesColumnError(
     error.code === "PGRST204" ||
     error.message?.includes(`column recipes.${column} does not exist`) === true ||
     error.message?.includes(column) === true
+  );
+}
+
+function isSandraRecipeRow(recipe: RecipeRow): boolean {
+  return Boolean(
+    (recipe as RecipeRow & { is_sandra_recipe?: boolean }).is_sandra_recipe
   );
 }
 
@@ -63,6 +74,7 @@ export default function RecipesPage() {
   const locale = useLocale();
   const router = useRouter();
   const [recipes, setRecipes] = useState<RecipeRow[]>([]);
+  const [sandraRecipes, setSandraRecipes] = useState<RecipeRow[]>([]);
   const [viewerUserId, setViewerUserId] = useState<string | null>(null);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
@@ -175,6 +187,7 @@ export default function RecipesPage() {
             : "No se pudo inicializar Supabase. Revisa tus variables de entorno."
         );
         setRecipes([]);
+        setSandraRecipes([]);
         setIsLoading(false);
         return;
       }
@@ -186,6 +199,7 @@ export default function RecipesPage() {
       if (!user) {
         setErrorMessage("No encontramos tu sesion activa. Inicia sesion para ver tus recetas.");
         setRecipes([]);
+        setSandraRecipes([]);
         setViewerUserId(null);
         setIsLoading(false);
         return;
@@ -194,16 +208,34 @@ export default function RecipesPage() {
       setViewerUserId(user.id);
 
       const recipeSelect =
-        "id,title,description,cooking_time,is_airfryer,is_flourless,is_public,created_at,user_id,ingredients,steps,instructions,image_url,reference_image_url,tip_sandra,instagram_url,meal_type,tags,is_system_recipe,is_sandra_recipe";
+        "id,title,description,cooking_time,is_airfryer,is_flourless,is_public,created_at,user_id,ingredients,steps,instructions,image_url,reference_image_url,tip_sandra,instagram_url,meal_type,tags,macros,is_system_recipe,is_sandra_recipe";
 
-      const [primaryQuery, favoritesResult] = await Promise.all([
+      const [primaryQuery, sandraQuery, favoritesResult] = await Promise.all([
         supabase
           .from("recipes")
           .select(recipeSelect)
           .eq("user_id", user.id)
           .order("created_at", { ascending: false }),
+        supabase
+          .from("recipes")
+          .select(recipeSelect)
+          .eq("is_sandra_recipe", true)
+          .order("created_at", { ascending: false }),
         fetchFavoriteRecipeIds()
       ]);
+
+      let sandraData = sandraQuery.data as RecipeRow[] | null;
+      if (sandraQuery.error) {
+        if (isMissingOptionalRecipesColumnError(sandraQuery.error, "is_sandra_recipe")) {
+          sandraData = [];
+        } else {
+          console.warn("[recipes] No se pudieron cargar Recetas de Sandra:", sandraQuery.error);
+          sandraData = [];
+        }
+      }
+      setSandraRecipes(
+        (sandraData ?? []).filter((recipe) => !isScannerDraftRecipe(recipe))
+      );
 
       let recipesData = primaryQuery.data as RecipeRow[] | null;
       let recipesError = primaryQuery.error;
@@ -214,7 +246,8 @@ export default function RecipesPage() {
         isMissingOptionalRecipesColumnError(recipesError, "meal_type") ||
         isMissingOptionalRecipesColumnError(recipesError, "tags") ||
         isMissingOptionalRecipesColumnError(recipesError, "is_system_recipe") ||
-        isMissingOptionalRecipesColumnError(recipesError, "is_sandra_recipe")
+        isMissingOptionalRecipesColumnError(recipesError, "is_sandra_recipe") ||
+        isMissingOptionalRecipesColumnError(recipesError, "macros")
       ) {
         const fallbackQuery = await supabase
           .from("recipes")
@@ -231,6 +264,7 @@ export default function RecipesPage() {
           reference_image_url: null,
           meal_type: null,
           tags: null,
+          macros: null,
           is_system_recipe: false,
           is_sandra_recipe: false
         })) ?? null;
@@ -282,6 +316,7 @@ export default function RecipesPage() {
               reference_image_url: null,
               meal_type: null,
               tags: null,
+              macros: null,
               is_system_recipe: false,
               is_sandra_recipe: false
             }));
@@ -306,6 +341,15 @@ export default function RecipesPage() {
     [activeFilter, recipes, searchTerm]
   );
 
+  const filteredSandraRecipes = useMemo(
+    () =>
+      filterSavedRecipes(sandraRecipes, {
+        searchTerm,
+        categoryFilter: activeFilter
+      }),
+    [activeFilter, sandraRecipes, searchTerm]
+  );
+
   const ownedFilteredRecipes = useMemo(
     () =>
       viewerUserId
@@ -315,7 +359,10 @@ export default function RecipesPage() {
   );
 
   const cookableRecipes = useMemo(
-    () => ownedFilteredRecipes.filter((recipe) => !isExternalMeal(recipe.tags)),
+    () =>
+      ownedFilteredRecipes.filter(
+        (recipe) => !isExternalMeal(recipe.tags) && !isSandraRecipeRow(recipe)
+      ),
     [ownedFilteredRecipes]
   );
 
@@ -324,16 +371,30 @@ export default function RecipesPage() {
     [ownedFilteredRecipes]
   );
 
-  const favoriteRecipes = useMemo(
-    () => filteredRecipes.filter((recipe) => favoriteIds.has(recipe.id)),
-    [favoriteIds, filteredRecipes]
-  );
+  const favoriteRecipes = useMemo(() => {
+    const byId = new Map<string, RecipeRow>();
+    for (const recipe of filteredRecipes) {
+      if (favoriteIds.has(recipe.id)) byId.set(recipe.id, recipe);
+    }
+    for (const recipe of filteredSandraRecipes) {
+      if (favoriteIds.has(recipe.id)) byId.set(recipe.id, recipe);
+    }
+    return Array.from(byId.values());
+  }, [favoriteIds, filteredRecipes, filteredSandraRecipes]);
 
   const otherSavedRecipes = useMemo(
-    () =>
-      cookableRecipes.filter((recipe) => !favoriteIds.has(recipe.id)),
+    () => cookableRecipes.filter((recipe) => !favoriteIds.has(recipe.id)),
     [cookableRecipes, favoriteIds]
   );
+
+  const libraryCount = useMemo(() => {
+    const ids = new Set(recipes.map((recipe) => recipe.id));
+    let count = recipes.length;
+    for (const recipe of sandraRecipes) {
+      if (!ids.has(recipe.id)) count += 1;
+    }
+    return count;
+  }, [recipes, sandraRecipes]);
 
   const isSearchActive = normalizeSearchText(searchTerm).length > 0;
   const isCategoryFilterActive = activeFilter !== "Todas";
@@ -344,7 +405,9 @@ export default function RecipesPage() {
       ? favoriteRecipes
       : activeTab === "outside"
         ? outsideRecipes
-        : otherSavedRecipes;
+        : activeTab === "sandra"
+          ? filteredSandraRecipes
+          : otherSavedRecipes;
   const visibleRecipes = shouldShowAllResults ? activeRecipes : activeRecipes.slice(0, 5);
 
   useEffect(() => {
@@ -368,7 +431,11 @@ export default function RecipesPage() {
 
   const renderRecipeCard = useCallback(
     (recipe: RecipeRow, index: number, animateFromIndex?: number) => {
-      const cardLabel = translateSavedCardLabel(t, getRecipeCardLabel(recipe));
+      const originBadge = resolveExternalMealBadge(recipe.tags);
+      const cardLabel = originBadge
+        ? null
+        : translateSavedCardLabel(t, getRecipeCardLabel(recipe));
+      const macros = parseMacrosFromJson(recipe.macros);
       const shouldAnimate =
         animateFromIndex != null && index >= animateFromIndex;
 
@@ -386,12 +453,22 @@ export default function RecipesPage() {
             title={recipe.title}
             recipeId={recipe.id}
             categoryLabel={cardLabel}
+            originBadge={originBadge}
+            originBadgeLabel={
+              originBadge ? externalMealBadgeLabel(originBadge) : null
+            }
             savedAtLabel={formatSavedDate(recipe.created_at, locale, (date) =>
               t("savedOn", { date })
             )}
             imageUrl={recipe.image_url}
             referenceImageUrl={recipe.reference_image_url}
             instagramUrl={recipe.instagram_url}
+            cookingTimeMinutes={
+              typeof recipe.cooking_time === "number" && recipe.cooking_time > 0
+                ? recipe.cooking_time
+                : null
+            }
+            macros={macros}
             isSocialVideo={Boolean(
               recipe.instagram_url && !recipe.image_url && !recipe.reference_image_url
             )}
@@ -423,6 +500,7 @@ export default function RecipesPage() {
             }
             deleteAriaLabel={t("deleteAria")}
             shareAriaLabel={t("shareAria")}
+            editAriaLabel={t.has("editAria") ? t("editAria") : "Ver o editar receta"}
           />
         </div>
       );
@@ -459,7 +537,7 @@ export default function RecipesPage() {
       );
     }
 
-    if (recipes.length === 0) {
+    if (recipes.length === 0 && sandraRecipes.length === 0) {
       return (
         <p className="rounded-xl bg-white/90 px-3 py-2 text-xs text-stone-500 shadow-sm">
           {t("empty")}
@@ -467,7 +545,7 @@ export default function RecipesPage() {
       );
     }
 
-    if (filteredRecipes.length === 0) {
+    if (filteredRecipes.length === 0 && filteredSandraRecipes.length === 0) {
       return (
         <p className="rounded-xl bg-white/90 px-3 py-2 text-xs text-stone-500 shadow-sm">
           No encontré ninguna receta con ese nombre o ingrediente en tu biblioteca. ¡Prueba con otra palabra!
@@ -484,77 +562,12 @@ export default function RecipesPage() {
           ? t("favoritesEmpty")
           : activeTab === "outside"
             ? t("outsideSectionEmpty")
-            : t("savedSectionEmpty");
+            : activeTab === "sandra"
+              ? t("sandraSectionEmpty")
+              : t("savedSectionEmpty");
 
     return (
       <div className="space-y-3">
-        <div
-          className="grid grid-cols-3 gap-1 rounded-xl border border-stone-200/60 bg-white p-1 shadow-sm"
-          role="tablist"
-          aria-label={t("libraryTabsAria")}
-        >
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === "saved"}
-            onClick={() => {
-              setActiveTab("saved");
-              setMostrarTodas(false);
-            }}
-            className={cn(
-              "rounded-lg px-2 py-2 text-center text-[11px] font-semibold transition sm:text-[12px] sm:px-3",
-              activeTab === "saved"
-                ? "bg-[#F0F4ED] text-[#3e5219]"
-                : "text-stone-500 hover:bg-stone-50 hover:text-stone-700"
-            )}
-          >
-            {t("savedSection")}
-            <span className="ml-1 text-[10px] font-medium opacity-70">
-              {otherSavedRecipes.length}
-            </span>
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === "favorites"}
-            onClick={() => {
-              setActiveTab("favorites");
-              setMostrarTodas(false);
-            }}
-            className={cn(
-              "rounded-lg px-2 py-2 text-center text-[11px] font-semibold transition sm:text-[12px] sm:px-3",
-              activeTab === "favorites"
-                ? "bg-[#F5EBE6] text-[#C06A4F]"
-                : "text-stone-500 hover:bg-stone-50 hover:text-stone-700"
-            )}
-          >
-            {t("favoritesSection")}
-            <span className="ml-1 text-[10px] font-medium opacity-70">
-              {favoriteRecipes.length}
-            </span>
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === "outside"}
-            onClick={() => {
-              setActiveTab("outside");
-              setMostrarTodas(false);
-            }}
-            className={cn(
-              "rounded-lg px-2 py-2 text-center text-[11px] font-semibold transition sm:text-[12px] sm:px-3",
-              activeTab === "outside"
-                ? "bg-amber-50 text-amber-900"
-                : "text-stone-500 hover:bg-stone-50 hover:text-stone-700"
-            )}
-          >
-            {t("outsideSection")}
-            <span className="ml-1 text-[10px] font-medium opacity-70">
-              {outsideRecipes.length}
-            </span>
-          </button>
-        </div>
-
         {activeRecipes.length > 0 ? (
           <>
             <div className="grid grid-cols-1" role="tabpanel">
@@ -590,32 +603,122 @@ export default function RecipesPage() {
     activeFilter,
     isCategoryFilterActive,
     errorMessage,
-    favoriteRecipes.length,
     filteredRecipes.length,
+    filteredSandraRecipes.length,
     isLoading,
     mostrarTodas,
-    otherSavedRecipes.length,
-    outsideRecipes.length,
     recipes.length,
+    sandraRecipes.length,
     renderRecipeCard,
     shouldShowAllResults,
     t,
     visibleRecipes
   ]);
 
+  const showLibraryChrome =
+    !isLoading &&
+    !errorMessage &&
+    (recipes.length > 0 || sandraRecipes.length > 0) &&
+    (filteredRecipes.length > 0 || filteredSandraRecipes.length > 0);
+
+  const libraryTabs = (
+    <div
+      className="-mx-0.5 flex gap-2 overflow-x-auto px-0.5 pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      role="tablist"
+      aria-label={t("libraryTabsAria")}
+    >
+      {(
+        [
+          {
+            id: "saved" as const,
+            label: t("savedSection"),
+            count: otherSavedRecipes.length,
+            inactiveClass: "text-stone-700"
+          },
+          {
+            id: "sandra" as const,
+            label: t("sandraSection"),
+            count: filteredSandraRecipes.length,
+            inactiveClass: "text-stone-700"
+          },
+          {
+            id: "favorites" as const,
+            label: t("favoritesSection"),
+            count: favoriteRecipes.length,
+            inactiveClass: "text-stone-700"
+          },
+          {
+            id: "outside" as const,
+            label: t("outsideSection"),
+            count: outsideRecipes.length,
+            inactiveClass: "text-orange-800/80"
+          }
+        ] as const
+      ).map((tab) => {
+        const isActive = activeTab === tab.id;
+        return (
+          <button
+            key={tab.id}
+            type="button"
+            role="tab"
+            aria-selected={isActive}
+            onClick={() => {
+              setActiveTab(tab.id);
+              setMostrarTodas(false);
+            }}
+            className={cn(
+              "inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-semibold transition",
+              isActive
+                ? "bg-[#E4ECDC] text-[#3e5219] ring-1 ring-[#88ab75]/35 shadow-sm shadow-stone-200/40"
+                : cn(
+                    "bg-white text-stone-700 ring-1 ring-stone-200/80 hover:bg-stone-50",
+                    tab.inactiveClass
+                  )
+            )}
+          >
+            {isActive ? (
+              <span className="text-[10px] leading-none opacity-80" aria-hidden>
+                ✨
+              </span>
+            ) : null}
+            <span>{tab.label}</span>
+            <span
+              className={cn(
+                "text-[11px] font-bold tabular-nums",
+                isActive ? "text-[#9A7B2F]" : "text-stone-400"
+              )}
+            >
+              {tab.count}
+            </span>
+            {isActive ? (
+              <span className="text-[10px] leading-none opacity-80" aria-hidden>
+                ✨
+              </span>
+            ) : null}
+          </button>
+        );
+      })}
+    </div>
+  );
+
   return (
-    <div className="-mx-4 min-h-full bg-gradient-to-b from-stone-50 via-amber-50/20 to-sv-surface px-4 pb-6 pt-1">
+    <div className="-mx-4 min-h-full bg-gradient-to-b from-[#FBF8F3] via-amber-50/25 to-sv-surface px-4 pb-6 pt-1">
       <section className="space-y-3">
         <RecipeShareCaptureHost captureRef={captureRef} recipe={captureRecipe} mode="offscreen" />
 
         <header>
-          <h1 className="font-serif text-lg font-semibold text-stone-900">{t("title")}</h1>
+          <h1 className="inline-flex items-center gap-1.5 font-serif text-xl font-semibold text-stone-900">
+            {t("title")}
+            <span className="text-base text-[#C9A227]" aria-hidden>
+              ✨
+            </span>
+          </h1>
           <p className="mt-0.5 text-[11px] leading-relaxed text-stone-500">
-            {t("subtitle", { count: recipes.length })}
+            {t("subtitle", { count: libraryCount })}
           </p>
         </header>
 
-        <div className="relative z-20 pb-1">
+        <div className="relative z-20 space-y-2.5 pb-1">
           <div className="flex w-full items-center gap-2">
             <label className="relative flex-1">
               <Search
@@ -628,7 +731,7 @@ export default function RecipesPage() {
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
                 placeholder={t("searchPlaceholder")}
-                className="w-full rounded-full border border-stone-200/80 bg-white px-4 py-2.5 pl-11 text-sm text-stone-700 shadow-sm outline-none placeholder:text-stone-400 transition focus:border-[#4C6B3F] focus:ring-1 focus:ring-[#4C6B3F]"
+                className="w-full rounded-full border border-[#E8DFD2]/80 bg-gradient-to-r from-[#FBF6EE] via-white to-[#F7F1E6] px-4 py-2.5 pl-11 text-sm text-stone-700 shadow-sm outline-none placeholder:text-stone-400 transition focus:border-[#4C6B3F]/50 focus:ring-1 focus:ring-[#4C6B3F]/30"
               />
             </label>
 
@@ -636,11 +739,11 @@ export default function RecipesPage() {
               <button
                 type="button"
                 onClick={() => setIsFilterMenuOpen((current) => !current)}
-                className="flex h-10 w-10 items-center justify-center rounded-full border border-stone-200/60 bg-stone-100 text-stone-600 transition-colors hover:bg-stone-200/50"
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-stone-200/70 bg-white text-stone-600 shadow-sm transition-colors hover:bg-stone-50"
                 aria-label={t("filterAria")}
                 aria-expanded={isFilterMenuOpen}
               >
-                <MoreVertical size={18} />
+                <SlidersHorizontal size={16} strokeWidth={1.75} />
               </button>
 
               {isFilterMenuOpen ? (
@@ -670,6 +773,8 @@ export default function RecipesPage() {
               ) : null}
             </div>
           </div>
+
+          {showLibraryChrome ? libraryTabs : null}
         </div>
 
         {isCategoryFilterActive ? (
