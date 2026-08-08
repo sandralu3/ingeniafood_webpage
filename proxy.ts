@@ -170,7 +170,9 @@ export async function proxy(request: NextRequest) {
   } = await supabase.auth.getSession();
 
   const isAppRoute = pathname === "/app-recetas" || pathname.startsWith("/app-recetas/");
-  const isPublicRoute = PUBLIC_ROUTES.has(pathname) || isAppRoute;
+  const isBetaGuideRoute = pathname.startsWith("/acceso-beta/");
+  const isPublicRoute =
+    PUBLIC_ROUTES.has(pathname) || isAppRoute || isBetaGuideRoute;
 
   if (
     session &&
