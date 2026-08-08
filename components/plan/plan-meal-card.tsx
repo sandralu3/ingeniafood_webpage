@@ -2,7 +2,7 @@
 
 import { useState, type HTMLAttributes } from "react";
 import Link from "next/link";
-import { Coffee, Clock3, GripVertical, Loader2, Pencil, Soup, Trash2, Utensils } from "lucide-react";
+import { Coffee, Clock3, Flame, GripVertical, Loader2, Pencil, Soup, Trash2, Utensils } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { RecipeInstagramLink } from "@/components/recipes/recipe-instagram-link";
 import { RecipeMedia } from "@/components/recipes/recipe-media";
@@ -91,6 +91,38 @@ function getPrepMinutes(meal: PlanMeal): number | undefined {
   return meal.prepMinutes ?? meal.calories;
 }
 
+function formatMacroGrams(value: number | undefined): string | null {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) return null;
+  return `${Math.round(value)}g`;
+}
+
+function MealMacroBadges({ meal }: { meal: PlanMeal }) {
+  const protein = formatMacroGrams(meal.proteinGrams);
+  const carbs = formatMacroGrams(meal.carbsGrams);
+  const fat = formatMacroGrams(meal.fatGrams);
+  if (!protein && !carbs && !fat) return null;
+
+  return (
+    <span className="inline-flex flex-wrap items-center gap-1">
+      {protein ? (
+        <span className="rounded-md bg-emerald-50 px-1.5 py-0.5 text-[9px] font-bold tabular-nums text-emerald-700 ring-1 ring-emerald-100/80">
+          {protein} P
+        </span>
+      ) : null}
+      {carbs ? (
+        <span className="rounded-md bg-amber-50 px-1.5 py-0.5 text-[9px] font-bold tabular-nums text-amber-800 ring-1 ring-amber-100/80">
+          {carbs} C
+        </span>
+      ) : null}
+      {fat ? (
+        <span className="rounded-md bg-rose-50 px-1.5 py-0.5 text-[9px] font-bold tabular-nums text-rose-700 ring-1 ring-rose-100/80">
+          {fat} G
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
 function buildNutritionPills(
   meal: PlanMeal,
   labels: { flourless: string; airfryer: string; healthy: string }
@@ -156,11 +188,11 @@ function MealThumbnail({
 }) {
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const sizeClass = mini
-    ? "h-8 w-8 rounded-lg"
+    ? "h-12 w-12 rounded-xl"
     : compact
-      ? "h-12 w-12 rounded-xl"
+      ? "h-[4.5rem] w-[4.5rem] rounded-xl"
       : "h-20 w-20 rounded-xl";
-  const iconSize = mini ? "h-3.5 w-3.5" : compact ? "h-4 w-4" : "h-7 w-7";
+  const iconSize = mini ? "h-4 w-4" : compact ? "h-5 w-5" : "h-7 w-7";
   const resolvedUrl =
     imageUrl && imageUrl.startsWith("http") && imageUrl !== failedUrl ? imageUrl : null;
 
@@ -301,7 +333,8 @@ function HorizontalMealCard({
   imageAltFallback,
   nutritionPills,
   dragHandleRef,
-  dragHandleProps
+  dragHandleProps,
+  complementAddedLabel
 }: {
   meal: PlanMeal;
   isFading: boolean;
@@ -322,6 +355,7 @@ function HorizontalMealCard({
   nutritionPills: string[];
   dragHandleRef?: (node: HTMLElement | null) => void;
   dragHandleProps?: HTMLAttributes<HTMLElement>;
+  complementAddedLabel?: string;
 }) {
   const thumbnail = (
     <MealThumbnail
@@ -400,23 +434,31 @@ function HorizontalMealCard({
             <Link
               href={recipeDetailHref(meal.recipeId)}
               data-no-dnd="true"
-              className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden rounded-md py-0.5 transition hover:bg-stone-50/70"
+              className="flex min-w-0 flex-1 items-center gap-2.5 overflow-hidden rounded-xl py-0.5 transition hover:bg-stone-50/50"
               aria-label={viewRecipeAria}
             >
               {!dragHandleProps ? (
                 <span className="shrink-0 select-none">{thumbnail}</span>
               ) : null}
-              <span className="min-w-0 truncate text-xs font-medium text-stone-700">
-                {meal.title}
-              </span>
-              {meal.externalBadge ? (
-                <ExternalMealBadgePill badge={meal.externalBadge} inline />
-              ) : null}
-              {meal.kcal ? (
-                <span className="shrink-0 text-[10px] font-medium text-stone-400">
-                  {meal.kcal} kcal
+              <span className="min-w-0 flex-1">
+                <span className="block text-[9px] font-medium text-stone-400">
+                  {complementAddedLabel ?? "Agregado de Complemento:"}
                 </span>
-              ) : null}
+                <span className="mt-0.5 block truncate text-xs font-bold text-stone-800">
+                  {meal.title}
+                </span>
+                <span className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                  {meal.externalBadge ? (
+                    <ExternalMealBadgePill badge={meal.externalBadge} inline />
+                  ) : null}
+                  {meal.kcal ? (
+                    <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-stone-500">
+                      <Flame className="h-2.5 w-2.5 text-orange-500" strokeWidth={2.25} />
+                      {meal.kcal} kcal
+                    </span>
+                  ) : null}
+                </span>
+              </span>
             </Link>
             {actions}
           </>
@@ -439,18 +481,21 @@ function HorizontalMealCard({
                 ) : null}
                 <h3
                   className={cn(
-                    "line-clamp-1 text-sm font-semibold leading-snug text-stone-800",
+                    "line-clamp-2 text-sm font-semibold leading-snug text-stone-800",
                     showMealType && "mt-0.5"
                   )}
                 >
                   {meal.title}
                 </h3>
-                <div className="mt-1 flex min-w-0 flex-wrap items-center gap-2">
+                <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
                   {meal.externalBadge ? (
                     <ExternalMealBadgePill badge={meal.externalBadge} inline />
                   ) : null}
                   {meal.kcal ? (
-                    <span className="text-xs font-medium text-stone-500">{meal.kcal} kcal</span>
+                    <span className="inline-flex items-center gap-0.5 text-xs font-medium text-stone-500">
+                      <Flame className="h-3 w-3 text-orange-500" strokeWidth={2.25} />
+                      {meal.kcal} kcal
+                    </span>
                   ) : null}
                   {getPrepMinutes(meal) ? (
                     <span className="inline-flex items-center gap-1 text-[10px] font-medium text-stone-400">
@@ -458,6 +503,7 @@ function HorizontalMealCard({
                       {getPrepMinutes(meal)} min
                     </span>
                   ) : null}
+                  <MealMacroBadges meal={meal} />
                 </div>
               </span>
             </Link>
@@ -592,6 +638,9 @@ export function PlanMealCard({
     airfryer: t("tagAirfryer"),
     healthy: t("tagHealthy")
   });
+  const complementAddedLabel = t.has("complementAddedLabel")
+    ? t("complementAddedLabel")
+    : "Agregado de Complemento:";
 
   const handleChange = () => {
     if (removeDisabled) return;
@@ -650,7 +699,8 @@ export function PlanMealCard({
     viewRecipeAria,
     imageAlt,
     imageAltFallback,
-    nutritionPills
+    nutritionPills,
+    complementAddedLabel
   };
 
   const confirmDialog = (

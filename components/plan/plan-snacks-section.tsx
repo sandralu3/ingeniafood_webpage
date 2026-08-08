@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Cookie, Plus, X } from "lucide-react";
+import { Cookie, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { PlanSectionDivider } from "@/components/plan/plan-section-divider";
 import type { WeekDay } from "@/lib/plan/constants";
@@ -224,36 +224,48 @@ export function PlanSnacksSection({
     }
   };
 
+  const registerCta =
+    snackKcal > 0
+      ? t.has("snackRegisterCtaWithKcal")
+        ? t("snackRegisterCtaWithKcal", { kcal: snackKcal })
+        : `✨ + Registrar snack • ${snackKcal} kcal`
+      : t.has("snackRegisterCtaPremium")
+        ? t("snackRegisterCtaPremium")
+        : "✨ + Registrar snack";
+
   return (
     <div className={cn(className)}>
       <PlanSectionDivider
-        label={sectionLabel}
+        label={
+          <>
+            <span aria-hidden>🍪</span> {sectionLabel}
+          </>
+        }
         accent={SNACK_ACCENT}
         className={compact ? "mb-1" : undefined}
       />
 
       <div
         className={cn(
-          "rounded-lg border border-stone-100/90 bg-white shadow-sm shadow-stone-100/20",
-          compact ? "px-2 py-1.5" : "px-2.5 py-2"
+          "rounded-xl border border-stone-100/90 bg-white shadow-sm shadow-stone-100/20",
+          compact ? "px-2 py-1.5" : "space-y-2.5 px-2.5 py-2.5"
         )}
       >
         {snacks.length > 0 ? (
-          <ul className={cn(compact ? "space-y-1" : "space-y-1.5", !readOnly && canRegister ? "mb-2" : "")}>
+          <ul className={cn(compact ? "space-y-1" : "space-y-2")}>
             {snacks.map((snack) => (
               <li
                 key={snack.id}
                 className={cn(
-                  "flex items-center gap-2 rounded-md bg-stone-50/80",
-                  compact ? "px-1.5 py-1" : "px-2 py-1.5"
+                  "relative flex items-center gap-2.5 rounded-xl border border-stone-100/80 bg-[#FBF8F3]/90",
+                  compact ? "px-1.5 py-1" : "px-2.5 py-2"
                 )}
               >
                 <span
                   className={cn(
-                    "relative flex shrink-0 items-center justify-center overflow-hidden rounded-full ring-1",
-                    compact ? "h-7 w-7 text-xs" : "h-9 w-9 text-sm",
-                    SNACK_ACCENT.iconCircleBg,
-                    SNACK_ACCENT.iconRing
+                    "relative flex shrink-0 items-center justify-center overflow-hidden rounded-xl ring-1 ring-stone-200/70",
+                    compact ? "h-9 w-9 text-xs" : "h-12 w-12 text-sm",
+                    SNACK_ACCENT.iconCircleBg
                   )}
                   aria-hidden
                 >
@@ -271,33 +283,24 @@ export function PlanSnacksSection({
                   ) : (
                     <Cookie
                       className={cn(
-                        compact ? "h-3 w-3" : "h-3.5 w-3.5",
+                        compact ? "h-3.5 w-3.5" : "h-4 w-4",
                         SNACK_ACCENT.iconText
                       )}
                     />
                   )}
                 </span>
-                <div className="min-w-0 flex-1">
-                  <p
-                    className={cn(
-                      "truncate text-[11px] font-bold text-stone-800"
-                    )}
-                  >
-                    {snack.title}
-                    {compact ? (
-                      <span className="ml-1.5 font-medium text-stone-500">{snack.kcal} kcal</span>
-                    ) : null}
+                <div className="min-w-0 flex-1 pr-6">
+                  <p className="truncate text-xs font-bold text-stone-800">{snack.title}</p>
+                  <p className="mt-0.5 text-[10px] font-medium text-stone-500">
+                    {snack.kcal} kcal
                   </p>
-                  {!compact ? (
-                    <p className="text-[10px] font-medium text-stone-500">{snack.kcal} kcal</p>
-                  ) : null}
                 </div>
                 {!readOnly ? (
                   <button
                     type="button"
                     disabled={removingId === snack.id}
                     onClick={() => void handleRemove(snack.id)}
-                    className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-stone-400 transition hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
+                    className="absolute right-1.5 top-1.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-stone-400 transition hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
                     aria-label={`Eliminar ${snack.title}`}
                   >
                     <X className="h-3.5 w-3.5" strokeWidth={2} />
@@ -321,39 +324,34 @@ export function PlanSnacksSection({
             </p>
           ) : null
         ) : canRegister ? (
-          <div className="space-y-2">
+          <div className="space-y-2.5">
             <div className="flex flex-wrap gap-1.5">
-              {chipSuggestions.map((suggestion) => (
-                <button
-                  key={suggestion.id}
-                  type="button"
-                  disabled={quickBusyId !== null}
-                  onClick={() => void handleQuickChip(suggestion)}
-                  className="inline-flex items-center gap-1 rounded-full border border-stone-200/80 bg-stone-50 px-2 py-1 text-[10px] font-semibold text-stone-700 transition hover:border-amber-300 hover:bg-amber-50 hover:text-amber-900 disabled:opacity-50"
-                >
-                  {suggestion.emoji} +{suggestion.title.split(" ")[0]}
-                </button>
-              ))}
+              {chipSuggestions.map((suggestion) => {
+                const chipLabel = suggestion.title.split(" ")[0] ?? suggestion.title;
+                return (
+                  <button
+                    key={suggestion.id}
+                    type="button"
+                    disabled={quickBusyId !== null}
+                    onClick={() => void handleQuickChip(suggestion)}
+                    className="inline-flex items-center gap-1 rounded-full border border-stone-200/70 bg-stone-100/90 px-2.5 py-1.5 text-[10px] font-semibold text-stone-600 transition hover:border-stone-300 hover:bg-stone-200/70 hover:text-stone-800 disabled:opacity-50"
+                  >
+                    {suggestion.emoji ? (
+                      <span className="text-[11px] leading-none" aria-hidden>
+                        {suggestion.emoji}
+                      </span>
+                    ) : null}
+                    <span>+ {chipLabel}</span>
+                  </button>
+                );
+              })}
             </div>
             <button
               type="button"
               onClick={() => onOpenRegister?.()}
-              className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-stone-100 bg-[#FCFBFA] px-3 py-2 text-xs font-semibold text-stone-600 transition hover:border-amber-200 hover:bg-amber-50/60 hover:text-amber-900"
+              className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#2d4a27] px-3 py-2.5 text-xs font-semibold text-[#F5E6C8] shadow-sm shadow-[#2d4a27]/25 transition hover:bg-[#243d1f] active:scale-[0.99]"
             >
-              <span
-                className={cn(
-                  "flex h-5 w-5 items-center justify-center rounded-full ring-1",
-                  SNACK_ACCENT.iconCircleBg,
-                  SNACK_ACCENT.iconRing,
-                  SNACK_ACCENT.iconText
-                )}
-              >
-                <Plus className="h-3 w-3" strokeWidth={2.25} />
-              </span>
-              {t.has("snackRegisterCta") ? t("snackRegisterCta") : "Registrar snack"}
-              {snackKcal > 0 ? (
-                <span className="text-[10px] font-medium text-stone-400">· {snackKcal} kcal</span>
-              ) : null}
+              {registerCta}
             </button>
           </div>
         ) : snacks.length === 0 ? (

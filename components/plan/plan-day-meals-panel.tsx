@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { EmptyMealSlot } from "@/components/plan/empty-meal-slot";
+import { PlanDayProgressHeader } from "@/components/plan/plan-day-progress-header";
 import { PlanMealCard, type PlanMeal } from "@/components/plan/plan-meal-card";
 import { PlanSectionDivider } from "@/components/plan/plan-section-divider";
 import { PlanSnacksSection } from "@/components/plan/plan-snacks-section";
@@ -15,10 +16,12 @@ import {
 import { ProposeDayMenuBanner } from "@/components/shared/propose-day-menu-banner";
 import { MEAL_TYPES, type MealType, type WeekDay } from "@/lib/plan/constants";
 import { getMealTypeSubtleAccent } from "@/lib/plan/meal-type-accent";
+import { DEFAULT_DAY_BUDGET } from "@/lib/plan/meal-suggestion";
 import { movePlanMeal } from "@/lib/plan/plan-service";
 import type { PlanSnack } from "@/lib/plan/snack-presets";
 import type { PlanDay } from "@/lib/plan/types";
 import { getMondayOfWeek, toISODateString } from "@/lib/plan/week-utils";
+import { fetchUserNutritionGoals } from "@/lib/nutrition/nutrition-profile";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import { cn } from "@/lib/utils";
 
@@ -44,6 +47,12 @@ type PlanDayMealsPanelProps = {
 
 const PLAN_CARD_CLASS =
   "rounded-2xl bg-[#FCFBFA] px-2.5 py-2 shadow-sm shadow-stone-200/25";
+
+const MEAL_SECTION_EMOJI: Record<MealType, string> = {
+  Desayuno: "☀️",
+  Almuerzo: "🌤️",
+  Cena: "🌙"
+};
 
 export function PlanDayMealsPanel({
   day,
@@ -74,6 +83,30 @@ export function PlanDayMealsPanel({
   const showPropose = Boolean(onProposeDayMenu) && hasEmptySlots;
   const resolvedWeekStart = weekStartISO ?? toISODateString(getMondayOfWeek());
   const [isMoving, setIsMoving] = useState(false);
+  const [calorieTarget, setCalorieTarget] = useState<number>(DEFAULT_DAY_BUDGET.calories);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const supabase = createSupabaseClient();
+        const {
+          data: { user }
+        } = await supabase.auth.getUser();
+        if (!user) return;
+        const goals = await fetchUserNutritionGoals(user.id, supabase);
+        if (!cancelled && goals.calorieTarget > 0) {
+          setCalorieTarget(goals.calorieTarget);
+        }
+      } catch (error) {
+        console.warn("[plan-day-meals] calorie target", error);
+      }
+    };
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleMove = useCallback(
     async (from: PlanSlotDragData, to: { dayLabel: WeekDay; mealType: MealType }) => {
@@ -130,35 +163,25 @@ export function PlanDayMealsPanel({
     ]
   );
 
+  const dragHint =
+    assignedItems > 0
+      ? t.has("dragToReorderHint")
+        ? t("dragToReorderHint")
+        : "Toca un plato para verlo, o usa el lápiz y la papelera para editarlo"
+      : null;
+
   return (
     <section key={day.label} className={cn("animate-fade-in", PLAN_CARD_CLASS, className)}>
-      <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-            <h2 className="font-serif text-sm font-semibold text-stone-900">
-              {t(`days.${day.label}`)}
-            </h2>
-            {day.isToday ? (
-              <span className="text-[10px] font-semibold text-[#556B2F]">· {t("today")}</span>
-            ) : null}
-            <span className="text-[11px] text-stone-500">{day.dateLabel}</span>
-          </div>
-          {assignedItems > 0 ? (
-            <p className="mt-0.5 text-[10px] text-stone-400">
-              {t.has("dragToReorderHint")
-                ? t("dragToReorderHint")
-                : "Arrastra una comida a otro hueco para cambiarla de horario"}
-            </p>
-          ) : null}
-        </div>
-
-        <span className="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-900">
-          {assignedMealTypes}/{MEAL_TYPES.length}
-          {day.nutrition.totalKcal > 0 ? (
-            <span className="ml-1 text-orange-800">· {day.nutrition.totalKcal} kcal</span>
-          ) : null}
-        </span>
-      </div>
+      <PlanDayProgressHeader
+        dayTitle={t(`days.${day.label}`)}
+        dateLabel={day.dateLabel}
+        isToday={day.isToday}
+        completedMeals={assignedMealTypes}
+        totalMeals={MEAL_TYPES.length}
+        consumedKcal={day.nutrition.totalKcal}
+        targetKcal={calorieTarget}
+        dragHint={dragHint}
+      />
 
       {showPropose ? (
         <div className="mb-2.5">
@@ -201,6 +224,7 @@ export function PlanDayMealsPanel({
             const meals = day.slots[mealType] ?? [];
             const accent = getMealTypeSubtleAccent(mealType);
             const slotGenerating = isProposingDayMenu && meals.length === 0;
+            const sectionEmoji = MEAL_SECTION_EMOJI[mealType];
 
             return (
               <li key={mealType}>
@@ -209,7 +233,14 @@ export function PlanDayMealsPanel({
                   mealType={mealType}
                   className="space-y-1.5 p-0.5"
                 >
-                  <PlanSectionDivider label={t(`meals.${mealType}`)} accent={accent} />
+                  <PlanSectionDivider
+                    label={
+                      <>
+                        <span aria-hidden>{sectionEmoji}</span> {t(`meals.${mealType}`)}
+                      </>
+                    }
+                    accent={accent}
+                  />
 
                   {meals.map((meal, index) => {
                     const isComplement = index > 0;
@@ -224,21 +255,16 @@ export function PlanDayMealsPanel({
                           imageUrl: meal.imageUrl
                         }}
                         disabled={isMoving || isProposingDayMenu}
-                        className={isComplement ? "pl-5" : undefined}
+                        className={isComplement ? "pl-4" : undefined}
                       >
                         <div
                           className={cn(
                             "w-full",
                             isComplement
-                              ? "rounded-md border border-dashed border-stone-200/80 bg-stone-50/60 px-2.5 py-1.5 shadow-none"
+                              ? "rounded-xl border border-stone-200/70 bg-[#FBF8F3] px-2.5 py-2 shadow-none"
                               : "rounded-xl border border-stone-100/90 bg-white p-2.5 shadow-sm shadow-stone-100/20"
                           )}
                         >
-                          {isComplement ? (
-                            <p className="mb-1 pt-0.5 text-[8px] font-semibold uppercase tracking-wide text-stone-400">
-                              {t.has("complementBadge") ? t("complementBadge") : "Complemento"}
-                            </p>
-                          ) : null}
                           <PlanMealCard
                             meal={meal}
                             variant="panel"
@@ -258,7 +284,7 @@ export function PlanDayMealsPanel({
                     );
                   })}
 
-                  <div className={meals.length > 0 ? "pl-5" : undefined}>
+                  <div className={meals.length > 0 ? "pl-4" : undefined}>
                     <EmptyMealSlot
                       mealType={mealType}
                       isGenerating={slotGenerating}

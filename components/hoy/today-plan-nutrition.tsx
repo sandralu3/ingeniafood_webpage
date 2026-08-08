@@ -522,7 +522,7 @@ function TodayMenuSection({
             <p className="text-[10px] text-stone-400">
               {t.has("dragToReorderHint")
                 ? t("dragToReorderHint")
-                : "Mantén pulsado y arrastra para cambiar de horario"}
+                : "Toca un plato para verlo, o usa el lápiz y la papelera para editarlo"}
             </p>
           ) : null}
         </div>
