@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { Instagram, Loader2, Trash2 } from "lucide-react";
 import { RecipeInstagramLink } from "@/components/recipes/recipe-instagram-link";
 import { normalizeInstagramUrl } from "@/lib/recipes/instagram-url";
-import { createSupabaseClient } from "@/lib/supabaseClient";
 import { cn } from "@/lib/utils";
 
 type RecipeInstagramAdminFormProps = {
@@ -46,22 +45,29 @@ export function RecipeInstagramAdminForm({
     }
 
     try {
-      const supabase = createSupabaseClient();
-      const { error } = await supabase
-        .from("recipes")
-        .update({ instagram_url: normalized })
-        .eq("id", recipeId);
+      const response = await fetch("/api/admin/update-recipe-instagram-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recipeId, instagramUrl: normalized })
+      });
+      const payload = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        message?: string;
+        instagramUrl?: string | null;
+      };
 
-      if (error) {
-        console.error("[recipe-instagram-admin] Error guardando URL:", error);
-        setErrorMessage("No pudimos guardar el enlace. ¿Ejecutaste la migración de instagram_url?");
+      if (!response.ok) {
+        setErrorMessage(payload.error ?? "No pudimos guardar el enlace.");
         return;
       }
 
-      setSavedUrl(normalized);
-      setValue(normalized ?? "");
-      setSuccessMessage(normalized ? "Enlace de Instagram guardado." : "Enlace eliminado.");
-      onUpdated?.(normalized);
+      const saved = payload.instagramUrl ?? normalized;
+      setSavedUrl(saved);
+      setValue(saved ?? "");
+      setSuccessMessage(
+        payload.message ?? (saved ? "Enlace de Instagram guardado." : "Enlace eliminado.")
+      );
+      onUpdated?.(saved);
       window.setTimeout(() => setSuccessMessage(null), 2500);
     } catch (error) {
       console.error("[recipe-instagram-admin] Error inesperado:", error);

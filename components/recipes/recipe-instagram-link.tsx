@@ -57,7 +57,7 @@ export function RecipeInstagramLink({
       )}
     >
       <Instagram className="h-3.5 w-3.5" />
-      Ver en Instagram
+      Ver reel en Instagram
     </a>
   );
 }

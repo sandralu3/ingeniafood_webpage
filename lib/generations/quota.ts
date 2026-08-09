@@ -1,21 +1,37 @@
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin";
 import { getTodayDateKey } from "@/lib/generations/date-utils";
 import {
-  hasUnlimitedGenerations,
+  FREE_DAILY_SCAN_LIMIT,
+  PREMIUM_DAILY_SCAN_LIMIT,
+  resolveEffectiveDailyScanLimit,
   UNLIMITED_GENERATIONS_SENTINEL
-} from "@/lib/generations/admin-unlimited";
+} from "@/lib/generations/constants";
+import { hasUnlimitedGenerations } from "@/lib/generations/admin-unlimited";
+import {
+  isPremiumExpiryActive,
+  resolvePremiumAccess
+} from "@/lib/auth/premium-access";
+import { clearExpiredCodePremium } from "@/lib/premium/claim-referral-promo";
 
 type ProfileQuotaRow = {
   daily_scan_limit: number;
   scans_used_today: number;
   scan_quota_date: string;
+  is_premium: boolean | null;
+  is_tester?: boolean | null;
+  role?: string | null;
+  premium_expires_at: string | null;
+  has_promo_claimable?: boolean | null;
 };
+
+const QUOTA_SELECT =
+  "daily_scan_limit, scans_used_today, scan_quota_date, is_premium, is_tester, role, premium_expires_at, has_promo_claimable" as const;
 
 async function getProfileQuotaRow(userId: string): Promise<ProfileQuotaRow | null> {
   const admin = getSupabaseAdminClient();
   const { data, error } = await admin
     .from("profiles")
-    .select("daily_scan_limit, scans_used_today, scan_quota_date")
+    .select(QUOTA_SELECT)
     .eq("id", userId)
     .maybeSingle();
 
@@ -23,7 +39,7 @@ async function getProfileQuotaRow(userId: string): Promise<ProfileQuotaRow | nul
     return null;
   }
 
-  return data;
+  return data as ProfileQuotaRow;
 }
 
 async function ensureDailyQuotaReset(userId: string): Promise<ProfileQuotaRow | null> {
@@ -43,18 +59,62 @@ async function ensureDailyQuotaReset(userId: string): Promise<ProfileQuotaRow | 
       scan_quota_date: today
     })
     .eq("id", userId)
-    .select("daily_scan_limit, scans_used_today, scan_quota_date")
+    .select(QUOTA_SELECT)
     .maybeSingle();
 
   if (error || !updated) {
     return profile;
   }
 
-  return updated;
+  return updated as ProfileQuotaRow;
 }
 
-function computeRemainingScans(profile: ProfileQuotaRow): number {
-  return Math.max(0, profile.daily_scan_limit - profile.scans_used_today);
+async function resolveQuotaContext(
+  userId: string,
+  email?: string | null
+): Promise<{
+  profile: ProfileQuotaRow;
+  dailyLimit: number;
+  isPremium: boolean;
+} | null> {
+  let profile = await ensureDailyQuotaReset(userId);
+  if (!profile) return null;
+
+  // Limpiar pase 24h vencido antes de calcular el tope.
+  if (
+    profile.premium_expires_at &&
+    !isPremiumExpiryActive(profile.premium_expires_at)
+  ) {
+    await clearExpiredCodePremium(userId);
+    profile = (await getProfileQuotaRow(userId)) ?? profile;
+  }
+
+  const access = resolvePremiumAccess(profile, { email });
+  const isPremium = access.canUsePremiumFeatures;
+  const dailyLimit = resolveEffectiveDailyScanLimit(profile.daily_scan_limit, isPremium);
+
+  // Persistimos el tope Premium para que el admin UI y generations_left reflejen 20.
+  if (isPremium && profile.daily_scan_limit < PREMIUM_DAILY_SCAN_LIMIT) {
+    const admin = getSupabaseAdminClient();
+    const { data: bumped } = await admin
+      .from("profiles")
+      .update({
+        daily_scan_limit: PREMIUM_DAILY_SCAN_LIMIT,
+        generations_left: Math.max(
+          0,
+          PREMIUM_DAILY_SCAN_LIMIT - profile.scans_used_today
+        )
+      })
+      .eq("id", userId)
+      .select(QUOTA_SELECT)
+      .maybeSingle();
+
+    if (bumped) {
+      profile = bumped as ProfileQuotaRow;
+    }
+  }
+
+  return { profile, dailyLimit, isPremium };
 }
 
 export type UserScanQuota = {
@@ -77,13 +137,13 @@ export async function getUserScanQuota(
     };
   }
 
-  const profile = await ensureDailyQuotaReset(userId);
-  if (!profile) return null;
+  const ctx = await resolveQuotaContext(userId, email);
+  if (!ctx) return null;
 
   return {
-    remaining: computeRemainingScans(profile),
-    dailyLimit: profile.daily_scan_limit,
-    usedToday: profile.scans_used_today,
+    remaining: Math.max(0, ctx.dailyLimit - ctx.profile.scans_used_today),
+    dailyLimit: ctx.dailyLimit,
+    usedToday: ctx.profile.scans_used_today,
     unlimited: false
   };
 }
@@ -104,25 +164,30 @@ export async function consumeGeneration(
     return UNLIMITED_GENERATIONS_SENTINEL;
   }
 
-  const profile = await ensureDailyQuotaReset(userId);
-  if (!profile || profile.scans_used_today >= profile.daily_scan_limit) {
+  const ctx = await resolveQuotaContext(userId, email);
+  if (!ctx || ctx.profile.scans_used_today >= ctx.dailyLimit) {
     return null;
   }
 
   const admin = getSupabaseAdminClient();
-  const nextUsed = profile.scans_used_today + 1;
+  const nextUsed = ctx.profile.scans_used_today + 1;
   const today = getTodayDateKey();
+  const nextRemaining = Math.max(0, ctx.dailyLimit - nextUsed);
 
   const { data: updated, error } = await admin
     .from("profiles")
     .update({
       scans_used_today: nextUsed,
       scan_quota_date: today,
-      generations_left: Math.max(0, profile.daily_scan_limit - nextUsed)
+      generations_left: nextRemaining,
+      // Mantener el tope alineado con el plan vigente.
+      daily_scan_limit: ctx.isPremium
+        ? Math.max(ctx.profile.daily_scan_limit, PREMIUM_DAILY_SCAN_LIMIT)
+        : ctx.profile.daily_scan_limit
     })
     .eq("id", userId)
-    .eq("scans_used_today", profile.scans_used_today)
-    .eq("scan_quota_date", profile.scan_quota_date)
+    .eq("scans_used_today", ctx.profile.scans_used_today)
+    .eq("scan_quota_date", ctx.profile.scan_quota_date)
     .select("daily_scan_limit, scans_used_today")
     .maybeSingle();
 
@@ -130,5 +195,11 @@ export async function consumeGeneration(
     return null;
   }
 
-  return Math.max(0, updated.daily_scan_limit - updated.scans_used_today);
+  const effective = resolveEffectiveDailyScanLimit(
+    updated.daily_scan_limit,
+    ctx.isPremium
+  );
+  return Math.max(0, effective - updated.scans_used_today);
 }
+
+export { FREE_DAILY_SCAN_LIMIT, PREMIUM_DAILY_SCAN_LIMIT };

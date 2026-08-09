@@ -88,6 +88,22 @@ import {
 
 import { jsonToStepList, savedRecipeToShareable } from "@/lib/share/recipe-share-utils";
 
+import { APP_ROUTES } from "@/lib/navigation/app-routes";
+
+import { completePendingPlanAssignment } from "@/lib/plan/complete-pending-assignment";
+
+import {
+
+  clearPendingPlanAssignment,
+
+  readPendingPlanAssignment,
+
+  type PendingPlanAssignment
+
+} from "@/lib/plan/plan-pending-assignment";
+
+import { formatPendingPlanSlot } from "@/lib/i18n/plan-pending-label";
+
 import { createSupabaseClient } from "@/lib/supabaseClient";
 
 import { cn } from "@/lib/utils";
@@ -160,6 +176,8 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
 
   const tScanner = useTranslations("Scanner");
 
+  const tPlan = useTranslations("Plan");
+
   const router = useRouter();
 
   const { isPremium, hasGeneratedRealPhoto } = usePremium();
@@ -192,6 +210,11 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
 
   const [showPremiumDialog, setShowPremiumDialog] = useState(false);
 
+  const [pendingPlanAssignment, setPendingPlanAssignment] =
+    useState<PendingPlanAssignment | null>(null);
+
+  const [isAssigningPending, setIsAssigningPending] = useState(false);
+
   const {
 
     captureRef,
@@ -207,6 +230,14 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
     clearError: clearShareError
 
   } = useShareRecipeImage();
+
+
+
+  useEffect(() => {
+
+    setPendingPlanAssignment(readPendingPlanAssignment());
+
+  }, []);
 
 
 
@@ -756,7 +787,113 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
 
 
 
-  const actionsBusy = isTogglingFavorite || isDeleting || isSharing || isSavingToLibrary;
+  const handleAssignPendingToPlan = useCallback(async () => {
+
+    if (!recipe || !pendingPlanAssignment || isAssigningPending) return;
+
+    setIsAssigningPending(true);
+
+    setPlanSuccessMessage(null);
+
+    try {
+
+      const supabase = createSupabaseClient();
+
+      const {
+
+        data: { user }
+
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+
+        setPlanSuccessMessage("Inicia sesión para añadir esta receta al plan.");
+
+        return;
+
+      }
+
+      const assignment = await completePendingPlanAssignment(user.id, recipe.id);
+
+      setPendingPlanAssignment(null);
+
+      if (assignment.assigned && assignment.pending) {
+
+        setPlanSuccessMessage(
+
+          tScanner.has("savedAndAssigned")
+
+            ? tScanner("savedAndAssigned", {
+
+                slot: formatPendingPlanSlot(assignment.pending, tPlan, tScanner)
+
+              })
+
+            : `Receta añadida a ${formatPendingPlanSlot(assignment.pending, tPlan, tScanner)}.`
+
+        );
+
+        window.setTimeout(() => {
+
+          router.push(APP_ROUTES.plan);
+
+        }, 700);
+
+        return;
+
+      }
+
+      setPlanSuccessMessage(
+
+        tScanner.has("savedAssignFailed")
+
+          ? tScanner("savedAssignFailed")
+
+          : "No pudimos asignar la receta al plan."
+
+      );
+
+    } catch (error) {
+
+      console.error("[recipe-detail] Error asignando al plan pendiente:", error);
+
+      setPlanSuccessMessage(
+
+        tScanner.has("savedAssignFailed")
+
+          ? tScanner("savedAssignFailed")
+
+          : "No pudimos asignar la receta al plan."
+
+      );
+
+    } finally {
+
+      setIsAssigningPending(false);
+
+    }
+
+  }, [
+
+    isAssigningPending,
+
+    pendingPlanAssignment,
+
+    recipe,
+
+    router,
+
+    tPlan,
+
+    tScanner
+
+  ]);
+
+
+
+  const actionsBusy =
+
+    isTogglingFavorite || isDeleting || isSharing || isSavingToLibrary || isAssigningPending;
 
   const isOwnedRecipe = Boolean(recipe && viewerUserId && recipe.user_id === viewerUserId);
 
@@ -790,7 +927,18 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
 
     isAdmin && isOwnedRecipe && Boolean(recipe) && !isSandraRecipe;
 
-  const canEditSandraContent = isAdmin && isOwnedRecipe && Boolean(recipe);
+  const isPublicInstagramRecipe = Boolean(
+    recipe &&
+      ("es_instagram" in recipe
+        ? (recipe as RecipeRow & { es_instagram?: boolean }).es_instagram
+        : false) &&
+      recipe.is_public
+  );
+
+  const canEditSandraContent =
+    isAdmin &&
+    Boolean(recipe) &&
+    (isOwnedRecipe || isSandraRecipe || isPublicInstagramRecipe);
 
 
 
@@ -953,13 +1101,21 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
             type="button"
             onClick={() => {
               setPlanSuccessMessage(null);
+              if (pendingPlanAssignment) {
+                void handleAssignPendingToPlan();
+                return;
+              }
               setIsPlanSheetOpen(true);
             }}
             disabled={actionsBusy}
             aria-label={t("assignToPlanAria")}
             className={overlayBtnClass}
           >
-            <CalendarPlus className="h-4 w-4" strokeWidth={1.5} />
+            {isAssigningPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <CalendarPlus className="h-4 w-4" strokeWidth={1.5} />
+            )}
           </button>
 
           <button
@@ -1222,6 +1378,49 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
             </div>
           ) : null}
         </article>
+      ) : null}
+
+      {showHeroDetail && pendingPlanAssignment ? (
+        <div className="mx-4 rounded-xl border border-[#556B2F]/20 bg-[#F0F4ED]/90 px-3 py-3">
+          <p className="text-xs font-semibold text-[#3e5219]">
+            {tScanner.has("planningWeekTitle")
+              ? tScanner("planningWeekTitle")
+              : "Asignar al plan"}
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-stone-600">
+            {tScanner.has("planningWeekHint")
+              ? tScanner("planningWeekHint", {
+                  slot: formatPendingPlanSlot(pendingPlanAssignment, tPlan, tScanner)
+                })
+              : `Se añadirá a ${formatPendingPlanSlot(pendingPlanAssignment, tPlan, tScanner)}.`}
+          </p>
+          <div className="mt-2.5 flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={actionsBusy}
+              onClick={() => void handleAssignPendingToPlan()}
+              className="inline-flex items-center gap-1.5 rounded-full bg-[#556B2F] px-3.5 py-1.5 text-xs font-semibold text-white transition hover:brightness-110 disabled:opacity-60"
+            >
+              {isAssigningPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <CalendarPlus className="h-3.5 w-3.5" strokeWidth={1.75} />
+              )}
+              Añadir a este hueco
+            </button>
+            <button
+              type="button"
+              disabled={actionsBusy}
+              onClick={() => {
+                clearPendingPlanAssignment();
+                setPendingPlanAssignment(null);
+              }}
+              className="rounded-full border border-stone-200 bg-white px-3 py-1.5 text-xs font-medium text-stone-600 transition hover:bg-stone-50 disabled:opacity-60"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
       ) : null}
 
       {showHeroDetail && planSuccessMessage ? (

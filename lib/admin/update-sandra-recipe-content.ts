@@ -44,7 +44,7 @@ export async function updateSandraRecipeContent(params: {
 
   const { data: recipe, error: fetchError } = await admin
     .from("recipes")
-    .select("id, user_id")
+    .select("id, user_id, is_sandra_recipe, es_instagram, is_public")
     .eq("id", recipeId)
     .maybeSingle();
 
@@ -55,8 +55,12 @@ export async function updateSandraRecipeContent(params: {
   if (!recipe) {
     throw new Error("No encontramos esa receta.");
   }
-  if (recipe.user_id !== params.userId) {
-    throw new Error("Solo puedes editar recetas de tu cuenta.");
+
+  const isOwned = recipe.user_id === params.userId;
+  const isSandraCatalog = Boolean(recipe.is_sandra_recipe);
+  const isPublicInstagram = Boolean(recipe.es_instagram && recipe.is_public);
+  if (!isOwned && !isSandraCatalog && !isPublicInstagram) {
+    throw new Error("Solo puedes editar tus recetas o el catálogo de Sandra.");
   }
 
   const structured = structuredIngredientsToJson(
@@ -71,8 +75,7 @@ export async function updateSandraRecipeContent(params: {
       instructions: buildInstructions(steps),
       updated_at: new Date().toISOString()
     })
-    .eq("id", recipe.id)
-    .eq("user_id", params.userId);
+    .eq("id", recipe.id);
 
   if (updateError) {
     console.error("[admin/update-sandra-recipe-content] update:", updateError);

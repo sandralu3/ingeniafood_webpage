@@ -6,7 +6,7 @@ import { APP_ROUTES } from "@/lib/navigation/app-routes";
 import { MEAL_TYPES } from "@/lib/plan/constants";
 import {
   getMondayOfWeek,
-  getTodayWeekDay,
+  getWeekDayFromDate,
   toISODateString
 } from "@/lib/plan/week-utils";
 import { upsertNotificationDrafts } from "@/lib/notifications/service";
@@ -28,6 +28,13 @@ export type SyncNotificationsInput = {
   locale?: AppLocale;
   /** Versión remota detectada por el cliente cuando hay update. */
   updateVersion?: string | null;
+  /**
+   * Si true (default), actualiza profiles.last_seen_at.
+   * El cron de push debe pasar false para no romper reenganche.
+   */
+  touchLastSeen?: boolean;
+  /** Fecha de calendario YYYY-MM-DD (cron con zona horaria). Default: día local del servidor. */
+  todayIso?: string;
 };
 
 function daysBetweenIsoDates(laterIso: string, earlierIso: string): number {
@@ -48,17 +55,22 @@ function pickDailyTip(locale: AppLocale, dayKey: string): string {
 
 /**
  * Evalúa reglas de producto y crea notificaciones deduplicadas.
- * Se invoca al abrir la app (campana / sync).
+ * - Cliente (campana): al abrir la app.
+ * - Cron: en background para usuarios con push activo (sin tocar last_seen).
  */
 export async function syncUserNotifications(
   client: Client,
   input: SyncNotificationsInput
 ): Promise<{ created: number }> {
-  const today = getTodayDateString();
+  const today =
+    typeof input.todayIso === "string" && /^\d{4}-\d{2}-\d{2}$/.test(input.todayIso)
+      ? input.todayIso
+      : getTodayDateString();
   const locale = input.locale ?? "es";
   const localHour = Number.isFinite(input.localHour)
     ? Math.max(0, Math.min(23, Math.floor(input.localHour)))
     : 12;
+  const touchLastSeen = input.touchLastSeen !== false;
 
   const { data: profile, error: profileError } = await client
     .from("profiles")
@@ -143,8 +155,9 @@ export async function syncUserNotifications(
   });
 
   // --- Huecos vacíos hoy ---
-  const dayLabel = getTodayWeekDay();
-  const weekStart = toISODateString(getMondayOfWeek());
+  const dayAnchor = new Date(`${today}T12:00:00`);
+  const dayLabel = getWeekDayFromDate(dayAnchor);
+  const weekStart = toISODateString(getMondayOfWeek(dayAnchor));
   const { data: planRows } = await client
     .from("plan_semanal")
     .select("tipo_comida")
@@ -243,7 +256,7 @@ export async function syncUserNotifications(
       type: "instagram_catalog",
       title: "Nueva receta en el catálogo",
       body: `「${recipe.title}」 ya está disponible desde Instagram.`,
-      href: APP_ROUTES.scanner,
+      href: `${APP_ROUTES.guardadas}?tab=sandra`,
       dedupeKey: `instagram_catalog:${recipe.id}`,
       payload: { recipeId: recipe.id, title: recipe.title }
     });
@@ -264,14 +277,16 @@ export async function syncUserNotifications(
 
   const createdRows = await upsertNotificationDrafts(client, input.userId, drafts);
 
-  await client
-    .from("profiles")
-    .update({ last_seen_at: new Date().toISOString() })
-    .eq("id", input.userId);
+  if (touchLastSeen) {
+    await client
+      .from("profiles")
+      .update({ last_seen_at: new Date().toISOString() })
+      .eq("id", input.userId);
+  }
 
   if (createdRows.length > 0) {
     const { sendPushForNotifications } = await import("@/lib/notifications/send-push");
-    void sendPushForNotifications(input.userId, createdRows);
+    await sendPushForNotifications(input.userId, createdRows);
   }
 
   return { created: createdRows.length };

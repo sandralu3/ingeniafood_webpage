@@ -5,10 +5,8 @@ import { useLocale, useTranslations } from "next-intl";
 import { PantrySearchView } from "@/components/scanner/pantry-search-view";
 import { ConfirmIngredientsView } from "@/components/scanner/confirm-ingredients-view";
 import { GenerationsLimitModal } from "@/components/scanner/generations-limit-modal";
-import { InstagramCuratedCatalog } from "@/components/scanner/instagram-curated-catalog";
 import { RecipeGenerationState } from "@/components/scanner/recipe-generation-state";
 import { RecipeResultView } from "@/components/scanner/recipe-result-view";
-import { ScannerModeTabs, type ScannerMode } from "@/components/scanner/scanner-mode-tabs";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   createDetectedIngredient,
@@ -21,7 +19,6 @@ import { hasUnlimitedGenerations } from "@/lib/generations/admin-unlimited";
 import { completePendingPlanAssignment } from "@/lib/plan/complete-pending-assignment";
 import {
   clearPendingPlanAssignment,
-  consumeScannerInitialMode,
   readPendingPlanAssignment,
   type PendingPlanAssignment
 } from "@/lib/plan/plan-pending-assignment";
@@ -300,7 +297,6 @@ export default function ScannerPage() {
   const [pendingPlanAssignment, setPendingPlanAssignment] = useState<PendingPlanAssignment | null>(
     null
   );
-  const [scannerMode, setScannerMode] = useState<ScannerMode>("pantry");
   const [coachRecipeIdea, setCoachRecipeIdea] = useState<string | null>(null);
   const recipeIdeaRef = useRef<string | null>(null);
   const pendingAutoGenerateRef = useRef(false);
@@ -312,11 +308,6 @@ export default function ScannerPage() {
 
   useEffect(() => {
     setPendingPlanAssignment(readPendingPlanAssignment());
-
-    const initialMode = consumeScannerInitialMode();
-    if (initialMode) {
-      setScannerMode(initialMode);
-    }
 
     const seed = consumeScannerGenerationSeed();
     if (!seed) return;
@@ -1463,10 +1454,8 @@ export default function ScannerPage() {
   };
 
   const isPantryIdleView =
-    !isLoading && !recipe && !showGenerationError && scannerMode === "pantry";
-  const isInstagramIdleView =
-    !isLoading && !recipe && !showGenerationError && scannerMode === "instagram";
-  const isScannerIdleView = isPantryIdleView || isInstagramIdleView;
+    !isLoading && !recipe && !showGenerationError;
+  const isScannerIdleView = isPantryIdleView;
   const isRecipeFlowView = isLoading || Boolean(displayRecipe) || showGenerationError;
 
   return (
@@ -1678,27 +1667,10 @@ export default function ScannerPage() {
         <div
           className={cn(
             "flex min-h-0 flex-1 flex-col gap-2",
-            isPantryIdleView && "overflow-hidden",
-            isInstagramIdleView &&
-              "overflow-y-auto overscroll-y-contain touch-pan-y [-webkit-overflow-scrolling:touch] pb-6"
+            isPantryIdleView && "overflow-hidden"
           )}
         >
-          <div className="shrink-0">
-            <ScannerModeTabs
-              mode={scannerMode}
-              onChange={setScannerMode}
-              disabled={isLoading || isDetecting || showConfirmStep}
-            />
-          </div>
-
-          {scannerMode === "instagram" ? (
-            <InstagramCuratedCatalog
-              className="mt-0"
-              pendingPlanAssignment={pendingPlanAssignment}
-              onPendingAssignmentComplete={() => setPendingPlanAssignment(null)}
-            />
-          ) : (
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           {showNotFoodGuidance ? (
             <div className="mb-3 shrink-0 rounded-2xl border border-[#556B2F]/25 bg-[#FDFCFB] p-4 shadow-sm">
               <p className="text-lg font-semibold text-[#556B2F]">🍎 ¡Vaya! No parece haber comida ahí.</p>
@@ -1804,8 +1776,7 @@ export default function ScannerPage() {
               void generarReceta({ useDishPhoto: false, ingredientsOverride: override });
             }}
           />
-            </div>
-          )}
+          </div>
         </div>
       ) : null}
 

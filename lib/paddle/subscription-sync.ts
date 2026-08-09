@@ -1,5 +1,9 @@
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin";
 import {
+  FREE_DAILY_SCAN_LIMIT,
+  PREMIUM_DAILY_SCAN_LIMIT
+} from "@/lib/generations/constants";
+import {
   isSubscriptionStatus,
   isValidSubscriptionStatus,
   type SubscriptionStatus
@@ -145,9 +149,13 @@ export async function upsertSubscriptionAndPremiumCache(
     ? {
         is_premium: true,
         premium_trial_remaining: 0,
-        premium_trial_claimed_at: null as string | null
+        premium_trial_claimed_at: null as string | null,
+        daily_scan_limit: PREMIUM_DAILY_SCAN_LIMIT
       }
-    : { is_premium: false };
+    : {
+        is_premium: false,
+        daily_scan_limit: FREE_DAILY_SCAN_LIMIT
+      };
 
   const { error: profileError } = await admin
     .from("profiles")

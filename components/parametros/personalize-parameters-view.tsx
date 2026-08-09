@@ -41,6 +41,21 @@ export function PersonalizeParametersView() {
   }, [toastMessage]);
 
   useEffect(() => {
+    if (isLoading) return;
+    if (typeof window === "undefined") return;
+    if (window.location.hash !== "#water-glasses") return;
+
+    const timer = window.setTimeout(() => {
+      document.getElementById("water-glasses")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+    }, 80);
+
+    return () => window.clearTimeout(timer);
+  }, [isLoading]);
+
+  useEffect(() => {
     let cancelled = false;
 
     async function load() {
@@ -159,7 +174,7 @@ export function PersonalizeParametersView() {
             }
           />
 
-          <section className={PARAM_SECTION}>
+          <section id="water-glasses" className={PARAM_SECTION}>
             <header className="mb-2.5 flex items-start gap-2">
               <span className="mt-0.5 inline-flex rounded-lg bg-[#3D7A9A]/12 p-1.5 text-[#3D7A9A]">
                 <Droplets className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />

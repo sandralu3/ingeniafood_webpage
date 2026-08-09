@@ -10,7 +10,6 @@ import {
   prefetchHoyPageData,
   refreshHoyPageDataInBackground
 } from "@/lib/gamification/prefetch-hoy-page-data";
-import { prefetchInstagramCatalog } from "@/lib/recipes/prefetch-instagram-catalog";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import {
@@ -219,7 +218,6 @@ export function AppRecetasAccessGate({ children }: { children: React.ReactNode }
     if (authState !== "authenticated" || !authenticatedUserId) return;
 
     void prefetchHoyPageData({ userId: authenticatedUserId });
-    void prefetchInstagramCatalog();
 
     let cancelled = false;
 
@@ -284,7 +282,6 @@ export function AppRecetasAccessGate({ children }: { children: React.ReactNode }
 
     const onFocus = () => {
       void refreshHoyPageDataInBackground(authenticatedUserId);
-      void prefetchInstagramCatalog({ background: true });
     };
 
     window.addEventListener("focus", onFocus);

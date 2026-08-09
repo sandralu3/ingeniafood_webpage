@@ -1,6 +1,10 @@
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin";
 import { getTodayDateKey } from "@/lib/generations/date-utils";
 import { hasUnlimitedGenerations, UNLIMITED_GENERATIONS_SENTINEL } from "@/lib/generations/admin-unlimited";
+import {
+  FREE_DAILY_SCAN_LIMIT,
+  PREMIUM_DAILY_SCAN_LIMIT
+} from "@/lib/generations/constants";
 
 export type AdminUserListItem = {
   id: string;
@@ -314,10 +318,12 @@ export async function updateUserPremiumStatus(
     ? {
         is_premium: true,
         premium_trial_remaining: 0,
-        premium_trial_claimed_at: null
+        premium_trial_claimed_at: null,
+        daily_scan_limit: PREMIUM_DAILY_SCAN_LIMIT
       }
     : {
-        is_premium: false
+        is_premium: false,
+        daily_scan_limit: FREE_DAILY_SCAN_LIMIT
       };
 
   const { data: updatedProfile, error: updateError } = await admin

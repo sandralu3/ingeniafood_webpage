@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import type { MouseEvent } from "react";
 import { useTranslations } from "next-intl";
 import {
-  Bookmark,
+  BookOpen,
   CalendarDays,
   ScanLine,
   Sparkles,
@@ -13,7 +13,6 @@ import {
   type LucideIcon
 } from "lucide-react";
 import { prefetchHoyPageData } from "@/lib/gamification/prefetch-hoy-page-data";
-import { prefetchInstagramCatalog } from "@/lib/recipes/prefetch-instagram-catalog";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
 import { useScannerReset } from "@/lib/scanner/scanner-reset-context";
 import { cn } from "@/lib/utils";
@@ -29,7 +28,7 @@ const navItems: NavItem[] = [
   { href: APP_ROUTES.hoy, labelKey: "hoy", icon: Sparkles },
   { href: APP_ROUTES.plan, labelKey: "plan", icon: CalendarDays },
   { href: APP_ROUTES.scanner, labelKey: "scanner", icon: ScanLine, highlight: true },
-  { href: APP_ROUTES.guardadas, labelKey: "saved", icon: Bookmark },
+  { href: APP_ROUTES.guardadas, labelKey: "saved", icon: BookOpen },
   { href: APP_ROUTES.perfil, labelKey: "profile", icon: UserRound }
 ];
 
@@ -43,11 +42,6 @@ function isNavItemActive(pathname: string, href: string): boolean {
 function prefetchNavTarget(href: string) {
   if (href === APP_ROUTES.hoy) {
     void prefetchHoyPageData();
-    return;
-  }
-
-  if (href === APP_ROUTES.scanner) {
-    void prefetchInstagramCatalog();
   }
 }
 

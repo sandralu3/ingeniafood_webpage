@@ -1,7 +1,7 @@
 # 📱 Guía de Pruebas Beta — IngeniaFood
 
 > Documento para testers. Lenguaje de **pantalla**: lo que ves, tocas y experimentas.  
-> Última actualización: **8 agosto 2026**
+> Última actualización: **9 agosto 2026**
 
 ---
 
@@ -65,6 +65,15 @@ No hay un campo en pantalla para “escribir un código”. El pase llega así:
 5. Pulsa **«Desbloquea tu experiencia premium»**.
 6. Debe aparecer un mensaje de éxito: *«¡Tu pase Premium de 24 horas ya está activo!…»*.
 7. Comprueba que ves indicadores **Premium** (por ejemplo en la cabecera o al usar funciones PRO).
+8. En el **Escáner**, con el pase activo deberías tener **20 escaneos al día** (Free solo tiene **5**).
+
+#### Hoy · Vasos de agua
+1. En **Hoy**, busca el bloque de **Agua de hoy**.
+2. Si **aún no** configuraste vasos:
+   - Debe verse una tarjeta invitando a configurar (no un hueco vacío).
+   - Pulsa **«Configurar vasos de agua»** → vas a **Personalizar parámetros**.
+3. Elige un número de vasos (ej. **8**) y guarda.
+4. Vuelve a **Hoy**: deben aparecer los vasos tocables y el progreso (ej. `0/8`).
 
 **Qué probar**
 - [ ] Registro + confirmación de correo
@@ -72,6 +81,8 @@ No hay un campo en pantalla para “escribir un código”. El pase llega así:
 - [ ] Recuperación de contraseña
 - [ ] Activar el pase de 24h desde **Hoy** (si te corresponde)
 - [ ] Tras activar el pase, que las funciones PRO dejen de bloquearse durante ese tiempo
+- [ ] Con pase 24h / Premium: **20** escaneos/día en Escáner (Free: **5**)
+- [ ] Sin meta de agua: CTA en Hoy → configurar en parámetros → tracker visible
 
 ---
 
@@ -79,16 +90,17 @@ No hay un campo en pantalla para “escribir un código”. El pase llega así:
 
 #### Dónde están las recetas
 1. Abre la pestaña inferior **Recetas** (libro).
-2. Título esperado: **«Recetas ✨»**.
+2. Título esperado: **«Recetas»**.
 3. Debajo verás un subtítulo con el número de recetas del libro.
 4. Prueba las **píldoras / chips** de sección (fila horizontal):
    - **Mías** — tus recetas del recetario personal
-   - **Sandra** — **Recetas de Sandra** del banco oficial (insignia «Receta de Sandra»)
+   - **Sandra** — **Recetas de Sandra** (banco oficial + recetas del catálogo de Instagram, con insignia «Receta de Sandra»)
    - **Favoritas** — las marcadas con corazón
    - **Fuera** — comidas registradas fuera de casa (escaneadas o escritas)
 
-> El chip activo se ve en verde suave (salvia), con el contador y pequeños ✨.  
-> Las recetas **sugeridas** también siguen apareciendo al elegir un plato desde el **Plan** → **«Elegir receta»** → **«Sugeridas»**.
+> El chip activo se ve en verde suave (salvia), con el contador. En móvil los 4 chips caben en una sola fila sin salirse.  
+> Las recetas **sugeridas** también siguen apareciendo al elegir un plato desde el **Plan** → **«Elegir receta»** → **«Sugeridas»**.  
+> **Nota:** el catálogo de Instagram **ya no está en el Escáner**; vive en **Recetas → Sandra**.
 
 #### Buscar y filtrar
 1. Usa el buscador en forma de **píldora** (**«Buscar recetas...»**), con fondo crema/champagne suave.
@@ -117,11 +129,13 @@ En la lista, cada tarjeta debería mostrar:
    - Etiquetas, tiempo / dificultad
    - **Macronutrientes**, **Ingredientes**, **Preparación**
    - **Tip de Sandra** / consejo experto (si existe)
+   - Si viene de Instagram: botón **«Ver reel en Instagram»** (abre el reel en otra pestaña)
 3. Prueba: favorito, compartir, asignar al Plan (si aparece) y volver atrás.
 
 **Qué probar**
 - [ ] La pestaña inferior se llama **Recetas** (no “Guardadas”)
-- [ ] Chip **Sandra** muestra recetas oficiales con insignia
+- [ ] Chip **Sandra** muestra recetas oficiales (incluidas las de Instagram) con insignia
+- [ ] En detalle de una receta de Instagram aparece **«Ver reel en Instagram»**
 - [ ] **Mías / Favoritas / Fuera** filtran bien
 - [ ] Búsqueda y filtros de categoría funcionan
 - [ ] Las tarjetas se leen bien en móvil (sin textos cortados)
@@ -133,24 +147,31 @@ En la lista, cada tarjeta debería mostrar:
 
 #### A) Escanear despensa
 1. Abre la pestaña **Escáner**.
-2. Elige el modo **«Escáner»** / **«Escanear despensa»**.
-3. Lee el mensaje tipo **«Escanea tu despensa»** o **«Escanear Nevera o Despensa»**.
-4. Prueba:
+2. Lee el mensaje tipo **«Escanea tu despensa»** o **«Escanear Nevera o Despensa»**.
+3. Prueba:
    - **«📷 Tomar foto a mi nevera»** / **«Escanear ahora»**, **o**
    - Añadir ingredientes a mano en **«Ingredientes a la mano»** / **«Tu Despensa»**.
-5. En **«Confirmar ingredientes»**, revisa la lista, corrige si hace falta y continúa.
-6. Pulsa **«✨ Generar Recetas…»** / **«✨ Buscar Recetas»** / **«Generar receta con mi despensa»**.
-7. En el resultado, prueba las opciones **Clásica**, **Rápida** y **Fit** (algunas pueden pedir Premium).
-8. Revisa pestañas **Ingredientes** y **Preparación**.
-9. Guarda con:
+4. En **«Confirmar ingredientes»**, revisa la lista, corrige si hace falta y continúa.
+5. Pulsa **«✨ Generar Recetas…»** / **«✨ Buscar Recetas»** / **«Generar receta con mi despensa»**.
+6. En el resultado, prueba las opciones **Clásica**, **Rápida** y **Fit** (algunas pueden pedir Premium).
+7. Revisa pestañas **Ingredientes** y **Preparación**.
+8. Guarda con:
    - **«🍳 Guardar en mi Plan / Cocinar»**, y/o
    - **«Guardar en mi recetario»**
 
-#### B) Importar desde Instagram / catálogo
-1. En **Escáner**, cambia a **«Desde Instagram»**.
-2. Deberías ver algo como **«Catálogo & Instagram»** (*recetas virales…*).
-3. Explora las tarjetas y prueba **«Añadir al plan»** / **«Asignar al plan»**.
-4. Si pide el día y la comida, elige **hoy** (o el día que quieras) y confirma.
+> El Escáner **solo** sirve para generar recetas con tu despensa. Las recetas de Instagram están en **Recetas → Sandra** (apartado B).  
+> **Límite diario de escaneos:** cuenta **Free → 5**/día · **Premium o pase 24h → 20**/día. Si se agotan, verás el aviso de límite.
+
+#### B) Recetas de Sandra (incluye Instagram)
+1. Ve a **Recetas** → chip **Sandra**.
+2. Deberías ver las recetas oficiales **y** las del catálogo de Instagram, con el **mismo estilo de tarjeta** que Mías / Favoritas / Fuera (foto, macros, acciones).
+3. Abre una receta:
+   - El detalle es el mismo layout que el resto (hero, ingredientes, preparación, tip…).
+   - Si tiene reel, verás **«Ver reel en Instagram»** — ábrelo y comprueba que lleva al Instagram correcto.
+4. Desde el **Plan** → **«Elegir receta»**, en el pie o estado vacío prueba el botón **«Recetas de Sandra»**:
+   - Te lleva a **Recetas → Sandra** con un aviso de asignación al hueco.
+   - Abre una receta y pulsa **«Añadir a este hueco»** (o el icono de calendario) para asignarla al plan.
+5. Confirma que la receta aparece en el día del Plan.
 
 #### C) Escanear plato servido (función PRO / Premium)
 Disponible desde el **Plan**, al elegir o cambiar un plato (en **hoy** o **días pasados**):
@@ -186,7 +207,10 @@ Disponible desde el **Plan**, al elegir o cambiar un plato (en **hoy** o **días
 **Qué probar**
 - [ ] Foto de despensa → ingredientes → receta generada
 - [ ] Despensa manual sin foto
-- [ ] Flujo Instagram / catálogo hasta el plan
+- [ ] Escáner **sin** pestaña «Desde Instagram» (solo despensa)
+- [ ] Límite diario: Free **5** / Premium o pase 24h **20**
+- [ ] Recetas → Sandra: mismas tarjetas + detalle + «Ver reel en Instagram»
+- [ ] Plan → «Recetas de Sandra» → asignar al hueco
 - [ ] Escaneo de plato servido (con y sin Premium)
 - [ ] Comida rápida (con y sin Premium)
 - [ ] Registrar y borrar snacks (chips + botón CTA)
@@ -211,6 +235,7 @@ Disponible desde el **Plan**, al elegir o cambiar un plato (en **hoy** o **días
    - Pestaña **«Sugeridas»**
    - Pestaña **«Mis recetas»**
    - Buscador y filtros
+   - En el pie (o si tu libro está vacío): **«Escanear despensa»** y **«Recetas de Sandra»**
 3. Selecciona un plato y confirma la tarjeta:
    - Foto, título
    - **kcal** (icono llama) y **tiempo** (reloj)
@@ -302,13 +327,15 @@ En el diálogo deberías ver:
 
 #### Pase temporal vs suscripción
 - Con pase 24h: mensaje tipo **«Premium temporal activo hasta {fecha}»**.
-- Comprueba qué pasa cuando el pase **caduca** (vuelven a aparecer los bloqueos).
+- Con pase o suscripción activa: **20 escaneos/día** en el Escáner (Free: **5**).
+- Comprueba qué pasa cuando el pase **caduca** (vuelven los bloqueos PRO y el límite de escaneos a **5**/día).
 
 **Qué probar**
 - [ ] Paywall claro (no pantalla en blanco)
 - [ ] Cerrar con **Entendido** sin romper la app
 - [ ] Completar checkout de prueba y volver con Premium activo
 - [ ] Función bloqueada → upgrade → misma función desbloqueada
+- [ ] Escaneos/día: Free 5 → Premium/pase 20 (y vuelta a 5 al caducar el pase)
 
 ---
 
@@ -336,6 +363,32 @@ Si el equipo os da un enlace o código para compartir:
 - [ ] Verificar que la otra persona recibe el pase (no hace falta que veáis un “contador de referidos” en pantalla: puede no existir aún)
 
 > **No confundir** con **«Compartir receta»** (eso genera/envía la imagen de un plato, no una invitación).
+
+---
+
+### 8. 🔔 Notificaciones (campana + push del sistema)
+
+#### Activar en el móvil
+1. Instala la app en la **pantalla de inicio** (PWA). En iPhone esto es necesario para push en segundo plano.
+2. En **Hoy** o en **Personalizar parámetros**, acepta las notificaciones si aparece el aviso.
+3. En el sistema del móvil, confirma que IngeniaFood tiene permiso de notificaciones **activado**.
+
+#### Qué deberías recibir sin tener la app abierta
+Con push activado, las alertas del sistema pueden llegar **aunque no tengas la app abierta**, por ejemplo:
+- Tip de Sandra del día
+- Recordatorio de agua (media jornada)
+- Racha en riesgo (por la tarde)
+- Huecos vacíos del plan de hoy
+- Reenganche si llevas varios días sin entrar
+- Pase Premium pendiente de activar
+
+> La campana **dentro** de la app sigue mostrando el historial al abrir IngeniaFood.
+
+**Qué probar**
+- [ ] Activar notificaciones y ver el permiso concedido en el móvil
+- [ ] Cerrar la app por completo y comprobar que llega al menos un aviso del sistema (agua / tip / plan)
+- [ ] Al tocar la notificación, se abre la pantalla correcta (Hoy / Plan / Recetas…)
+- [ ] Si no llega nada en segundo plano: revisar permiso del sistema e instalación PWA
 
 ---
 
@@ -390,14 +443,16 @@ Cuenta: Free / Pase 24h / Premium
 ### ✅ Ruta sugerida de una sesión de prueba (30–45 min)
 
 1. Instalar app → registro / login  
-2. Activar pase 24h (si aplica)  
+2. Activar pase 24h (si aplica) y comprobar **20** escaneos/día  
 3. Escáner de despensa → guardar una receta  
-4. **Recetas**: revisar chips **Mías / Sandra / Favoritas / Fuera** + una tarjeta  
-5. **Plan**: llenar un día (donut + macros) + complemento + snack CTA  
-6. Lista de compras → copiar  
-7. Probar una función PRO (plato servido o menú del día)  
-8. Perfil: revisar estado Premium  
-9. Reportar el fallo en **Jira** (tablero IF) con captura + plantilla
+4. **Hoy**: si no hay vasos, CTA de agua → configurar → tracker  
+5. Activar notificaciones push → cerrar app → comprobar aviso del sistema  
+6. **Recetas**: chips **Mías / Sandra / Favoritas / Fuera** + abrir una de Sandra (reel Instagram si aplica)  
+7. **Plan**: llenar un día (donut + macros) + complemento + snack CTA; probar CTA **«Recetas de Sandra»**  
+8. Lista de compras → copiar  
+9. Probar una función PRO (plato servido o menú del día)  
+10. Perfil: revisar estado Premium  
+11. Reportar el fallo en **Jira** (tablero IF) con captura + plantilla
 
 
 ¡Gracias por ayudar a pulir IngeniaFood! 💚

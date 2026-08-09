@@ -4,6 +4,10 @@ import {
   isPremiumExpiryActive,
   resolveUserRole
 } from "@/lib/auth/premium-access";
+import {
+  FREE_DAILY_SCAN_LIMIT,
+  PREMIUM_DAILY_SCAN_LIMIT
+} from "@/lib/generations/constants";
 
 const PROMO_DURATION_HOURS = 24;
 /** Promo de bienvenida para nuevos registros (sin ?ref=). */
@@ -251,6 +255,7 @@ export async function claimReferralPromo24h(
       premium_expires_at: expiresAt,
       has_promo_claimable: false,
       redeemed_code: profile.promo_code_ref ?? "REFERRAL",
+      daily_scan_limit: PREMIUM_DAILY_SCAN_LIMIT,
       updated_at: now.toISOString()
     })
     .eq("id", trimmedUserId)
@@ -342,6 +347,7 @@ export async function clearExpiredCodePremium(userId: string): Promise<void> {
     premium_expires_at: null;
     updated_at: string;
     is_premium?: boolean;
+    daily_scan_limit?: number;
   } = {
     premium_expires_at: null,
     updated_at: nowIso
@@ -349,6 +355,8 @@ export async function clearExpiredCodePremium(userId: string): Promise<void> {
 
   if (!access.hasValidSubscription) {
     patch.is_premium = false;
+    // Vuelve al tope free al caducar el pase 24h (si no hay suscripción).
+    patch.daily_scan_limit = FREE_DAILY_SCAN_LIMIT;
   }
 
   await admin

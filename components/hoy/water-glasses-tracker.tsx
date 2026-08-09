@@ -123,8 +123,39 @@ export function WaterGlassesTracker({ userId }: Props) {
     );
   }
 
-  if (!userId || !goal || goal < 1) {
+  if (!userId) {
     return null;
+  }
+
+  if (!goal || goal < 1) {
+    return (
+      <section
+        className="rounded-[22px] border border-dashed border-[#3D7A9A]/25 bg-gradient-to-br from-[#F3F9FC] to-white p-3.5 shadow-sm shadow-stone-200/40 sm:p-4"
+        aria-label={t("waterTrackerTitle")}
+      >
+        <div className="flex items-start gap-3">
+          <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#E8F4F9] text-[#3D7A9A]">
+            <Droplets className="h-4 w-4" strokeWidth={1.75} aria-hidden />
+          </span>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-sm font-bold text-stone-800">
+              {t.has("waterSetupTitle") ? t("waterSetupTitle") : "Agua de hoy"}
+            </h2>
+            <p className="mt-0.5 text-[11px] leading-snug text-stone-500 sm:text-xs">
+              {t.has("waterSetupHint")
+                ? t("waterSetupHint")
+                : "Configura cuántos vasos quieres beber al día para llevar el seguimiento aquí."}
+            </p>
+            <Link
+              href={`${APP_ROUTES.parametros}#water-glasses`}
+              className="mt-2.5 inline-flex items-center rounded-full bg-[#3D7A9A] px-3.5 py-1.5 text-xs font-semibold text-white transition hover:brightness-110"
+            >
+              {t.has("waterSetupCta") ? t("waterSetupCta") : "Configurar vasos de agua"}
+            </Link>
+          </div>
+        </div>
+      </section>
+    );
   }
 
   return (
@@ -150,7 +181,7 @@ export function WaterGlassesTracker({ userId }: Props) {
           </div>
         </div>
         <Link
-          href={APP_ROUTES.parametros}
+          href={`${APP_ROUTES.parametros}#water-glasses`}
           className="shrink-0 rounded-full px-2 py-1 text-xs font-semibold text-[#3E5A3A] transition hover:bg-[#E8F0E4] hover:underline"
           aria-label={t("waterEditAria")}
         >

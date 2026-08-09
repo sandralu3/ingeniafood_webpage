@@ -1,0 +1,34 @@
+---
+description: Toda feature o cambio de producto debe actualizar la guía de testers beta
+alwaysApply: true
+---
+
+# Actualizar guía de testers
+
+Tras **cualquier cambio de producto/UX** (features, flujos, límites, copy visible, navegación), actualizar la guía de beta **en el mismo trabajo**, antes de dar por terminada la tarea.
+
+## Fuente de verdad
+
+- Editar siempre: `docs/guia-pruebas-beta.md`
+- La página privada `/acceso-beta/guia-sv7k9m2xp4` la carga desde ese markdown
+- Si existe `docs/guia-pruebas-beta.html` y está desfasado en la misma sección, alinear el bloque relevante (opcional si solo se usa la ruta web)
+
+## Qué actualizar
+
+1. Pasos de prueba afectados (numerados, lenguaje de pantalla)
+2. Checklists **«Qué probar»** de la sección
+3. **Ruta sugerida de sesión** si cambia el recorrido típico
+4. Fecha **«Última actualización»** al inicio del doc
+
+## Criterios
+
+- Escribir lo que el tester **ve y toca**, no detalles de implementación
+- Si algo se mueve de sitio (ej. Instagram → Recetas), borrar el flujo antiguo
+- Si cambia un límite (escaneos, Premium, vasos…), documentar free vs Premium / vacío vs configurado
+- No hace falta tocar la guía solo por refactors internos sin impacto en UI/flujo
+
+## Checklist al cerrar un cambio
+
+- [ ] `docs/guia-pruebas-beta.md` refleja el comportamiento nuevo
+- [ ] No quedan instrucciones obsoletas del flujo anterior
+- [ ] Fecha de actualización renovada

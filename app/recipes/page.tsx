@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Search, SlidersHorizontal } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { RecipeCard } from "@/components/recipes/RecipeCard";
 import { RecipeShareCaptureHost } from "@/components/share/recipe-share-capture-host";
@@ -31,6 +31,12 @@ import {
   translateSavedCardLabel,
   translateSavedFilterChip
 } from "@/lib/i18n/filter-labels";
+import { formatPendingPlanSlot } from "@/lib/i18n/plan-pending-label";
+import {
+  clearPendingPlanAssignment,
+  readPendingPlanAssignment,
+  type PendingPlanAssignment
+} from "@/lib/plan/plan-pending-assignment";
 import { parseAppLocale, toBcp47Locale } from "@/i18n/config";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import { cn } from "@/lib/utils";
@@ -71,8 +77,11 @@ function formatSavedDate(isoDate: string, locale: string, template: (date: strin
 
 export default function RecipesPage() {
   const t = useTranslations("Saved");
+  const tScanner = useTranslations("Scanner");
+  const tPlan = useTranslations("Plan");
   const locale = useLocale();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [recipes, setRecipes] = useState<RecipeRow[]>([]);
   const [sandraRecipes, setSandraRecipes] = useState<RecipeRow[]>([]);
   const [viewerUserId, setViewerUserId] = useState<string | null>(null);
@@ -85,6 +94,8 @@ export default function RecipesPage() {
   const filterMenuRef = useRef<HTMLDivElement>(null);
   const [mostrarTodas, setMostrarTodas] = useState(false);
   const [activeTab, setActiveTab] = useState<LibraryTab>("saved");
+  const [pendingPlanAssignment, setPendingPlanAssignment] =
+    useState<PendingPlanAssignment | null>(null);
   const [deletingRecipeId, setDeletingRecipeId] = useState<string | null>(null);
   const [togglingFavoriteId, setTogglingFavoriteId] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
@@ -96,6 +107,17 @@ export default function RecipesPage() {
     errorMessage: shareErrorMessage,
     clearError: clearShareError
   } = useShareRecipeImage();
+
+  useEffect(() => {
+    setPendingPlanAssignment(readPendingPlanAssignment());
+  }, []);
+
+  useEffect(() => {
+    const tab = (searchParams.get("tab") || "").toLowerCase();
+    if (tab === "sandra" || tab === "favorites" || tab === "outside" || tab === "saved") {
+      setActiveTab(tab as LibraryTab);
+    }
+  }, [searchParams]);
 
   const handleShareRecipe = useCallback(
     (recipe: RecipeRow) => {
@@ -623,7 +645,7 @@ export default function RecipesPage() {
 
   const libraryTabs = (
     <div
-      className="-mx-0.5 flex gap-2 overflow-x-auto px-0.5 pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      className="grid grid-cols-4 gap-1 sm:gap-1.5"
       role="tablist"
       aria-label={t("libraryTabsAria")}
     >
@@ -667,7 +689,7 @@ export default function RecipesPage() {
               setMostrarTodas(false);
             }}
             className={cn(
-              "inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-semibold transition",
+              "inline-flex min-w-0 items-center justify-center gap-1 rounded-full px-1.5 py-2 text-[11px] font-semibold transition sm:gap-1.5 sm:px-3 sm:text-xs",
               isActive
                 ? "bg-[#E4ECDC] text-[#3e5219] ring-1 ring-[#88ab75]/35 shadow-sm shadow-stone-200/40"
                 : cn(
@@ -676,25 +698,15 @@ export default function RecipesPage() {
                   )
             )}
           >
-            {isActive ? (
-              <span className="text-[10px] leading-none opacity-80" aria-hidden>
-                ✨
-              </span>
-            ) : null}
-            <span>{tab.label}</span>
+            <span className="truncate">{tab.label}</span>
             <span
               className={cn(
-                "text-[11px] font-bold tabular-nums",
+                "shrink-0 text-[10px] font-bold tabular-nums sm:text-[11px]",
                 isActive ? "text-[#9A7B2F]" : "text-stone-400"
               )}
             >
               {tab.count}
             </span>
-            {isActive ? (
-              <span className="text-[10px] leading-none opacity-80" aria-hidden>
-                ✨
-              </span>
-            ) : null}
           </button>
         );
       })}
@@ -707,16 +719,40 @@ export default function RecipesPage() {
         <RecipeShareCaptureHost captureRef={captureRef} recipe={captureRecipe} mode="offscreen" />
 
         <header>
-          <h1 className="inline-flex items-center gap-1.5 font-serif text-xl font-semibold text-stone-900">
+          <h1 className="font-serif text-xl font-semibold text-stone-900">
             {t("title")}
-            <span className="text-base text-[#C9A227]" aria-hidden>
-              ✨
-            </span>
           </h1>
           <p className="mt-0.5 text-[11px] leading-relaxed text-stone-500">
             {t("subtitle", { count: libraryCount })}
           </p>
         </header>
+
+        {pendingPlanAssignment ? (
+          <div className="rounded-2xl border border-[#556B2F]/20 bg-[#F0F4ED]/90 px-4 py-3">
+            <p className="text-sm font-semibold text-[#3e5219]">
+              {tScanner.has("planningWeekTitle")
+                ? tScanner("planningWeekTitle")
+                : "Elige una receta para el plan"}
+            </p>
+            <p className="mt-1 text-xs leading-relaxed text-stone-600">
+              {tScanner.has("planningWeekHint")
+                ? tScanner("planningWeekHint", {
+                    slot: formatPendingPlanSlot(pendingPlanAssignment, tPlan, tScanner)
+                  })
+                : `Abre una receta y añádela a ${formatPendingPlanSlot(pendingPlanAssignment, tPlan, tScanner)}.`}
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                clearPendingPlanAssignment();
+                setPendingPlanAssignment(null);
+              }}
+              className="mt-2 text-xs font-medium text-stone-500 underline-offset-2 hover:underline"
+            >
+              Cancelar asignación
+            </button>
+          </div>
+        ) : null}
 
         <div className="relative z-20 space-y-2.5 pb-1">
           <div className="flex w-full items-center gap-2">
