@@ -47,6 +47,8 @@ Tu misión no es “romper el código”, sino **vivir la app como una usuaria r
 3. Pulsa **«Iniciar sesion»** (o el botón equivalente).
 4. Comprueba que llegas a la pestaña **Hoy**.
 
+> Si cierras la app instalada (PWA) y al reabrir te pide **login**, entra con tu correo: **no** deberías ver la landing pública («Muy pronto disponible en versión Beta»). Si ya tenías sesión, deberías volver directo a **Hoy**.
+
 #### ¿Olvidaste la contraseña?
 1. Pulsa **«¿Olvidaste tu contraseña?»**.
 2. En **Recuperar contraseña**, introduce tu correo.

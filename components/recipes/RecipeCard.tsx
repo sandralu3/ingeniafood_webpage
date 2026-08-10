@@ -392,8 +392,8 @@ export function RecipeCard({
 
   if (variant === "tile") {
     const tileActionBtnClass =
-      "inline-flex h-5 w-5 items-center justify-center rounded-full transition focus-visible:outline-none focus-visible:ring-1 disabled:cursor-not-allowed disabled:opacity-40";
-    const tileIconClass = "h-2.5 w-2.5";
+      "inline-flex h-6 w-6 items-center justify-center rounded-full transition focus-visible:outline-none focus-visible:ring-1 disabled:cursor-not-allowed disabled:opacity-40";
+    const tileIconClass = "h-3 w-3";
 
     const tileActions = (
       <div className="flex items-center justify-end gap-0">
@@ -485,11 +485,11 @@ export function RecipeCard({
     return (
       <article
         className={cn(
-          "flex h-full w-full flex-col overflow-hidden rounded-lg border border-stone-100/90 bg-white shadow-sm shadow-stone-200/20",
+          "flex h-full w-full flex-col overflow-hidden rounded-xl border border-stone-100/90 bg-white shadow-sm shadow-stone-200/25",
           className
         )}
       >
-        <div className="relative aspect-[5/4] w-full shrink-0 bg-stone-100">
+        <div className="relative aspect-[4/3] w-full shrink-0 bg-stone-100">
           <Link
             href={detailHref}
             onMouseEnter={onPrefetch}
@@ -506,31 +506,31 @@ export function RecipeCard({
             />
           </Link>
           {instagramUrl ? (
-            <div className="absolute right-1 top-1 z-10 scale-75">
+            <div className="absolute right-1 top-1 z-10 scale-90">
               <RecipeInstagramLink url={instagramUrl} variant="icon" />
             </div>
           ) : null}
         </div>
 
-        <div className="flex min-h-0 flex-1 flex-col gap-0.5 px-1.5 pb-1 pt-1">
+        <div className="flex min-h-0 flex-1 flex-col gap-0.5 px-2 pb-1.5 pt-1.5">
           <Link
             href={detailHref}
             onMouseEnter={onPrefetch}
             onFocus={onPrefetch}
             className="block min-w-0"
           >
-            <h3 className="line-clamp-2 text-[9px] font-bold leading-tight text-stone-800">
+            <h3 className="line-clamp-2 text-[10px] font-bold leading-snug text-stone-800">
               {title}
             </h3>
           </Link>
           <div className="flex min-w-0 items-center gap-1">
-            <div className="min-w-0 scale-[0.85] origin-left">{badges}</div>
+            <div className="min-w-0 scale-90 origin-left">{badges}</div>
             {macros ? (
-              <p className="shrink-0 text-[8px] font-semibold tabular-nums text-stone-400">
+              <p className="shrink-0 text-[9px] font-semibold tabular-nums text-stone-400">
                 {Math.round(macros.calorias)} kcal
               </p>
             ) : cookingTimeMinutes ? (
-              <p className="shrink-0 text-[8px] font-semibold tabular-nums text-stone-400">
+              <p className="shrink-0 text-[9px] font-semibold tabular-nums text-stone-400">
                 {cookingTimeMinutes} min
               </p>
             ) : null}

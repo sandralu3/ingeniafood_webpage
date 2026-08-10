@@ -6,6 +6,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { RecipeCard } from "@/components/recipes/RecipeCard";
 import { RecipesFilterSheet } from "@/components/recipes/recipes-filter-sheet";
+import {
+  RecipesLibrarySkeleton,
+  RecipesSectionGridSkeleton
+} from "@/components/skeletons/recipes-library-skeleton";
+import { Skeleton } from "@/components/ui/skeleton";
 import { RecipeShareCaptureHost } from "@/components/share/recipe-share-capture-host";
 import { useShareRecipeImage } from "@/hooks/use-share-recipe-image";
 import { savedRecipeToShareable } from "@/lib/share/recipe-share-utils";
@@ -695,10 +700,10 @@ export default function RecipesPage() {
 
   const pageContent = useMemo(() => {
     if (isLoading) {
-      return (
-        <p className="rounded-xl bg-white/90 px-3 py-2 text-xs text-stone-500 shadow-sm">
-          Cargando recetas saludables...
-        </p>
+      return browseSection ? (
+        <RecipesSectionGridSkeleton />
+      ) : (
+        <RecipesLibrarySkeleton />
       );
     }
 
@@ -730,7 +735,7 @@ export default function RecipesPage() {
       }
 
       return (
-        <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:gap-2.5">
           {activeRecipes.map((recipe) => (
             <div key={recipe.id} className="min-w-0">
               {renderRecipeCard(recipe, { variant: "tile" })}
@@ -813,7 +818,7 @@ export default function RecipesPage() {
                 {preview.map((recipe) => (
                   <div
                     key={recipe.id}
-                    className="w-[32%] max-w-[8.25rem] shrink-0 sm:w-36"
+                    className="w-[36%] max-w-[9.5rem] shrink-0 sm:w-40"
                   >
                     {renderRecipeCard(recipe, { variant: "tile" })}
                   </div>
@@ -871,7 +876,11 @@ export default function RecipesPage() {
                 {t("title")}
               </h1>
               <p className="mt-0.5 text-[11px] leading-relaxed text-stone-500">
-                {t("subtitle", { count: libraryCount })}
+                {isLoading ? (
+                  <Skeleton silent className="mt-0.5 h-3 w-40 rounded" />
+                ) : (
+                  t("subtitle", { count: libraryCount })
+                )}
               </p>
             </>
           )}

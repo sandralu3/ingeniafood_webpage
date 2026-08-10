@@ -42,6 +42,17 @@ const PUBLIC_ROUTES = new Set([
 ]);
 const APP_ACCESS_COOKIE = "ingeniafood_app_access";
 const APP_ACCESS_QUERY_KEY = "k";
+const APP_ACCESS_COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
+
+function setAppAccessCookie(response: NextResponse) {
+  response.cookies.set(APP_ACCESS_COOKIE, "1", {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: true,
+    path: "/",
+    maxAge: APP_ACCESS_COOKIE_MAX_AGE
+  });
+}
 
 function isMobileUserAgent(userAgent: string) {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(
@@ -89,41 +100,6 @@ export async function proxy(request: NextRequest) {
     pathname === "/desktop-app-recetas" ||
     pathname.startsWith("/desktop-app-recetas");
 
-  // En producción, solo permite acceso a la app con enlace secreto.
-  if (process.env.NODE_ENV === "production" && isProtectedAppRoute) {
-    const secretKey = process.env.APP_PRIVATE_ACCESS_KEY?.trim();
-    if (!secretKey) {
-      const blockedUrl = request.nextUrl.clone();
-      blockedUrl.pathname = "/";
-      blockedUrl.search = "";
-      return NextResponse.redirect(blockedUrl);
-    }
-
-    const accessCookie = request.cookies.get(APP_ACCESS_COOKIE)?.value === "1";
-    const providedKey = request.nextUrl.searchParams.get(APP_ACCESS_QUERY_KEY);
-
-    if (!accessCookie) {
-      if (providedKey !== secretKey) {
-        const blockedUrl = request.nextUrl.clone();
-        blockedUrl.pathname = "/";
-        blockedUrl.search = "";
-        return NextResponse.redirect(blockedUrl);
-      }
-
-      const cleanUrl = request.nextUrl.clone();
-      cleanUrl.searchParams.delete(APP_ACCESS_QUERY_KEY);
-      const accessResponse = NextResponse.redirect(cleanUrl);
-      accessResponse.cookies.set(APP_ACCESS_COOKIE, "1", {
-        httpOnly: true,
-        sameSite: "lax",
-        secure: true,
-        path: "/",
-        maxAge: 60 * 60 * 24 * 30
-      });
-      return accessResponse;
-    }
-  }
-
   if (pathname === "/descargar-app") {
     const targetUrl = request.nextUrl.clone();
     targetUrl.pathname = isMobile ? "/app-recetas" : "/desktop-app-recetas";
@@ -169,6 +145,31 @@ export async function proxy(request: NextRequest) {
     data: { session }
   } = await supabase.auth.getSession();
 
+  // En producción, la app privada se abre con ?k=, cookie de acceso o sesión ya iniciada.
+  // Sin cookie ni clave: no mandamos a la landing; si no hay sesión, el gate de la app muestra login.
+  if (process.env.NODE_ENV === "production" && isProtectedAppRoute) {
+    const secretKey = process.env.APP_PRIVATE_ACCESS_KEY?.trim();
+    const accessCookie = request.cookies.get(APP_ACCESS_COOKIE)?.value === "1";
+    const providedKey = request.nextUrl.searchParams.get(APP_ACCESS_QUERY_KEY);
+    const hasValidKey = Boolean(secretKey && providedKey === secretKey);
+
+    if (!accessCookie) {
+      if (hasValidKey) {
+        const cleanUrl = request.nextUrl.clone();
+        cleanUrl.searchParams.delete(APP_ACCESS_QUERY_KEY);
+        const accessResponse = NextResponse.redirect(cleanUrl);
+        setAppAccessCookie(accessResponse);
+        return accessResponse;
+      }
+
+      if (session) {
+        setAppAccessCookie(response);
+      }
+      // Sin sesión: dejamos pasar a /app-recetas para mostrar login dentro de la PWA
+      // (redirigir a /login sacaría del scope standalone).
+    }
+  }
+
   const isAppRoute = pathname === "/app-recetas" || pathname.startsWith("/app-recetas/");
   const isBetaGuideRoute = pathname.startsWith("/acceso-beta/");
   const isPublicRoute =
@@ -185,7 +186,9 @@ export async function proxy(request: NextRequest) {
       const targetUrl = request.nextUrl.clone();
       targetUrl.pathname = "/app-recetas";
       targetUrl.search = "";
-      return NextResponse.redirect(targetUrl);
+      const redirectResponse = NextResponse.redirect(targetUrl);
+      setAppAccessCookie(redirectResponse);
+      return redirectResponse;
     }
   }
 
