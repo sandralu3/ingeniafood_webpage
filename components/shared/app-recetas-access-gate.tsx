@@ -361,6 +361,7 @@ export function AppRecetasAccessGate({ children }: { children: React.ReactNode }
         <Header />
         <main
           key={pathname}
+          data-app-scroll-root
           className={
             isScannerRoute
               ? "flex min-h-0 flex-1 flex-col overflow-hidden overscroll-y-contain px-4 pt-1 pb-2"

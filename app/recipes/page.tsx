@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ChevronRight, Search, SlidersHorizontal } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
@@ -23,8 +23,10 @@ import { parseMacrosFromJson } from "@/lib/recipes/recipe-macros";
 import {
   clearRecipesScrollState,
   findAppScrollParent,
+  getAppScrollRoot,
   peekRecipesScrollState,
   recipeCardDomId,
+  restoreRecipesScrollToCard,
   saveRecipesScrollState
 } from "@/lib/recipes/recipes-scroll-restore";
 import {
@@ -168,7 +170,8 @@ export default function RecipesPage() {
 
   const rememberRecipeScroll = useCallback(
     (recipeId: string) => {
-      const scrollParent = findAppScrollParent(pageRootRef.current);
+      const scrollParent =
+        getAppScrollRoot() ?? findAppScrollParent(pageRootRef.current);
       saveRecipesScrollState({
         tab: browseSection,
         recipeId,
@@ -691,7 +694,7 @@ export default function RecipesPage() {
     };
   }, [preferredDietLoaded]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (isLoading || didRestoreScrollRef.current) return;
 
     const focusId = searchParams.get("focus")?.trim() || null;
@@ -702,42 +705,72 @@ export default function RecipesPage() {
     const targetId = focusId || (savedMatchesTab ? saved!.recipeId : null);
     if (!targetId && !savedMatchesTab) return;
 
+    // En sección: esperar a que el grid tenga filas.
+    if (browseSection && activeRecipes.length === 0 && targetId) return;
+
     let cancelled = false;
-    const runRestore = () => {
-      if (cancelled || didRestoreScrollRef.current) return;
-      const card = targetId
-        ? document.getElementById(recipeCardDomId(targetId))
-        : null;
-      const scrollParent = findAppScrollParent(pageRootRef.current);
+    let attempt = 0;
+    const maxAttempts = 10;
+    const timeoutIds: number[] = [];
 
-      if (savedMatchesTab && scrollParent && typeof saved!.scrollTop === "number") {
-        scrollParent.scrollTop = saved!.scrollTop;
-      }
-      if (card) {
-        card.scrollIntoView({ block: "center", inline: "nearest", behavior: "auto" });
-      }
-
-      if (card || (!targetId && savedMatchesTab)) {
-        didRestoreScrollRef.current = true;
-        clearRecipesScrollState();
-        if (focusId) {
-          const params = new URLSearchParams(searchParams.toString());
-          params.delete("focus");
-          const query = params.toString();
-          router.replace(query ? `?${query}` : "?", { scroll: false });
-        }
+    const finish = () => {
+      didRestoreScrollRef.current = true;
+      clearRecipesScrollState();
+      if (focusId) {
+        const params = new URLSearchParams(searchParams.toString());
+        params.delete("focus");
+        const query = params.toString();
+        router.replace(query ? `?${query}` : "?", { scroll: false });
       }
     };
 
-    const frame = window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(runRestore);
-    });
-    const timeoutId = window.setTimeout(runRestore, 150);
+    const runRestore = () => {
+      if (cancelled || didRestoreScrollRef.current) return;
+      attempt += 1;
+
+      const card = targetId
+        ? document.getElementById(recipeCardDomId(targetId))
+        : null;
+
+      const ok = restoreRecipesScrollToCard({
+        recipeId: targetId,
+        fallbackScrollTop: savedMatchesTab ? saved!.scrollTop : null
+      });
+
+      if (ok && (card || (!targetId && savedMatchesTab))) {
+        // Reaplicar tras el layout de imágenes / navegación Next (móvil).
+        timeoutIds.push(
+          window.setTimeout(() => {
+            if (cancelled) return;
+            restoreRecipesScrollToCard({
+              recipeId: targetId,
+              fallbackScrollTop: savedMatchesTab ? saved!.scrollTop : null
+            });
+            finish();
+          }, 80)
+        );
+        timeoutIds.push(
+          window.setTimeout(() => {
+            if (cancelled) return;
+            restoreRecipesScrollToCard({
+              recipeId: targetId,
+              fallbackScrollTop: savedMatchesTab ? saved!.scrollTop : null
+            });
+          }, 220)
+        );
+        return;
+      }
+
+      if (attempt < maxAttempts) {
+        timeoutIds.push(window.setTimeout(runRestore, 40 * attempt));
+      }
+    };
+
+    runRestore();
 
     return () => {
       cancelled = true;
-      window.cancelAnimationFrame(frame);
-      window.clearTimeout(timeoutId);
+      timeoutIds.forEach((id) => window.clearTimeout(id));
     };
   }, [activeRecipes.length, browseSection, isLoading, router, searchParams]);
 
@@ -872,6 +905,7 @@ export default function RecipesPage() {
               key={recipe.id}
               id={recipeCardDomId(recipe.id)}
               className="min-w-0 scroll-mt-24"
+              onPointerDown={() => rememberRecipeScroll(recipe.id)}
               onClickCapture={() => rememberRecipeScroll(recipe.id)}
             >
               {renderRecipeCard(recipe, { variant: "tile" })}
@@ -956,6 +990,7 @@ export default function RecipesPage() {
                     key={recipe.id}
                     id={recipeCardDomId(recipe.id)}
                     className="w-[36%] max-w-[9.5rem] shrink-0 scroll-mt-24 sm:w-40"
+                    onPointerDown={() => rememberRecipeScroll(recipe.id)}
                     onClickCapture={() => rememberRecipeScroll(recipe.id)}
                   >
                     {renderRecipeCard(recipe, { variant: "tile" })}
