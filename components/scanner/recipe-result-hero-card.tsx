@@ -58,6 +58,8 @@ type Props = {
   layout?: "hero" | "card";
   /** Barra flotante sobre la foto (Volver + acciones). Solo con layout="hero". */
   heroChrome?: ReactNode;
+  /** Contenido sobre la foto (p. ej. Ver en Instagram). */
+  heroMediaOverlay?: ReactNode;
   onRequestPremium?: () => void;
 };
 
@@ -76,6 +78,7 @@ export function RecipeResultHeroCard({
   headerBadges = null,
   layout = "card",
   heroChrome = null,
+  heroMediaOverlay = null,
   onRequestPremium
 }: Props) {
   const t = useTranslations("Scanner");
@@ -282,6 +285,8 @@ export function RecipeResultHeroCard({
             </div>
           </div>
         ) : null}
+
+        {heroMediaOverlay}
 
         {heroBadge?.trim() ? (
           <span

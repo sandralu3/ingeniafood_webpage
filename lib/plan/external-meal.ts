@@ -184,7 +184,7 @@ export function isExternalMeal(tags: unknown): boolean {
 }
 
 export function externalMealBadgeLabel(badge: ExternalMealBadge): string {
-  return badge === "escaneado" ? "📸 Escaneado" : "📍 Comida fuera";
+  return badge === "escaneado" ? "📸 Escaneado" : "📍 Registrada";
 }
 
 export function buildExternalMealTags(estimate: ExternalMealEstimate): string[] {

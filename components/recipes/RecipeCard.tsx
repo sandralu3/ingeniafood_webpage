@@ -40,6 +40,8 @@ type RecipeCardProps = {
   cookingTimeMinutes?: number | null;
   macros?: RecipeMacros | null;
   className?: string;
+  /** row = lista horizontal; tile = carrusel / rejilla 2 columnas */
+  variant?: "row" | "tile";
   onShare?: () => void;
   isSharing?: boolean;
   isShareDisabled?: boolean;
@@ -65,13 +67,15 @@ function RecipeCardThumbnail({
   imageUrl,
   referenceImageUrl,
   isSocialVideo,
-  allowStockFallback = true
+  allowStockFallback = true,
+  fill = false
 }: {
   title: string;
   imageUrl?: string | null;
   referenceImageUrl?: string | null;
   isSocialVideo?: boolean;
   allowStockFallback?: boolean;
+  fill?: boolean;
 }) {
   const stored = pickStoredRecipeImageUrl({ imageUrl, referenceImageUrl, title });
   const resolvedUrl =
@@ -84,9 +88,13 @@ function RecipeCardThumbnail({
       ? getRecipeImageFallback({ title })
       : null;
 
+  const frameClass = fill
+    ? "relative h-full w-full overflow-hidden bg-stone-100"
+    : cn(thumbnailClass, "bg-stone-100");
+
   if (displayUrl) {
     return (
-      <div className={cn(thumbnailClass, "bg-stone-100")}>
+      <div className={frameClass}>
         <img
           src={displayUrl}
           alt={title ? `Imagen de ${title}` : ""}
@@ -100,10 +108,12 @@ function RecipeCardThumbnail({
             setFallbackFailed(true);
           }}
         />
-        <div
-          className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent to-black/[0.03]"
-          aria-hidden
-        />
+        {!fill ? (
+          <div
+            className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent to-black/[0.03]"
+            aria-hidden
+          />
+        ) : null}
       </div>
     );
   }
@@ -112,7 +122,7 @@ function RecipeCardThumbnail({
     return (
       <div
         className={cn(
-          thumbnailClass,
+          fill ? "relative flex h-full w-full items-center justify-center overflow-hidden" : thumbnailClass,
           "flex items-center justify-center bg-gradient-to-br from-stone-800 to-[#3d2e28]"
         )}
       >
@@ -126,7 +136,7 @@ function RecipeCardThumbnail({
   return (
     <div
       className={cn(
-        thumbnailClass,
+        fill ? "relative h-full w-full overflow-hidden" : thumbnailClass,
         "bg-gradient-to-br from-[#F0F4ED] to-[#E8EFE3]"
       )}
       aria-hidden
@@ -260,6 +270,7 @@ export function RecipeCard({
   cookingTimeMinutes,
   macros,
   className,
+  variant = "row",
   onShare,
   isSharing = false,
   isShareDisabled = false,
@@ -277,6 +288,258 @@ export function RecipeCard({
   onPrefetch
 }: RecipeCardProps) {
   const dateLabel = compactSavedDate(savedAtLabel);
+
+  const actions = (
+    <div className="-mr-0.5 flex items-center justify-end gap-px">
+      {onToggleFavorite ? (
+        <button
+          type="button"
+          aria-label={
+            favoriteAriaLabel ??
+            (isFavorite ? "Quitar de favoritos" : "Añadir a favoritos")
+          }
+          aria-pressed={isFavorite}
+          disabled={isFavoriteDisabled || isTogglingFavorite}
+          onClick={onToggleFavorite}
+          className={cn(
+            actionBtnClass,
+            isFavorite
+              ? "text-[#D07D62] hover:bg-rose-50 hover:text-[#B8654D]"
+              : "text-stone-300 hover:bg-stone-50 hover:text-[#D07D62]",
+            "focus-visible:ring-[#D07D62]/30"
+          )}
+        >
+          {isTogglingFavorite ? (
+            <Loader2 className="h-3 w-3 animate-spin" />
+          ) : (
+            <Heart
+              className={cn("h-3 w-3", isFavorite ? "fill-current" : "")}
+              strokeWidth={1.75}
+            />
+          )}
+        </button>
+      ) : null}
+
+      {onShare ? (
+        <button
+          type="button"
+          aria-label={shareAriaLabel ?? "Compartir receta como imagen"}
+          disabled={isShareDisabled || isSharing}
+          onClick={onShare}
+          className={cn(
+            actionBtnClass,
+            "text-stone-400 hover:bg-stone-50 hover:text-stone-600",
+            "focus-visible:ring-stone-300"
+          )}
+        >
+          {isSharing ? (
+            <Loader2 className="h-3 w-3 animate-spin" />
+          ) : (
+            <Share2 className="h-3 w-3" strokeWidth={1.75} />
+          )}
+        </button>
+      ) : null}
+
+      <Link
+        href={detailHref}
+        onMouseEnter={onPrefetch}
+        onFocus={onPrefetch}
+        aria-label={editAriaLabel ?? "Editar o ver receta"}
+        className={cn(
+          actionBtnClass,
+          "text-stone-400 hover:bg-stone-50 hover:text-stone-600",
+          "focus-visible:ring-stone-300"
+        )}
+      >
+        <Pencil className="h-3 w-3" strokeWidth={1.75} />
+      </Link>
+
+      {onDelete ? (
+        <button
+          type="button"
+          aria-label={deleteAriaLabel ?? "Eliminar receta"}
+          disabled={isDeleteDisabled || isDeleting}
+          onClick={onDelete}
+          className={cn(
+            actionBtnClass,
+            "text-stone-400 hover:bg-rose-50 hover:text-red-600",
+            "focus-visible:ring-red-300"
+          )}
+        >
+          {isDeleting ? (
+            <Loader2 className="h-3 w-3 animate-spin" />
+          ) : (
+            <Trash2 className="h-3 w-3" strokeWidth={1.75} />
+          )}
+        </button>
+      ) : null}
+    </div>
+  );
+
+  const badges = (
+    <div className="flex min-w-0 flex-wrap items-center gap-1">
+      {isSandraRecipe ? <SandraRecipeBadge compact /> : null}
+      {categoryLabel ? (
+        <span className="w-fit max-w-full truncate rounded-md bg-[#F5EBE6] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[#C06A4F]">
+          {categoryLabel}
+        </span>
+      ) : null}
+      {originBadge && originBadgeLabel ? (
+        <OriginBadge badge={originBadge} label={originBadgeLabel} />
+      ) : null}
+    </div>
+  );
+
+  if (variant === "tile") {
+    const tileActionBtnClass =
+      "inline-flex h-5 w-5 items-center justify-center rounded-full transition focus-visible:outline-none focus-visible:ring-1 disabled:cursor-not-allowed disabled:opacity-40";
+    const tileIconClass = "h-2.5 w-2.5";
+
+    const tileActions = (
+      <div className="flex items-center justify-end gap-0">
+        {onToggleFavorite ? (
+          <button
+            type="button"
+            aria-label={
+              favoriteAriaLabel ??
+              (isFavorite ? "Quitar de favoritos" : "Añadir a favoritos")
+            }
+            aria-pressed={isFavorite}
+            disabled={isFavoriteDisabled || isTogglingFavorite}
+            onClick={onToggleFavorite}
+            className={cn(
+              tileActionBtnClass,
+              isFavorite
+                ? "text-[#D07D62] hover:bg-rose-50 hover:text-[#B8654D]"
+                : "text-stone-300 hover:bg-stone-50 hover:text-[#D07D62]",
+              "focus-visible:ring-[#D07D62]/30"
+            )}
+          >
+            {isTogglingFavorite ? (
+              <Loader2 className={cn(tileIconClass, "animate-spin")} />
+            ) : (
+              <Heart
+                className={cn(tileIconClass, isFavorite ? "fill-current" : "")}
+                strokeWidth={1.75}
+              />
+            )}
+          </button>
+        ) : null}
+
+        {onShare ? (
+          <button
+            type="button"
+            aria-label={shareAriaLabel ?? "Compartir receta como imagen"}
+            disabled={isShareDisabled || isSharing}
+            onClick={onShare}
+            className={cn(
+              tileActionBtnClass,
+              "text-stone-400 hover:bg-stone-50 hover:text-stone-600",
+              "focus-visible:ring-stone-300"
+            )}
+          >
+            {isSharing ? (
+              <Loader2 className={cn(tileIconClass, "animate-spin")} />
+            ) : (
+              <Share2 className={tileIconClass} strokeWidth={1.75} />
+            )}
+          </button>
+        ) : null}
+
+        <Link
+          href={detailHref}
+          onMouseEnter={onPrefetch}
+          onFocus={onPrefetch}
+          aria-label={editAriaLabel ?? "Editar o ver receta"}
+          className={cn(
+            tileActionBtnClass,
+            "text-stone-400 hover:bg-stone-50 hover:text-stone-600",
+            "focus-visible:ring-stone-300"
+          )}
+        >
+          <Pencil className={tileIconClass} strokeWidth={1.75} />
+        </Link>
+
+        {onDelete ? (
+          <button
+            type="button"
+            aria-label={deleteAriaLabel ?? "Eliminar receta"}
+            disabled={isDeleteDisabled || isDeleting}
+            onClick={onDelete}
+            className={cn(
+              tileActionBtnClass,
+              "text-stone-400 hover:bg-rose-50 hover:text-red-600",
+              "focus-visible:ring-red-300"
+            )}
+          >
+            {isDeleting ? (
+              <Loader2 className={cn(tileIconClass, "animate-spin")} />
+            ) : (
+              <Trash2 className={tileIconClass} strokeWidth={1.75} />
+            )}
+          </button>
+        ) : null}
+      </div>
+    );
+
+    return (
+      <article
+        className={cn(
+          "flex h-full w-full flex-col overflow-hidden rounded-lg border border-stone-100/90 bg-white shadow-sm shadow-stone-200/20",
+          className
+        )}
+      >
+        <div className="relative aspect-[5/4] w-full shrink-0 bg-stone-100">
+          <Link
+            href={detailHref}
+            onMouseEnter={onPrefetch}
+            onFocus={onPrefetch}
+            className="absolute inset-0 block"
+            aria-label={`Ver ${title}`}
+          >
+            <RecipeCardThumbnail
+              title={title}
+              imageUrl={imageUrl}
+              referenceImageUrl={referenceImageUrl}
+              isSocialVideo={isSocialVideo}
+              fill
+            />
+          </Link>
+          {instagramUrl ? (
+            <div className="absolute right-1 top-1 z-10 scale-75">
+              <RecipeInstagramLink url={instagramUrl} variant="icon" />
+            </div>
+          ) : null}
+        </div>
+
+        <div className="flex min-h-0 flex-1 flex-col gap-0.5 px-1.5 pb-1 pt-1">
+          <Link
+            href={detailHref}
+            onMouseEnter={onPrefetch}
+            onFocus={onPrefetch}
+            className="block min-w-0"
+          >
+            <h3 className="line-clamp-2 text-[9px] font-bold leading-tight text-stone-800">
+              {title}
+            </h3>
+          </Link>
+          <div className="flex min-w-0 items-center gap-1">
+            <div className="min-w-0 scale-[0.85] origin-left">{badges}</div>
+            {macros ? (
+              <p className="shrink-0 text-[8px] font-semibold tabular-nums text-stone-400">
+                {Math.round(macros.calorias)} kcal
+              </p>
+            ) : cookingTimeMinutes ? (
+              <p className="shrink-0 text-[8px] font-semibold tabular-nums text-stone-400">
+                {cookingTimeMinutes} min
+              </p>
+            ) : null}
+          </div>
+          <div className="mt-auto flex justify-end">{tileActions}</div>
+        </div>
+      </article>
+    );
+  }
 
   return (
     <article
@@ -325,104 +588,12 @@ export function RecipeCard({
             </div>
           </Link>
 
-          <div className="flex min-w-0 flex-wrap items-center gap-1">
-            {isSandraRecipe ? <SandraRecipeBadge compact /> : null}
-            {originBadge && originBadgeLabel ? (
-              <OriginBadge badge={originBadge} label={originBadgeLabel} />
-            ) : categoryLabel ? (
-              <span className="w-fit max-w-full truncate rounded-md bg-[#F5EBE6] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[#C06A4F]">
-                {categoryLabel}
-              </span>
-            ) : null}
-          </div>
+          {badges}
 
           <NutritionMeta cookingTimeMinutes={cookingTimeMinutes} macros={macros} />
         </div>
 
-        <div className="-mr-0.5 flex items-center justify-end gap-px">
-          {onToggleFavorite ? (
-            <button
-              type="button"
-              aria-label={
-                favoriteAriaLabel ??
-                (isFavorite ? "Quitar de favoritos" : "Añadir a favoritos")
-              }
-              aria-pressed={isFavorite}
-              disabled={isFavoriteDisabled || isTogglingFavorite}
-              onClick={onToggleFavorite}
-              className={cn(
-                actionBtnClass,
-                isFavorite
-                  ? "text-[#D07D62] hover:bg-rose-50 hover:text-[#B8654D]"
-                  : "text-stone-300 hover:bg-stone-50 hover:text-[#D07D62]",
-                "focus-visible:ring-[#D07D62]/30"
-              )}
-            >
-              {isTogglingFavorite ? (
-                <Loader2 className="h-3 w-3 animate-spin" />
-              ) : (
-                <Heart
-                  className={cn("h-3 w-3", isFavorite ? "fill-current" : "")}
-                  strokeWidth={1.75}
-                />
-              )}
-            </button>
-          ) : null}
-
-          {onShare ? (
-            <button
-              type="button"
-              aria-label={shareAriaLabel ?? "Compartir receta como imagen"}
-              disabled={isShareDisabled || isSharing}
-              onClick={onShare}
-              className={cn(
-                actionBtnClass,
-                "text-stone-400 hover:bg-stone-50 hover:text-stone-600",
-                "focus-visible:ring-stone-300"
-              )}
-            >
-              {isSharing ? (
-                <Loader2 className="h-3 w-3 animate-spin" />
-              ) : (
-                <Share2 className="h-3 w-3" strokeWidth={1.75} />
-              )}
-            </button>
-          ) : null}
-
-          <Link
-            href={detailHref}
-            onMouseEnter={onPrefetch}
-            onFocus={onPrefetch}
-            aria-label={editAriaLabel ?? "Editar o ver receta"}
-            className={cn(
-              actionBtnClass,
-              "text-stone-400 hover:bg-stone-50 hover:text-stone-600",
-              "focus-visible:ring-stone-300"
-            )}
-          >
-            <Pencil className="h-3 w-3" strokeWidth={1.75} />
-          </Link>
-
-          {onDelete ? (
-            <button
-              type="button"
-              aria-label={deleteAriaLabel ?? "Eliminar receta"}
-              disabled={isDeleteDisabled || isDeleting}
-              onClick={onDelete}
-              className={cn(
-                actionBtnClass,
-                "text-stone-400 hover:bg-rose-50 hover:text-red-600",
-                "focus-visible:ring-red-300"
-              )}
-            >
-              {isDeleting ? (
-                <Loader2 className="h-3 w-3 animate-spin" />
-              ) : (
-                <Trash2 className="h-3 w-3" strokeWidth={1.75} />
-              )}
-            </button>
-          ) : null}
-        </div>
+        {actions}
       </div>
     </article>
   );

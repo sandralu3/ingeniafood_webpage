@@ -1340,10 +1340,15 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
             onRequestPremium={() => setShowPremiumDialog(true)}
             layout="hero"
             heroChrome={recipeHeroChrome}
+            heroMediaOverlay={
+              recipe.instagram_url ? (
+                <RecipeInstagramLink url={recipe.instagram_url} variant="floating" />
+              ) : null
+            }
             headerBadges={
               isSandraRecipe || appliedFilters ? (
                 <>
-                  {isSandraRecipe ? <SandraRecipeBadge compact /> : null}
+                  {isSandraRecipe ? <SandraRecipeBadge /> : null}
                   {appliedFilters ? (
                     <RecipeAppliedFiltersBadges
                       filters={appliedFilters}
@@ -1354,11 +1359,6 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
               ) : null
             }
           />
-          {recipe.instagram_url ? (
-            <div className="px-4">
-              <RecipeInstagramLink url={recipe.instagram_url} />
-            </div>
-          ) : null}
           {canEditSandraContent ? (
             <div className="px-4">
               <SandraRecipeContentEditor

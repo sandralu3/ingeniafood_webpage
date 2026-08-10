@@ -92,38 +92,40 @@ No hay un campo en pantalla para “escribir un código”. El pase llega así:
 1. Abre la pestaña inferior **Recetas** (libro).
 2. Título esperado: **«Recetas»**.
 3. Debajo verás un subtítulo con el número de recetas del libro.
-4. Prueba las **píldoras / chips** de sección (fila horizontal):
-   - **Mías** — tus recetas del recetario personal
-   - **Sandra** — **Recetas de Sandra** (banco oficial + recetas del catálogo de Instagram, con insignia «Receta de Sandra»)
+4. En la pantalla principal verás **filas por tipo** (carrusel horizontal, hasta **4** recetas por fila):
+   - **Cocinar** — recetas tuyas para preparar (p. ej. del escáner de despensa)
+   - **Sandra** — **Recetas de Sandra** (banco oficial + Instagram)
    - **Favoritas** — las marcadas con corazón
-   - **Fuera** — comidas registradas fuera de casa (escaneadas o escritas)
+   - **Registradas** — comidas que ya comiste (foto o texto), en casa o fuera
+5. Si hay más de 4, pulsa **«Ver más»**: entras a esa sección con **buscador + filtros** y las recetas en **2 columnas**.
+6. La flecha atrás vuelve al listado con carruseles.
 
-> El chip activo se ve en verde suave (salvia), con el contador. En móvil los 4 chips caben en una sola fila sin salirse.  
 > Las recetas **sugeridas** también siguen apareciendo al elegir un plato desde el **Plan** → **«Elegir receta»** → **«Sugeridas»**.  
 > **Nota:** el catálogo de Instagram **ya no está en el Escáner**; vive en **Recetas → Sandra**.
 
 #### Buscar y filtrar
-1. Usa el buscador en forma de **píldora** (**«Buscar recetas...»**), con fondo crema/champagne suave.
-2. A la derecha, el botón circular de filtros (icono de **deslizadores**). Si hay filtros activos, verás un **número** en el botón.
-3. Al abrir Recetas, si en **Personalizar parámetros** tienes una dieta (p. ej. Vegetariana), la lista **arranca filtrada** por esa dieta.
-4. Toca el botón de filtros: se abre una **hoja inferior** con:
+1. Entra a una sección con **Ver más**.
+2. Usa el buscador (**«Buscar recetas...»**) y el botón de filtros (deslizadores).
+3. Si en **Personalizar parámetros** tienes una dieta, el filtro de dieta suele arrancar aplicado.
+4. En la hoja de filtros:
    - **Tipo de comida**: Todas, Desayunos, Almuerzos, Cenas, Snacks, Postres
-   - **Dieta**: Todas las dietas + las del perfil (sin gluten, keto, vegetariana…)
+   - **Dieta**: Todas las dietas + las del perfil
    - **Otros**: Ninguno, Airfryer, Sin Harinas
 5. Pulsa **Ver resultados** o **Limpiar**.
-6. Comprueba el aviso **«Filtro: …»** bajo el buscador y el botón **«Quitar»**.
-7. Si tienes recetas antiguas en **Mías** / **Fuera** sin tipo de comida o dieta, puede aparecer un aviso **«Completar mis recetas»**. Tócalo una vez: rellena metadatos (sin IA) con el tipo inferido y la dieta de tus parámetros. Después, los filtros de comida/dieta deberían acertar también en esas pestañas.
-8. Las recetas **nuevas** del escáner o de **Fuera** ya guardan dieta (la de parámetros) y tipo de comida cuando aplica, así que no deberían pedir ese paso.
+6. Comprueba el aviso **«Filtro: …»** y **«Quitar»**.
+7. Si tienes recetas antiguas en **Cocinar** / **Registradas** sin tipo de comida o dieta, puede aparecer **«Completar mis recetas»** en el listado principal.
+8. Las recetas **nuevas** del escáner o registradas ya guardan dieta (y tipo si aplica).
 
 #### Cómo se ve cada tarjeta de receta
 En la lista, cada tarjeta debería mostrar:
 
 - **Foto grande** a la izquierda (ocupa el borde de la tarjeta, sin mucho margen blanco).
 - **Título** y **fecha** corta arriba a la derecha (ej. `8 ago 2026`).
-- Etiquetas de origen si aplica:
-  - **Escaneado** (verde menta + icono de escáner)
-  - **Comida fuera** (naranja/melocotón + cubiertos)
-  - O insignia **Receta de Sandra** / tipo de comida (Desayuno, Cena…)
+- Etiquetas si aplica:
+  - Tipo de comida: **Desayuno / Almuerzo / Snack / Cena** (también en **Registradas**)
+  - Origen: **Escaneado** (verde menta + escáner) o **Registrada** (naranja + cubiertos)
+  - Insignia **✨ Sandra** en listados/tarjetas; en el **detalle** se mantiene **Receta de Sandra**
+  - En Registradas se ven **tipo + origen** juntos (ej. Almuerzo + Escaneado)
 - **Calorías** (llama) y **tiempo** (reloj), si hay datos.
 - **Macros** compactos: `…g P · …g C · …g G`.
 - Acciones abajo a la derecha: **corazón**, **compartir**, **lápiz** (abrir/editar) y **papelera** (si es tuya).
@@ -135,19 +137,19 @@ En la lista, cada tarjeta debería mostrar:
    - Etiquetas, tiempo / dificultad
    - **Macronutrientes**, **Ingredientes**, **Preparación**
    - **Tip de Sandra** / consejo experto (si existe)
-   - Si viene de Instagram: botón **«Ver reel en Instagram»** (abre el reel en otra pestaña)
+   - Si viene de Instagram: botón **«Ver en Instagram»** encima de la foto (esquina inferior izquierda; abre el reel en otra pestaña)
 3. Prueba: favorito, compartir, asignar al Plan (si aparece) y volver atrás.
 
 **Qué probar**
 - [ ] La pestaña inferior se llama **Recetas** (no “Guardadas”)
-- [ ] Chip **Sandra** muestra recetas oficiales (incluidas las de Instagram) con insignia
-- [ ] En detalle de una receta de Instagram aparece **«Ver reel en Instagram»**
-- [ ] **Mías / Favoritas / Fuera** filtran bien
-- [ ] Búsqueda y hoja de filtros (comida + dieta + otros) funcionan
-- [ ] Al entrar, si hay dieta en parámetros, el filtro de dieta arranca aplicado
-- [ ] Si aparece **«Completar mis recetas»**, al tocarlo desaparece el aviso y Mías/Fuera filtran mejor por comida/dieta
-- [ ] Una receta nueva del escáner o Fuera respeta el filtro de dieta de parámetros sin tener que «completar»
-- [ ] Las tarjetas se leen bien en móvil (sin textos cortados)
+- [ ] Home: filas **Cocinar / Sandra / Favoritas / Registradas** en carrusel (máx. 4)
+- [ ] **Ver más** abre la sección en **2 columnas** con buscador y filtros
+- [ ] Flecha atrás vuelve a los carruseles
+- [ ] Sección **Sandra** muestra catálogo (incl. Instagram) con insignia
+- [ ] En detalle de Instagram aparece **«Ver en Instagram»** sobre la foto
+- [ ] Búsqueda y filtros funcionan dentro de la sección
+- [ ] Si aparece **«Completar mis recetas»**, al tocarlo mejora Cocinar/Registradas
+- [ ] En **Registradas**, cada tarjeta muestra tipo (Desayuno/Almuerzo/Snack/Cena) y origen (Escaneado/Registrada)
 - [ ] Favoritos se guardan al salir y volver a entrar
 
 ---
@@ -167,17 +169,17 @@ En la lista, cada tarjeta debería mostrar:
 8. Guarda con:
    - **«🍳 Guardar en mi Plan / Cocinar»**, y/o
    - **«Guardar en mi recetario»**
-9. En **Recetas → Mías**, la receta nueva debería filtrar por la **dieta de tus parámetros** (y por tipo de comida si el escáner lo indicó).
+9. En **Recetas → Cocinar**, la receta nueva debería filtrar por la **dieta de tus parámetros** (y por tipo de comida si el escáner lo indicó).
 
 > El Escáner **solo** sirve para generar recetas con tu despensa. Las recetas de Instagram están en **Recetas → Sandra** (apartado B).  
 > **Límite diario de escaneos:** cuenta **Free → 5**/día · **Premium o pase 24h → 20**/día. Si se agotan, verás el aviso de límite.
 
 #### B) Recetas de Sandra (incluye Instagram)
-1. Ve a **Recetas** → chip **Sandra**.
-2. Deberías ver las recetas oficiales **y** las del catálogo de Instagram, con el **mismo estilo de tarjeta** que Mías / Favoritas / Fuera (foto, macros, acciones).
+1. Ve a **Recetas** → sección **Sandra** (o **Ver más** en esa fila).
+2. Deberías ver las recetas oficiales **y** las del catálogo de Instagram, con el **mismo estilo de tarjeta** que Cocinar / Favoritas / Registradas (foto, macros, acciones).
 3. Abre una receta:
    - El detalle es el mismo layout que el resto (hero, ingredientes, preparación, tip…).
-   - Si tiene reel, verás **«Ver reel en Instagram»** — ábrelo y comprueba que lleva al Instagram correcto.
+   - Si tiene reel, verás **«Ver en Instagram»** sobre la foto — ábrelo y comprueba que lleva al Instagram correcto.
    - **Admin**: en «Editar receta» puedes cambiar el **tipo de comida** (desayuno / almuerzo / cena / postre / snack), además de ingredientes y pasos. Tras guardar, comprueba que el filtro de Sandra y el badge del detalle reflejan el nuevo tipo.
 4. Desde el **Plan** → **«Elegir receta»**, en el pie o estado vacío prueba el botón **«Recetas de Sandra»**:
    - Te lleva a **Recetas → Sandra** con un aviso de asignación al hueco.
@@ -204,7 +206,7 @@ Disponible desde el **Plan**, al elegir o cambiar un plato (en **hoy** o **días
 2. Pulsa **«✍️ Registrar comida rápida»** (**👑 PRO**).
 3. Describe qué comiste (ej.: *pechuga, arroz, ensalada*).
 4. Sigue la revisión de alimentos y guarda en el plan.
-5. Verifica el plato en **Plan** y, si aplica, en **Recetas → Fuera** (debe respetar filtros de dieta y el tipo de comida del hueco del plan).
+5. Verifica el plato en **Plan** y, si aplica, en **Recetas → Registradas** (debe respetar filtros de dieta y el tipo de comida del hueco del plan).
 
 #### E) Snacks / tentempié
 1. En **Plan**, baja a **🍪 Snacks / Tentempié**.
@@ -220,7 +222,7 @@ Disponible desde el **Plan**, al elegir o cambiar un plato (en **hoy** o **días
 - [ ] Despensa manual sin foto
 - [ ] Escáner **sin** pestaña «Desde Instagram» (solo despensa)
 - [ ] Límite diario: Free **5** / Premium o pase 24h **20**
-- [ ] Recetas → Sandra: mismas tarjetas + detalle + «Ver reel en Instagram»
+- [ ] Recetas → Sandra: mismas tarjetas + detalle + «Ver en Instagram» sobre la foto
 - [ ] Plan → «Recetas de Sandra» → asignar al hueco
 - [ ] Escaneo de plato servido (con y sin Premium)
 - [ ] Comida rápida (con y sin Premium)
@@ -518,7 +520,7 @@ Cuenta: Free / Pase 24h / Premium
 3. Escáner de despensa → guardar una receta  
 4. **Hoy**: si no hay vasos, CTA de agua → configurar → tracker  
 5. Activar notificaciones push → cerrar app → comprobar aviso del sistema  
-6. **Recetas**: chips **Mías / Sandra / Favoritas / Fuera** + abrir una de Sandra (reel Instagram si aplica)  
+6. **Recetas**: filas **Cocinar / Sandra / Favoritas / Registradas** + Ver más en Sandra (reel Instagram si aplica)  
 7. **Plan**: llenar un día (donut + macros) + complemento + snack CTA; probar CTA **«Recetas de Sandra»**  
 8. Lista de compras → copiar  
 9. Probar una función PRO (plato servido o menú del día)  

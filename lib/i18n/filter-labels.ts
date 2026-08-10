@@ -99,6 +99,7 @@ export function translateSavedCardLabel(t: Translate, label: string | null): str
     case "📸 Escaneado":
       return t("tagScanned");
     case "📍 Comida fuera":
+    case "📍 Registrada":
       return t("tagExternalMeal");
     default:
       return label;

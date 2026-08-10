@@ -1,9 +1,5 @@
 import type { Database, Json } from "@/types/database.types";
 import {
-  resolveExternalMealBadge,
-  externalMealBadgeLabel
-} from "@/lib/plan/external-meal";
-import {
   preferredDietLabel,
   recipeMatchesPreferredDiet,
   type PreferredDiet
@@ -473,15 +469,11 @@ export function filterPickerRecipes<T extends RecipeLabelSource>(
 }
 
 /**
- * Etiqueta de categoría en la lista: prioriza `meal_type` persistido al generar/guardar.
- * Solo usa heurística por palabras del título/ingredientes en recetas legacy sin ese campo.
+ * Etiqueta de tipo de comida en la lista: prioriza `meal_type` persistido.
+ * El origen (Escaneado / Registrada) se muestra aparte en la tarjeta.
+ * Solo usa heurística por título/ingredientes en recetas legacy sin ese campo.
  */
 export function getRecipeCardLabel(recipe: RecipeRow): string | null {
-  const externalBadge = resolveExternalMealBadge(recipe.tags);
-  if (externalBadge) {
-    return externalMealBadgeLabel(externalBadge);
-  }
-
   const resolved = resolveSavedRecipeMealFilter(recipe);
   if (resolved === "Desayunos") return "Desayuno";
   if (resolved === "Almuerzos") return "Almuerzo";
