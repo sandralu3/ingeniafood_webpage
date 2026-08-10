@@ -318,7 +318,7 @@ export function ExternalMealRegisterModal({
         setError(
           t.has("externalMealFutureDayError")
             ? t("externalMealFutureDayError")
-            : "No puedes registrar una comida fuera en un día futuro: todavía no ha ocurrido."
+            : "No puedes registrar una comida en un día futuro: todavía no ha ocurrido."
         );
         return;
       }
@@ -405,7 +405,7 @@ export function ExternalMealRegisterModal({
         setError(
           t.has("externalMealFutureDayError")
             ? t("externalMealFutureDayError")
-            : "No puedes registrar una comida fuera en un día futuro: todavía no ha ocurrido."
+            : "No puedes registrar una comida en un día futuro: todavía no ha ocurrido."
         );
         return;
       }

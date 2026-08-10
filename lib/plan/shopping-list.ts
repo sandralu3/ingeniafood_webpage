@@ -149,20 +149,10 @@ export function formatShoppingListText(
     .map((group) => {
       const categoryLabel =
         options?.getCategoryLabel?.(group.category.id) ?? group.category.label;
-      const header = `${group.category.emoji} ${categoryLabel.toUpperCase()}`;
+      const header = categoryLabel.toUpperCase();
       const lines = group.items.map((item) => {
-        if (item.quantityLabel) {
-          return `  • ${item.name} — ${item.quantityLabel}`;
-        }
-
-        if (item.usedInRecipes > 1) {
-          const usedLabel =
-            options?.usedInMealsLabel?.(item.usedInRecipes) ??
-            `en ${item.usedInRecipes} comidas`;
-          return `  • ${item.name} (${usedLabel})`;
-        }
-
-        return `  • ${item.name}`;
+        const qty = item.quantityLabel?.trim();
+        return qty ? `  ${qty.padEnd(10, " ")} ${item.name}` : `  ${item.name}`;
       });
 
       return [header, ...lines].join("\n");

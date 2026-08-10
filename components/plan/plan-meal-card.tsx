@@ -2,12 +2,12 @@
 
 import { useState, type HTMLAttributes } from "react";
 import Link from "next/link";
-import { Coffee, Clock3, Flame, GripVertical, Loader2, Pencil, Soup, Trash2, Utensils } from "lucide-react";
+import { Coffee, Clock3, Check, Flame, GripVertical, Loader2, Pencil, Soup, Trash2, Utensils } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { RecipeInstagramLink } from "@/components/recipes/recipe-instagram-link";
 import { RecipeMedia } from "@/components/recipes/recipe-media";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { removePlanMeal } from "@/lib/plan/plan-service";
+import { removePlanMeal, setPlanMealConsumed } from "@/lib/plan/plan-service";
 import type { MealType } from "@/lib/plan/constants";
 import { getMealTypeIcon, getMealTypeSubtleAccent } from "@/lib/plan/meal-type-accent";
 import {
@@ -39,8 +39,10 @@ export type PlanMeal = {
   hasProtein?: boolean;
   isAirfryer?: boolean;
   isFlourless?: boolean;
-  /** Comida registrada fuera / escaneada (no cocinada del recetario). */
+  /** Comida registrada (foto/texto); ya consumida. */
   externalBadge?: ExternalMealBadge | null;
+  /** Plato del plan marcado como ya comido (sale de la lista de compra). */
+  consumido?: boolean;
 };
 
 type PlanMealCardProps = {
@@ -49,6 +51,13 @@ type PlanMealCardProps = {
   onRemoveError?: (message: string) => void;
   /** Abrir selector para cambiar el plato de esta entrada. */
   onChangeMeal?: (meal: PlanMeal) => void;
+  /** Hoy o pasado: permite «Ya comí». */
+  canMarkConsumed?: boolean;
+  onConsumedChange?: (
+    mealType: MealType,
+    planEntryId: string,
+    consumido: boolean
+  ) => void;
   variant?: "default" | "slot" | "panel";
   /** Segundo+ plato del mismo bloque: UI secundaria / anidada. */
   isComplement?: boolean;
@@ -247,23 +256,36 @@ function CompactActionButtons({
   changeDisabled,
   onRemove,
   onChange,
+  onToggleConsumed,
+  canMarkConsumed,
+  isConsumed,
+  isTogglingConsumed,
   compact = false,
   mini = false,
   removeAria,
-  changeAria
+  changeAria,
+  markConsumedAria,
+  undoConsumedAria
 }: {
   isRemoving: boolean;
   removeDisabled: boolean;
   changeDisabled?: boolean;
   onRemove: () => void;
   onChange?: () => void;
+  onToggleConsumed?: () => void;
+  canMarkConsumed?: boolean;
+  isConsumed?: boolean;
+  isTogglingConsumed?: boolean;
   compact?: boolean;
   mini?: boolean;
   removeAria: string;
   changeAria?: string;
+  markConsumedAria?: string;
+  undoConsumedAria?: string;
 }) {
   const buttonSize = mini ? "h-6 w-6" : compact ? "h-7 w-7" : "h-8 w-8";
   const iconSize = mini ? "h-3 w-3" : compact ? "h-3 w-3" : "h-3.5 w-3.5";
+  const showConsumed = Boolean(canMarkConsumed && onToggleConsumed);
 
   return (
     <div
@@ -272,6 +294,32 @@ function CompactActionButtons({
         compact || mini ? "flex-row" : "flex-col gap-1.5 sm:flex-row"
       )}
     >
+      {showConsumed ? (
+        <button
+          type="button"
+          onClick={onToggleConsumed}
+          disabled={removeDisabled || isTogglingConsumed}
+          aria-label={isConsumed ? undoConsumedAria : markConsumedAria}
+          aria-pressed={Boolean(isConsumed)}
+          title={isConsumed ? undoConsumedAria : markConsumedAria}
+          className={cn(
+            "inline-flex items-center justify-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-50",
+            isConsumed
+              ? "bg-[#556B2F]/15 text-[#3e5219] ring-1 ring-[#556B2F]/25 hover:bg-[#556B2F]/25"
+              : mini
+                ? "bg-transparent text-stone-400 hover:bg-emerald-50 hover:text-emerald-700"
+                : "bg-stone-100 text-stone-600 hover:bg-emerald-50 hover:text-emerald-700",
+            buttonSize
+          )}
+        >
+          {isTogglingConsumed ? (
+            <Loader2 className={cn("animate-spin", iconSize)} />
+          ) : (
+            <Check className={iconSize} strokeWidth={2.5} />
+          )}
+        </button>
+      ) : null}
+
       {onChange ? (
         <button
           type="button"
@@ -324,10 +372,16 @@ function HorizontalMealCard({
   removeDisabled,
   onRemove,
   onChange,
+  onToggleConsumed,
+  canMarkConsumed,
+  isTogglingConsumed,
   className,
   mealTypeLabel,
   removeAria,
   changeAria,
+  markConsumedAria,
+  undoConsumedAria,
+  consumedBadgeLabel,
   viewRecipeAria,
   imageAlt,
   imageAltFallback,
@@ -345,10 +399,16 @@ function HorizontalMealCard({
   removeDisabled: boolean;
   onRemove: () => void;
   onChange?: () => void;
+  onToggleConsumed?: () => void;
+  canMarkConsumed?: boolean;
+  isTogglingConsumed?: boolean;
   className?: string;
   mealTypeLabel: string;
   removeAria: string;
   changeAria?: string;
+  markConsumedAria?: string;
+  undoConsumedAria?: string;
+  consumedBadgeLabel?: string;
   viewRecipeAria: string;
   imageAlt: string;
   imageAltFallback: string;
@@ -373,6 +433,13 @@ function HorizontalMealCard({
   // sin que el navegador capture el drag del <a>/<img>.
   const imageOutsideLink = compact || Boolean(dragHandleProps);
 
+  const consumedPill =
+    meal.consumido && consumedBadgeLabel ? (
+      <span className="inline-flex w-fit shrink-0 items-center rounded-md bg-[#eef4e6] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#3e5219] ring-1 ring-[#556B2F]/20">
+        {consumedBadgeLabel}
+      </span>
+    ) : null;
+
   const actions = (
     <div className="ml-auto flex shrink-0 items-center gap-1">
       {meal.instagramUrl && !compact ? (
@@ -389,8 +456,14 @@ function HorizontalMealCard({
         changeDisabled={removeDisabled}
         onRemove={onRemove}
         onChange={onChange}
+        onToggleConsumed={onToggleConsumed}
+        canMarkConsumed={canMarkConsumed}
+        isConsumed={Boolean(meal.consumido)}
+        isTogglingConsumed={isTogglingConsumed}
         removeAria={removeAria}
         changeAria={changeAria}
+        markConsumedAria={markConsumedAria}
+        undoConsumedAria={undoConsumedAria}
       />
     </div>
   );
@@ -451,6 +524,7 @@ function HorizontalMealCard({
                   {meal.externalBadge ? (
                     <ExternalMealBadgePill badge={meal.externalBadge} inline />
                   ) : null}
+                  {consumedPill}
                   {meal.kcal ? (
                     <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-stone-500">
                       <Flame className="h-2.5 w-2.5 text-orange-500" strokeWidth={2.25} />
@@ -491,6 +565,7 @@ function HorizontalMealCard({
                   {meal.externalBadge ? (
                     <ExternalMealBadgePill badge={meal.externalBadge} inline />
                   ) : null}
+                  {consumedPill}
                   {meal.kcal ? (
                     <span className="inline-flex items-center gap-0.5 text-xs font-medium text-stone-500">
                       <Flame className="h-3 w-3 text-orange-500" strokeWidth={2.25} />
@@ -570,6 +645,7 @@ function HorizontalMealCard({
           </h3>
 
           {meal.externalBadge ? <ExternalMealBadgePill badge={meal.externalBadge} /> : null}
+          {consumedPill}
 
           {getPrepMinutes(meal) || meal.kcal || nutritionPills.length > 0 ? (
             <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -609,6 +685,8 @@ export function PlanMealCard({
   onMealRemoved,
   onRemoveError,
   onChangeMeal,
+  canMarkConsumed = false,
+  onConsumedChange,
   variant = "default",
   isComplement = false,
   className,
@@ -619,17 +697,27 @@ export function PlanMealCard({
   const tCommon = useTranslations("Common");
   const [isRemoving, setIsRemoving] = useState(false);
   const [isRemoveDialogOpen, setIsRemoveDialogOpen] = useState(false);
+  const [isTogglingConsumed, setIsTogglingConsumed] = useState(false);
 
   const isPanel = variant === "panel";
   const isCompact = variant === "slot";
   const hasReel = Boolean(meal.instagramUrl && !meal.imageUrl);
   const useHeroLayout = isCompact && (Boolean(meal.imageUrl) || hasReel);
 
-  const removeDisabled = isRemoving;
+  const removeDisabled = isRemoving || isTogglingConsumed;
+  const allowMarkConsumed =
+    canMarkConsumed && !meal.externalBadge && Boolean(onConsumedChange);
 
   const mealTypeLabel = t(`meals.${meal.mealType}`);
   const removeAria = t("removeAria");
   const changeAria = t.has("changeRecipeAria") ? t("changeRecipeAria") : "Cambiar plato";
+  const markConsumedAria = t.has("markConsumedAria")
+    ? t("markConsumedAria")
+    : "Marcar como Ya comí";
+  const undoConsumedAria = t.has("undoConsumedAria")
+    ? t("undoConsumedAria")
+    : "Desmarcar Ya comí";
+  const consumedBadgeLabel = t.has("consumedBadge") ? t("consumedBadge") : "Ya comí";
   const viewRecipeAria = t("viewRecipeAria", { title: meal.title });
   const imageAlt = t("recipeImageAlt", { title: meal.title });
   const imageAltFallback = t("recipeImageAltFallback");
@@ -645,6 +733,51 @@ export function PlanMealCard({
   const handleChange = () => {
     if (removeDisabled) return;
     onChangeMeal?.(meal);
+  };
+
+  const handleToggleConsumed = async () => {
+    if (!allowMarkConsumed || removeDisabled) return;
+
+    setIsTogglingConsumed(true);
+    const next = !meal.consumido;
+
+    try {
+      const supabase = createSupabaseClient();
+      const {
+        data: { user }
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        onRemoveError?.(t("loginToEdit"));
+        return;
+      }
+
+      const updated = await setPlanMealConsumed({
+        userId: user.id,
+        planEntryId: meal.id,
+        consumido: next
+      });
+
+      if (!updated) {
+        onRemoveError?.(
+          t.has("consumedError")
+            ? t("consumedError")
+            : "No pudimos actualizar «Ya comí». Inténtalo de nuevo."
+        );
+        return;
+      }
+
+      onConsumedChange?.(meal.mealType, meal.id, next);
+    } catch (error) {
+      console.error("[plan-meal-card] Error marcando consumido:", error);
+      onRemoveError?.(
+        t.has("consumedError")
+          ? t("consumedError")
+          : "No pudimos actualizar «Ya comí». Inténtalo de nuevo."
+      );
+    } finally {
+      setIsTogglingConsumed(false);
+    }
   };
 
   const handleRemove = async () => {
@@ -693,9 +826,15 @@ export function PlanMealCard({
     removeDisabled,
     onRemove: requestRemove,
     onChange: onChangeMeal ? handleChange : undefined,
+    onToggleConsumed: allowMarkConsumed ? () => void handleToggleConsumed() : undefined,
+    canMarkConsumed: allowMarkConsumed,
+    isTogglingConsumed,
     mealTypeLabel,
     removeAria,
     changeAria,
+    markConsumedAria,
+    undoConsumedAria,
+    consumedBadgeLabel,
     viewRecipeAria,
     imageAlt,
     imageAltFallback,

@@ -7,6 +7,8 @@ export type ParsedIngredient = {
 
 const UNIT_ALIASES: Record<string, string> = {
   g: "g",
+  gr: "g",
+  grs: "g",
   gramo: "g",
   gramos: "g",
   kg: "kg",
@@ -31,11 +33,13 @@ const UNIT_ALIASES: Record<string, string> = {
   ud: "ud",
   uds: "ud",
   pizca: "pizca",
-  pizcas: "pizca"
+  pizcas: "pizca",
+  diente: "diente",
+  dientes: "diente"
 };
 
 const QUANTITY_LINE_PATTERN =
-  /^(\d+(?:[.,]\d+)?|\d+\s*\/\s*\d+)\s*(g|kg|ml|l|litros?|gramos?|cditas?|cdas?|cucharaditas?|cucharadas?|tazas?|tzs?\.?|unidades?|uds?\.?|pizcas?)?\s*(?:de\s+)?(.+)$/i;
+  /^(\d+(?:[.,]\d+)?|\d+\s*\/\s*\d+)\s*(g|grs?|kg|ml|l|litros?|gramos?|cditas?|cdas?|cucharaditas?|cucharadas?|tazas?|tzs?\.?|unidades?|uds?\.?|pizcas?|dientes?)?\s*(?:de\s+)?(.+)$/i;
 
 export function ingredientNameEmbedsQuantity(name: string): boolean {
   const cleaned = cleanMalformedIngredientName(stripAnnotations(name.trim()));
@@ -178,7 +182,7 @@ export function parseIngredientObject(
 
   const trimmedQuantity = quantity.trim();
   const amountUnitOnly = trimmedQuantity.match(
-    /^(\d+(?:[.,]\d+)?|\d+\s*\/\s*\d+)\s*(g|kg|ml|l|litros?|gramos?|cditas?|cdas?|cucharaditas?|cucharadas?|tazas?|tzs?\.?|unidades?|uds?\.?|pizcas?)?$/i
+    /^(\d+(?:[.,]\d+)?|\d+\s*\/\s*\d+)\s*(g|grs?|kg|ml|l|litros?|gramos?|cditas?|cdas?|cucharaditas?|cucharadas?|tazas?|tzs?\.?|unidades?|uds?\.?|pizcas?|dientes?)?$/i
   );
 
   if (amountUnitOnly) {
@@ -215,6 +219,7 @@ function pluralizeUnit(unit: string, amount: number): string {
     if (unit === "cdita") return "cdita";
     if (unit === "taza") return "taza";
     if (unit === "pizca") return "pizca";
+    if (unit === "diente") return "diente";
     return unit;
   }
 
@@ -223,6 +228,7 @@ function pluralizeUnit(unit: string, amount: number): string {
   if (unit === "cdita") return "cditas";
   if (unit === "taza") return "tazas";
   if (unit === "pizca") return "pizcas";
+  if (unit === "diente") return "dientes";
   return unit;
 }
 
@@ -238,23 +244,123 @@ export function formatQuantityLabel(amount: number, unit: string): string {
   return `${formatAmount(amount)} ${pluralizeUnit(unit, amount)}`;
 }
 
+/**
+ * Unifica unidades compatibles (g/kg, ml/l) para que la lista de compra
+ * no mezcle formatos distintos de la misma magnitud.
+ */
+export function consolidateAmountMap(amounts: Map<string, number>): Map<string, number> {
+  const next = new Map<string, number>();
+
+  let grams = 0;
+  let milliliters = 0;
+
+  for (const [unit, amount] of Array.from(amounts.entries())) {
+    if (!Number.isFinite(amount) || amount <= 0) continue;
+
+    if (unit === "g") {
+      grams += amount;
+      continue;
+    }
+    if (unit === "kg") {
+      grams += amount * 1000;
+      continue;
+    }
+    if (unit === "ml") {
+      milliliters += amount;
+      continue;
+    }
+    if (unit === "l") {
+      milliliters += amount * 1000;
+      continue;
+    }
+
+    next.set(unit, (next.get(unit) ?? 0) + amount);
+  }
+
+  if (grams > 0) {
+    if (grams >= 1000 && grams % 1000 === 0) {
+      next.set("kg", grams / 1000);
+    } else if (grams >= 1000) {
+      // Preferir kg con decimales cuando es más legible (ej. 1,2 kg).
+      next.set("kg", Math.round((grams / 1000) * 100) / 100);
+    } else {
+      next.set("g", Math.round(grams * 100) / 100);
+    }
+  }
+
+  if (milliliters > 0) {
+    if (milliliters >= 1000 && milliliters % 1000 === 0) {
+      next.set("l", milliliters / 1000);
+    } else if (milliliters >= 1000) {
+      next.set("l", Math.round((milliliters / 1000) * 100) / 100);
+    } else {
+      next.set("ml", Math.round(milliliters * 100) / 100);
+    }
+  }
+
+  return next;
+}
+
+const UNIT_PRIORITY = ["kg", "g", "l", "ml", "taza", "cda", "cdita", "diente", "ud", "pizca"];
+
+function sortUnits(units: string[]): string[] {
+  return [...units].sort((a, b) => {
+    const ia = UNIT_PRIORITY.indexOf(a);
+    const ib = UNIT_PRIORITY.indexOf(b);
+    if (ia === -1 && ib === -1) return a.localeCompare(b, "es");
+    if (ia === -1) return 1;
+    if (ib === -1) return -1;
+    return ia - ib;
+  });
+}
+
+/**
+ * Formato legible para compra.
+ * Si hay peso/volumen y también “unidades”, prioriza lo medible
+ * y deja las uds entre paréntesis para no confundir.
+ */
 export function formatAggregatedQuantities(
   amounts: Map<string, number>,
   qualitativeCount: number
 ): string | null {
-  if (amounts.size === 0) {
-    return qualitativeCount > 0 ? "al gusto" : null;
+  const consolidated = consolidateAmountMap(amounts);
+
+  if (consolidated.size === 0) {
+    if (qualitativeCount > 0) return "al gusto";
+    return null;
   }
 
-  const parts = Array.from(amounts.entries())
-    .sort(([unitA], [unitB]) => unitA.localeCompare(unitB, "es"))
-    .map(([unit, amount]) => formatQuantityLabel(amount, unit));
+  const units = sortUnits(Array.from(consolidated.keys()));
+  const hasMassOrVolume = units.some((unit) => ["g", "kg", "ml", "l"].includes(unit));
+  const primaryUnits = hasMassOrVolume
+    ? units.filter((unit) => unit !== "ud")
+    : units;
+  const secondaryUnits = hasMassOrVolume
+    ? units.filter((unit) => unit === "ud")
+    : [];
 
-  if (qualitativeCount > 0) {
-    parts.push("al gusto");
+  const primary = primaryUnits
+    .map((unit) => formatQuantityLabel(consolidated.get(unit)!, unit))
+    .join(" · ");
+
+  if (!primary && secondaryUnits.length) {
+    return secondaryUnits
+      .map((unit) => formatQuantityLabel(consolidated.get(unit)!, unit))
+      .join(" · ");
   }
 
-  return parts.join(" + ");
+  if (secondaryUnits.length) {
+    const secondary = secondaryUnits
+      .map((unit) => formatQuantityLabel(consolidated.get(unit)!, unit))
+      .join(" · ");
+    return `${primary} (${secondary})`;
+  }
+
+  if (qualitativeCount > 0 && !hasMassOrVolume) {
+    return `${primary} · al gusto`;
+  }
+
+  return primary;
 }
 
 export function pickDisplayName(candidates: string[]): string {

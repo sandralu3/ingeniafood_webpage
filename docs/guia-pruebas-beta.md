@@ -192,23 +192,23 @@ En la lista, cada tarjeta debería mostrar:
    - Abre una receta y pulsa **«Añadir a este hueco»** (o el icono de calendario) para asignarla al plan.
 5. Confirma que la receta aparece en el día del Plan.
 
-#### C) Escanear plato servido (función PRO / Premium)
+#### C) Registrar lo que comí — escanear plato (función PRO / Premium)
 Disponible desde el **Plan**, al elegir o cambiar un plato (en **hoy** o **días pasados**):
 
 1. Ve a **Plan** y selecciona el día de hoy (o uno pasado).
 2. En un hueco vacío pulsa **«Elegir receta»** (o el lápiz de **Cambiar plato**).
-3. Busca el bloque **«¿Comiste fuera?»**.
+3. Busca el bloque **«Registrar lo que comí»**.
 4. Pulsa **«📸 Escanear plato servido (IA)»** (badge **👑 PRO**).
 5. Elige **Tomar Foto** o **Elegir de la Galería**.
 6. Pulsa **Analizar alimentos**.
 7. En **«Revisa los alimentos»**, ajusta cantidades si hace falta.
 8. Pulsa **«Guardar y asignar al plan»**.
-9. Comprueba que la comida aparece en el día con su nombre y calorías.
+9. Comprueba que la comida aparece en el día con su nombre y calorías (no entra en la lista de compra).
 
 > Sin Premium (ni pase 24h), debe abrirse el diálogo **«Función Premium»** en lugar de completar el flujo.
 
 #### D) Registrar comida rápida (función PRO)
-1. Desde el mismo bloque **«¿Comiste fuera?»**.
+1. Desde el mismo bloque **«Registrar lo que comí»**.
 2. Pulsa **«✍️ Registrar comida rápida»** (**👑 PRO**).
 3. Describe qué comiste (ej.: *pechuga, arroz, ensalada*).
 4. Sigue la revisión de alimentos y guarda en el plan.
@@ -230,7 +230,7 @@ Disponible desde el **Plan**, al elegir o cambiar un plato (en **hoy** o **días
 - [ ] Límite diario: Free **5** / Premium o pase 24h **20**
 - [ ] Recetas → Sandra: mismas tarjetas + detalle + «Ver en Instagram» sobre la foto
 - [ ] Plan → «Recetas de Sandra» → asignar al hueco
-- [ ] Escaneo de plato servido (con y sin Premium)
+- [ ] Escaneo de plato servido (con y sin Premium) desde **Registrar lo que comí**
 - [ ] Comida rápida (con y sin Premium)
 - [ ] Registrar y borrar snacks (chips + botón CTA)
 
@@ -243,7 +243,7 @@ Disponible desde el **Plan**, al elegir o cambiar un plato (en **hoy** o **días
 3. Cambia de día con el selector de la semana (Lunes… Domingo).
 4. Revisa el **resumen superior del día**:
    - Nombre del día + fecha
-   - Texto de ayuda: **«Toca un plato para verlo, o usa el lápiz y la papelera para editarlo»**  
+   - Texto de ayuda: **«Toca un plato para verlo. Usa el check (Ya comí), el lápiz o la papelera»**  
      *(ya no se habla de arrastrar comidas)*
    - **Círculo / donut** de progreso (ej. **2/3** comidas asignadas), en tono ámbar/dorado
    - **Calorías consumidas** a la derecha (ej. `915 kcal`) y debajo **«Objetivo: … kcal»**
@@ -259,31 +259,33 @@ Disponible desde el **Plan**, al elegir o cambiar un plato (en **hoy** o **días
    - Foto, título
    - **kcal** (icono llama) y **tiempo** (reloj)
    - **Badges de macros**: `…g P` (verde), `…g C` (naranja), `…g G` (rosa), si hay datos
-   - Botones circulares de **lápiz** y **papelera**
+   - Botones circulares de **check (Ya comí)**, **lápiz** y **papelera** (el check solo en **hoy** o **días pasados**)
 4. Con una comida ya puesta, pulsa el botón píldora con borde punteado **«Agregar complemento»**.
 5. El complemento debe verse **anidado debajo** (fondo crema claro):
    - Etiqueta **«Agregado de Complemento:»**
    - Miniatura, nombre, kcal y acciones editar/eliminar
 
-#### Cambiar o eliminar
+#### Cambiar, eliminar o marcar «Ya comí»
 1. **Lápiz** → **Cambiar plato** → elige otra receta.
 2. **Papelera** → confirma **«¿Quitar esta receta del día?»** → **«Quitar receta»**.
-3. Toca el nombre/foto del plato para abrir el detalle y vuelve atrás.
+3. En **hoy** o un **día pasado**, con una receta del plan (no registrada por foto/texto):
+   - Pulsa el **check** → badge **«Ya comí»** y aviso de que **no entra en la lista de compra**.
+   - Vuelve a pulsar el check para **desmarcar**.
+4. Toca el nombre/foto del plato para abrir el detalle y vuelve atrás.
 
 #### Menú sugerido del día
 1. Si faltan comidas, busca **«✨ Proponer menú del día»** o **«✨ Sugerir comidas que faltan»**.
 2. Con Premium (o pase 24h) debería rellenar huecos vacíos.
 3. Sin Premium, debería aparecer el aviso de **Función Premium**.
 
-#### Sobre “marcar como completada”
-En esta versión **no hay un botón “Marcado como comido / completado”** por plato.  
-Lo que sí debes comprobar:
-
-- Que el **donut del día** (ej. 3/3) sube al asignar Desayuno, Almuerzo y Cena.
-- Que las **calorías del día** y el **objetivo** se actualizan al añadir/quitar platos y snacks.
+#### Sobre «Ya comí» y el plan
+- **«Ya comí»** confirma que cocinaste/comiste el plato del plan: la receta **sigue visible**, pero **sale de la lista de compra**.
+- **«Registrar lo que comí»** (foto o texto) es para poner lo que comiste de verdad cuando no era (solo) la receta planificada; tampoco entra en la lista de compra.
+- El **donut del día** (ej. 3/3) sube al asignar Desayuno, Almuerzo y Cena.
+- Las **calorías del día** y el **objetivo** se actualizan al añadir/quitar platos y snacks.
 - En **Hoy**, los **retos** sí pueden mostrar estados tipo **Completado / Pendiente** (flujo aparte del menú).
 
-> **Nota:** el arrastre entre huecos **no está operativo**; no intentes “arrastrar” comidas. Usa lápiz / papelera / elegir receta.
+> **Nota:** el arrastre entre huecos **no está operativo**; no intentes “arrastrar” comidas. Usa check / lápiz / papelera / elegir receta.
 
 **Qué probar**
 - [ ] Donut + kcal / objetivo se ven claros y cambian al editar el día
@@ -292,6 +294,7 @@ Lo que sí debes comprobar:
 - [ ] Botón «Agregar complemento» en estilo píldora
 - [ ] CTA de snacks verde musgo con ✨ y kcal
 - [ ] Proponer menú del día (Premium vs Free)
+- [ ] **Ya comí** en hoy/pasados: badge + sale de la lista de compra; se puede desmarcar
 - [ ] **Copiar semana anterior** (si hay menú la semana previa)
 - [ ] Navegar entre semanas (anterior / siguiente)
 
@@ -301,17 +304,24 @@ Lo que sí debes comprobar:
 
 1. En **Plan**, pulsa **«Lista de compras»**.
 2. Se abre un panel con el rango de fechas de la semana.
-3. Comprueba que aparecen ingredientes agrupados (verduras, proteínas, lácteos, despensa, etc.).
-4. Prueba:
+3. Panel premium compacto: fondo crema, categorías en tarjetas, cantidad en píldora verde y filas densas.
+4. Las cantidades se **aproximan y unifican** cuando se puede; si falta dato, solo se muestra el nombre (sin guión).
+5. La lista **solo cuenta platos de hoy y días futuros** (los días pasados no suman).
+6. Un plato marcado **«Ya comí»** o una comida **registrada** (foto/texto) **no** aporta ingredientes.
+7. Prueba:
    - **Quitar** un ingrediente de la lista (icono de papelera / quitar).
    - **«Copiar lista»** y pegarla en Notas o WhatsApp para verificar el texto.
-5. Vacía el plan de un día, regenera o vuelve a abrir la lista y mira si el contenido tiene sentido.
+8. Vacía el plan de un día futuro, regenera o vuelve a abrir la lista y mira si el contenido tiene sentido.
 
-> **Nota para testers:** la lista **no usa casillas de “comprado”**. La forma de gestionarla es **quitar ítems** o **copiar** la lista completa.
+> **Nota para testers:** la lista **no usa casillas de “comprado”**. La forma de gestionarla es **quitar ítems**, marcar **Ya comí**, o **copiar** la lista completa.
 
 **Qué probar**
-- [ ] Lista vacía cuando no hay recetas en la semana
-- [ ] Lista con varias recetas (ingredientes agrupados, sin duplicados raros)
+- [ ] Panel compacto y legible (cantidad | nombre, sin emojis)
+- [ ] Cantidades unificadas cuando se puede; sin guión si falta dato
+- [ ] Lista vacía cuando no hay recetas pendientes (o solo hay días pasados / Ya comí / registradas)
+- [ ] Lista con varias recetas de hoy/futuro (ingredientes agrupados, sin duplicados raros)
+- [ ] Tras **Ya comí** en un plato de hoy, al reabrir la lista esos ingredientes ya no están
+- [ ] Días pasados no inflan la lista aunque tengan recetas cocinables
 - [ ] Quitar un ítem y copiar la lista
 
 ---

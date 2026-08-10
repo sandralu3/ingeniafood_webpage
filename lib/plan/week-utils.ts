@@ -85,7 +85,7 @@ export function getPlanDayDate(weekStartISO: string, dayLabel: WeekDay): Date {
 
 /**
  * True si el día del plan es posterior a hoy.
- * Las comidas fuera solo se registran en hoy o días pasados (ya ocurrieron).
+ * Registrar lo comido / «Ya comí» solo en hoy o días pasados.
  */
 export function isPlanDayInTheFuture(
   weekStartISO: string,
@@ -99,12 +99,34 @@ export function isPlanDayInTheFuture(
   return dayDate.getTime() > today.getTime();
 }
 
+/** True si el día del plan es anterior a hoy (no incluye hoy). */
+export function isPlanDayInThePast(
+  weekStartISO: string,
+  dayLabel: WeekDay,
+  now = new Date()
+): boolean {
+  const dayDate = getPlanDayDate(weekStartISO, dayLabel);
+  dayDate.setHours(0, 0, 0, 0);
+  const today = new Date(now);
+  today.setHours(0, 0, 0, 0);
+  return dayDate.getTime() < today.getTime();
+}
+
 export function canRegisterExternalMealForPlanDay(
   weekStartISO: string,
   dayLabel: WeekDay,
   now = new Date()
 ): boolean {
   return !isPlanDayInTheFuture(weekStartISO, dayLabel, now);
+}
+
+/** Misma ventana que registrar comida: hoy o pasado. */
+export function canMarkPlanMealConsumedForPlanDay(
+  weekStartISO: string,
+  dayLabel: WeekDay,
+  now = new Date()
+): boolean {
+  return canRegisterExternalMealForPlanDay(weekStartISO, dayLabel, now);
 }
 
 export function getDateForWeekDay(monday: Date, dayIndex: number): Date {

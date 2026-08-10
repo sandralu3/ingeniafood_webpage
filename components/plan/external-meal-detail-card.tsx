@@ -132,7 +132,7 @@ export function ExternalMealDetailCard({
 
         {!advisoryMessage ? (
           <p className="text-sm leading-relaxed text-stone-600">
-            Comida registrada fuera de casa. Las calorías y proteínas se estiman según las porciones
+            Comida registrada (casa o fuera). Las calorías y proteínas se estiman según las porciones
             que confirmaste, para mantener el balance del día.
           </p>
         ) : null}

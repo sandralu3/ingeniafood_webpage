@@ -279,7 +279,7 @@ export function PlanRecipePickerModal({
                   <p className="mb-2 text-center text-[11px] font-bold uppercase tracking-wide text-stone-500">
                     {t.has("externalMealOptionsLabel")
                       ? t("externalMealOptionsLabel")
-                      : "¿Comiste fuera?"}
+                      : "Registrar lo que comí"}
                   </p>
                   <div className="grid grid-cols-1 gap-2">
                     <button
@@ -330,7 +330,7 @@ export function PlanRecipePickerModal({
                 <p className="mb-3 rounded-2xl border border-stone-100 bg-stone-50 px-3 py-2.5 text-center text-[11px] leading-relaxed text-stone-500">
                   {t.has("externalMealFutureDayHint")
                     ? t("externalMealFutureDayHint")
-                    : "Solo puedes registrar comidas fuera en hoy o días pasados."}
+                    : "Solo puedes registrar lo que comiste en hoy o días pasados."}
                 </p>
               )}
 
@@ -610,7 +610,7 @@ export function PlanRecipePickerModal({
         featureLabel={
           t.has("externalMealPremiumFeature")
             ? t("externalMealPremiumFeature")
-            : "Registrar comida fuera (escaneo o escritura)"
+            : "Registrar lo que comí (escaneo o escritura)"
         }
       />
     </>

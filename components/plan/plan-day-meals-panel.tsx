@@ -20,7 +20,7 @@ import { DEFAULT_DAY_BUDGET } from "@/lib/plan/meal-suggestion";
 import { movePlanMeal } from "@/lib/plan/plan-service";
 import type { PlanSnack } from "@/lib/plan/snack-presets";
 import type { PlanDay } from "@/lib/plan/types";
-import { getMondayOfWeek, toISODateString } from "@/lib/plan/week-utils";
+import { getMondayOfWeek, toISODateString, canMarkPlanMealConsumedForPlanDay } from "@/lib/plan/week-utils";
 import { fetchUserNutritionGoals } from "@/lib/nutrition/nutrition-profile";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import { cn } from "@/lib/utils";
@@ -32,6 +32,12 @@ type PlanDayMealsPanelProps = {
   onChangeMeal?: (dayLabel: WeekDay, meal: PlanMeal) => void;
   onSwapError?: (message: string) => void;
   onMealRemoved?: (dayLabel: WeekDay, mealType: MealType, planEntryId: string) => void;
+  onConsumedChange?: (
+    dayLabel: WeekDay,
+    mealType: MealType,
+    planEntryId: string,
+    consumido: boolean
+  ) => void;
   onRemoveError?: (message: string) => void;
   onMealMoved?: (
     result: NonNullable<Awaited<ReturnType<typeof movePlanMeal>>>
@@ -61,6 +67,7 @@ export function PlanDayMealsPanel({
   onChangeMeal,
   onSwapError,
   onMealRemoved,
+  onConsumedChange,
   onRemoveError,
   onMealMoved,
   onSnackAdded,
@@ -82,6 +89,7 @@ export function PlanDayMealsPanel({
   const hasEmptySlots = assignedMealTypes < MEAL_TYPES.length;
   const showPropose = Boolean(onProposeDayMenu) && hasEmptySlots;
   const resolvedWeekStart = weekStartISO ?? toISODateString(getMondayOfWeek());
+  const canMarkConsumed = canMarkPlanMealConsumedForPlanDay(resolvedWeekStart, day.label);
   const [isMoving, setIsMoving] = useState(false);
   const [calorieTarget, setCalorieTarget] = useState<number>(DEFAULT_DAY_BUDGET.calories);
 
@@ -276,6 +284,13 @@ export function PlanDayMealsPanel({
                             onChangeMeal={
                               onChangeMeal
                                 ? (selected) => onChangeMeal(day.label, selected)
+                                : undefined
+                            }
+                            canMarkConsumed={canMarkConsumed}
+                            onConsumedChange={
+                              onConsumedChange
+                                ? (mealType, planEntryId, consumido) =>
+                                    onConsumedChange(day.label, mealType, planEntryId, consumido)
                                 : undefined
                             }
                           />

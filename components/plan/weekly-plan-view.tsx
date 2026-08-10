@@ -399,6 +399,49 @@ export function WeeklyPlanView() {
     window.setTimeout(() => setSwapNotice(null), 3200);
   };
 
+  const handleConsumedChange = (
+    dayLabel: WeekDay,
+    mealType: MealType,
+    planEntryId: string,
+    consumido: boolean
+  ) => {
+    const mealTitle =
+      days
+        .find((d) => d.label === dayLabel)
+        ?.slots[mealType]?.find((m) => m.id === planEntryId)?.title ?? "";
+
+    setDays((prev) =>
+      prev.map((day) =>
+        day.label === dayLabel
+          ? patchDaySlots(day, {
+              ...day.slots,
+              [mealType]: (day.slots[mealType] ?? []).map((meal) =>
+                meal.id === planEntryId ? { ...meal, consumido } : meal
+              )
+            })
+          : day
+      )
+    );
+    if (userId) {
+      clearHoyCache(userId);
+    }
+
+    if (consumido) {
+      setSwapNotice(
+        t.has("mealMarkedConsumed")
+          ? t("mealMarkedConsumed", { title: mealTitle || "Plato" })
+          : `«${mealTitle || "Plato"}» marcado como Ya comí · no entra en la lista de compra`
+      );
+    } else {
+      setSwapNotice(
+        t.has("mealUnmarkedConsumed")
+          ? t("mealUnmarkedConsumed", { title: mealTitle || "Plato" })
+          : `«Ya comí» desmarcado en «${mealTitle || "Plato"}»`
+      );
+    }
+    window.setTimeout(() => setSwapNotice(null), 3200);
+  };
+
   const handleMealMoved = (
     result: NonNullable<Awaited<ReturnType<typeof movePlanMeal>>>
   ) => {
@@ -755,6 +798,7 @@ export function WeeklyPlanView() {
                 }
                 onSwapError={handleSwapError}
                 onMealRemoved={handleMealRemoved}
+                onConsumedChange={handleConsumedChange}
                 onRemoveError={handleSwapError}
                 onMealMoved={handleMealMoved}
                 onSnackAdded={(dayLabel, snack) => {
@@ -900,7 +944,7 @@ export function WeeklyPlanView() {
 
       <ShoppingListModal
         open={shoppingListOpen}
-        title={shoppingListTitle}
+        subtitle={shoppingListTitle}
         items={shoppingListItems}
         isLoading={isShoppingListLoading}
         errorMessage={shoppingListError}

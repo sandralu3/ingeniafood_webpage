@@ -86,8 +86,9 @@ type PlanRecipeNutrition = Pick<
   tags?: Json | null;
 };
 
-type PlanRowWithRecipe = Omit<PlanRow, "orden"> & {
+type PlanRowWithRecipe = Omit<PlanRow, "orden" | "consumido"> & {
   orden?: number;
+  consumido?: boolean;
   recipes: (PlanRecipeBase & Partial<PlanRecipeNutrition>) | null;
 };
 
@@ -102,6 +103,19 @@ const PLAN_BASE_RECIPE_FIELDS = `
   `;
 
 const PLAN_SELECT = `
+  id,
+  user_id,
+  semana_inicio,
+  dia_semana,
+  tipo_comida,
+  recipe_id,
+  orden,
+  consumido,
+  created_at,
+  recipes (${PLAN_BASE_RECIPE_FIELDS})
+`;
+
+const PLAN_SELECT_NO_CONSUMIDO = `
   id,
   user_id,
   semana_inicio,
@@ -221,7 +235,8 @@ function toPlanMeal(row: PlanRowWithRecipe): PlanMeal {
     prepMinutes: recipe?.cooking_time ?? undefined,
     calories: recipe?.cooking_time ?? undefined,
     isAirfryer: recipe?.is_airfryer ?? false,
-    isFlourless: recipe?.is_flourless ?? false
+    isFlourless: recipe?.is_flourless ?? false,
+    consumido: Boolean(row.consumido)
   };
 
   if (!recipe) return baseMeal;
@@ -322,6 +337,16 @@ export async function fetchWeeklyPlan(
 
       if (!primary.error || !isMissingColumnError(primary.error)) {
         return primary;
+      }
+
+      const withoutConsumido = await supabase
+        .from("plan_semanal")
+        .select(PLAN_SELECT_NO_CONSUMIDO)
+        .eq("user_id", userId)
+        .eq("semana_inicio", semanaInicio);
+
+      if (!withoutConsumido.error || !isMissingColumnError(withoutConsumido.error)) {
+        return withoutConsumido;
       }
 
       return supabase
@@ -474,6 +499,23 @@ export async function assignRecipeToPlan(params: {
   let error = insertWithOrden.error;
 
   if (error && isMissingColumnError(error)) {
+    const withoutConsumido = await supabase
+      .from("plan_semanal")
+      .insert({
+        user_id: params.userId,
+        semana_inicio: semanaInicio,
+        dia_semana: params.diaSemana,
+        tipo_comida: params.tipoComida,
+        recipe_id: params.recipeId,
+        orden
+      })
+      .select(PLAN_SELECT_NO_CONSUMIDO)
+      .single();
+    data = withoutConsumido.data as PlanRowWithRecipe | null;
+    error = withoutConsumido.error;
+  }
+
+  if (error && isMissingColumnError(error)) {
     const legacy = await supabase
       .from("plan_semanal")
       .insert({
@@ -534,16 +576,28 @@ export async function replacePlanMealRecipe(params: {
 }): Promise<PlanMeal | null> {
   const supabase = createSupabaseClient();
 
-  const withOrden = await supabase
+  const withConsumido = await supabase
     .from("plan_semanal")
-    .update({ recipe_id: params.recipeId })
+    .update({ recipe_id: params.recipeId, consumido: false })
     .eq("id", params.planEntryId)
     .eq("user_id", params.userId)
     .select(PLAN_SELECT)
     .maybeSingle();
 
-  let data = withOrden.data as PlanRowWithRecipe | null;
-  let error = withOrden.error;
+  let data = withConsumido.data as PlanRowWithRecipe | null;
+  let error = withConsumido.error;
+
+  if (error && isMissingColumnError(error)) {
+    const withoutConsumido = await supabase
+      .from("plan_semanal")
+      .update({ recipe_id: params.recipeId })
+      .eq("id", params.planEntryId)
+      .eq("user_id", params.userId)
+      .select(PLAN_SELECT_NO_CONSUMIDO)
+      .maybeSingle();
+    data = withoutConsumido.data as PlanRowWithRecipe | null;
+    error = withoutConsumido.error;
+  }
 
   if (error && isMissingColumnError(error)) {
     const legacy = await supabase
@@ -563,6 +617,35 @@ export async function replacePlanMealRecipe(params: {
   }
 
   const [enrichedRow] = await enrichPlanRowsWithNutrition([data]);
+  return toPlanMeal(enrichedRow);
+}
+
+/** Marca o desmarca un plato del plan como ya consumido («Ya comí»). */
+export async function setPlanMealConsumed(params: {
+  userId: string;
+  planEntryId: string;
+  consumido: boolean;
+}): Promise<PlanMeal | null> {
+  const supabase = createSupabaseClient();
+
+  const result = await supabase
+    .from("plan_semanal")
+    .update({ consumido: params.consumido })
+    .eq("id", params.planEntryId)
+    .eq("user_id", params.userId)
+    .select(PLAN_SELECT)
+    .maybeSingle();
+
+  if (result.error) {
+    console.error("[plan] Error actualizando consumido:", result.error);
+    return null;
+  }
+
+  if (!result.data) return null;
+
+  const [enrichedRow] = await enrichPlanRowsWithNutrition([
+    result.data as PlanRowWithRecipe
+  ]);
   return toPlanMeal(enrichedRow);
 }
 
@@ -910,6 +993,23 @@ export async function movePlanMeal(params: {
 
   let moved = updateWithOrden.data as PlanRowWithRecipe | null;
   let moveError = updateWithOrden.error;
+
+  if (moveError && isMissingColumnError(moveError)) {
+    const withoutConsumido = await supabase
+      .from("plan_semanal")
+      .update({
+        dia_semana: to.dayLabel,
+        tipo_comida: to.mealType,
+        orden
+      })
+      .eq("id", planEntryId)
+      .eq("user_id", userId)
+      .eq("semana_inicio", semanaInicioISO)
+      .select(PLAN_SELECT_NO_CONSUMIDO)
+      .maybeSingle();
+    moved = withoutConsumido.data as PlanRowWithRecipe | null;
+    moveError = withoutConsumido.error;
+  }
 
   if (moveError && isMissingColumnError(moveError)) {
     const legacy = await supabase

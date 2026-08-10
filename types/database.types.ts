@@ -803,6 +803,7 @@ export type Database = {
           tipo_comida: string;
           recipe_id: string;
           orden: number;
+          consumido: boolean;
           created_at: string;
         };
         Insert: {
@@ -813,6 +814,7 @@ export type Database = {
           tipo_comida: string;
           recipe_id: string;
           orden?: number;
+          consumido?: boolean;
           created_at?: string;
         };
         Update: {
@@ -823,6 +825,7 @@ export type Database = {
           tipo_comida?: string;
           recipe_id?: string;
           orden?: number;
+          consumido?: boolean;
           created_at?: string;
         };
         Relationships: [

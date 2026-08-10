@@ -102,11 +102,25 @@ function normalizeStructuredRecord(record: Record<string, unknown>): StructuredI
     "amount" in record || "unit" in record || "cantidad" in record || "unidad" in record;
 
   if (hasStructuredAmount) {
-    const amountValue =
+    const rawAmount =
       typeof record.amount === "number" && Number.isFinite(record.amount)
         ? record.amount
         : typeof record.cantidad === "number" && Number.isFinite(record.cantidad)
           ? record.cantidad
+          : typeof record.amount === "string"
+            ? record.amount
+            : typeof record.cantidad === "string"
+              ? record.cantidad
+              : null;
+
+    const amountValue =
+      typeof rawAmount === "number"
+        ? rawAmount
+        : typeof rawAmount === "string"
+          ? (() => {
+              const parsed = parseIngredientObject(name, rawAmount);
+              return parsed?.amount ?? null;
+            })()
           : null;
 
     const unitValue =
@@ -116,11 +130,29 @@ function normalizeStructuredRecord(record: Record<string, unknown>): StructuredI
           ? record.unidad.trim()
           : null;
 
-    if (amountValue === null && !unitValue && typeof record.cantidad === "string") {
-      const parsed = parseIngredientObject(name, record.cantidad);
+    if (
+      amountValue === null &&
+      !unitValue &&
+      typeof rawAmount === "string"
+    ) {
+      const parsed = parseIngredientObject(name, rawAmount);
       if (!parsed) return null;
       const structured = parsedToStructured(parsed);
       return refineStructuredIngredient(optional ? { ...structured, optional: true } : structured);
+    }
+
+    // Si amount vino como "200 g", parseIngredientObject ya lo resolvió arriba;
+    // si solo era número en string, unit puede venir del parse.
+    if (typeof rawAmount === "string" && amountValue !== null && !unitValue) {
+      const parsed = parseIngredientObject(name, rawAmount);
+      if (parsed && parsed.amount !== null) {
+        return refineStructuredIngredient({
+          name: parsed.name,
+          amount: parsed.amount,
+          unit: parsed.unit,
+          optional: optional || undefined
+        });
+      }
     }
 
     if (ingredientNameEmbedsQuantity(name)) {
