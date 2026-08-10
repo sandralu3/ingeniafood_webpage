@@ -1,4 +1,4 @@
-/* Oliva Hero — impact polish */
+/* Oliva Hero — impact polish + scroll parallax */
 
 .oliva-hero-atmosphere {
   position: absolute;
@@ -6,6 +6,11 @@
   z-index: 0;
   overflow: hidden;
   pointer-events: none;
+  transform: translate3d(0, calc(var(--parallax, 0) * 20px), 0);
+}
+
+.oliva-hero-glow {
+  transform: translate3d(0, calc(var(--parallax, 0) * 28px), 0);
 }
 
 /* Soft paper grain — fine texture over cream */
@@ -104,8 +109,31 @@
   }
 }
 
+.oliva-hero-copy {
+  transform: translate3d(0, calc(var(--parallax, 0) * -14px), 0);
+}
+
 .oliva-hero-stage {
   position: relative;
+  transform: translate3d(0, calc(var(--parallax, 0) * 36px), 0);
+}
+
+@media (min-width: 1024px) {
+  .oliva-hero-atmosphere {
+    transform: translate3d(0, calc(var(--parallax, 0) * 28px), 0);
+  }
+
+  .oliva-hero-glow {
+    transform: translate3d(0, calc(var(--parallax, 0) * 40px), 0);
+  }
+
+  .oliva-hero-copy {
+    transform: translate3d(0, calc(var(--parallax, 0) * -20px), 0);
+  }
+
+  .oliva-hero-stage {
+    transform: translate3d(0, calc(var(--parallax, 0) * 52px), 0);
+  }
 }
 
 .oliva-hero-phone-glow {
@@ -209,6 +237,15 @@
   .oliva-hero-scroll-hint,
   .oliva-hero-scroll-chevron {
     animation: none;
+  }
+
+  .oliva-hero-atmosphere,
+  .oliva-hero-glow,
+  .oliva-hero-copy,
+  .oliva-hero-stage {
+    opacity: 1;
+    transform: none;
+    will-change: auto;
   }
 
   .oliva-hero-phone-enter,

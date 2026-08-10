@@ -1,14 +1,26 @@
+"use client";
+
+import { useRef } from "react";
 import { PhoneMockup } from "@/components/oliva/PhoneMockup";
 import { TryCta } from "@/components/oliva/try";
+import { useScrollParallax } from "@/components/oliva/motion/useScrollParallax";
 import "./hero.css";
 
 export function Hero() {
+  const sectionRef = useRef<HTMLElement>(null);
+  useScrollParallax(sectionRef);
+
   return (
     <section
+      ref={sectionRef}
       id="inicio"
       className="oliva-snap-section oliva-snap-section--start relative overflow-hidden bg-[#fbf9f4] text-[#1b1c19]"
+      style={{ ["--parallax" as string]: 0 }}
     >
-      <div className="oliva-hero-glow pointer-events-none absolute inset-0" aria-hidden="true" />
+      <div
+        className="oliva-hero-glow pointer-events-none absolute inset-0"
+        aria-hidden="true"
+      />
 
       <div className="oliva-hero-atmosphere" aria-hidden="true">
         <div className="oliva-hero-drift oliva-hero-drift--a" />
@@ -18,13 +30,15 @@ export function Hero() {
       </div>
 
       {/* Spacer for fixed header */}
-      <div className="relative z-[1] h-[4.5rem] shrink-0 lg:h-[5.25rem]" aria-hidden="true" />
+      <div
+        className="relative z-[1] h-[4.5rem] shrink-0 lg:h-[5.25rem]"
+        aria-hidden="true"
+      />
 
       <div className="oliva-snap-inner relative z-[1] flex flex-1 flex-col !pt-0 !pb-16 sm:!pb-20">
         <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-6 lg:px-10">
           <div className="grid items-center gap-12 lg:grid-cols-[10fr_12fr] lg:gap-10 xl:gap-14">
-            {/* Copy — brand, one idea, one action */}
-            <div className="flex w-full max-w-[520px] flex-col items-start lg:max-w-none">
+            <div className="oliva-hero-copy flex w-full max-w-[520px] flex-col items-start lg:max-w-none">
               <p
                 className="oliva-hero-enter text-base tracking-[0.04em] lg:text-lg"
                 style={{ ["--hero-delay" as string]: "0ms" }}
@@ -81,12 +95,8 @@ export function Hero() {
               </p>
             </div>
 
-            {/* Product — phone + orbiting ingredients */}
             <div className="oliva-hero-stage flex justify-center lg:justify-end">
-              <div
-                className="oliva-hero-phone-glow"
-                aria-hidden="true"
-              />
+              <div className="oliva-hero-phone-glow" aria-hidden="true" />
               <div className="oliva-hero-phone-enter">
                 <PhoneMockup className="w-[min(100%,380px)] sm:w-[400px] lg:w-[440px]" />
               </div>

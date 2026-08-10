@@ -51,15 +51,47 @@ export function OlivaHeader() {
     const hero = document.getElementById("inicio");
     if (!hero) return;
 
-    const heroObserver = new IntersectionObserver(
-      ([entry]) => {
-        setIsOnHero(entry.isIntersecting && entry.intersectionRatio > 0.35);
-      },
-      { threshold: [0, 0.35, 0.6], rootMargin: "-72px 0px 0px 0px" }
-    );
+    let frame = 0;
+    let onHero = true;
 
-    heroObserver.observe(hero);
-    return () => heroObserver.disconnect();
+    const updateHeroMode = () => {
+      frame = 0;
+      const viewH = window.innerHeight || 1;
+      const rect = hero.getBoundingClientRect();
+      // How much of the viewport the hero still covers
+      const visible = Math.min(rect.bottom, viewH) - Math.max(rect.top, 0);
+      const coverage = Math.max(0, visible) / viewH;
+
+      // Hysteresis: avoid pill ↔ hero flicker during scroll-snap
+      let next = onHero;
+      if (onHero) {
+        // Stay in hero mode until hero no longer dominates the viewport
+        next = coverage >= 0.55 && rect.bottom > viewH * 0.4;
+      } else {
+        // Restore hero mode only when hero clearly fills the screen again
+        next = coverage >= 0.78 && rect.top > -viewH * 0.05;
+      }
+
+      if (next !== onHero) {
+        onHero = next;
+        setIsOnHero(next);
+      }
+    };
+
+    const onScroll = () => {
+      if (frame) return;
+      frame = window.requestAnimationFrame(updateHeroMode);
+    };
+
+    updateHeroMode();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll, { passive: true });
+
+    return () => {
+      if (frame) window.cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
   }, []);
 
   useEffect(() => {
@@ -69,21 +101,43 @@ export function OlivaHeader() {
 
     if (sections.length === 0) return;
 
-    const sectionObserver = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((e) => e.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+    let frame = 0;
 
-        if (visible[0]?.target.id) {
-          setActiveSection(visible[0].target.id);
+    const updateActive = () => {
+      frame = 0;
+      const viewH = window.innerHeight || 1;
+      const probe = viewH * 0.28;
+      let current = sections[0]?.id ?? "inicio";
+
+      for (const section of sections) {
+        const rect = section.getBoundingClientRect();
+        // Prefer the section that owns the upper band of the viewport.
+        // Works for tall sections (e.g. #proceso with nested snaps).
+        if (rect.top <= probe && rect.bottom > probe) {
+          current = section.id;
+          break;
         }
-      },
-      { threshold: [0.25, 0.5, 0.75], rootMargin: "-20% 0px -55% 0px" }
-    );
+        if (rect.top > probe) break;
+        current = section.id;
+      }
 
-    sections.forEach((section) => sectionObserver.observe(section));
-    return () => sectionObserver.disconnect();
+      setActiveSection((prev) => (prev === current ? prev : current));
+    };
+
+    const onScroll = () => {
+      if (frame) return;
+      frame = window.requestAnimationFrame(updateActive);
+    };
+
+    updateActive();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll, { passive: true });
+
+    return () => {
+      if (frame) window.cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
   }, []);
 
   useEffect(() => {

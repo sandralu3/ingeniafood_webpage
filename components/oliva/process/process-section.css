@@ -1,0 +1,1079 @@
+/* Cómo funciona — one full-screen step per snap */
+
+.oliva-process-section {
+  /* Children (intro / steps / closer) are the snap points */
+  scroll-snap-align: none;
+  scroll-snap-stop: normal;
+  justify-content: flex-start !important;
+  min-height: auto !important;
+  height: auto !important;
+}
+
+.oliva-process-flow {
+  position: relative;
+  overflow: visible;
+}
+
+/* Travels across intro ↔ steps without being clipped by section overflow */
+.oliva-process-fly-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.oliva-process-fly-wm {
+  position: absolute;
+  left: 0;
+  top: 0;
+  font-size: clamp(5rem, 18vw, 11rem);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: #556b2f;
+  opacity: 0;
+  user-select: none;
+  will-change: transform;
+  transform: translate3d(-9999px, -9999px, 0);
+  backface-visibility: hidden;
+}
+
+.oliva-process-intro {
+  position: relative;
+  display: flex;
+  overflow: hidden;
+  min-height: 100svh;
+  min-height: 100dvh;
+  align-items: center;
+  justify-content: center;
+  padding: 5.5rem 1.25rem 3rem;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
+.oliva-process-intro-atmosphere {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.oliva-process-intro-watermark {
+  position: absolute;
+  font-size: clamp(5rem, 18vw, 11rem);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: #556b2f;
+  opacity: 0.055;
+  user-select: none;
+}
+
+.oliva-process-intro-watermark--1 {
+  left: 4%;
+  top: 14%;
+}
+
+.oliva-process-intro-watermark--2 {
+  right: 6%;
+  top: 42%;
+}
+
+.oliva-process-intro-watermark--3 {
+  left: 12%;
+  bottom: 10%;
+}
+
+.oliva-process-intro-drift {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(72px);
+}
+
+.oliva-process-intro-drift--a {
+  width: min(42vw, 20rem);
+  height: min(42vw, 20rem);
+  left: -6%;
+  top: 18%;
+  background: rgb(85 107 47 / 0.12);
+}
+
+.oliva-process-intro-drift--b {
+  width: min(38vw, 18rem);
+  height: min(38vw, 18rem);
+  right: -4%;
+  bottom: 16%;
+  background: rgb(143 76 53 / 0.1);
+}
+
+.oliva-process-intro-arc {
+  position: absolute;
+  left: 50%;
+  bottom: 18%;
+  z-index: 0;
+  width: min(88vw, 36rem);
+  height: auto;
+  color: rgb(85 107 47 / 0.2);
+  transform: translateX(-50%);
+}
+
+.oliva-process-intro-float {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: clamp(2.65rem, 7vw, 3.35rem);
+  height: clamp(2.65rem, 7vw, 3.35rem);
+  border-radius: 999px;
+  opacity: 0.92;
+  box-shadow: 0 10px 28px rgb(27 28 25 / 0.07);
+  animation: oliva-process-intro-float 7s ease-in-out infinite;
+}
+
+.oliva-process-intro-float svg {
+  width: 52%;
+  height: 52%;
+  stroke-width: 1.75;
+}
+
+.oliva-process-intro-float--a {
+  left: 10%;
+  top: 28%;
+  color: #8f4c35;
+  background: rgb(143 76 53 / 0.12);
+  border: 1px solid rgb(143 76 53 / 0.28);
+  box-shadow: 0 10px 28px rgb(143 76 53 / 0.12);
+  animation-delay: 0s;
+}
+
+.oliva-process-intro-float--b {
+  right: 11%;
+  top: 22%;
+  color: #556b2f;
+  background: rgb(85 107 47 / 0.12);
+  border: 1px solid rgb(85 107 47 / 0.28);
+  box-shadow: 0 10px 28px rgb(85 107 47 / 0.12);
+  animation-delay: 0.8s;
+}
+
+.oliva-process-intro-float--c {
+  left: 14%;
+  bottom: 22%;
+  color: #c46852;
+  background: rgb(233 150 122 / 0.2);
+  border: 1px solid rgb(233 150 122 / 0.45);
+  box-shadow: 0 10px 28px rgb(233 150 122 / 0.14);
+  animation-delay: 1.4s;
+}
+
+@keyframes oliva-process-intro-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) rotate(-4deg);
+  }
+  50% {
+    transform: translate3d(0, -10px, 0) rotate(5deg);
+  }
+}
+
+.oliva-process-intro-content {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 36rem;
+  margin-inline: auto;
+  text-align: center;
+}
+
+@media (min-width: 1024px) {
+  .oliva-process-intro-watermark {
+    opacity: 0.07;
+  }
+
+  .oliva-process-intro-watermark--1 {
+    left: 8%;
+    top: 16%;
+  }
+
+  .oliva-process-intro-watermark--2 {
+    right: 10%;
+    top: 38%;
+  }
+
+  .oliva-process-intro-watermark--3 {
+    left: 16%;
+    bottom: 12%;
+  }
+
+  .oliva-process-intro-arc {
+    bottom: 20%;
+    width: min(70vw, 42rem);
+  }
+
+  .oliva-process-intro-float--a {
+    left: 14%;
+    top: 30%;
+  }
+
+  .oliva-process-intro-float--b {
+    right: 16%;
+    top: 24%;
+  }
+
+  .oliva-process-intro-float--c {
+    left: 18%;
+    bottom: 24%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .oliva-process-intro-float {
+    animation: none;
+  }
+
+  .oliva-process-fly-wm {
+    display: none;
+  }
+
+  .oliva-process-step-watermark {
+    opacity: 0.08;
+  }
+}
+
+.oliva-process-intro-eyebrow {
+  margin: 0;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #8f4c35;
+}
+
+.oliva-process-intro-title {
+  margin: 0.85rem 0 0;
+  font-size: clamp(1.85rem, 5vw, 2.75rem);
+  font-weight: 600;
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+  color: #1b1c19;
+}
+
+.oliva-process-intro-subtitle {
+  margin: 1rem 0 0;
+  font-size: clamp(1rem, 2.8vw, 1.125rem);
+  line-height: 1.55;
+  color: #53433e;
+}
+
+.oliva-process-intro-path {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem 0.15rem;
+  margin: 2rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.oliva-process-intro-path-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+
+.oliva-process-intro-path-arrow {
+  margin-right: 0.35rem;
+  margin-left: 0.2rem;
+  font-size: 0.85rem;
+  color: #556b2f;
+  opacity: 0.45;
+}
+
+.oliva-process-intro-path-num {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: #8f4c35;
+}
+
+.oliva-process-intro-path-label {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: #1b1c19;
+}
+
+@media (min-width: 640px) {
+  .oliva-process-intro-path {
+    gap: 0.5rem 0.25rem;
+    margin-top: 2.35rem;
+  }
+
+  .oliva-process-intro-path-label {
+    font-size: 1rem;
+  }
+}
+
+.oliva-process-steps {
+  position: relative;
+}
+
+.oliva-process-rail {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .oliva-process-rail {
+    position: absolute;
+    top: 12%;
+    bottom: 12%;
+    left: 50%;
+    z-index: 0;
+    display: block;
+    width: 2px;
+    transform: translateX(-50%);
+    pointer-events: none;
+  }
+
+  .oliva-process-rail-track {
+    position: absolute;
+    inset: 0;
+    border-radius: 999px;
+    background: rgb(27 28 25 / 0.1);
+  }
+
+  .oliva-process-rail-fill {
+    position: absolute;
+    inset: 0;
+    transform: scaleY(0.05);
+    transform-origin: top center;
+    border-radius: 999px;
+    background: linear-gradient(
+      180deg,
+      #8f4c35 0%,
+      #556b2f 55%,
+      #556b2f 100%
+    );
+    will-change: transform;
+  }
+}
+
+.oliva-process-step {
+  --progress: 0;
+  --depth: 0;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  overflow: hidden;
+  box-sizing: border-box;
+  height: 100svh;
+  height: 100dvh;
+  min-height: 100svh;
+  min-height: 100dvh;
+  align-items: center;
+  justify-content: center;
+  padding: 4.75rem 1.25rem max(1.5rem, env(safe-area-inset-bottom, 0px));
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
+@media (min-width: 1024px) {
+  .oliva-process-step {
+    padding: 5rem 3rem 3rem;
+  }
+}
+
+.oliva-process-step-watermark {
+  position: absolute;
+  z-index: 0;
+  font-size: clamp(5rem, 18vw, 11rem);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: #556b2f;
+  opacity: 0;
+  pointer-events: none;
+  user-select: none;
+}
+
+.oliva-process-step-watermark--01 {
+  left: 4%;
+  top: 14%;
+}
+
+.oliva-process-step-watermark--02 {
+  right: 6%;
+  top: 42%;
+}
+
+.oliva-process-step-watermark--03 {
+  left: 12%;
+  bottom: 10%;
+}
+
+@media (min-width: 1024px) {
+  .oliva-process-step-watermark--01 {
+    left: 6%;
+    top: 12%;
+  }
+
+  .oliva-process-step-watermark--02 {
+    right: 8%;
+    top: 34%;
+  }
+
+  .oliva-process-step-watermark--03 {
+    left: 12%;
+    bottom: 10%;
+  }
+}
+
+.oliva-process-step-grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: 100%;
+  max-width: 22rem;
+  margin-inline: auto;
+  align-items: center;
+  gap: 1rem;
+  grid-template-areas:
+    "copy"
+    "visual";
+}
+
+.oliva-process-step-visual {
+  grid-area: visual;
+  display: flex;
+  justify-content: center;
+  transform: translate3d(0, calc(var(--depth, 0) * 36px), 0);
+  will-change: transform;
+}
+
+.oliva-process-step-copy {
+  grid-area: copy;
+  max-width: 26rem;
+  margin-inline: auto;
+  text-align: center;
+  transform: translate3d(0, calc(var(--depth, 0) * -28px), 0);
+  will-change: transform;
+}
+
+@media (min-width: 1024px) {
+  .oliva-process-step-grid {
+    max-width: 60rem;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas: "visual copy";
+    gap: 3rem 4.5rem;
+  }
+
+  .oliva-process-step-grid--flip {
+    grid-template-areas: "copy visual";
+  }
+
+  .oliva-process-step-visual {
+    justify-content: flex-end;
+    transform: translate3d(0, calc(var(--depth, 0) * 64px), 0);
+  }
+
+  .oliva-process-step-grid--flip .oliva-process-step-visual {
+    justify-content: flex-start;
+  }
+
+  .oliva-process-step-copy {
+    margin-inline: 0;
+    justify-self: start;
+    text-align: left;
+    transform: translate3d(0, calc(var(--depth, 0) * -48px), 0);
+  }
+
+  .oliva-process-step-grid--flip .oliva-process-step-copy {
+    justify-self: end;
+    text-align: right;
+  }
+}
+
+.oliva-process-step-num {
+  margin: 0;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #8f4c35;
+}
+
+.oliva-process-step-title {
+  margin: 0.5rem 0 0;
+  font-size: clamp(1.35rem, 4.2vw, 1.875rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: #1b1c19;
+}
+
+@media (min-width: 1024px) {
+  .oliva-process-step-title {
+    font-size: clamp(1.75rem, 2vw, 2.25rem);
+  }
+}
+
+.oliva-process-step-body {
+  margin: 0.65rem 0 0;
+  font-size: clamp(0.92rem, 3.4vw, 1.1rem);
+  line-height: 1.55;
+  color: #53433e;
+}
+
+@media (min-width: 1024px) {
+  .oliva-process-step-body {
+    font-size: 1.125rem;
+    line-height: 1.6;
+  }
+}
+
+/*
+ * Phone frame — iPhone 17 Pro Max viewport (440 × 956)
+ * Same aspect everywhere; height scales to fit the viewport.
+ */
+.oliva-process-phone {
+  position: relative;
+  aspect-ratio: 440 / 956;
+  width: auto;
+  height: min(52dvh, 480px);
+}
+
+@media (min-width: 1024px) {
+  .oliva-process-phone {
+    height: min(70dvh, 640px);
+  }
+}
+
+.oliva-process-phone-glow {
+  position: absolute;
+  inset: 8% -18% -6%;
+  z-index: 0;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgb(85 107 47 / 0.26) 0%,
+    rgb(143 76 53 / 0.1) 42%,
+    transparent 70%
+  );
+  filter: blur(18px);
+  opacity: calc(var(--progress) * 1);
+  transform: scale(calc(0.78 + var(--progress) * 0.22))
+    translate3d(0, calc(var(--depth) * 48px), 0);
+  will-change: transform, opacity;
+}
+
+.oliva-process-phone-shell {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  box-sizing: border-box;
+  height: 100%;
+  flex-direction: column;
+  border-radius: 2.15rem;
+  background: #1b1c19;
+  padding: 0.45rem;
+  box-shadow:
+    0 24px 48px -20px rgb(27 28 25 / 0.5),
+    0 0 0 1px rgb(27 28 25 / 0.22);
+}
+
+.oliva-process-phone-screen {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 1.7rem;
+  background: #fbf9f4;
+}
+
+@media (min-width: 1024px) {
+  .oliva-process-phone-shell {
+    border-radius: 2.5rem;
+    padding: 0.55rem;
+  }
+
+  .oliva-process-phone-screen {
+    border-radius: 2rem;
+  }
+}
+
+.oliva-process-phone-screen img {
+  object-fit: cover;
+  object-position: top center;
+}
+
+/* Scrubbed motion + parallax depth — phone starts clearly small, settles full */
+.oliva-process-step .oliva-process-phone {
+  opacity: calc(0.05 + var(--progress) * 0.95);
+  transform: translate3d(
+      0,
+      calc((1 - var(--progress)) * 72px + var(--depth) * 28px),
+      0
+    )
+    scale(calc(0.7 + var(--progress) * 0.3));
+  will-change: transform, opacity;
+}
+
+.oliva-process-step[data-from="right"] .oliva-process-phone {
+  transform: translate3d(
+      calc((1 - var(--progress)) * 96px + var(--depth) * -18px),
+      calc((1 - var(--progress)) * 56px + var(--depth) * 32px),
+      0
+    )
+    rotate(calc((1 - var(--progress)) * 5deg + var(--depth) * 2deg))
+    scale(calc(0.7 + var(--progress) * 0.3));
+}
+
+.oliva-process-step[data-from="left"] .oliva-process-phone {
+  transform: translate3d(
+      calc((1 - var(--progress)) * -96px + var(--depth) * 18px),
+      calc((1 - var(--progress)) * 56px + var(--depth) * 32px),
+      0
+    )
+    rotate(calc((1 - var(--progress)) * -5deg + var(--depth) * -2deg))
+    scale(calc(0.7 + var(--progress) * 0.3));
+}
+
+.oliva-process-step-num {
+  opacity: max(0, calc(var(--progress) * 1.05));
+  transform: translate3d(
+    0,
+    calc((1 - var(--progress)) * 22px + var(--depth) * -14px),
+    0
+  );
+  will-change: transform, opacity;
+}
+
+.oliva-process-step-title {
+  opacity: max(0, calc((var(--progress) - 0.05) / 0.95));
+  transform: translate3d(
+    0,
+    calc((1 - var(--progress)) * 28px + var(--depth) * -18px),
+    0
+  );
+  will-change: transform, opacity;
+}
+
+.oliva-process-step-body {
+  opacity: max(0, calc((var(--progress) - 0.12) / 0.88));
+  transform: translate3d(
+    0,
+    calc((1 - var(--progress)) * 32px + var(--depth) * -22px),
+    0
+  );
+  will-change: transform, opacity;
+}
+
+.oliva-process-closer {
+  --enter: 0;
+  position: relative;
+  display: flex;
+  overflow: hidden;
+  min-height: 100svh;
+  min-height: 100dvh;
+  align-items: center;
+  justify-content: center;
+  padding: 4.5rem 1.5rem;
+  text-align: center;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
+.oliva-process-closer-atmosphere {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.oliva-process-closer-drift {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(72px);
+}
+
+.oliva-process-closer-drift--a {
+  width: min(52vw, 22rem);
+  height: min(52vw, 22rem);
+  left: -12%;
+  top: 22%;
+  background: rgb(85 107 47 / 0.14);
+}
+
+.oliva-process-closer-drift--b {
+  width: min(46vw, 19rem);
+  height: min(46vw, 19rem);
+  right: -10%;
+  bottom: 18%;
+  background: rgb(143 76 53 / 0.11);
+}
+
+.oliva-process-closer-drift--c {
+  width: min(36vw, 14rem);
+  height: min(36vw, 14rem);
+  left: 42%;
+  top: 8%;
+  background: rgb(233 150 122 / 0.1);
+  transform: translateX(-50%);
+}
+
+.oliva-process-closer-mark {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  font-size: clamp(8rem, 32vw, 16rem);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: #556b2f;
+  /* From background: small + faint → settled size */
+  opacity: calc(0.012 + var(--enter) * 0.048);
+  transform: translate(-50%, -50%)
+    scale(calc(0.22 + var(--enter) * 0.78));
+  transform-origin: center;
+  user-select: none;
+  will-change: transform, opacity;
+}
+
+.oliva-process-closer-ring-wrap {
+  position: absolute;
+  left: 50%;
+  top: 48%;
+  width: min(108vw, 38rem);
+  height: min(108vw, 38rem);
+  /* From oversized → settled size */
+  transform: translate(-50%, -50%)
+    scale(calc(2.45 - var(--enter) * 1.45));
+  transform-origin: center;
+  will-change: transform;
+}
+
+.oliva-process-closer-ring {
+  display: block;
+  width: 100%;
+  height: 100%;
+  color: rgb(85 107 47 / 0.22);
+  animation: oliva-process-closer-spin 48s linear infinite;
+}
+
+@keyframes oliva-process-closer-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.oliva-process-closer-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  width: 100%;
+  max-width: 28rem;
+  flex-direction: column;
+  align-items: center;
+}
+
+.oliva-process-closer-eyebrow {
+  margin: 0;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #8f4c35;
+}
+
+.oliva-process-closer-title {
+  margin: 0.9rem 0 0;
+  font-size: clamp(1.85rem, 6.2vw, 2.75rem);
+  font-weight: 600;
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+  color: #1b1c19;
+}
+
+.oliva-process-closer-sub {
+  margin: 1rem 0 0;
+  max-width: 20rem;
+  font-size: clamp(1rem, 3.4vw, 1.125rem);
+  line-height: 1.55;
+  color: #53433e;
+}
+
+.oliva-process-closer-triad {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem 1rem;
+  width: 100%;
+  max-width: 20rem;
+  margin: 2.15rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.oliva-process-closer-triad-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.oliva-process-closer-triad-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: clamp(2.85rem, 9vw, 3.35rem);
+  height: clamp(2.85rem, 9vw, 3.35rem);
+  border-radius: 999px;
+  box-shadow: 0 10px 28px rgb(27 28 25 / 0.07);
+  animation: oliva-process-closer-breathe 6.5s ease-in-out infinite;
+}
+
+.oliva-process-closer-triad-icon svg {
+  width: 48%;
+  height: 48%;
+  stroke-width: 1.75;
+}
+
+.oliva-process-closer-triad-item--1 .oliva-process-closer-triad-icon {
+  background: rgb(143 76 53 / 0.12);
+  color: #8f4c35;
+  animation-delay: 0s;
+}
+
+.oliva-process-closer-triad-item--2 .oliva-process-closer-triad-icon {
+  background: rgb(85 107 47 / 0.12);
+  color: #556b2f;
+  animation-delay: 0.45s;
+}
+
+.oliva-process-closer-triad-item--3 .oliva-process-closer-triad-icon {
+  background: rgb(233 150 122 / 0.2);
+  color: #8f4c35;
+  animation-delay: 0.9s;
+}
+
+.oliva-process-closer-triad-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #556b2f;
+}
+
+@keyframes oliva-process-closer-breathe {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -6px, 0);
+  }
+}
+
+.oliva-process-closer-cta {
+  margin-top: 2.15rem;
+  padding-inline: 2.25rem;
+  padding-block: 0.95rem;
+  font-size: 1rem;
+  box-shadow: 0 6px 20px rgb(143 76 53 / 0.22);
+}
+
+@media (min-width: 1024px) {
+  .oliva-process-closer-mark {
+    opacity: calc(0.018 + var(--enter) * 0.052);
+  }
+
+  .oliva-process-closer-triad {
+    max-width: 22rem;
+    gap: 1rem 1.35rem;
+    margin-top: 2.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .oliva-process-closer {
+    --enter: 1 !important;
+  }
+
+  .oliva-process-closer-mark,
+  .oliva-process-closer-ring-wrap {
+    will-change: auto;
+  }
+
+  .oliva-process-closer-ring,
+  .oliva-process-closer-triad-icon {
+    animation: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .oliva-process-step {
+    --progress: 1 !important;
+    --depth: 0 !important;
+  }
+
+  .oliva-process-step .oliva-process-phone,
+  .oliva-process-step .oliva-process-phone-glow,
+  .oliva-process-step-visual,
+  .oliva-process-step-copy,
+  .oliva-process-step-num,
+  .oliva-process-step-title,
+  .oliva-process-step-body,
+  .oliva-process-rail-fill {
+    opacity: 1;
+    transform: none;
+    will-change: auto;
+  }
+
+  .oliva-process-fly-wm {
+    display: none;
+  }
+
+  .oliva-process-step-watermark {
+    opacity: 0.07;
+  }
+}
+
+/*
+ * Mobile — MUST come last so it overrides scrub/parallax transforms.
+ * Content stays static & centered; number flight is allowed (JS).
+ */
+@media (max-width: 1023px) {
+  /* Behind step content so numbers read as background, not overlay */
+  .oliva-process-fly-layer {
+    z-index: 0;
+  }
+
+  /* Fly starts at intro size; JS scales up to step watermark size */
+  .oliva-process-fly-wm {
+    font-size: clamp(5rem, 18vw, 11rem);
+  }
+
+  .oliva-process-step {
+    --progress: 1;
+    --depth: 0;
+    align-items: center;
+    justify-content: center;
+    padding: 4.75rem 1.25rem max(1.25rem, env(safe-area-inset-bottom, 0px));
+  }
+
+  .oliva-process-step-grid {
+    width: 100%;
+    max-width: 22rem;
+    margin-inline: auto;
+    gap: 1.15rem;
+    align-items: center;
+    align-content: center;
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "copy"
+      "visual";
+  }
+
+  .oliva-process-step-grid--flip {
+    grid-template-areas:
+      "copy"
+      "visual";
+  }
+
+  .oliva-process-step-grid--flip .oliva-process-step-visual,
+  .oliva-process-step-grid--flip .oliva-process-step-copy {
+    order: unset;
+    justify-self: center;
+    text-align: center;
+  }
+
+  .oliva-process-step-copy,
+  .oliva-process-step-visual {
+    width: 100%;
+    justify-content: center;
+    justify-self: center;
+    text-align: center;
+    margin-inline: 0;
+    transform: none !important;
+    will-change: auto !important;
+  }
+
+  .oliva-process-step-num,
+  .oliva-process-step-title,
+  .oliva-process-step-body {
+    opacity: 1 !important;
+    transform: none !important;
+    will-change: auto !important;
+  }
+
+  .oliva-process-step .oliva-process-phone,
+  .oliva-process-step[data-from="left"] .oliva-process-phone,
+  .oliva-process-step[data-from="right"] .oliva-process-phone {
+    opacity: 1 !important;
+    transform: none !important;
+    will-change: auto !important;
+  }
+
+  .oliva-process-phone-glow {
+    opacity: 0.85 !important;
+    transform: none !important;
+    will-change: auto !important;
+  }
+
+  .oliva-process-phone {
+    height: min(48dvh, 420px);
+  }
+
+  .oliva-process-step-watermark {
+    font-size: clamp(8.5rem, 46vw, 14rem);
+    opacity: 0;
+    transform: none;
+    will-change: auto;
+    z-index: 0;
+  }
+
+  .oliva-process-step-grid,
+  .oliva-process-step-copy,
+  .oliva-process-step-visual {
+    position: relative;
+    z-index: 1;
+  }
+
+  .oliva-process-step-watermark.is-landed {
+    opacity: 0.08;
+    transform: none;
+  }
+
+  .oliva-process-step-watermark--01 {
+    left: -8%;
+    top: 5%;
+    right: auto;
+    bottom: auto;
+  }
+
+  .oliva-process-step-watermark--02 {
+    right: -10%;
+    left: auto;
+    top: 8%;
+    bottom: auto;
+  }
+
+  .oliva-process-step-watermark--03 {
+    left: -6%;
+    right: auto;
+    top: auto;
+    bottom: 5%;
+  }
+
+  .oliva-process-closer {
+    padding: 5rem 1.35rem max(2rem, env(safe-area-inset-bottom, 0px));
+  }
+
+  .oliva-process-closer-ring-wrap {
+    width: min(120vw, 32rem);
+    height: min(120vw, 32rem);
+  }
+}
+

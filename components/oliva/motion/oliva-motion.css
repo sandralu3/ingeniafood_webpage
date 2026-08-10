@@ -2,7 +2,7 @@
 
 html:has(.oliva-landing) {
   scroll-snap-type: y mandatory;
-  scroll-behavior: smooth;
+  scroll-behavior: auto;
 }
 
 .oliva-snap-section {

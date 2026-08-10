@@ -74,7 +74,7 @@ export function StorySection() {
           <ScrollReveal
             variant="left"
             delay={100}
-            className="flex justify-center lg:justify-end"
+            className="flex w-full justify-center lg:justify-end"
           >
             <StoryAnimation />
           </ScrollReveal>
