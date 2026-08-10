@@ -40,6 +40,8 @@ import { useShareRecipeImage } from "@/hooks/use-share-recipe-image";
 
 import { usePremium } from "@/hooks/use-premium";
 
+import { getAppScrollRoot } from "@/lib/recipes/recipes-scroll-restore";
+
 import { isSandraAdmin } from "@/lib/auth/sandra-admin";
 
 import { translateMealType } from "@/lib/i18n/filter-labels";
@@ -183,6 +185,12 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
   const router = useRouter();
 
   const { isPremium, hasGeneratedRealPhoto } = usePremium();
+
+  // Al abrir detalle, subir el main compartido (mismo shell que el listado).
+  useEffect(() => {
+    const root = getAppScrollRoot();
+    if (root) root.scrollTop = 0;
+  }, []);
 
   const [recipeId, setRecipeId] = useState<string>("");
 
@@ -1103,6 +1111,14 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
 
   const backLabel = backNav.label;
 
+  const handleBackNavigation = useCallback(
+    (event?: { preventDefault?: () => void }) => {
+      event?.preventDefault?.();
+      router.push(backHref, { scroll: false });
+    },
+    [backHref, router]
+  );
+
   const overlayBtnClass =
     "inline-flex h-9 w-9 items-center justify-center rounded-full bg-black/35 text-white shadow-sm backdrop-blur-sm ring-1 ring-white/25 transition hover:bg-black/50 disabled:cursor-not-allowed disabled:opacity-50";
 
@@ -1111,8 +1127,13 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
       <>
         <Link
           href={backHref}
+          scroll={false}
           aria-label={backLabel}
           className={overlayBtnClass}
+          onClick={(event) => {
+            event.preventDefault();
+            handleBackNavigation();
+          }}
         >
           <ArrowLeft className="h-4 w-4" strokeWidth={1.75} />
         </Link>
@@ -1236,6 +1257,11 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
         <div className="flex items-center justify-between gap-3 px-0">
           <Link
             href={backHref}
+            scroll={false}
+            onClick={(event) => {
+              event.preventDefault();
+              handleBackNavigation();
+            }}
             className="inline-flex items-center gap-2 text-xs font-medium text-[#4c6633]/80 transition hover:text-[#4c6633]"
           >
             <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.5} />

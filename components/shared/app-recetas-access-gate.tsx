@@ -122,6 +122,12 @@ export function AppRecetasAccessGate({ children }: { children: React.ReactNode }
   const pathname = usePathname();
   const isScannerRoute =
     pathname === APP_ROUTES.scanner || pathname.startsWith(`${APP_ROUTES.scanner}/`);
+  // Misma cáscara de scroll para listado y detalle de Recetas (evita perder scrollTop al remontar).
+  const scrollShellKey = pathname.startsWith(`${APP_ROUTES.guardadas}`)
+    ? "recipes-shell"
+    : pathname.startsWith(`${APP_ROUTES.scanner}`)
+      ? "scanner-shell"
+      : pathname;
   const [isStandalone, setIsStandalone] = useState(false);
   const [checkedStandalone, setCheckedStandalone] = useState(false);
   const [allowWebAccess, setAllowWebAccess] = useState(false);
@@ -360,7 +366,7 @@ export function AppRecetasAccessGate({ children }: { children: React.ReactNode }
       <div className="mx-auto flex h-full w-full max-w-md flex-col overflow-hidden pb-[calc(var(--app-bottom-nav-height)+env(safe-area-inset-bottom,0px))]">
         <Header />
         <main
-          key={pathname}
+          key={scrollShellKey}
           data-app-scroll-root
           className={
             isScannerRoute

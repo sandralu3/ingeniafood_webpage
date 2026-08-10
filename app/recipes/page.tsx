@@ -24,6 +24,7 @@ import {
   clearRecipesScrollState,
   findAppScrollParent,
   getAppScrollRoot,
+  parseRecipesLibraryTab,
   peekRecipesScrollState,
   recipeCardDomId,
   restoreRecipesScrollToCard,
@@ -130,7 +131,13 @@ export default function RecipesPage() {
   );
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
   const [preferredDietLoaded, setPreferredDietLoaded] = useState(false);
-  const [browseSection, setBrowseSection] = useState<LibraryTab | null>(null);
+  const [browseSection, setBrowseSection] = useState<LibraryTab | null>(() =>
+    parseRecipesLibraryTab(
+      typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search).get("tab")
+        : null
+    )
+  );
   const [pendingPlanAssignment, setPendingPlanAssignment] =
     useState<PendingPlanAssignment | null>(null);
   const [deletingRecipeId, setDeletingRecipeId] = useState<string | null>(null);
@@ -156,12 +163,8 @@ export default function RecipesPage() {
   }, []);
 
   useEffect(() => {
-    const tab = (searchParams.get("tab") || "").toLowerCase();
-    if (tab === "sandra" || tab === "favorites" || tab === "outside" || tab === "saved") {
-      setBrowseSection(tab as LibraryTab);
-    } else if (!tab) {
-      setBrowseSection(null);
-    }
+    const tab = parseRecipesLibraryTab(searchParams.get("tab"));
+    setBrowseSection(tab);
   }, [searchParams]);
 
   useEffect(() => {
@@ -709,11 +712,17 @@ export default function RecipesPage() {
     if (browseSection && activeRecipes.length === 0 && targetId) return;
 
     let cancelled = false;
-    let attempt = 0;
-    const maxAttempts = 10;
+    /** Tras el primer restore OK, no cancelar reintentos por re-renders (enrich, etc.). */
+    let committed = false;
     const timeoutIds: number[] = [];
+    const deadline = Date.now() + 2200;
+    const restoreArgs = {
+      recipeId: targetId,
+      fallbackScrollTop: savedMatchesTab ? saved!.scrollTop : null
+    };
 
     const finish = () => {
+      if (didRestoreScrollRef.current) return;
       didRestoreScrollRef.current = true;
       clearRecipesScrollState();
       if (focusId) {
@@ -724,51 +733,46 @@ export default function RecipesPage() {
       }
     };
 
+    const reapplyThenFinish = () => {
+      committed = true;
+      restoreRecipesScrollToCard(restoreArgs);
+      window.setTimeout(() => {
+        restoreRecipesScrollToCard(restoreArgs);
+        window.setTimeout(() => {
+          restoreRecipesScrollToCard(restoreArgs);
+          finish();
+        }, 180);
+      }, 100);
+    };
+
     const runRestore = () => {
-      if (cancelled || didRestoreScrollRef.current) return;
-      attempt += 1;
+      if (didRestoreScrollRef.current) return;
+      if (cancelled && !committed) return;
 
       const card = targetId
         ? document.getElementById(recipeCardDomId(targetId))
         : null;
+      const result = restoreRecipesScrollToCard(restoreArgs);
 
-      const ok = restoreRecipesScrollToCard({
-        recipeId: targetId,
-        fallbackScrollTop: savedMatchesTab ? saved!.scrollTop : null
-      });
-
-      if (ok && (card || (!targetId && savedMatchesTab))) {
-        // Reaplicar tras el layout de imágenes / navegación Next (móvil).
-        timeoutIds.push(
-          window.setTimeout(() => {
-            if (cancelled) return;
-            restoreRecipesScrollToCard({
-              recipeId: targetId,
-              fallbackScrollTop: savedMatchesTab ? saved!.scrollTop : null
-            });
-            finish();
-          }, 80)
-        );
-        timeoutIds.push(
-          window.setTimeout(() => {
-            if (cancelled) return;
-            restoreRecipesScrollToCard({
-              recipeId: targetId,
-              fallbackScrollTop: savedMatchesTab ? saved!.scrollTop : null
-            });
-          }, 220)
-        );
+      if (result.ok && (card || (!targetId && savedMatchesTab))) {
+        reapplyThenFinish();
         return;
       }
 
-      if (attempt < maxAttempts) {
-        timeoutIds.push(window.setTimeout(runRestore, 40 * attempt));
+      if (cancelled && !committed) return;
+
+      if (Date.now() < deadline && (result.needsMoreContent || !result.ok)) {
+        timeoutIds.push(window.setTimeout(runRestore, 50));
+        return;
       }
+
+      finish();
     };
 
     runRestore();
 
     return () => {
+      if (committed) return;
       cancelled = true;
       timeoutIds.forEach((id) => window.clearTimeout(id));
     };
