@@ -18,6 +18,7 @@ import {
   type AppliedRecipeFilters
 } from "@/lib/recipes/premium-recipe-filters";
 import { translateRecipeTag } from "@/lib/i18n/filter-labels";
+import { isExternalMeal } from "@/lib/plan/external-meal";
 import type { ShareableRecipe } from "@/lib/share/recipe-share-image";
 import { normalizeRecipeSteps } from "@/lib/recipes/sentence-case";
 import {
@@ -93,6 +94,7 @@ export function RecipeDetailMagazine({
           recipeTitle={recipe.titulo}
           displayMode={imageDisplayMode}
           isGeneratingPhoto={isGeneratingPhoto}
+          showReferencePhotoNotes={!isExternalMeal(recipe.tags)}
         />
         {mealTypeAdvisory?.trim() ? (
           <div data-share-exclude>

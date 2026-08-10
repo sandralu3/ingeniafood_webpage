@@ -1323,7 +1323,7 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
         </div>
       ) : null}
 
-      {showHeroDetail && shareableRecipe && recipe ? (
+      {showHeroDetail && shareableRecipe && recipe && !showExternalMealLayout ? (
         <article className="animate-detail-enter space-y-3">
           <RecipeResultHeroCard
             recipe={shareableRecipe}

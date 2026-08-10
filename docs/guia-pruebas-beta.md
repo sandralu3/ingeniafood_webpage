@@ -154,6 +154,7 @@ En la lista, cada tarjeta debería mostrar:
 - [ ] Búsqueda y filtros funcionan dentro de la sección
 - [ ] Si aparece **«Completar mis recetas»**, al tocarlo mejora Cocinar/Registradas
 - [ ] En **Registradas**, cada tarjeta muestra tipo (Desayuno/Almuerzo/Snack/Cena) y origen (Escaneado/Registrada)
+- [ ] En **Registradas** (foto o texto), el detalle **no** muestra avisos de «foto real de prueba» / imagen de referencia Premium (eso solo aplica al Escáner de despensa)
 - [ ] Favoritos se guardan al salir y volver a entrar
 
 ---

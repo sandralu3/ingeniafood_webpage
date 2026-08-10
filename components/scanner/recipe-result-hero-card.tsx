@@ -10,6 +10,7 @@ import { normalizeRecipeSteps } from "@/lib/recipes/sentence-case";
 import { partitionIngredientsByPantry } from "@/lib/recipes/recipe-options";
 import { DEFAULT_DISH_HERO_FALLBACK, getRecipeImageFallback } from "@/lib/recipes/dish-image-fallback";
 import { isShowingReferenceDishImage } from "@/lib/recipes/dish-image-kind";
+import { isExternalMeal } from "@/lib/plan/external-meal";
 import type { AppliedRecipeFilters } from "@/lib/recipes/premium-recipe-filters";
 import {
   inferAdvisoryTone,
@@ -169,6 +170,7 @@ export function RecipeResultHeroCard({
   const showingReferenceImage =
     !isSandraRecipe &&
     !loggedMeal &&
+    !isExternalMeal(recipe.tags) &&
     !showGenerating &&
     isShowingReferenceDishImage({
       recipe,

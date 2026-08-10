@@ -18,6 +18,11 @@ type Props = {
   displayMode?: "live" | "library";
   /** Foto Premium en generación asíncrona (~15–20s). */
   isGeneratingPhoto?: boolean;
+  /**
+   * Avisos de imagen de referencia / foto real Premium.
+   * Solo tiene sentido en recetas del escáner de despensa.
+   */
+  showReferencePhotoNotes?: boolean;
 };
 
 export function RecipeDishImage({
@@ -26,7 +31,8 @@ export function RecipeDishImage({
   recipeTitle,
   className,
   displayMode = "live",
-  isGeneratingPhoto = false
+  isGeneratingPhoto = false,
+  showReferencePhotoNotes = true
 }: Props) {
   const t = useTranslations("RecipeDetail");
   const { isPremium, hasGeneratedRealPhoto, isLoading } = usePremium();
@@ -173,12 +179,14 @@ export function RecipeDishImage({
             }}
           />
         </div>
-        <p className="text-center text-[10px] leading-snug text-stone-500">
-          {isPremium && hasGeneratedRealPhoto
-            ? t("referenceImageAfterRealPhoto")
-            : t("referenceImageNote")}
-        </p>
-        {!isPremium ? (
+        {showReferencePhotoNotes ? (
+          <p className="text-center text-[10px] leading-snug text-stone-500">
+            {isPremium && hasGeneratedRealPhoto
+              ? t("referenceImageAfterRealPhoto")
+              : t("referenceImageNote")}
+          </p>
+        ) : null}
+        {showReferencePhotoNotes && !isPremium ? (
           <p className="text-center text-[10px] font-semibold leading-snug text-[#556B2F]">
             {t("premiumRealPhotoPrompt")}
           </p>
