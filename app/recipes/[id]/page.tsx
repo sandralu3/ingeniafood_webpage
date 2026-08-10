@@ -1072,26 +1072,32 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
   const searchParams = useSearchParams();
 
   const fromParam = (searchParams.get("from") || "").toLowerCase();
+  const recipesTabParam = (searchParams.get("tab") || "").toLowerCase();
+  const recipesBackTab =
+    recipesTabParam === "sandra" ||
+    recipesTabParam === "favorites" ||
+    recipesTabParam === "outside" ||
+    recipesTabParam === "saved"
+      ? recipesTabParam
+      : null;
+  const recipesBackHref = (() => {
+    const params = new URLSearchParams();
+    if (recipesBackTab) params.set("tab", recipesBackTab);
+    if (recipe?.id) params.set("focus", recipe.id);
+    const query = params.toString();
+    return query ? `/app-recetas/recipes?${query}` : "/app-recetas/recipes";
+  })();
 
   const backNav =
-
     fromParam === "plan"
-
       ? { href: "/app-recetas/plan", label: "Volver al plan" }
-
       : fromParam === "hoy"
-
         ? { href: "/app-recetas/hoy", label: t.has("backToHoy") ? t("backToHoy") : "Volver a Hoy" }
-
         : fromParam === "recipes"
-
-          ? { href: "/app-recetas/recipes", label: t("backToRecipes") }
-
+          ? { href: recipesBackHref, label: t("backToRecipes") }
           : externalBadge || isSystemRecipe
-
             ? { href: "/app-recetas/plan", label: "Volver al plan" }
-
-            : { href: "/app-recetas/recipes", label: t("backToRecipes") };
+            : { href: recipesBackHref, label: t("backToRecipes") };
 
   const backHref = backNav.href;
 
@@ -1278,6 +1284,7 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
               heroChrome={recipeHeroChrome}
               isPremium={isPremium}
               hasGeneratedRealPhoto={hasGeneratedRealPhoto}
+              showReferenceImageBanner={false}
               onRequestPremium={() => setShowPremiumDialog(true)}
             />
           ) : (
@@ -1332,6 +1339,7 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
             appliedFilters={appliedFilters}
             isPremium={isPremium}
             hasGeneratedRealPhoto={hasGeneratedRealPhoto}
+            showReferenceImageBanner={false}
             isSandraRecipe={isSandraRecipe}
             onRequestPremium={() => setShowPremiumDialog(true)}
             layout="hero"

@@ -154,7 +154,8 @@ En la lista, cada tarjeta debería mostrar:
 - [ ] Búsqueda y filtros funcionan dentro de la sección
 - [ ] Si aparece **«Completar mis recetas»**, al tocarlo mejora Cocinar/Registradas
 - [ ] En **Registradas**, cada tarjeta muestra tipo (Desayuno/Almuerzo/Snack/Cena) y origen (Escaneado/Registrada)
-- [ ] En **Registradas** (foto o texto), el detalle **no** muestra avisos de «foto real de prueba» / imagen de referencia Premium (eso solo aplica al Escáner de despensa)
+- [ ] Desde **Ver más** de una sección, abrir una receta y **Volver** regresa a esa sección (no al listado general) y a la zona del grid donde estaba la tarjeta
+- [ ] En detalle de receta (biblioteca): solo badge **«Imagen de referencia»** si aplica; el aviso «Ya usaste tu foto real de prueba…» solo aparece al generar desde el **Escáner**
 - [ ] Favoritos se guardan al salir y volver a entrar
 
 ---

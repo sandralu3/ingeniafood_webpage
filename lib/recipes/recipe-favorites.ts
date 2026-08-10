@@ -9,7 +9,9 @@ export type FavoriteIdsResult =
   | { success: false; error: string };
 
 /** IDs de recetas marcadas como favoritas (`saved_recipes`). */
-export async function fetchFavoriteRecipeIds(): Promise<FavoriteIdsResult> {
+export async function fetchFavoriteRecipeIds(
+  userId?: string | null
+): Promise<FavoriteIdsResult> {
   let supabase;
   try {
     supabase = createSupabaseClient();
@@ -17,18 +19,22 @@ export async function fetchFavoriteRecipeIds(): Promise<FavoriteIdsResult> {
     return { success: false, error: "No se pudo conectar con Supabase." };
   }
 
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
+  let resolvedUserId = userId?.trim() || null;
+  if (!resolvedUserId) {
+    const {
+      data: { session }
+    } = await supabase.auth.getSession();
+    resolvedUserId = session?.user?.id ?? null;
+  }
 
-  if (!user) {
+  if (!resolvedUserId) {
     return { success: false, error: "Inicia sesión para gestionar tus favoritos." };
   }
 
   const { data, error } = await supabase
     .from("saved_recipes")
     .select("recipe_id")
-    .eq("user_id", user.id);
+    .eq("user_id", resolvedUserId);
 
   if (error) {
     console.error("[favorites] Error listando favoritos:", error);

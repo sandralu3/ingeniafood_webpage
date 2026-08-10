@@ -48,6 +48,12 @@ type Props = {
   isPremium?: boolean;
   /** Ya usó su único intento de foto real (prueba 24h / Premium once). */
   hasGeneratedRealPhoto?: boolean;
+  /**
+   * Banner inferior con aviso de foto de prueba / CTA Premium.
+   * En detalle de receta solo se muestra el badge «Imagen de referencia».
+   * Default true (resultado del escáner de despensa).
+   */
+  showReferenceImageBanner?: boolean;
   /** Receta oficial de Sandra: la foto es siempre la real; sin avisos de referencia. */
   isSandraRecipe?: boolean;
   /** Badges debajo de la foto (p. ej. Receta de Sandra / filtros). */
@@ -75,6 +81,7 @@ export function RecipeResultHeroCard({
   loggedMeal = false,
   isPremium = false,
   hasGeneratedRealPhoto = false,
+  showReferenceImageBanner = true,
   isSandraRecipe = false,
   headerBadges = null,
   layout = "card",
@@ -316,7 +323,7 @@ export function RecipeResultHeroCard({
             {tDetail("referenceImageBadge")}
           </span>
         ) : null}
-        {showingReferenceImage ? (
+        {showingReferenceImage && showReferenceImageBanner ? (
           <div className="absolute inset-x-0 bottom-0 z-30 px-3 pb-3 pr-14">
             <div className="rounded-full border border-white/25 bg-black/35 px-3 py-1.5 shadow-sm backdrop-blur-md">
               <p className="text-[10px] leading-snug text-white/95">

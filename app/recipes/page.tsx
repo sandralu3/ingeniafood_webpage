@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ChevronRight, Search, SlidersHorizontal } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
@@ -21,6 +21,13 @@ import {
 } from "@/lib/recipes/recipe-favorites";
 import { parseMacrosFromJson } from "@/lib/recipes/recipe-macros";
 import {
+  clearRecipesScrollState,
+  findAppScrollParent,
+  peekRecipesScrollState,
+  recipeCardDomId,
+  saveRecipesScrollState
+} from "@/lib/recipes/recipes-scroll-restore";
+import {
   countActiveSavedRecipeFilters,
   DEFAULT_SAVED_RECIPES_FILTER_STATE,
   filterSavedRecipes,
@@ -39,7 +46,7 @@ import {
   isExternalMeal,
   resolveExternalMealBadge
 } from "@/lib/plan/external-meal";
-import { isScannerDraftRecipe } from "@/lib/recipes/scanner-draft";
+import { isScannerDraftRecipe, SCANNER_DRAFT_DESCRIPTION } from "@/lib/recipes/scanner-draft";
 import {
   translateSavedCardLabel,
   translateSavedFilterChip
@@ -59,6 +66,20 @@ type RecipeRow = Database["public"]["Tables"]["recipes"]["Row"];
 type LibraryTab = "saved" | "sandra" | "favorites" | "outside";
 
 const CAROUSEL_PREVIEW = 4;
+
+/** Columnas ligeras para el listado (sin blobs de ingredientes/pasos). */
+const RECIPE_LIST_SELECT =
+  "id,title,description,cooking_time,is_airfryer,is_flourless,is_public,created_at,user_id,image_url,reference_image_url,instagram_url,meal_type,tags,macros,is_system_recipe,is_sandra_recipe";
+
+const RECIPE_LIST_SELECT_FALLBACK =
+  "id,title,description,cooking_time,is_airfryer,is_flourless,is_public,created_at,user_id,image_url";
+
+const RECIPE_SHARE_SELECT =
+  "id,title,description,cooking_time,is_airfryer,is_flourless,is_public,created_at,user_id,ingredients,steps,instructions,image_url,reference_image_url,tip_sandra,instagram_url,meal_type,tags,macros,is_system_recipe,is_sandra_recipe";
+
+function notScannerDraftFilter() {
+  return `description.is.null,description.neq.${SCANNER_DRAFT_DESCRIPTION}`;
+}
 
 function isMissingOptionalRecipesColumnError(
   error: { code?: string; message?: string } | null,
@@ -117,6 +138,8 @@ export default function RecipesPage() {
   const [isEnrichingMine, setIsEnrichingMine] = useState(false);
   const [enrichMineMessage, setEnrichMineMessage] = useState<string | null>(null);
   const [recipesReloadKey, setRecipesReloadKey] = useState(0);
+  const pageRootRef = useRef<HTMLDivElement | null>(null);
+  const didRestoreScrollRef = useRef(false);
   const {
     captureRef,
     captureRecipe,
@@ -138,6 +161,22 @@ export default function RecipesPage() {
       setBrowseSection(null);
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    didRestoreScrollRef.current = false;
+  }, [browseSection]);
+
+  const rememberRecipeScroll = useCallback(
+    (recipeId: string) => {
+      const scrollParent = findAppScrollParent(pageRootRef.current);
+      saveRecipesScrollState({
+        tab: browseSection,
+        recipeId,
+        scrollTop: scrollParent?.scrollTop ?? 0
+      });
+    },
+    [browseSection]
+  );
 
   const openSection = useCallback(
     (section: LibraryTab) => {
@@ -220,10 +259,29 @@ export default function RecipesPage() {
   }, [enrichPending, isEnrichingMine, t]);
 
   const handleShareRecipe = useCallback(
-    (recipe: RecipeRow) => {
+    async (recipe: RecipeRow) => {
       clearShareError();
-      const shareable = savedRecipeToShareable(recipe);
-      void shareRecipeImage(shareable, { recipeId: recipe.id });
+      try {
+        const supabase = createSupabaseClient();
+        const { data, error } = await supabase
+          .from("recipes")
+          .select(RECIPE_SHARE_SELECT)
+          .eq("id", recipe.id)
+          .maybeSingle();
+
+        const fullRecipe = (!error && data ? (data as RecipeRow) : recipe);
+        const shareable = savedRecipeToShareable({
+          ...fullRecipe,
+          ingredients: fullRecipe.ingredients ?? null,
+          steps: fullRecipe.steps ?? null,
+          instructions: fullRecipe.instructions ?? ""
+        });
+        void shareRecipeImage(shareable, { recipeId: recipe.id });
+      } catch (error) {
+        console.error("[recipes] share load:", error);
+        const shareable = savedRecipeToShareable(recipe);
+        void shareRecipeImage(shareable, { recipeId: recipe.id });
+      }
     },
     [clearShareError, shareRecipeImage]
   );
@@ -315,8 +373,9 @@ export default function RecipesPage() {
       }
 
       const {
-        data: { user }
-      } = await supabase.auth.getUser();
+        data: { session }
+      } = await supabase.auth.getSession();
+      const user = session?.user ?? null;
 
       if (!user) {
         setErrorMessage("No encontramos tu sesion activa. Inicia sesion para ver tus recetas.");
@@ -329,21 +388,22 @@ export default function RecipesPage() {
 
       setViewerUserId(user.id);
 
-      const recipeSelect =
-        "id,title,description,cooking_time,is_airfryer,is_flourless,is_public,created_at,user_id,ingredients,steps,instructions,image_url,reference_image_url,tip_sandra,instagram_url,meal_type,tags,macros,is_system_recipe,is_sandra_recipe";
+      const draftFilter = notScannerDraftFilter();
 
       const [primaryQuery, sandraQuery, favoritesResult] = await Promise.all([
         supabase
           .from("recipes")
-          .select(recipeSelect)
+          .select(RECIPE_LIST_SELECT)
           .eq("user_id", user.id)
+          .or(draftFilter)
           .order("created_at", { ascending: false }),
         supabase
           .from("recipes")
-          .select(recipeSelect)
+          .select(RECIPE_LIST_SELECT)
           .eq("is_sandra_recipe", true)
+          .or(draftFilter)
           .order("created_at", { ascending: false }),
-        fetchFavoriteRecipeIds()
+        fetchFavoriteRecipeIds(user.id)
       ]);
 
       let sandraData = sandraQuery.data as RecipeRow[] | null;
@@ -355,28 +415,25 @@ export default function RecipesPage() {
           sandraData = [];
         }
       }
-      setSandraRecipes(
-        (sandraData ?? []).filter((recipe) => !isScannerDraftRecipe(recipe))
-      );
+      setSandraRecipes(sandraData ?? []);
 
       let recipesData = primaryQuery.data as RecipeRow[] | null;
       let recipesError = primaryQuery.error;
 
       if (
-        isMissingOptionalRecipesColumnError(recipesError, "tip_sandra") ||
         isMissingOptionalRecipesColumnError(recipesError, "reference_image_url") ||
         isMissingOptionalRecipesColumnError(recipesError, "meal_type") ||
         isMissingOptionalRecipesColumnError(recipesError, "tags") ||
         isMissingOptionalRecipesColumnError(recipesError, "is_system_recipe") ||
         isMissingOptionalRecipesColumnError(recipesError, "is_sandra_recipe") ||
-        isMissingOptionalRecipesColumnError(recipesError, "macros")
+        isMissingOptionalRecipesColumnError(recipesError, "macros") ||
+        isMissingOptionalRecipesColumnError(recipesError, "instagram_url")
       ) {
         const fallbackQuery = await supabase
           .from("recipes")
-          .select(
-            "id,title,description,cooking_time,is_airfryer,is_flourless,is_public,created_at,user_id,ingredients,steps,instructions,image_url"
-          )
+          .select(RECIPE_LIST_SELECT_FALLBACK)
           .eq("user_id", user.id)
+          .or(draftFilter)
           .order("created_at", { ascending: false });
 
         recipesError = fallbackQuery.error;
@@ -387,6 +444,10 @@ export default function RecipesPage() {
           meal_type: null,
           tags: null,
           macros: null,
+          instagram_url: null,
+          ingredients: null,
+          steps: null,
+          instructions: "",
           is_system_recipe: false,
           is_sandra_recipe: false
         })) ?? null;
@@ -404,7 +465,7 @@ export default function RecipesPage() {
         : new Set<string>();
       setFavoriteIds(favoriteIdSet);
 
-      const owned = (recipesData ?? []).filter((recipe) => !isScannerDraftRecipe(recipe));
+      const owned = recipesData ?? [];
       const ownedIds = new Set(owned.map((recipe) => recipe.id));
       const missingFavoriteIds = Array.from(favoriteIdSet).filter((id) => !ownedIds.has(id));
 
@@ -412,7 +473,7 @@ export default function RecipesPage() {
       if (missingFavoriteIds.length > 0) {
         const favoritedQuery = await supabase
           .from("recipes")
-          .select(recipeSelect)
+          .select(RECIPE_LIST_SELECT)
           .in("id", missingFavoriteIds);
 
         if (!favoritedQuery.error && favoritedQuery.data) {
@@ -427,9 +488,7 @@ export default function RecipesPage() {
         ) {
           const fallbackFavorites = await supabase
             .from("recipes")
-            .select(
-              "id,title,description,cooking_time,is_airfryer,is_flourless,is_public,created_at,user_id,ingredients,steps,instructions,image_url"
-            )
+            .select(RECIPE_LIST_SELECT_FALLBACK)
             .in("id", missingFavoriteIds);
           if (!fallbackFavorites.error && fallbackFavorites.data) {
             const extras = (fallbackFavorites.data as RecipeRow[]).map((recipe) => ({
@@ -439,10 +498,17 @@ export default function RecipesPage() {
               meal_type: null,
               tags: null,
               macros: null,
+              instagram_url: null,
+              ingredients: null,
+              steps: null,
+              instructions: "",
               is_system_recipe: false,
               is_sandra_recipe: false
             }));
-            merged = [...owned, ...extras];
+            merged = [
+              ...owned,
+              ...extras.filter((recipe) => !isScannerDraftRecipe(recipe))
+            ];
           }
         }
       }
@@ -450,21 +516,32 @@ export default function RecipesPage() {
       setRecipes(merged);
       setIsLoading(false);
 
-      try {
-        const enrichResponse = await fetch("/api/recipes/enrich-mine");
-        const enrichPayload = (await enrichResponse.json().catch(() => ({}))) as {
-          pending?: number;
-        };
-        if (enrichResponse.ok) {
-          const pending = enrichPayload.pending ?? 0;
-          setEnrichPending(pending);
-          if (pending === 0) {
-            setEnrichMineMessage(null);
+      // Banner opcional: no compite con el primer pintado de tarjetas.
+      const scheduleEnrich =
+        typeof window !== "undefined" && "requestIdleCallback" in window
+          ? (cb: () => void) =>
+              window.requestIdleCallback(() => cb(), { timeout: 2500 })
+          : (cb: () => void) => window.setTimeout(cb, 600);
+
+      scheduleEnrich(() => {
+        void (async () => {
+          try {
+            const enrichResponse = await fetch("/api/recipes/enrich-mine");
+            const enrichPayload = (await enrichResponse.json().catch(() => ({}))) as {
+              pending?: number;
+            };
+            if (enrichResponse.ok) {
+              const pending = enrichPayload.pending ?? 0;
+              setEnrichPending(pending);
+              if (pending === 0) {
+                setEnrichMineMessage(null);
+              }
+            }
+          } catch {
+            // silencioso: el banner es opcional
           }
-        }
-      } catch {
-        // silencioso: el banner es opcional
-      }
+        })();
+      });
     };
 
     void loadRecipes();
@@ -614,6 +691,56 @@ export default function RecipesPage() {
     };
   }, [preferredDietLoaded]);
 
+  useEffect(() => {
+    if (isLoading || didRestoreScrollRef.current) return;
+
+    const focusId = searchParams.get("focus")?.trim() || null;
+    const saved = peekRecipesScrollState();
+    const savedMatchesTab = Boolean(
+      saved && (saved.tab ?? null) === (browseSection ?? null)
+    );
+    const targetId = focusId || (savedMatchesTab ? saved!.recipeId : null);
+    if (!targetId && !savedMatchesTab) return;
+
+    let cancelled = false;
+    const runRestore = () => {
+      if (cancelled || didRestoreScrollRef.current) return;
+      const card = targetId
+        ? document.getElementById(recipeCardDomId(targetId))
+        : null;
+      const scrollParent = findAppScrollParent(pageRootRef.current);
+
+      if (savedMatchesTab && scrollParent && typeof saved!.scrollTop === "number") {
+        scrollParent.scrollTop = saved!.scrollTop;
+      }
+      if (card) {
+        card.scrollIntoView({ block: "center", inline: "nearest", behavior: "auto" });
+      }
+
+      if (card || (!targetId && savedMatchesTab)) {
+        didRestoreScrollRef.current = true;
+        clearRecipesScrollState();
+        if (focusId) {
+          const params = new URLSearchParams(searchParams.toString());
+          params.delete("focus");
+          const query = params.toString();
+          router.replace(query ? `?${query}` : "?", { scroll: false });
+        }
+      }
+    };
+
+    const frame = window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(runRestore);
+    });
+    const timeoutId = window.setTimeout(runRestore, 150);
+
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(timeoutId);
+    };
+  }, [activeRecipes.length, browseSection, isLoading, router, searchParams]);
+
   const renderRecipeCard = useCallback(
     (
       recipe: RecipeRow,
@@ -623,6 +750,11 @@ export default function RecipesPage() {
       const cardLabel = translateSavedCardLabel(t, getRecipeCardLabel(recipe));
       const macros = parseMacrosFromJson(recipe.macros);
       const variant = options?.variant ?? "tile";
+      const detailQuery = new URLSearchParams({ from: "recipes" });
+      if (browseSection) {
+        detailQuery.set("tab", browseSection);
+      }
+      const detailHref = `/app-recetas/recipes/${recipe.id}?${detailQuery.toString()}`;
 
       return (
         <RecipeCard
@@ -654,10 +786,8 @@ export default function RecipesPage() {
           isSandraRecipe={Boolean(
             (recipe as RecipeRow & { is_sandra_recipe?: boolean }).is_sandra_recipe
           )}
-          detailHref={`/app-recetas/recipes/${recipe.id}?from=recipes`}
-          onPrefetch={() =>
-            router.prefetch(`/app-recetas/recipes/${recipe.id}?from=recipes`)
-          }
+          detailHref={detailHref}
+          onPrefetch={() => router.prefetch(detailHref)}
           isFavorite={favoriteIds.has(recipe.id)}
           onToggleFavorite={() => void handleToggleFavorite(recipe.id)}
           isTogglingFavorite={togglingFavoriteId === recipe.id}
@@ -684,6 +814,7 @@ export default function RecipesPage() {
       );
     },
     [
+      browseSection,
       deletingRecipeId,
       favoriteIds,
       handleDeleteRecipe,
@@ -737,7 +868,12 @@ export default function RecipesPage() {
       return (
         <div className="grid grid-cols-2 gap-2 sm:gap-2.5">
           {activeRecipes.map((recipe) => (
-            <div key={recipe.id} className="min-w-0">
+            <div
+              key={recipe.id}
+              id={recipeCardDomId(recipe.id)}
+              className="min-w-0 scroll-mt-24"
+              onClickCapture={() => rememberRecipeScroll(recipe.id)}
+            >
               {renderRecipeCard(recipe, { variant: "tile" })}
             </div>
           ))}
@@ -818,7 +954,9 @@ export default function RecipesPage() {
                 {preview.map((recipe) => (
                   <div
                     key={recipe.id}
-                    className="w-[36%] max-w-[9.5rem] shrink-0 sm:w-40"
+                    id={recipeCardDomId(recipe.id)}
+                    className="w-[36%] max-w-[9.5rem] shrink-0 scroll-mt-24 sm:w-40"
+                    onClickCapture={() => rememberRecipeScroll(recipe.id)}
                   >
                     {renderRecipeCard(recipe, { variant: "tile" })}
                   </div>
@@ -839,6 +977,7 @@ export default function RecipesPage() {
     isSearchActive,
     librarySections,
     openSection,
+    rememberRecipeScroll,
     recipes.length,
     renderRecipeCard,
     sandraRecipes.length,
@@ -846,7 +985,10 @@ export default function RecipesPage() {
   ]);
 
   return (
-    <div className="-mx-4 min-h-full bg-gradient-to-b from-[#FBF8F3] via-amber-50/25 to-sv-surface px-4 pb-6 pt-1">
+    <div
+      ref={pageRootRef}
+      className="-mx-4 min-h-full bg-gradient-to-b from-[#FBF8F3] via-amber-50/25 to-sv-surface px-4 pb-6 pt-1"
+    >
       <section className="space-y-3">
         <RecipeShareCaptureHost captureRef={captureRef} recipe={captureRecipe} mode="offscreen" />
 
