@@ -322,11 +322,11 @@ export default function BancoImagenesAdminPage() {
       <div className="mx-auto max-w-5xl space-y-6">
         <header>
           <Link
-            href={APP_ROUTES.perfil}
+            href={APP_ROUTES.admin}
             className="inline-flex items-center gap-1.5 text-sm font-medium text-stone-500 transition hover:text-[#4c6633]"
           >
             <ArrowLeft className="h-4 w-4" />
-            Volver al perfil
+            Volver a Administración
           </Link>
           <p className="mt-3 text-[10px] font-bold uppercase tracking-[0.14em] text-amber-800/75">
             Admin · IngeniaFood

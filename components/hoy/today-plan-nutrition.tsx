@@ -528,12 +528,16 @@ function TodayMenuSection({
         </div>
         <Link
           href={APP_ROUTES.plan}
-          className="inline-flex items-center gap-1 text-xs font-semibold text-stone-500 transition hover:text-[#3E5A3A]"
+          className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap text-xs font-semibold text-stone-500 transition hover:text-[#3E5A3A]"
         >
-          <Flame className="h-3.5 w-3.5 text-[#F9A825]" strokeWidth={2} />
-          {displayKcal} kcal
-          <span className="text-[#3E5A3A]">{t("viewPlan")}</span>
-          <ArrowRight className="h-3.5 w-3.5 text-[#3E5A3A]" />
+          <span className="inline-flex items-center gap-0.5">
+            <Flame className="h-3.5 w-3.5 shrink-0 text-[#F9A825]" strokeWidth={2} />
+            {displayKcal}&nbsp;kcal
+          </span>
+          <span className="inline-flex items-center gap-0.5 text-[#3E5A3A]">
+            {t("viewPlan")}
+            <ArrowRight className="h-3.5 w-3.5 shrink-0" />
+          </span>
         </Link>
       </div>
 

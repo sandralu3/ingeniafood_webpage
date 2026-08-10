@@ -1,5 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, Json } from "@/types/database.types";
+import { fetchUserNutritionGoals } from "@/lib/nutrition/nutrition-profile";
+import type { PreferredDiet } from "@/lib/nutrition/preferred-diet";
 import { macrosToJson, type RecipeMacros } from "@/lib/recipes/recipe-macros";
 import type { AppliedRecipeFilters } from "@/lib/recipes/premium-recipe-filters";
 import {
@@ -8,8 +10,10 @@ import {
   parseRecipeMealType,
   parseRecipeServings,
   FREE_DEFAULT_COMPLEXITY,
-  FREE_DEFAULT_SERVINGS
+  FREE_DEFAULT_SERVINGS,
+  type RecipeMealType
 } from "@/lib/recipes/premium-recipe-filters";
+import { stampPreferredDietOntoTags } from "@/lib/recipes/recipe-diet-tags";
 import { normalizeRecipeTags } from "@/lib/recipes/recipe-tags";
 import { SCANNER_DRAFT_DESCRIPTION } from "@/lib/recipes/scanner-draft";
 
@@ -31,6 +35,8 @@ export type SaveGeneratedRecipeInput = {
   referenceImageUrl?: string | null;
   appliedFilters?: AppliedRecipeFilters | null;
   mealTypeAdvisory?: string | null;
+  /** Si no se pasa, se lee del perfil al guardar. */
+  preferredDiet?: PreferredDiet | null;
   /** Auto-guardado temporal del escáner (foto OpenAI); no debe verse en Guardadas. */
   asScannerDraft?: boolean;
 };
@@ -58,20 +64,30 @@ function isMissingColumnError(
   );
 }
 
+function withMealMomentTag(tags: string[], mealType: RecipeMealType | null | undefined): string[] {
+  if (!mealType) return tags;
+  const moment = /^(desayuno|cena|snack|almuerzo|postre)$/i;
+  const cleaned = tags.filter((tag) => !moment.test(tag));
+  if (cleaned.some((tag) => tag.toLowerCase() === mealType)) return cleaned;
+  return [...cleaned, mealType];
+}
+
 function buildInsertPayload(input: SaveGeneratedRecipeInput, options?: InsertOptions): RecipesInsert {
   const includeSteps = options?.includeSteps !== false;
   const includeMacros = options?.includeMacros !== false && Boolean(input.macronutrientes);
   const includeTip = options?.includeTip !== false;
   const includeScanMetadata = options?.includeScanMetadata !== false;
-  const includeTags = options?.includeTags !== false && Boolean(input.tags?.length);
   const includeCookingTime =
     options?.includeCookingTime !== false &&
     typeof input.cookingTimeMinutes === "number" &&
     input.cookingTimeMinutes > 0;
 
-  // Preferir foto real; si imageUrl es null (p. ej. pendiente), usar referencia/banco.
-  // EXCEPCIÓN borrador del escáner (foto OpenAI pendiente): image_url debe quedar null
-  // para que el polling no tome la foto del banco como “lista”.
+  const mealType = input.appliedFilters?.mealType ?? null;
+  const baseTags = normalizeRecipeTags(input.tags);
+  const tagsWithMeal = withMealMomentTag(baseTags, mealType);
+  const stampedTags = stampPreferredDietOntoTags(tagsWithMeal, input.preferredDiet);
+  const includeTags = options?.includeTags !== false && stampedTags.length > 0;
+
   const primaryImage = input.asScannerDraft
     ? (typeof input.imageUrl === "string" && input.imageUrl.trim()) || null
     : (typeof input.imageUrl === "string" && input.imageUrl.trim()) ||
@@ -109,13 +125,13 @@ function buildInsertPayload(input: SaveGeneratedRecipeInput, options?: InsertOpt
     payload.cooking_time = input.cookingTimeMinutes!;
   }
 
-  if (includeTags && input.tags) {
-    payload.tags = input.tags;
+  if (includeTags) {
+    payload.tags = stampedTags;
   }
 
   if (includeScanMetadata) {
     payload.reference_image_url = input.referenceImageUrl ?? null;
-    payload.meal_type = input.appliedFilters?.mealType ?? null;
+    payload.meal_type = mealType;
     payload.cuisine_style = input.appliedFilters?.cuisineStyle ?? null;
     payload.servings = input.appliedFilters?.servings ?? null;
     payload.complexity = input.appliedFilters?.complexity ?? null;
@@ -129,6 +145,22 @@ export async function saveGeneratedRecipeToLibrary(
   supabase: SupabaseClient<Database>,
   input: SaveGeneratedRecipeInput
 ): Promise<{ recipeId: string } | { error: string }> {
+  let preferredDiet = input.preferredDiet;
+  if (preferredDiet === undefined) {
+    try {
+      const goals = await fetchUserNutritionGoals(input.userId, supabase);
+      preferredDiet = goals.preferredDiet;
+    } catch (error) {
+      console.warn("[save-generated-recipe] preferred diet:", error);
+      preferredDiet = "estandar";
+    }
+  }
+
+  const inputWithDiet: SaveGeneratedRecipeInput = {
+    ...input,
+    preferredDiet: preferredDiet ?? "estandar"
+  };
+
   const attempts: InsertOptions[] = [
     {
       includeSteps: true,
@@ -143,7 +175,7 @@ export async function saveGeneratedRecipeToLibrary(
       includeMacros: true,
       includeTip: true,
       includeScanMetadata: false,
-      includeTags: false,
+      includeTags: true,
       includeCookingTime: true
     },
     {
@@ -151,7 +183,7 @@ export async function saveGeneratedRecipeToLibrary(
       includeMacros: false,
       includeTip: true,
       includeScanMetadata: false,
-      includeTags: false,
+      includeTags: true,
       includeCookingTime: false
     },
     {
@@ -159,7 +191,7 @@ export async function saveGeneratedRecipeToLibrary(
       includeMacros: false,
       includeTip: true,
       includeScanMetadata: false,
-      includeTags: false,
+      includeTags: true,
       includeCookingTime: false
     },
     {
@@ -177,7 +209,7 @@ export async function saveGeneratedRecipeToLibrary(
   for (const options of attempts) {
     const { data, error } = await supabase
       .from("recipes")
-      .insert(buildInsertPayload(input, options))
+      .insert(buildInsertPayload(inputWithDiet, options))
       .select("id")
       .single();
 

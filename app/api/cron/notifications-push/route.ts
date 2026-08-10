@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { runScheduledPushDigest } from "@/lib/notifications/scheduled-push-digest";
+import { clearAllExpiredCodePremiums } from "@/lib/premium/claim-referral-promo";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -12,7 +13,8 @@ function isAuthorizedCron(request: Request): boolean {
 
 /**
  * Cron: genera notificaciones y envía Web Push sin abrir la app.
- * Programar en vercel.json (p. ej. cada hora).
+ * También limpia pases Premium 24h caducados (Hobby: máx. 2 crons/día).
+ * Programar en vercel.json (p. ej. 09:00 y 16:00 UTC).
  */
 export async function GET(request: Request) {
   if (!isAuthorizedCron(request)) {
@@ -20,10 +22,23 @@ export async function GET(request: Request) {
   }
 
   try {
-    const result = await runScheduledPushDigest();
+    const [digest, expiredPremium] = await Promise.all([
+      runScheduledPushDigest(),
+      clearAllExpiredCodePremiums().catch((error) => {
+        console.error("[cron/notifications-push] clear-expired-premium", error);
+        return {
+          scanned: 0,
+          cleared: 0,
+          keptPremiumForSubscription: 0,
+          errors: 1
+        };
+      })
+    ]);
+
     return NextResponse.json({
       ok: true,
-      ...result
+      ...digest,
+      expiredPremium
     });
   } catch (error) {
     console.error("[cron/notifications-push]", error);

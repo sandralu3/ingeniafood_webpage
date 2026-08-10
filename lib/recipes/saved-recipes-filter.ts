@@ -3,14 +3,23 @@ import {
   resolveExternalMealBadge,
   externalMealBadgeLabel
 } from "@/lib/plan/external-meal";
+import {
+  preferredDietLabel,
+  recipeMatchesPreferredDiet,
+  type PreferredDiet
+} from "@/lib/nutrition/preferred-diet";
+import {
+  getRecipeDietsFromTags,
+  hasRecipeDietAssignment
+} from "@/lib/recipes/recipe-diet-tags";
 import { ingredientsJsonToDisplayStrings } from "@/lib/recipes/structured-ingredients";
 import {
-  getRecipeMealTypeLabel,
   parseRecipeMealType,
   type RecipeMealType
 } from "@/lib/recipes/premium-recipe-filters";
 import { normalizeRecipeTags } from "@/lib/recipes/recipe-tags";
 
+/** Filtro legado (picker del Plan + menú antiguo). */
 export type SavedRecipeFilter =
   | "Todas"
   | "Desayunos"
@@ -30,63 +39,98 @@ export const SAVED_RECIPE_FILTERS: SavedRecipeFilter[] = [
   "Sin Harinas"
 ];
 
+/** Tipo de comida en la hoja de filtros de Recetas. */
+export type SavedRecipeMealFilter =
+  | "Todas"
+  | "Desayunos"
+  | "Almuerzos"
+  | "Cenas"
+  | "Snacks"
+  | "Postres";
+
+export const SAVED_RECIPE_MEAL_FILTERS: SavedRecipeMealFilter[] = [
+  "Todas",
+  "Desayunos",
+  "Almuerzos",
+  "Cenas",
+  "Snacks",
+  "Postres"
+];
+
+/** Extras (airfryer / sin harinas). */
+export type SavedRecipeExtraFilter = "Ninguno" | "Airfryer" | "Sin Harinas";
+
+export const SAVED_RECIPE_EXTRA_FILTERS: SavedRecipeExtraFilter[] = [
+  "Ninguno",
+  "Airfryer",
+  "Sin Harinas"
+];
+
+export type SavedRecipesFilterState = {
+  mealFilter: SavedRecipeMealFilter;
+  extraFilter: SavedRecipeExtraFilter;
+  /** `null` o `estandar` = sin filtro de dieta. */
+  dietFilter: PreferredDiet | null;
+};
+
+export const DEFAULT_SAVED_RECIPES_FILTER_STATE: SavedRecipesFilterState = {
+  mealFilter: "Todas",
+  extraFilter: "Ninguno",
+  dietFilter: null
+};
+
 type RecipeRow = Database["public"]["Tables"]["recipes"]["Row"];
 
 const BREAKFAST_KEYWORDS = [
   "desayuno",
   "breakfast",
   "overnight",
+  "overnight oats",
   "avena",
-  "oat",
   "oats",
-  "bowl matutin",
   "smoothie",
   "tostada",
   "granola",
   "yogur",
   "yogurt",
-  "huevo",
   "pancake",
   "waffle",
-  "cafe",
   "muffin",
   "porridge",
-  "matutin",
-  "chia"
+  "chia",
+  "revuelto"
 ];
 
 const DINNER_KEYWORDS = [
   "cena",
   "dinner",
   "sopa",
-  "crema",
   "guiso",
   "estofado",
-  "asado",
   "salteado",
   "nocturn",
   "lasaña",
   "lasana",
   "risotto",
   "tallarin",
-  "pasta",
-  "albondiga"
+  "albondiga",
+  "albóndiga"
 ];
 
 const LUNCH_KEYWORDS = [
   "almuerzo",
-  "comida",
   "lunch",
   "ensalada",
   "salad",
   "wrap",
   "sandwich",
-  "bowl",
+  "sándwich",
   "poke",
   "quinoa"
 ];
 
-const SNACK_TITLE_HINTS = ["snack", "tentempie", "merienda", "picoteo"];
+const SNACK_TITLE_HINTS = ["snack", "tentempie", "tentempié", "merienda", "picoteo"];
+const DESSERT_TITLE_HINTS = ["postre", "dessert", "dulce", "brownie", "tarta", "galleta"];
 
 const MEAL_TYPE_CARD_LABEL: Record<RecipeMealType, string> = {
   desayuno: "Desayuno",
@@ -117,6 +161,12 @@ function jsonToSearchableText(value: Json): string {
     .join(" ");
 }
 
+function tagsToSearchableText(tags: unknown): string {
+  return normalizeRecipeTags(tags)
+    .map((tag) => tag.replace(/^diet:/i, "").replace(/_/g, " "))
+    .join(" ");
+}
+
 export function buildRecipeSearchBlob(recipe: RecipeRow): string {
   const ingredientLines = ingredientsJsonToDisplayStrings(recipe.ingredients);
   const ingredientText =
@@ -128,17 +178,69 @@ export function buildRecipeSearchBlob(recipe: RecipeRow): string {
       recipe.description ?? "",
       recipe.instructions,
       ingredientText,
-      jsonToSearchableText(recipe.steps)
+      jsonToSearchableText(recipe.steps),
+      tagsToSearchableText(recipe.tags)
     ].join(" ")
   );
 }
 
 function includesAnyKeyword(blob: string, keywords: string[]): boolean {
-  return keywords.some((keyword) => blob.includes(normalizeSearchText(keyword)));
+  return keywords.some((keyword) => {
+    const needle = normalizeSearchText(keyword);
+    if (!needle) return false;
+    // Evita falsos positivos por subcadena (ej. "oat" dentro de otras palabras).
+    const pattern = new RegExp(
+      `(^|[^a-z0-9])${needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^a-z0-9]|$)`,
+      "i"
+    );
+    return pattern.test(blob);
+  });
 }
 
-function storedMealType(recipe: Pick<RecipeRow, "meal_type">): RecipeMealType | null {
-  return parseRecipeMealType(recipe.meal_type ?? null);
+function mealTypeToFilter(mealType: RecipeMealType): SavedRecipeMealFilter {
+  switch (mealType) {
+    case "desayuno":
+      return "Desayunos";
+    case "almuerzo":
+      return "Almuerzos";
+    case "cena":
+      return "Cenas";
+    case "snack":
+      return "Snacks";
+    case "postre":
+      return "Postres";
+  }
+}
+
+/**
+ * Una sola categoría por receta. Prioridad: meal_type → tags de momento → título.
+ * No usa el blob de ingredientes (evita que «crema»/«bowl» metan desayunos en cena/almuerzo).
+ */
+export function resolveSavedRecipeMealFilter(recipe: {
+  title: string;
+  meal_type?: string | null;
+  tags?: unknown;
+}): SavedRecipeMealFilter | null {
+  const mealType = parseRecipeMealType(recipe.meal_type ?? null);
+  if (mealType) return mealTypeToFilter(mealType);
+
+  const tags = normalizeRecipeTags(recipe.tags).map((tag) => tag.toLowerCase());
+  if (tags.some((tag) => tag === "desayuno" || tag === "breakfast")) return "Desayunos";
+  if (tags.some((tag) => tag === "almuerzo" || tag === "lunch")) return "Almuerzos";
+  if (tags.some((tag) => tag === "cena" || tag === "dinner")) return "Cenas";
+  if (tags.some((tag) => tag === "snack")) return "Snacks";
+  if (tags.some((tag) => tag === "postre" || tag === "dessert")) return "Postres";
+
+  if (isExplicitDessertRecipe(recipe)) return "Postres";
+  if (isExplicitSnackRecipe(recipe)) return "Snacks";
+
+  const title = normalizeSearchText(recipe.title);
+  if (includesAnyKeyword(title, BREAKFAST_KEYWORDS)) return "Desayunos";
+  if (includesAnyKeyword(title, DINNER_KEYWORDS)) return "Cenas";
+  if (includesAnyKeyword(title, LUNCH_KEYWORDS)) return "Almuerzos";
+  if (/\bpasta\b/.test(title)) return "Almuerzos";
+
+  return null;
 }
 
 /** Snack = meal_type/tag snack. Sin heurística amplia (batido/yogur = desayuno). */
@@ -160,32 +262,76 @@ function isExplicitSnackRecipe(recipe: {
   );
 }
 
+function isExplicitDessertRecipe(recipe: {
+  meal_type?: string | null;
+  tags?: unknown;
+  title: string;
+}): boolean {
+  const mealType = parseRecipeMealType(recipe.meal_type ?? null);
+  if (mealType === "postre") return true;
+  if (mealType) return false;
+
+  const tags = normalizeRecipeTags(recipe.tags).map((tag) => tag.toLowerCase());
+  if (tags.includes("postre") || tags.includes("dessert")) return true;
+
+  const title = normalizeSearchText(recipe.title);
+  return DESSERT_TITLE_HINTS.some(
+    (hint) => title === hint || title.startsWith(`${hint} `) || title.includes(` ${hint} `)
+  );
+}
+
+export function isRestrictiveDietFilter(diet: PreferredDiet | null | undefined): boolean {
+  return Boolean(diet && diet !== "estandar");
+}
+
+export function matchesSavedRecipeDiet(
+  recipe: RecipeRow,
+  diet: PreferredDiet | null | undefined
+): boolean {
+  if (!isRestrictiveDietFilter(diet)) return true;
+
+  if (hasRecipeDietAssignment(recipe.tags)) {
+    return getRecipeDietsFromTags(recipe.tags).includes(
+      diet as Exclude<PreferredDiet, "estandar">
+    );
+  }
+
+  // Sin tags canónicos: incluir true u unknown; excluir solo incompatibles.
+  return recipeMatchesPreferredDiet(recipe, diet) !== false;
+}
+
+export function matchesSavedRecipeMeal(
+  recipe: RecipeRow,
+  filter: SavedRecipeMealFilter
+): boolean {
+  if (filter === "Todas") return true;
+  const resolved = resolveSavedRecipeMealFilter(recipe);
+  // Sin categoría clara: no entra en filtros concretos (sí en «Todas»).
+  return resolved === filter;
+}
+
+export function matchesSavedRecipeExtra(
+  recipe: RecipeRow,
+  filter: SavedRecipeExtraFilter
+): boolean {
+  if (filter === "Ninguno") return true;
+  const blob = buildRecipeSearchBlob(recipe);
+  if (filter === "Airfryer") {
+    return recipe.is_airfryer || blob.includes("airfryer") || blob.includes("air fryer");
+  }
+  return recipe.is_flourless || blob.includes("sin harinas") || blob.includes("sin harina");
+}
+
+/** Compatibilidad con el picker del Plan (Snacks incluye postre). */
 export function matchesSavedRecipeCategory(recipe: RecipeRow, filter: SavedRecipeFilter): boolean {
   if (filter === "Todas") return true;
-
-  const mealType = storedMealType(recipe);
-  const blob = buildRecipeSearchBlob(recipe);
-
-  switch (filter) {
-    case "Airfryer":
-      return recipe.is_airfryer || blob.includes("airfryer") || blob.includes("air fryer");
-    case "Sin Harinas":
-      return recipe.is_flourless || blob.includes("sin harinas") || blob.includes("sin harina");
-    case "Desayunos":
-      if (mealType) return mealType === "desayuno";
-      return includesAnyKeyword(blob, BREAKFAST_KEYWORDS);
-    case "Almuerzos":
-      if (mealType) return mealType === "almuerzo";
-      return includesAnyKeyword(blob, LUNCH_KEYWORDS);
-    case "Cenas":
-      if (mealType) return mealType === "cena";
-      return includesAnyKeyword(blob, DINNER_KEYWORDS);
-    case "Snacks":
-      if (mealType === "snack" || mealType === "postre") return true;
-      return isExplicitSnackRecipe(recipe);
-    default:
-      return true;
+  if (filter === "Airfryer") return matchesSavedRecipeExtra(recipe, "Airfryer");
+  if (filter === "Sin Harinas") return matchesSavedRecipeExtra(recipe, "Sin Harinas");
+  if (filter === "Snacks") {
+    const resolved = resolveSavedRecipeMealFilter(recipe);
+    return resolved === "Snacks" || resolved === "Postres";
   }
+  return matchesSavedRecipeMeal(recipe, filter);
 }
 
 export function matchesSavedRecipeSearch(recipe: RecipeRow, searchTerm: string): boolean {
@@ -197,14 +343,57 @@ export function matchesSavedRecipeSearch(recipe: RecipeRow, searchTerm: string):
   return tokens.every((token) => blob.includes(token));
 }
 
+export function countActiveSavedRecipeFilters(state: SavedRecipesFilterState): number {
+  let count = 0;
+  if (state.mealFilter !== "Todas") count += 1;
+  if (state.extraFilter !== "Ninguno") count += 1;
+  if (isRestrictiveDietFilter(state.dietFilter)) count += 1;
+  return count;
+}
+
+export function summarizeSavedRecipeFilters(
+  state: SavedRecipesFilterState,
+  translateMeal: (filter: SavedRecipeMealFilter) => string,
+  translateExtra: (filter: SavedRecipeExtraFilter) => string,
+  translateDiet: (diet: PreferredDiet) => string = preferredDietLabel
+): string {
+  const parts: string[] = [];
+  if (state.mealFilter !== "Todas") parts.push(translateMeal(state.mealFilter));
+  if (isRestrictiveDietFilter(state.dietFilter) && state.dietFilter) {
+    parts.push(translateDiet(state.dietFilter));
+  }
+  if (state.extraFilter !== "Ninguno") parts.push(translateExtra(state.extraFilter));
+  return parts.join(" · ");
+}
+
 export function filterSavedRecipes(
   recipes: RecipeRow[],
-  options: { searchTerm: string; categoryFilter: SavedRecipeFilter }
+  options: {
+    searchTerm: string;
+    categoryFilter?: SavedRecipeFilter;
+    mealFilter?: SavedRecipeMealFilter;
+    extraFilter?: SavedRecipeExtraFilter;
+    dietFilter?: PreferredDiet | null;
+  }
 ): RecipeRow[] {
+  const mealFilter = options.mealFilter ?? "Todas";
+  const extraFilter = options.extraFilter ?? "Ninguno";
+  const dietFilter = options.dietFilter ?? null;
+  const legacyCategory = options.categoryFilter;
+
   return recipes.filter((recipe) => {
     const matchesSearch = matchesSavedRecipeSearch(recipe, options.searchTerm);
-    const matchesCategory = matchesSavedRecipeCategory(recipe, options.categoryFilter);
-    return matchesSearch && matchesCategory;
+    if (!matchesSearch) return false;
+
+    if (legacyCategory && !options.mealFilter && !options.extraFilter) {
+      return matchesSavedRecipeCategory(recipe, legacyCategory);
+    }
+
+    return (
+      matchesSavedRecipeMeal(recipe, mealFilter) &&
+      matchesSavedRecipeExtra(recipe, extraFilter) &&
+      matchesSavedRecipeDiet(recipe, dietFilter)
+    );
   });
 }
 
@@ -223,6 +412,7 @@ function resolveRecipeCardLabelFromKeywords(
   if (includesAnyKeyword(blob, DINNER_KEYWORDS)) return "Cena";
   if (includesAnyKeyword(blob, LUNCH_KEYWORDS)) return "Almuerzo";
   if (includesAnyKeyword(blob, SNACK_TITLE_HINTS)) return "Snack";
+  if (includesAnyKeyword(blob, DESSERT_TITLE_HINTS)) return "Postre";
   if (flags.is_flourless || blob.includes("sin harinas") || blob.includes("sin harina")) {
     return "Sin Harinas";
   }
@@ -252,33 +442,18 @@ export function matchesPickerRecipeCategory(
 ): boolean {
   if (filter === "Todas") return true;
 
-  const mealType = parseRecipeMealType(source.meal_type ?? null);
   const blob = normalizeSearchText(source.title);
-
-  switch (filter) {
-    case "Airfryer":
-      return Boolean(source.is_airfryer) || blob.includes("airfryer") || blob.includes("air fryer");
-    case "Sin Harinas":
-      return Boolean(source.is_flourless) || blob.includes("sin harinas") || blob.includes("sin harina");
-    case "Desayunos":
-      if (mealType) return mealType === "desayuno";
-      return includesAnyKeyword(blob, BREAKFAST_KEYWORDS);
-    case "Almuerzos":
-      if (mealType) return mealType === "almuerzo";
-      return includesAnyKeyword(blob, LUNCH_KEYWORDS);
-    case "Cenas":
-      if (mealType) return mealType === "cena";
-      return includesAnyKeyword(blob, DINNER_KEYWORDS);
-    case "Snacks":
-      if (mealType === "snack" || mealType === "postre") return true;
-      return isExplicitSnackRecipe({
-        meal_type: source.meal_type ?? null,
-        tags: source.tags,
-        title: source.title
-      });
-    default:
-      return true;
+  if (filter === "Airfryer") {
+    return Boolean(source.is_airfryer) || blob.includes("airfryer") || blob.includes("air fryer");
   }
+  if (filter === "Sin Harinas") {
+    return Boolean(source.is_flourless) || blob.includes("sin harinas") || blob.includes("sin harina");
+  }
+  if (filter === "Snacks") {
+    const resolved = resolveSavedRecipeMealFilter(source);
+    return resolved === "Snacks" || resolved === "Postres";
+  }
+  return resolveSavedRecipeMealFilter(source) === filter;
 }
 
 export function filterPickerRecipes<T extends RecipeLabelSource>(
@@ -307,9 +482,12 @@ export function getRecipeCardLabel(recipe: RecipeRow): string | null {
     return externalMealBadgeLabel(externalBadge);
   }
 
-  const mealType = storedMealType(recipe);
-  if (mealType) {
-    return MEAL_TYPE_CARD_LABEL[mealType] ?? getRecipeMealTypeLabel(mealType);
-  }
+  const resolved = resolveSavedRecipeMealFilter(recipe);
+  if (resolved === "Desayunos") return "Desayuno";
+  if (resolved === "Almuerzos") return "Almuerzo";
+  if (resolved === "Cenas") return "Cena";
+  if (resolved === "Snacks") return "Snack";
+  if (resolved === "Postres") return "Postre";
+
   return resolveRecipeCardLabelFromKeywords(buildRecipeSearchBlob(recipe), recipe);
 }

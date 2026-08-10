@@ -1,7 +1,7 @@
 # 📱 Guía de Pruebas Beta — IngeniaFood
 
 > Documento para testers. Lenguaje de **pantalla**: lo que ves, tocas y experimentas.  
-> Última actualización: **9 agosto 2026**
+> Última actualización: **10 agosto 2026**
 
 ---
 
@@ -104,10 +104,16 @@ No hay un campo en pantalla para “escribir un código”. El pase llega así:
 
 #### Buscar y filtrar
 1. Usa el buscador en forma de **píldora** (**«Buscar recetas...»**), con fondo crema/champagne suave.
-2. A la derecha, el botón circular de filtros (icono de **deslizadores** / sliders).
-3. En el menú de filtros prueba:
-   - **Todas · Desayunos · Almuerzos · Cenas · Snacks · Airfryer · Sin Harinas**
-4. Comprueba el aviso **«Filtro: …»** y el botón **«Quitar»**.
+2. A la derecha, el botón circular de filtros (icono de **deslizadores**). Si hay filtros activos, verás un **número** en el botón.
+3. Al abrir Recetas, si en **Personalizar parámetros** tienes una dieta (p. ej. Vegetariana), la lista **arranca filtrada** por esa dieta.
+4. Toca el botón de filtros: se abre una **hoja inferior** con:
+   - **Tipo de comida**: Todas, Desayunos, Almuerzos, Cenas, Snacks, Postres
+   - **Dieta**: Todas las dietas + las del perfil (sin gluten, keto, vegetariana…)
+   - **Otros**: Ninguno, Airfryer, Sin Harinas
+5. Pulsa **Ver resultados** o **Limpiar**.
+6. Comprueba el aviso **«Filtro: …»** bajo el buscador y el botón **«Quitar»**.
+7. Si tienes recetas antiguas en **Mías** / **Fuera** sin tipo de comida o dieta, puede aparecer un aviso **«Completar mis recetas»**. Tócalo una vez: rellena metadatos (sin IA) con el tipo inferido y la dieta de tus parámetros. Después, los filtros de comida/dieta deberían acertar también en esas pestañas.
+8. Las recetas **nuevas** del escáner o de **Fuera** ya guardan dieta (la de parámetros) y tipo de comida cuando aplica, así que no deberían pedir ese paso.
 
 #### Cómo se ve cada tarjeta de receta
 En la lista, cada tarjeta debería mostrar:
@@ -137,7 +143,10 @@ En la lista, cada tarjeta debería mostrar:
 - [ ] Chip **Sandra** muestra recetas oficiales (incluidas las de Instagram) con insignia
 - [ ] En detalle de una receta de Instagram aparece **«Ver reel en Instagram»**
 - [ ] **Mías / Favoritas / Fuera** filtran bien
-- [ ] Búsqueda y filtros de categoría funcionan
+- [ ] Búsqueda y hoja de filtros (comida + dieta + otros) funcionan
+- [ ] Al entrar, si hay dieta en parámetros, el filtro de dieta arranca aplicado
+- [ ] Si aparece **«Completar mis recetas»**, al tocarlo desaparece el aviso y Mías/Fuera filtran mejor por comida/dieta
+- [ ] Una receta nueva del escáner o Fuera respeta el filtro de dieta de parámetros sin tener que «completar»
 - [ ] Las tarjetas se leen bien en móvil (sin textos cortados)
 - [ ] Favoritos se guardan al salir y volver a entrar
 
@@ -158,6 +167,7 @@ En la lista, cada tarjeta debería mostrar:
 8. Guarda con:
    - **«🍳 Guardar en mi Plan / Cocinar»**, y/o
    - **«Guardar en mi recetario»**
+9. En **Recetas → Mías**, la receta nueva debería filtrar por la **dieta de tus parámetros** (y por tipo de comida si el escáner lo indicó).
 
 > El Escáner **solo** sirve para generar recetas con tu despensa. Las recetas de Instagram están en **Recetas → Sandra** (apartado B).  
 > **Límite diario de escaneos:** cuenta **Free → 5**/día · **Premium o pase 24h → 20**/día. Si se agotan, verás el aviso de límite.
@@ -168,6 +178,7 @@ En la lista, cada tarjeta debería mostrar:
 3. Abre una receta:
    - El detalle es el mismo layout que el resto (hero, ingredientes, preparación, tip…).
    - Si tiene reel, verás **«Ver reel en Instagram»** — ábrelo y comprueba que lleva al Instagram correcto.
+   - **Admin**: en «Editar receta» puedes cambiar el **tipo de comida** (desayuno / almuerzo / cena / postre / snack), además de ingredientes y pasos. Tras guardar, comprueba que el filtro de Sandra y el badge del detalle reflejan el nuevo tipo.
 4. Desde el **Plan** → **«Elegir receta»**, en el pie o estado vacío prueba el botón **«Recetas de Sandra»**:
    - Te lleva a **Recetas → Sandra** con un aviso de asignación al hueco.
    - Abre una receta y pulsa **«Añadir a este hueco»** (o el icono de calendario) para asignarla al plan.
@@ -193,7 +204,7 @@ Disponible desde el **Plan**, al elegir o cambiar un plato (en **hoy** o **días
 2. Pulsa **«✍️ Registrar comida rápida»** (**👑 PRO**).
 3. Describe qué comiste (ej.: *pechuga, arroz, ensalada*).
 4. Sigue la revisión de alimentos y guarda en el plan.
-5. Verifica el plato en **Plan** y, si aplica, en **Recetas → Fuera**.
+5. Verifica el plato en **Plan** y, si aplica, en **Recetas → Fuera** (debe respetar filtros de dieta y el tipo de comida del hueco del plan).
 
 #### E) Snacks / tentempié
 1. En **Plan**, baja a **🍪 Snacks / Tentempié**.
@@ -374,7 +385,7 @@ Si el equipo os da un enlace o código para compartir:
 3. En el sistema del móvil, confirma que IngeniaFood tiene permiso de notificaciones **activado**.
 
 #### Qué deberías recibir sin tener la app abierta
-Con push activado, las alertas del sistema pueden llegar **aunque no tengas la app abierta**, por ejemplo:
+Con push activado, las alertas del sistema pueden llegar **aunque no tengas la app abierta** (el servidor las envía un par de veces al día), por ejemplo:
 - Tip de Sandra del día
 - Recordatorio de agua (media jornada)
 - Racha en riesgo (por la tarde)
@@ -389,6 +400,66 @@ Con push activado, las alertas del sistema pueden llegar **aunque no tengas la a
 - [ ] Cerrar la app por completo y comprobar que llega al menos un aviso del sistema (agua / tip / plan)
 - [ ] Al tocar la notificación, se abre la pantalla correcta (Hoy / Plan / Recetas…)
 - [ ] Si no llega nada en segundo plano: revisar permiso del sistema e instalación PWA
+
+---
+
+### 9. 🛡️ Administración (solo cuenta admin)
+
+El panel **ya no está en Perfil**. Acceso:
+
+1. Abre el **menú hamburguesa** (arriba a la izquierda).
+2. Debes ver el ítem **Administración** (solo visible para la cuenta admin).
+3. Entra al hub:
+   - **Herramientas**: Administrar usuarios, **Recetas por usuario**, Importar receta, Banco de imágenes, Editar catálogo (Instagram).
+   - **Recetas de Sandra**: listado del catálogo oficial.
+4. Desde las herramientas `/admin/…`, el enlace **Volver** regresa a **Administración**, no a Perfil.
+
+> Los pases Premium de **24h** caducados se limpian en segundo plano (junto al cron de notificaciones, 2×/día) y al usar la app: `is_premium` vuelve a Free si no hay suscripción Paddle. El código canjeado (`WELCOME`, etc.) se conserva en historial.
+
+#### Administrar usuarios
+1. Menú → **Administración** → **Administrar usuarios**.
+2. Arriba verás el total y cuántos **usaron pase 24h**.
+3. Usa los chips **Solo testers** / **Solo usaron pase 24h**.
+4. Columna **Pase 24h**:
+   - **Activo** — lo tienen en curso (con fecha de fin)
+   - **Usado (caducado)** — ya lo activaron y terminó (p. ej. código WELCOME)
+   - **Disponible (sin activar)** — lo tienen pendiente en Hoy
+   - **No usado**
+5. También puedes marcar Tester / Premium y límites de escaneo.
+
+#### Recetas por usuario (admin)
+1. Menú → **Administración** → **Recetas por usuario**.
+2. Verás un resumen arriba (cuántos tienen recetas, cuántos usaron escáner…).
+3. En cada usuario:
+   - **Total**, **Propias** (para cocinar), **Escáner despensa**, **Escáner plato**, **Fuera texto**.
+   - Badge **Sí usó escáner** / **No usó escáner** y escaneos de hoy.
+4. Prueba buscar por email y los chips **Solo con recetas** / **Solo usaron escáner**.
+
+#### Recetas de Sandra (admin)
+1. Menú → **Administración** → **Administrar recetas de Sandra**.
+2. Verás todas las recetas del catálogo (busca por título o filtra **Solo sin dieta** / **Solo sin macros**).
+3. En cada tarjeta:
+   - Marca uno o varios **tipos de dieta** y pulsa **Guardar dietas**.
+   - Si no marcas ninguna, queda como sin restricciones.
+   - **Editar** abre la ficha de la receta (ingredientes, pasos, tipo de comida, Instagram).
+4. Asignación masiva con IA:
+   - Pulsa **Completar N con IA** (solo rellena las que no tienen dieta o macros; no pisa datos ya guardados).
+   - Puedes **Detener** a mitad de proceso.
+   - Al terminar, revisa chips de dieta y badges «Con macros» / «Sin macros».
+5. Las dietas ayudan a que el plan / sugerencias respeten la preferencia del usuario.
+
+**Qué probar**
+- [ ] Como admin: el ítem **Administración** aparece en el menú
+- [ ] Como usuaria normal: ese ítem **no** aparece
+- [ ] Perfil **ya no** muestra el bloque «Panel de administración»
+- [ ] Los accesos de herramientas abren bien y vuelven al hub
+- [ ] **Administrar usuarios**: columna Pase 24h + filtros Solo testers / Solo usaron pase 24h
+- [ ] **Recetas por usuario**: lista con totales, propias vs escáner y «Sí/No usó escáner»
+- [ ] Listado de Recetas de Sandra carga y permite buscar / filtrar
+- [ ] Guardar una o varias dietas en una receta y recargar: se mantienen
+- [ ] **Completar con IA** actualiza solo pendientes (dieta y/o macros) y muestra progreso
+- [ ] Tras la IA, una receta que antes no tenía macros muestra kcal / P·C·G en Recetas → Sandra
+- [ ] **Editar** abre el detalle y permite cambiar contenido (admin)
 
 ---
 
@@ -452,7 +523,8 @@ Cuenta: Free / Pase 24h / Premium
 8. Lista de compras → copiar  
 9. Probar una función PRO (plato servido o menú del día)  
 10. Perfil: revisar estado Premium  
-11. Reportar el fallo en **Jira** (tablero IF) con captura + plantilla
+11. *(Solo admin)* Menú → **Administración** → Recetas de Sandra: Completar con IA + revisar 1 ficha  
+12. Reportar el fallo en **Jira** (tablero IF) con captura + plantilla
 
 
 ¡Gracias por ayudar a pulir IngeniaFood! 💚

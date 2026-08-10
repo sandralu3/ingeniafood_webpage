@@ -114,6 +114,12 @@ export function recipeMatchesPreferredDiet(
   const title = normalizeText(recipe.title);
   const cuisine = normalizeText(recipe.cuisine_style);
 
+  // Asignación explícita de admin (`diet:vegetariana`, etc.) tiene prioridad.
+  const canonicalDietTag = `diet:${diet}`;
+  if (tags.some((tag) => tag === canonicalDietTag || tag === diet)) {
+    return true;
+  }
+
   switch (diet) {
     case "sin_harinas": {
       if (recipe.is_flourless === true || hasAnyTag(tags, ["sin harina", "flourless", "low carb"])) {

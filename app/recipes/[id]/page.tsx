@@ -972,7 +972,7 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
 
   const handleSandraContentSaved = useCallback(
 
-    (payload: { ingredients: string[]; steps: string[] }) => {
+    (payload: { ingredients: string[]; steps: string[]; mealType: string }) => {
 
       setRecipe((current) => {
 
@@ -983,6 +983,14 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
           .map((step, index) => `${index + 1}. ${step}`)
 
           .join("\n");
+
+        const mealMoment = /^(desayuno|cena|snack|almuerzo|postre)$/i;
+
+        const nextTags = normalizeRecipeTags(current.tags)
+
+          .filter((tag) => !mealMoment.test(tag))
+
+          .concat(payload.mealType);
 
         return {
 
@@ -996,7 +1004,11 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
 
           steps: payload.steps,
 
-          instructions
+          instructions,
+
+          meal_type: payload.mealType,
+
+          tags: nextTags
 
         };
 
@@ -1297,6 +1309,7 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
                 recipeId={recipe.id}
                 initialIngredients={adminEditIngredients}
                 initialSteps={adminEditSteps}
+                initialMealType={recipe.meal_type}
                 disabled={actionsBusy}
                 onSaved={handleSandraContentSaved}
               />
@@ -1352,6 +1365,7 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
                 recipeId={recipe.id}
                 initialIngredients={adminEditIngredients}
                 initialSteps={adminEditSteps}
+                initialMealType={recipe.meal_type}
                 disabled={actionsBusy}
                 onSaved={handleSandraContentSaved}
               />

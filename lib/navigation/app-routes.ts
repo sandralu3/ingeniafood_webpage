@@ -6,7 +6,9 @@ export const APP_ROUTES = {
   parametros: "/app-recetas/parametros",
   scanner: "/app-recetas/scanner",
   guardadas: "/app-recetas/recipes",
-  perfil: "/app-recetas/profile"
+  perfil: "/app-recetas/profile",
+  admin: "/app-recetas/admin",
+  adminRecetasSandra: "/app-recetas/admin/recetas-sandra"
 } as const;
 
 export type AppTabRoute = (typeof APP_ROUTES)[keyof typeof APP_ROUTES];

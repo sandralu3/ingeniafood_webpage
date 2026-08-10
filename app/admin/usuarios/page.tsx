@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Loader2, Save, Trash2, Users } from "lucide-react";
-import type { AdminUserListItem } from "@/lib/admin/users-admin";
+import type { AdminPass24hStatus, AdminUserListItem } from "@/lib/admin/users-admin";
 import { MAX_DAILY_SCAN_LIMIT } from "@/lib/admin/users-admin";
 import { PremiumLabel, PremiumRichText } from "@/components/premium/premium-label";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
@@ -19,6 +19,31 @@ function getInitials(name: string | null, email: string): string {
   return `${parts[0][0] ?? ""}${parts[1][0] ?? ""}`.toUpperCase();
 }
 
+function pass24hLabel(status: AdminPass24hStatus): string {
+  switch (status) {
+    case "active":
+      return "Activo";
+    case "expired":
+      return "Usado (caducado)";
+    case "available":
+      return "Disponible (sin activar)";
+    default:
+      return "No usado";
+  }
+}
+
+function formatPassExpiry(iso: string | null): string | null {
+  if (!iso) return null;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleString("es-ES", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
 export default function AdminUsuariosPage() {
   const authState = useSandraAdminGate("/admin/usuarios");
   const [users, setUsers] = useState<AdminUserListItem[]>([]);
@@ -31,6 +56,8 @@ export default function AdminUsuariosPage() {
   const [userPendingDelete, setUserPendingDelete] = useState<AdminUserListItem | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [onlyTesters, setOnlyTesters] = useState(false);
+  const [onlyUsed24h, setOnlyUsed24h] = useState(false);
 
   const loadUsers = useCallback(async () => {
     setIsLoading(true);
@@ -69,6 +96,23 @@ export default function AdminUsuariosPage() {
     if (authState !== "allowed") return;
     void loadUsers();
   }, [authState, loadUsers]);
+
+  const filteredUsers = useMemo(() => {
+    return users.filter((user) => {
+      if (onlyTesters && !user.isTester && !user.unlimitedScans) return false;
+      if (onlyUsed24h && !user.hasUsed24hPass) return false;
+      return true;
+    });
+  }, [users, onlyTesters, onlyUsed24h]);
+
+  const used24hCount = useMemo(
+    () => users.filter((user) => user.hasUsed24hPass).length,
+    [users]
+  );
+  const testerCount = useMemo(
+    () => users.filter((user) => user.isTester).length,
+    [users]
+  );
 
   const handleTogglePremium = async (userId: string, nextValue: boolean) => {
     const user = users.find((item) => item.id === userId);
@@ -277,11 +321,11 @@ export default function AdminUsuariosPage() {
         <header className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <Link
-              href={APP_ROUTES.perfil}
+              href={APP_ROUTES.admin}
               className="inline-flex items-center gap-1.5 text-sm font-medium text-stone-500 transition hover:text-[#4c6633]"
             >
               <ArrowLeft className="h-4 w-4" />
-              Volver al perfil
+              Volver a Administración
             </Link>
             <p className="mt-3 text-[10px] font-bold uppercase tracking-[0.14em] text-amber-800/75">
               Admin · IngeniaFood
@@ -290,14 +334,19 @@ export default function AdminUsuariosPage() {
               Usuarios
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-stone-500">
-              Consulta las cuentas registradas, define escaneos diarios y activa o desactiva{" "}
-              <PremiumLabel size="xs" /> por usuario.
+              Consulta cuentas, testers, quién usó el pase 24h, escaneos diarios y{" "}
+              <PremiumLabel size="xs" />.
             </p>
           </div>
 
-          <div className="flex items-center gap-2 rounded-2xl border border-[#4c6633]/15 bg-white px-4 py-3 text-sm text-stone-600 shadow-sm">
-            <Users className="h-4 w-4 text-[#4c6633]" />
-            {users.length} usuario{users.length === 1 ? "" : "s"}
+          <div className="flex flex-col gap-2 sm:items-end">
+            <div className="flex items-center gap-2 rounded-2xl border border-[#4c6633]/15 bg-white px-4 py-3 text-sm text-stone-600 shadow-sm">
+              <Users className="h-4 w-4 text-[#4c6633]" />
+              {users.length} usuario{users.length === 1 ? "" : "s"}
+            </div>
+            <p className="text-xs text-stone-500">
+              {testerCount} tester{testerCount === 1 ? "" : "s"} · {used24hCount} usaron pase 24h
+            </p>
           </div>
         </header>
 
@@ -313,15 +362,42 @@ export default function AdminUsuariosPage() {
           </p>
         ) : null}
 
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setOnlyTesters((value) => !value)}
+            className={cn(
+              "rounded-full border px-3 py-1.5 text-[11px] font-semibold transition",
+              onlyTesters
+                ? "border-amber-700 bg-amber-800 text-white"
+                : "border-stone-200 bg-white text-stone-600 hover:bg-stone-50"
+            )}
+          >
+            Solo testers
+          </button>
+          <button
+            type="button"
+            onClick={() => setOnlyUsed24h((value) => !value)}
+            className={cn(
+              "rounded-full border px-3 py-1.5 text-[11px] font-semibold transition",
+              onlyUsed24h
+                ? "border-[#4c6633] bg-[#4c6633] text-white"
+                : "border-stone-200 bg-white text-stone-600 hover:bg-stone-50"
+            )}
+          >
+            Solo usaron pase 24h
+          </button>
+        </div>
+
         <section className="overflow-hidden rounded-3xl border border-stone-100 bg-white shadow-sm">
           {isLoading ? (
             <div className="flex items-center justify-center gap-2 px-6 py-16 text-sm text-stone-500">
               <Loader2 className="h-4 w-4 animate-spin" />
               Cargando usuarios...
             </div>
-          ) : users.length === 0 ? (
+          ) : filteredUsers.length === 0 ? (
             <p className="px-6 py-16 text-center text-sm text-stone-500">
-              No hay usuarios registrados todavía.
+              No hay usuarios con estos filtros.
             </p>
           ) : (
             <div className="overflow-x-auto">
@@ -332,6 +408,7 @@ export default function AdminUsuariosPage() {
                     <th className="px-5 py-3.5">Correo</th>
                     <th className="px-5 py-3.5">Hoy</th>
                     <th className="px-5 py-3.5">Tester</th>
+                    <th className="px-5 py-3.5">Pase 24h</th>
                     <th className="px-5 py-3.5">
                       <PremiumLabel size="xs" />
                     </th>
@@ -340,7 +417,7 @@ export default function AdminUsuariosPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {users.map((user) => {
+                  {filteredUsers.map((user) => {
                     const isSaving = savingUserId === user.id;
                     const isSavingPremium = savingPremiumUserId === user.id;
                     const isSavingTester = savingTesterUserId === user.id;
@@ -411,6 +488,39 @@ export default function AdminUsuariosPage() {
                               </span>
                             </label>
                           )}
+                        </td>
+                        <td className="px-5 py-4">
+                          <div className="flex flex-col gap-1">
+                            <span
+                              className={cn(
+                                "w-fit rounded-full px-2.5 py-1 text-[10px] font-semibold",
+                                user.pass24hStatus === "active"
+                                  ? "bg-[#eef4e6] text-[#3e5219]"
+                                  : user.pass24hStatus === "expired"
+                                    ? "bg-amber-50 text-amber-900"
+                                    : user.pass24hStatus === "available"
+                                      ? "bg-sky-50 text-sky-900"
+                                      : "bg-stone-100 text-stone-500"
+                              )}
+                            >
+                              {pass24hLabel(user.pass24hStatus)}
+                            </span>
+                            {user.redeemedCode ? (
+                              <span className="text-[10px] text-stone-500">
+                                Código: {user.redeemedCode}
+                              </span>
+                            ) : null}
+                            {user.pass24hStatus === "active" && user.premiumExpiresAt ? (
+                              <span className="text-[10px] text-stone-500">
+                                Hasta {formatPassExpiry(user.premiumExpiresAt)}
+                              </span>
+                            ) : null}
+                            {user.pass24hStatus === "expired" && user.premiumExpiresAt ? (
+                              <span className="text-[10px] text-stone-400">
+                                Caducó {formatPassExpiry(user.premiumExpiresAt)}
+                              </span>
+                            ) : null}
+                          </div>
                         </td>
                         <td className="px-5 py-4">
                           {user.unlimitedScans ? (

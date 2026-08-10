@@ -1,5 +1,8 @@
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin";
-import { getSubscriptionAccess } from "@/lib/billing/has-valid-subscription";
+import {
+  evaluateSubscriptionAccess,
+  getSubscriptionAccess
+} from "@/lib/billing/has-valid-subscription";
 import {
   isPremiumExpiryActive,
   resolveUserRole
@@ -8,6 +11,7 @@ import {
   FREE_DAILY_SCAN_LIMIT,
   PREMIUM_DAILY_SCAN_LIMIT
 } from "@/lib/generations/constants";
+import type { SubscriptionRow } from "@/types/subscription";
 
 const PROMO_DURATION_HOURS = 24;
 /** Promo de bienvenida para nuevos registros (sin ?ref=). */
@@ -336,7 +340,7 @@ export async function resetTesterPremiumTrial(
 
 /**
  * Limpia Premium temporal vencido.
- * Si no hay Stripe activo, también baja is_premium.
+ * Si no hay Stripe/Paddle activo, también baja is_premium.
  */
 export async function clearExpiredCodePremium(userId: string): Promise<void> {
   const admin = getSupabaseAdminClient();
@@ -364,4 +368,107 @@ export async function clearExpiredCodePremium(userId: string): Promise<void> {
     .update(patch)
     .eq("id", userId)
     .lt("premium_expires_at", nowIso);
+}
+
+export type ClearExpiredCodePremiumsResult = {
+  scanned: number;
+  cleared: number;
+  keptPremiumForSubscription: number;
+  errors: number;
+};
+
+/**
+ * Job masivo: limpia todos los pases 24h con `premium_expires_at` vencido.
+ * Conserva `redeemed_code` como histórico de uso.
+ */
+export async function clearAllExpiredCodePremiums(): Promise<ClearExpiredCodePremiumsResult> {
+  const admin = getSupabaseAdminClient();
+  const nowIso = new Date().toISOString();
+
+  const { data: expiredRows, error: listError } = await admin
+    .from("profiles")
+    .select("id")
+    .not("premium_expires_at", "is", null)
+    .lt("premium_expires_at", nowIso)
+    .limit(500);
+
+  if (listError) {
+    console.error("[referral-promo] clearAll list", listError.message);
+    throw new Error("No pudimos listar pases 24h caducados.");
+  }
+
+  const ids = (expiredRows ?? []).map((row) => row.id).filter(Boolean);
+  if (!ids.length) {
+    return { scanned: 0, cleared: 0, keptPremiumForSubscription: 0, errors: 0 };
+  }
+
+  const { data: subscriptions, error: subError } = await admin
+    .from("subscriptions")
+    .select("user_id, status, current_period_end")
+    .in("user_id", ids);
+
+  if (subError) {
+    console.error("[referral-promo] clearAll subscriptions", subError.message);
+  }
+
+  const subscribed = new Set<string>();
+  for (const row of subscriptions ?? []) {
+    const access = evaluateSubscriptionAccess({
+      user_id: row.user_id,
+      status: row.status,
+      current_period_end: row.current_period_end,
+      paddle_customer_id: null,
+      paddle_subscription_id: null,
+      price_id: null,
+      created_at: nowIso,
+      updated_at: nowIso
+    } as SubscriptionRow);
+    if (access.hasValidSubscription) {
+      subscribed.add(row.user_id);
+    }
+  }
+
+  let cleared = 0;
+  let keptPremiumForSubscription = 0;
+  let errors = 0;
+
+  for (const userId of ids) {
+    const hasSub = subscribed.has(userId);
+    const patch: {
+      premium_expires_at: null;
+      updated_at: string;
+      is_premium?: boolean;
+      daily_scan_limit?: number;
+    } = {
+      premium_expires_at: null,
+      updated_at: nowIso
+    };
+
+    if (hasSub) {
+      keptPremiumForSubscription += 1;
+    } else {
+      patch.is_premium = false;
+      patch.daily_scan_limit = FREE_DAILY_SCAN_LIMIT;
+    }
+
+    const { error: updateError } = await admin
+      .from("profiles")
+      .update(patch)
+      .eq("id", userId)
+      .lt("premium_expires_at", nowIso);
+
+    if (updateError) {
+      console.error("[referral-promo] clearAll update", userId, updateError.message);
+      errors += 1;
+      continue;
+    }
+    cleared += 1;
+  }
+
+  return {
+    scanned: ids.length,
+    cleared,
+    keptPremiumForSubscription,
+    errors
+  };
 }

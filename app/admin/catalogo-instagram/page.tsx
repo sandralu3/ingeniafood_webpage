@@ -63,10 +63,10 @@ export default function CatalogoInstagramAdminPage() {
             Este panel solo está disponible para la administradora de IngeniaFood.
           </p>
           <Link
-            href={APP_ROUTES.perfil}
+            href={APP_ROUTES.admin}
             className="mt-4 inline-flex rounded-full bg-[#4C6B3F] px-4 py-2 text-sm font-semibold text-white transition hover:brightness-105"
           >
-            Volver al perfil
+            Volver a Administración
           </Link>
         </div>
       </main>
@@ -77,11 +77,11 @@ export default function CatalogoInstagramAdminPage() {
     <main className="min-h-screen bg-[#FBF9F6] px-4 pb-12 pt-8">
       <div className="mx-auto max-w-2xl">
         <Link
-          href={APP_ROUTES.perfil}
+          href={APP_ROUTES.admin}
           className="mb-4 inline-flex items-center gap-2 text-xs font-medium text-[#4c6633]/80 transition hover:text-[#4c6633]"
         >
           <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.5} />
-          Volver al perfil
+          Volver a Administración
         </Link>
 
         <header className="mb-5">

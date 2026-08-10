@@ -1,16 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { Camera, ChevronDown, LogOut, Pencil, Users, Wand2 } from "lucide-react";
+import { Camera, ChevronDown, LogOut } from "lucide-react";
 import { AvatarCropModal } from "@/components/profile/avatar-crop-modal";
 import { LanguageSelector } from "@/components/profile/language-selector";
 import { PremiumBillingActions } from "@/components/profile/premium-billing-actions";
 import { TesterPromoResetButton } from "@/components/profile/tester-promo-reset-button";
 import { PremiumLabel } from "@/components/premium/premium-label";
 import { usePremium } from "@/hooks/use-premium";
-import { isSandraAdmin } from "@/lib/auth/sandra-admin";
 import { signOutUser } from "@/lib/auth/sign-out";
 import { PROFILE_COUNTRIES } from "@/lib/profile/profile-countries";
 import { createSupabaseClient } from "@/lib/supabaseClient";
@@ -78,7 +76,6 @@ export default function ProfilePage() {
   const [language, setLanguage] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [toast, setToast] = useState<ToastState>({
     visible: false,
@@ -110,7 +107,6 @@ export default function ProfilePage() {
 
         setUserId(user.id);
         setEmail(user.email ?? "");
-        setIsAdmin(isSandraAdmin(user.email));
 
         const { data: profile, error: profileError } = await supabase
           .from("profiles")
@@ -576,50 +572,6 @@ export default function ProfilePage() {
               <LogOut className="h-3.5 w-3.5" />
               {isSigningOut ? t("signingOut") : t("signOut")}
             </button>
-
-            {isAdmin ? (
-              <section className="rounded-2xl border border-[#4C6B3F]/15 bg-gradient-to-br from-[#F0F4ED] to-white p-4 shadow-sm">
-                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#4C6B3F]/80">
-                  Admin · IngeniaFood
-                </p>
-                <h2 className="mt-1 text-sm font-semibold text-stone-900">
-                  Panel de administración
-                </h2>
-                <p className="mt-1 text-xs leading-relaxed text-stone-500">
-                  Gestiona usuarios, importa recetas o edita el catálogo del escáner.
-                </p>
-                <div className="mt-4 space-y-2">
-                  <Link
-                    href="/admin/usuarios"
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-[#4C6B3F]/20 bg-white px-4 py-3 text-sm font-semibold text-[#4C6B3F] transition hover:bg-[#F0F4ED]"
-                  >
-                    <Users className="h-4 w-4" />
-                    Administrar usuarios
-                  </Link>
-                  <Link
-                    href="/admin/importar-receta"
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#4C6B3F] px-4 py-3 text-sm font-semibold text-white shadow-md transition hover:brightness-105"
-                  >
-                    <Wand2 className="h-4 w-4" />
-                    Importar receta
-                  </Link>
-                  <Link
-                    href="/admin/banco-imagenes"
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-[#4C6B3F]/20 bg-white px-4 py-3 text-sm font-semibold text-[#4C6B3F] transition hover:bg-[#F0F4ED]"
-                  >
-                    <Pencil className="h-4 w-4" />
-                    Banco de imágenes
-                  </Link>
-                  <Link
-                    href="/admin/catalogo-instagram"
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-[#4C6B3F]/20 bg-white px-4 py-3 text-sm font-semibold text-[#4C6B3F] transition hover:bg-[#F0F4ED]"
-                  >
-                    <Pencil className="h-4 w-4" />
-                    Editar catálogo
-                  </Link>
-                </div>
-              </section>
-            ) : null}
           </div>
         </div>
       </section>

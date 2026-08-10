@@ -119,8 +119,12 @@ export function translateSavedFilterChip(t: Translate, filter: string): string {
       return t("filterDinners");
     case "Snacks":
       return t("filterSnacks");
+    case "Postres":
+      return t("filterDesserts");
     case "Sin Harinas":
       return t("filterFlourless");
+    case "Ninguno":
+      return t("filterExtraNone");
     default:
       return filter;
   }

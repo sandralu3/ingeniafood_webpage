@@ -14,7 +14,9 @@
     "seed:dish-bank": "node scripts/seed-dish-image-bank.mjs",
     "sync:dish-bank": "node scripts/sync-dish-bank-urls.mjs",
     "sync:dish-bank-keywords": "node scripts/sync-dish-bank-keywords.mjs",
-    "audit:dish-catalog": "node scripts/audit-dish-catalog-urls.mjs"
+    "audit:dish-catalog": "node scripts/audit-dish-catalog-urls.mjs",
+    "audit:recipes-metadata": "npx --yes tsx scripts/enrich-recipes-metadata.ts",
+    "enrich:recipes-metadata": "npx --yes tsx scripts/enrich-recipes-metadata.ts --apply"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

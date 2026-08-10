@@ -9,6 +9,7 @@ import {
   CalendarDays,
   LogOut,
   ScanLine,
+  Shield,
   SlidersHorizontal,
   Sparkles,
   Target,
@@ -16,6 +17,8 @@ import {
   X,
   type LucideIcon
 } from "lucide-react";
+import { getBrowserAuthUser } from "@/lib/auth/get-browser-user";
+import { isSandraAdmin } from "@/lib/auth/sandra-admin";
 import { signOutUser } from "@/lib/auth/sign-out";
 import { IngeniaFoodLogo } from "@/components/shared/ingenia-food-logo";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
@@ -36,8 +39,10 @@ type DrawerItem = {
     | "parametros"
     | "scanner"
     | "saved"
-    | "profile";
+    | "profile"
+    | "admin";
   icon: LucideIcon;
+  adminOnly?: boolean;
 };
 
 const DRAWER_TRANSITION_MS = 300;
@@ -50,7 +55,8 @@ const drawerItems: DrawerItem[] = [
   { href: APP_ROUTES.parametros, labelKey: "parametros", icon: SlidersHorizontal },
   { href: APP_ROUTES.scanner, labelKey: "scanner", icon: ScanLine },
   { href: APP_ROUTES.guardadas, labelKey: "saved", icon: Bookmark },
-  { href: APP_ROUTES.perfil, labelKey: "profile", icon: UserRound }
+  { href: APP_ROUTES.perfil, labelKey: "profile", icon: UserRound },
+  { href: APP_ROUTES.admin, labelKey: "admin", icon: Shield, adminOnly: true }
 ];
 
 function isDrawerItemActive(pathname: string, href: string): boolean {
@@ -67,6 +73,23 @@ export function AppDrawer({ open, onClose }: AppDrawerProps) {
   const [isMounted, setIsMounted] = useState(open);
   const [isVisible, setIsVisible] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    void getBrowserAuthUser()
+      .then((user) => {
+        if (!active) return;
+        setIsAdmin(isSandraAdmin(user?.email));
+      })
+      .catch(() => {
+        if (!active) return;
+        setIsAdmin(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [open]);
 
   const handleSignOut = async () => {
     if (isSigningOut) return;
@@ -118,6 +141,8 @@ export function AppDrawer({ open, onClose }: AppDrawerProps) {
 
   if (!isMounted) return null;
 
+  const visibleItems = drawerItems.filter((item) => !item.adminOnly || isAdmin);
+
   return (
     <div
       className={cn(
@@ -161,7 +186,7 @@ export function AppDrawer({ open, onClose }: AppDrawerProps) {
         </div>
 
         <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-          {drawerItems.map(({ href, labelKey, icon: Icon }) => {
+          {visibleItems.map(({ href, labelKey, icon: Icon }) => {
             const isActive = isDrawerItemActive(pathname, href);
 
             return (

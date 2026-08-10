@@ -3,15 +3,30 @@
 import { useEffect, useState } from "react";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
+import {
+  RECIPE_MEAL_TYPES,
+  parseRecipeMealType,
+  type RecipeMealType
+} from "@/lib/recipes/premium-recipe-filters";
 import { cn } from "@/lib/utils";
+
+/** Tipos editables para el catálogo de Sandra (incluye snack por compatibilidad de filtros). */
+const SANDRA_MEAL_TYPE_OPTIONS = RECIPE_MEAL_TYPES.filter((item) =>
+  ["desayuno", "almuerzo", "cena", "postre", "snack"].includes(item.id)
+);
 
 type Props = {
   recipeId: string;
   initialIngredients: string[];
   initialSteps: string[];
+  initialMealType?: string | null;
   disabled?: boolean;
   className?: string;
-  onSaved?: (payload: { ingredients: string[]; steps: string[] }) => void;
+  onSaved?: (payload: {
+    ingredients: string[];
+    steps: string[];
+    mealType: RecipeMealType;
+  }) => void;
 };
 
 function normalizeList(items: string[]): string[] {
@@ -22,6 +37,7 @@ export function SandraRecipeContentEditor({
   recipeId,
   initialIngredients,
   initialSteps,
+  initialMealType = null,
   disabled = false,
   className,
   onSaved
@@ -33,6 +49,9 @@ export function SandraRecipeContentEditor({
   const [steps, setSteps] = useState<string[]>(
     initialSteps.length > 0 ? initialSteps : [""]
   );
+  const [mealType, setMealType] = useState<RecipeMealType>(
+    () => parseRecipeMealType(initialMealType) ?? "almuerzo"
+  );
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -40,7 +59,8 @@ export function SandraRecipeContentEditor({
   useEffect(() => {
     setIngredients(initialIngredients.length > 0 ? initialIngredients : [""]);
     setSteps(initialSteps.length > 0 ? initialSteps : [""]);
-  }, [initialIngredients, initialSteps, recipeId]);
+    setMealType(parseRecipeMealType(initialMealType) ?? "almuerzo");
+  }, [initialIngredients, initialSteps, initialMealType, recipeId]);
 
   const updateIngredient = (index: number, value: string) => {
     setIngredients((current) => current.map((item, i) => (i === index ? value : item)));
@@ -87,12 +107,14 @@ export function SandraRecipeContentEditor({
         body: JSON.stringify({
           recipeId,
           ingredients: nextIngredients,
-          steps: nextSteps
+          steps: nextSteps,
+          mealType
         })
       });
       const payload = (await response.json().catch(() => ({}))) as {
         error?: string;
         message?: string;
+        mealType?: string;
       };
 
       if (!response.ok) {
@@ -100,10 +122,16 @@ export function SandraRecipeContentEditor({
         return;
       }
 
+      const savedMealType = parseRecipeMealType(payload.mealType) ?? mealType;
       setIngredients(nextIngredients);
       setSteps(nextSteps);
+      setMealType(savedMealType);
       setSuccess(payload.message || t("adminEditSuccess"));
-      onSaved?.({ ingredients: nextIngredients, steps: nextSteps });
+      onSaved?.({
+        ingredients: nextIngredients,
+        steps: nextSteps,
+        mealType: savedMealType
+      });
       window.setTimeout(() => setSuccess(null), 2500);
     } catch {
       setError(t("adminEditError"));
@@ -125,6 +153,27 @@ export function SandraRecipeContentEditor({
           {t("adminEditHint")}
         </p>
       </div>
+
+      <label className="block space-y-1.5">
+        <span className="text-[10px] font-bold uppercase tracking-wide text-[#556B2F]">
+          {t("adminEditMealType")}
+        </span>
+        <select
+          value={mealType}
+          disabled={disabled || isSaving}
+          onChange={(event) => {
+            const next = parseRecipeMealType(event.target.value);
+            if (next) setMealType(next);
+          }}
+          className="w-full rounded-lg border border-stone-200 bg-white px-2.5 py-2 text-[12px] font-medium text-stone-800 outline-none focus:border-[#556B2F] focus:ring-1 focus:ring-[#556B2F]/30 disabled:opacity-60"
+        >
+          {SANDRA_MEAL_TYPE_OPTIONS.map((option) => (
+            <option key={option.id} value={option.id}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </label>
 
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-2">

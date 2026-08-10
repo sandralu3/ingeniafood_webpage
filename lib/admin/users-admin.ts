@@ -5,6 +5,13 @@ import {
   FREE_DAILY_SCAN_LIMIT,
   PREMIUM_DAILY_SCAN_LIMIT
 } from "@/lib/generations/constants";
+import {
+  isPremiumExpiryActive,
+  resolvePremiumAccess
+} from "@/lib/auth/premium-access";
+
+/** Estado del pase Premium 24h (código / bienvenida / referido). */
+export type AdminPass24hStatus = "none" | "available" | "active" | "expired";
 
 export type AdminUserListItem = {
   id: string;
@@ -20,18 +27,23 @@ export type AdminUserListItem = {
   canSelfTogglePremium: boolean;
   premiumTrialRemaining: number;
   premiumTrialClaimed: boolean;
+  /** Activó el pase 24h en algún momento (activo o ya caducado). */
+  hasUsed24hPass: boolean;
+  pass24hStatus: AdminPass24hStatus;
+  redeemedCode: string | null;
+  premiumExpiresAt: string | null;
 };
 
 const MAX_DAILY_SCAN_LIMIT = 500;
 
 const ADMIN_PROFILE_SELECT =
-  "id, full_name, daily_scan_limit, scans_used_today, scan_quota_date, created_at, is_premium, is_tester, can_self_toggle_premium, premium_trial_remaining, premium_trial_claimed_at" as const;
+  "id, full_name, daily_scan_limit, scans_used_today, scan_quota_date, created_at, is_premium, is_tester, role, premium_expires_at, has_promo_claimable, redeemed_code, promo_code_ref, can_self_toggle_premium, premium_trial_remaining, premium_trial_claimed_at" as const;
 
 const ADMIN_PROFILE_SELECT_LEGACY =
-  "id, full_name, daily_scan_limit, scans_used_today, scan_quota_date, created_at, is_premium, can_self_toggle_premium, premium_trial_remaining, premium_trial_claimed_at" as const;
+  "id, full_name, daily_scan_limit, scans_used_today, scan_quota_date, created_at, is_premium, role, premium_expires_at, has_promo_claimable, redeemed_code, promo_code_ref, can_self_toggle_premium, premium_trial_remaining, premium_trial_claimed_at" as const;
 
 const ADMIN_PROFILE_SELECT_LEGACY_NO_TOGGLE =
-  "id, full_name, daily_scan_limit, scans_used_today, scan_quota_date, created_at, is_premium, premium_trial_remaining, premium_trial_claimed_at" as const;
+  "id, full_name, daily_scan_limit, scans_used_today, scan_quota_date, created_at, is_premium, role, premium_expires_at, has_promo_claimable, redeemed_code, promo_code_ref, premium_trial_remaining, premium_trial_claimed_at" as const;
 
 type AdminProfileRow = {
   id: string;
@@ -42,6 +54,11 @@ type AdminProfileRow = {
   created_at: string;
   is_premium: boolean;
   is_tester?: boolean;
+  role?: string | null;
+  premium_expires_at?: string | null;
+  has_promo_claimable?: boolean | null;
+  redeemed_code?: string | null;
+  promo_code_ref?: string | null;
   can_self_toggle_premium?: boolean;
   premium_trial_remaining: number;
   premium_trial_claimed_at: string | null;
@@ -128,6 +145,23 @@ async function fetchAdminProfiles(
   );
 }
 
+function resolvePass24hStatus(profile: AdminProfileRow): AdminPass24hStatus {
+  if (isPremiumExpiryActive(profile.premium_expires_at)) {
+    return "active";
+  }
+  const redeemed =
+    typeof profile.redeemed_code === "string" && profile.redeemed_code.trim().length > 0
+      ? profile.redeemed_code.trim()
+      : null;
+  if (redeemed || profile.premium_expires_at) {
+    return "expired";
+  }
+  if (profile.has_promo_claimable === true) {
+    return "available";
+  }
+  return "none";
+}
+
 function buildAdminUserListItem(
   profile: AdminProfileRow,
   email: string,
@@ -136,6 +170,16 @@ function buildAdminUserListItem(
   const unlimitedScans = hasUnlimitedGenerations(email);
   const dailyScanLimit = profile.daily_scan_limit ?? 5;
   const scansUsedToday = computeScansUsedToday(profile.scans_used_today, profile.scan_quota_date);
+  const premiumAccess = resolvePremiumAccess(profile, { email });
+  const isPremium =
+    unlimitedScans || premiumAccess.isPaidPremium || premiumAccess.isCodePremium;
+  const pass24hStatus = resolvePass24hStatus(profile);
+  const redeemedCode =
+    typeof profile.redeemed_code === "string" && profile.redeemed_code.trim()
+      ? profile.redeemed_code.trim()
+      : typeof profile.promo_code_ref === "string" && profile.promo_code_ref.trim() && pass24hStatus !== "none"
+        ? profile.promo_code_ref.trim()
+        : null;
 
   return {
     id: profile.id,
@@ -148,11 +192,18 @@ function buildAdminUserListItem(
       : Math.max(0, dailyScanLimit - scansUsedToday),
     createdAt: profile.created_at ?? createdAtFallback,
     unlimitedScans,
-    isPremium: unlimitedScans || Boolean(profile.is_premium),
-    isTester: Boolean(profile.is_tester),
+    isPremium,
+    isTester: Boolean(profile.is_tester) || premiumAccess.isTester,
     canSelfTogglePremium: Boolean(profile.can_self_toggle_premium),
     premiumTrialRemaining: Math.max(0, profile.premium_trial_remaining ?? 0),
-    premiumTrialClaimed: Boolean(profile.premium_trial_claimed_at)
+    premiumTrialClaimed: Boolean(profile.premium_trial_claimed_at),
+    hasUsed24hPass: pass24hStatus === "active" || pass24hStatus === "expired",
+    pass24hStatus,
+    redeemedCode,
+    premiumExpiresAt:
+      typeof profile.premium_expires_at === "string" && profile.premium_expires_at.trim()
+        ? profile.premium_expires_at
+        : null
   };
 }
 

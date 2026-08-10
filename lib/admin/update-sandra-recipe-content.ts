@@ -1,5 +1,10 @@
 import { normalizeRecipeSteps } from "@/lib/recipes/sentence-case";
 import {
+  parseRecipeMealType,
+  type RecipeMealType
+} from "@/lib/recipes/premium-recipe-filters";
+import { normalizeRecipeTags } from "@/lib/recipes/recipe-tags";
+import {
   stringsToStructuredIngredients,
   structuredIngredientsToJson
 } from "@/lib/recipes/structured-ingredients";
@@ -17,19 +22,34 @@ function cleanLines(lines: unknown): string[] {
     .filter((line) => line.length > 0);
 }
 
+const MEAL_MOMENT_TAG = /^(desayuno|cena|snack|almuerzo|postre)$/i;
+
+function withMealTypeTag(tags: unknown, mealType: RecipeMealType): string[] {
+  const cleaned = normalizeRecipeTags(tags).filter((tag) => !MEAL_MOMENT_TAG.test(tag));
+  return [...cleaned, mealType];
+}
+
 /**
- * Actualiza ingredientes y pasos de una receta propia de Sandra (service role).
+ * Actualiza ingredientes, pasos y tipo de comida de una receta de Sandra (service role).
  */
 export async function updateSandraRecipeContent(params: {
   userId: string;
   recipeId: string;
   ingredients: string[];
   steps: string[];
-}): Promise<{ recipeId: string }> {
+  mealType: RecipeMealType;
+}): Promise<{ recipeId: string; mealType: RecipeMealType }> {
   const admin = getSupabaseAdminClient();
   const recipeId = params.recipeId.trim();
   if (!recipeId) {
     throw new Error("Falta el id de la receta.");
+  }
+
+  const mealType = parseRecipeMealType(params.mealType);
+  if (!mealType) {
+    throw new Error(
+      "Elige un tipo de comida válido (desayuno, almuerzo, cena, postre o snack)."
+    );
   }
 
   const ingredients = cleanLines(params.ingredients);
@@ -44,7 +64,7 @@ export async function updateSandraRecipeContent(params: {
 
   const { data: recipe, error: fetchError } = await admin
     .from("recipes")
-    .select("id, user_id, is_sandra_recipe, es_instagram, is_public")
+    .select("id, user_id, is_sandra_recipe, es_instagram, is_public, tags")
     .eq("id", recipeId)
     .maybeSingle();
 
@@ -73,6 +93,8 @@ export async function updateSandraRecipeContent(params: {
       ingredients: structured,
       steps,
       instructions: buildInstructions(steps),
+      meal_type: mealType,
+      tags: withMealTypeTag(recipe.tags, mealType),
       updated_at: new Date().toISOString()
     })
     .eq("id", recipe.id);
@@ -82,5 +104,5 @@ export async function updateSandraRecipeContent(params: {
     throw new Error("No pudimos guardar los cambios de la receta.");
   }
 
-  return { recipeId: recipe.id };
+  return { recipeId: recipe.id, mealType };
 }

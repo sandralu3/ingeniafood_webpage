@@ -151,10 +151,10 @@ export default function EditarCatalogoInstagramPage() {
             Este panel solo está disponible para la administradora de IngeniaFood.
           </p>
           <Link
-            href={APP_ROUTES.perfil}
+            href={APP_ROUTES.admin}
             className="mt-4 inline-flex rounded-full bg-[#4C6B3F] px-4 py-2 text-sm font-semibold text-white transition hover:brightness-105"
           >
-            Volver al perfil
+            Volver a Administración
           </Link>
         </div>
       </main>

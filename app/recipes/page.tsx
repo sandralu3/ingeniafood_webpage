@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Search, SlidersHorizontal } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { RecipeCard } from "@/components/recipes/RecipeCard";
+import { RecipesFilterSheet } from "@/components/recipes/recipes-filter-sheet";
 import { RecipeShareCaptureHost } from "@/components/share/recipe-share-capture-host";
 import { useShareRecipeImage } from "@/hooks/use-share-recipe-image";
 import { savedRecipeToShareable } from "@/lib/share/recipe-share-utils";
@@ -15,12 +16,19 @@ import {
 } from "@/lib/recipes/recipe-favorites";
 import { parseMacrosFromJson } from "@/lib/recipes/recipe-macros";
 import {
+  countActiveSavedRecipeFilters,
+  DEFAULT_SAVED_RECIPES_FILTER_STATE,
   filterSavedRecipes,
   getRecipeCardLabel,
+  isRestrictiveDietFilter,
   normalizeSearchText,
-  SAVED_RECIPE_FILTERS,
-  type SavedRecipeFilter
+  summarizeSavedRecipeFilters,
+  type SavedRecipeExtraFilter,
+  type SavedRecipeMealFilter,
+  type SavedRecipesFilterState
 } from "@/lib/recipes/saved-recipes-filter";
+import { preferredDietLabel } from "@/lib/nutrition/preferred-diet";
+import { fetchUserNutritionGoals } from "@/lib/nutrition/nutrition-profile";
 import {
   externalMealBadgeLabel,
   isExternalMeal,
@@ -44,8 +52,6 @@ import type { Database } from "@/types/database.types";
 
 type RecipeRow = Database["public"]["Tables"]["recipes"]["Row"];
 type LibraryTab = "saved" | "sandra" | "favorites" | "outside";
-
-const FILTER_CHIPS = SAVED_RECIPE_FILTERS;
 
 function isMissingOptionalRecipesColumnError(
   error: { code?: string; message?: string } | null,
@@ -89,9 +95,11 @@ export default function RecipesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeFilter, setActiveFilter] = useState<SavedRecipeFilter>("Todas");
-  const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
-  const filterMenuRef = useRef<HTMLDivElement>(null);
+  const [filters, setFilters] = useState<SavedRecipesFilterState>(
+    DEFAULT_SAVED_RECIPES_FILTER_STATE
+  );
+  const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
+  const [preferredDietLoaded, setPreferredDietLoaded] = useState(false);
   const [mostrarTodas, setMostrarTodas] = useState(false);
   const [activeTab, setActiveTab] = useState<LibraryTab>("saved");
   const [pendingPlanAssignment, setPendingPlanAssignment] =
@@ -99,6 +107,10 @@ export default function RecipesPage() {
   const [deletingRecipeId, setDeletingRecipeId] = useState<string | null>(null);
   const [togglingFavoriteId, setTogglingFavoriteId] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [enrichPending, setEnrichPending] = useState(0);
+  const [isEnrichingMine, setIsEnrichingMine] = useState(false);
+  const [enrichMineMessage, setEnrichMineMessage] = useState<string | null>(null);
+  const [recipesReloadKey, setRecipesReloadKey] = useState(0);
   const {
     captureRef,
     captureRecipe,
@@ -118,6 +130,67 @@ export default function RecipesPage() {
       setActiveTab(tab as LibraryTab);
     }
   }, [searchParams]);
+
+  const runEnrichMine = useCallback(async () => {
+    if (isEnrichingMine || enrichPending === 0) return;
+    setIsEnrichingMine(true);
+    setEnrichMineMessage(null);
+    setActionMessage(null);
+
+    try {
+      let remaining = enrichPending;
+      let totalUpdated = 0;
+
+      while (remaining > 0) {
+        const response = await fetch("/api/recipes/enrich-mine", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ limit: 40 })
+        });
+        const payload = (await response.json().catch(() => ({}))) as {
+          updated?: number;
+          remaining?: number;
+          processed?: number;
+          error?: string;
+          message?: string;
+        };
+
+        if (!response.ok) {
+          throw new Error(payload.error ?? t("enrichMineError"));
+        }
+
+        const batchUpdated = payload.updated ?? 0;
+        totalUpdated += batchUpdated;
+        remaining = payload.remaining ?? 0;
+        setEnrichPending(remaining);
+
+        if (remaining > 0) {
+          setEnrichMineMessage(
+            t("enrichMineProgress", {
+              updated: totalUpdated,
+              remaining
+            })
+          );
+        } else {
+          setEnrichMineMessage(t("enrichMineDone", { count: totalUpdated }));
+        }
+
+        // Evita bucles si un lote no avanza (p. ej. error de escritura).
+        if ((payload.processed ?? 0) === 0 || (batchUpdated === 0 && remaining > 0)) {
+          break;
+        }
+      }
+
+      setRecipesReloadKey((key) => key + 1);
+    } catch (error) {
+      setActionMessage(
+        error instanceof Error ? error.message : t("enrichMineError")
+      );
+      setEnrichMineMessage(null);
+    } finally {
+      setIsEnrichingMine(false);
+    }
+  }, [enrichPending, isEnrichingMine, t]);
 
   const handleShareRecipe = useCallback(
     (recipe: RecipeRow) => {
@@ -349,27 +422,47 @@ export default function RecipesPage() {
 
       setRecipes(merged);
       setIsLoading(false);
+
+      try {
+        const enrichResponse = await fetch("/api/recipes/enrich-mine");
+        const enrichPayload = (await enrichResponse.json().catch(() => ({}))) as {
+          pending?: number;
+        };
+        if (enrichResponse.ok) {
+          const pending = enrichPayload.pending ?? 0;
+          setEnrichPending(pending);
+          if (pending === 0) {
+            setEnrichMineMessage(null);
+          }
+        }
+      } catch {
+        // silencioso: el banner es opcional
+      }
     };
 
     void loadRecipes();
-  }, []);
+  }, [recipesReloadKey]);
 
   const filteredRecipes = useMemo(
     () =>
       filterSavedRecipes(recipes, {
         searchTerm,
-        categoryFilter: activeFilter
+        mealFilter: filters.mealFilter,
+        extraFilter: filters.extraFilter,
+        dietFilter: filters.dietFilter
       }),
-    [activeFilter, recipes, searchTerm]
+    [filters, recipes, searchTerm]
   );
 
   const filteredSandraRecipes = useMemo(
     () =>
       filterSavedRecipes(sandraRecipes, {
         searchTerm,
-        categoryFilter: activeFilter
+        mealFilter: filters.mealFilter,
+        extraFilter: filters.extraFilter,
+        dietFilter: filters.dietFilter
       }),
-    [activeFilter, sandraRecipes, searchTerm]
+    [filters, sandraRecipes, searchTerm]
   );
 
   const ownedFilteredRecipes = useMemo(
@@ -419,8 +512,15 @@ export default function RecipesPage() {
   }, [recipes, sandraRecipes]);
 
   const isSearchActive = normalizeSearchText(searchTerm).length > 0;
-  const isCategoryFilterActive = activeFilter !== "Todas";
+  const activeFilterCount = countActiveSavedRecipeFilters(filters);
+  const isCategoryFilterActive = activeFilterCount > 0;
   const shouldShowAllResults = mostrarTodas || isSearchActive || isCategoryFilterActive;
+  const filterSummary = summarizeSavedRecipeFilters(
+    filters,
+    (meal) => translateSavedFilterChip(t, meal),
+    (extra) => translateSavedFilterChip(t, extra),
+    (diet) => preferredDietLabel(diet)
+  );
 
   const activeRecipes =
     activeTab === "favorites"
@@ -439,17 +539,33 @@ export default function RecipesPage() {
   }, [isCategoryFilterActive, isSearchActive]);
 
   useEffect(() => {
-    if (!isFilterMenuOpen) return;
-
-    const handleClickOutside = (event: MouseEvent) => {
-      if (filterMenuRef.current && !filterMenuRef.current.contains(event.target as Node)) {
-        setIsFilterMenuOpen(false);
+    let active = true;
+    const loadPreferredDiet = async () => {
+      try {
+        const supabase = createSupabaseClient();
+        const {
+          data: { user }
+        } = await supabase.auth.getUser();
+        if (!user || !active) return;
+        const goals = await fetchUserNutritionGoals(user.id, supabase);
+        if (!active || preferredDietLoaded) return;
+        if (isRestrictiveDietFilter(goals.preferredDiet)) {
+          setFilters((current) => ({
+            ...current,
+            dietFilter: goals.preferredDiet
+          }));
+        }
+      } catch (error) {
+        console.error("[recipes] preferred diet", error);
+      } finally {
+        if (active) setPreferredDietLoaded(true);
       }
     };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isFilterMenuOpen]);
+    void loadPreferredDiet();
+    return () => {
+      active = false;
+    };
+  }, [preferredDietLoaded]);
 
   const renderRecipeCard = useCallback(
     (recipe: RecipeRow, index: number, animateFromIndex?: number) => {
@@ -577,9 +693,7 @@ export default function RecipesPage() {
 
     const emptyMessage =
       isCategoryFilterActive
-        ? t("noFilterResults", {
-            filter: translateSavedFilterChip(t, activeFilter)
-          })
+        ? t("noFilterResults")
         : activeTab === "favorites"
           ? t("favoritesEmpty")
           : activeTab === "outside"
@@ -622,7 +736,7 @@ export default function RecipesPage() {
   }, [
     activeRecipes,
     activeTab,
-    activeFilter,
+    filters,
     isCategoryFilterActive,
     errorMessage,
     filteredRecipes.length,
@@ -771,61 +885,41 @@ export default function RecipesPage() {
               />
             </label>
 
-            <div className="relative shrink-0" ref={filterMenuRef}>
-              <button
-                type="button"
-                onClick={() => setIsFilterMenuOpen((current) => !current)}
-                className="flex h-10 w-10 items-center justify-center rounded-full border border-stone-200/70 bg-white text-stone-600 shadow-sm transition-colors hover:bg-stone-50"
-                aria-label={t("filterAria")}
-                aria-expanded={isFilterMenuOpen}
-              >
-                <SlidersHorizontal size={16} strokeWidth={1.75} />
-              </button>
-
-              {isFilterMenuOpen ? (
-                <div className="absolute right-0 z-50 mt-2 w-48 animate-fade-in overflow-hidden rounded-2xl border border-stone-100 bg-white p-2 shadow-xl">
-                  {FILTER_CHIPS.map((chip) => {
-                    const isActive = chip === activeFilter;
-                    return (
-                      <button
-                        key={chip}
-                        type="button"
-                        onClick={() => {
-                          setActiveFilter(chip);
-                          setIsFilterMenuOpen(false);
-                        }}
-                        className={cn(
-                          "flex w-full rounded-xl px-3 py-2 text-left text-sm transition-colors",
-                          isActive
-                            ? "bg-[#F5EBE6] font-semibold text-[#C06A4F]"
-                            : "text-stone-600 hover:bg-stone-50"
-                        )}
-                      >
-                        {translateSavedFilterChip(t, chip)}
-                      </button>
-                    );
-                  })}
-                </div>
+            <button
+              type="button"
+              onClick={() => setIsFilterSheetOpen(true)}
+              className={cn(
+                "relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full border shadow-sm transition-colors",
+                isCategoryFilterActive
+                  ? "border-[#4C6B3F]/40 bg-[#F0F4ED] text-[#3e5219]"
+                  : "border-stone-200/70 bg-white text-stone-600 hover:bg-stone-50"
+              )}
+              aria-label={t("filterAria")}
+              aria-expanded={isFilterSheetOpen}
+            >
+              <SlidersHorizontal size={16} strokeWidth={1.75} />
+              {activeFilterCount > 0 ? (
+                <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#556B2F] px-1 text-[9px] font-bold text-white">
+                  {activeFilterCount}
+                </span>
               ) : null}
-            </div>
+            </button>
           </div>
 
           {showLibraryChrome ? libraryTabs : null}
         </div>
 
-        {isCategoryFilterActive ? (
+        {isCategoryFilterActive && filterSummary ? (
           <div className="flex items-center justify-between gap-2 rounded-xl border border-[#556B2F]/15 bg-[#F0F4ED] px-3 py-2">
             <p className="min-w-0 text-[12px] font-semibold text-[#3e5219]">
-              {t("filterActiveLabel", {
-                filter: translateSavedFilterChip(t, activeFilter)
-              })}
+              {t("filterActiveLabel", { filter: filterSummary })}
               <span className="ml-1.5 font-medium text-[#556B2F]/80">
                 · {t("filterActiveCount", { count: activeRecipes.length })}
               </span>
             </p>
             <button
               type="button"
-              onClick={() => setActiveFilter("Todas")}
+              onClick={() => setFilters(DEFAULT_SAVED_RECIPES_FILTER_STATE)}
               className="shrink-0 text-[11px] font-semibold text-[#556B2F] underline-offset-2 hover:underline"
             >
               {t("clearFilter")}
@@ -833,7 +927,50 @@ export default function RecipesPage() {
           </div>
         ) : null}
 
+        {enrichPending > 0 || (isEnrichingMine && enrichMineMessage) ? (
+          <div className="rounded-xl border border-[#556B2F]/20 bg-[#F7F9F4] px-3 py-2.5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="min-w-0 text-[12px] leading-snug text-[#3e5219]">
+                {enrichMineMessage ??
+                  t("enrichMineHint", { count: enrichPending })}
+              </p>
+              {enrichPending > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => void runEnrichMine()}
+                  disabled={isEnrichingMine}
+                  className="shrink-0 rounded-lg bg-[#556B2F] px-3 py-1.5 text-[11px] font-semibold text-white disabled:opacity-60"
+                >
+                  {isEnrichingMine ? t("enrichMineRunning") : t("enrichMineCta")}
+                </button>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+
         {pageContent}
+
+        <RecipesFilterSheet
+          open={isFilterSheetOpen}
+          value={filters}
+          onClose={() => setIsFilterSheetOpen(false)}
+          onApply={(next) => {
+            setFilters(next);
+            setIsFilterSheetOpen(false);
+          }}
+          labels={{
+            title: t("filterSheetTitle"),
+            mealSection: t("filterSheetMeal"),
+            dietSection: t("filterSheetDiet"),
+            extraSection: t("filterSheetExtra"),
+            dietAll: t("filterSheetDietAll"),
+            clear: t("filterSheetClear"),
+            apply: t("filterSheetApply"),
+            closeAria: t("filterSheetClose"),
+            mealLabel: (filter: SavedRecipeMealFilter) => translateSavedFilterChip(t, filter),
+            extraLabel: (filter: SavedRecipeExtraFilter) => translateSavedFilterChip(t, filter)
+          }}
+        />
 
       {shareErrorMessage ? (
         <p className="rounded-2xl border border-red-100 bg-red-50/80 px-4 py-3 text-sm text-red-700">
