@@ -76,44 +76,37 @@ function inferMealType(row: {
   tags: unknown;
 }): RecipeMealType {
   const resolved = resolveSavedRecipeMealFilter({
-    title: row.title,
+    title: row.title ?? "",
     meal_type: row.meal_type,
     tags: row.tags
   });
   return (resolved ? mealFilterToType(resolved) : null) ?? "almuerzo";
 }
 
+type RecipeBulkRow = {
+  id: string;
+  title: string;
+  user_id: string | null;
+  meal_type: string | null;
+  tags: unknown;
+  macros: unknown;
+  description: string | null;
+  is_sandra_recipe: boolean | null;
+};
+
+const RECIPE_BULK_SELECT =
+  "id,title,user_id,meal_type,tags,macros,description,is_sandra_recipe" as const;
+
 async function fetchAllRecipeRows(
   admin: AdminClient,
-  select: string,
   filterSandra: boolean | "any"
-): Promise<
-  Array<{
-    id: string;
-    title: string;
-    user_id: string | null;
-    meal_type: string | null;
-    tags: unknown;
-    macros: unknown;
-    description: string | null;
-    is_sandra_recipe: boolean | null;
-  }>
-> {
-  const rows: Array<{
-    id: string;
-    title: string;
-    user_id: string | null;
-    meal_type: string | null;
-    tags: unknown;
-    macros: unknown;
-    description: string | null;
-    is_sandra_recipe: boolean | null;
-  }> = [];
+): Promise<RecipeBulkRow[]> {
+  const rows: RecipeBulkRow[] = [];
 
   for (let from = 0; ; from += PAGE_SIZE) {
     let query = admin
       .from("recipes")
-      .select(select)
+      .select(RECIPE_BULK_SELECT)
       .order("created_at", { ascending: false })
       .range(from, from + PAGE_SIZE - 1);
 
@@ -127,7 +120,7 @@ async function fetchAllRecipeRows(
     if (error) {
       throw new Error(`No pudimos listar recetas: ${error.message}`);
     }
-    const batch = (data ?? []) as typeof rows;
+    const batch = (data ?? []) as unknown as RecipeBulkRow[];
     rows.push(...batch);
     if (batch.length < PAGE_SIZE) break;
   }
@@ -137,16 +130,8 @@ async function fetchAllRecipeRows(
 
 export async function auditRecipeMetadataGaps(admin: AdminClient): Promise<RecipeMetadataAudit> {
   const [sandraRows, ownedRows] = await Promise.all([
-    fetchAllRecipeRows(
-      admin,
-      "id,title,user_id,meal_type,tags,macros,description,is_sandra_recipe",
-      true
-    ),
-    fetchAllRecipeRows(
-      admin,
-      "id,title,user_id,meal_type,tags,macros,description,is_sandra_recipe",
-      false
-    )
+    fetchAllRecipeRows(admin, true),
+    fetchAllRecipeRows(admin, false)
   ]);
 
   const ownedPending = ownedRows.filter((row) => {
@@ -239,11 +224,7 @@ export async function enrichAllOwnedRecipesMissingMetadata(
   const dryRun = Boolean(options?.dryRun);
   const limit = options?.limit && options.limit > 0 ? options.limit : Infinity;
 
-  const rows = await fetchAllRecipeRows(
-    admin,
-    "id,title,user_id,meal_type,tags,macros,description,is_sandra_recipe",
-    false
-  );
+  const rows = await fetchAllRecipeRows(admin, false);
 
   const candidates = rows.filter((row) => {
     if (isScannerDraftRecipe(row as RecipeRow)) return false;
@@ -320,11 +301,7 @@ export async function enrichSandraRecipesMissingMealType(
   const dryRun = Boolean(options?.dryRun);
   const limit = options?.limit && options.limit > 0 ? options.limit : Infinity;
 
-  const rows = await fetchAllRecipeRows(
-    admin,
-    "id,title,user_id,meal_type,tags,macros,description,is_sandra_recipe",
-    true
-  );
+  const rows = await fetchAllRecipeRows(admin, true);
 
   const candidates = rows.filter((row) => !parseRecipeMealType(row.meal_type));
   const batch = candidates.slice(0, Number.isFinite(limit) ? limit : candidates.length);

@@ -308,7 +308,7 @@ export async function enrichMissingSandraRecipesBatch(params?: {
     }
   }
 
-  const nextExclude = [...exclude, ...failed.map((item) => item.id)];
+  const nextExclude = [...Array.from(exclude), ...failed.map((item) => item.id)];
   const remaining = await countSandraRecipesNeedingEnrichment(nextExclude);
 
   return {
