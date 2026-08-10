@@ -14,6 +14,7 @@ import {
   Square
 } from "lucide-react";
 import { RecipeCatalogThumbnail } from "@/components/recipes/recipe-catalog-thumbnail";
+import { AdminHubSkeleton, AdminListSkeleton } from "@/components/skeletons/admin-skeleton";
 import { useSandraAdminGate } from "@/hooks/use-sandra-admin-gate";
 import type { AdminSandraRecipeListItem } from "@/lib/admin/sandra-recipes-admin";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
@@ -355,14 +356,7 @@ export function AdminSandraRecipesView() {
   };
 
   if (authState === "loading") {
-    return (
-      <section className="flex min-h-[40vh] items-center justify-center px-4 py-10">
-        <p className="inline-flex items-center gap-2 text-sm text-stone-500">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          Comprobando acceso…
-        </p>
-      </section>
-    );
+    return <AdminHubSkeleton />;
   }
 
   if (authState === "denied") {
@@ -505,10 +499,7 @@ export function AdminSandraRecipesView() {
       ) : null}
 
       {isLoading ? (
-        <div className="flex items-center justify-center gap-2 py-12 text-sm text-stone-500">
-          <Loader2 className="h-4 w-4 animate-spin text-[#4C6B3F]" />
-          Cargando recetas de Sandra…
-        </div>
+        <AdminListSkeleton rows={8} />
       ) : filtered.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-stone-200 bg-white px-4 py-10 text-center">
           <p className="text-sm font-medium text-stone-700">

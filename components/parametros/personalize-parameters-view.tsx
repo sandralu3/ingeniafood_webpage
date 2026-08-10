@@ -5,6 +5,7 @@ import { Droplets, Loader2, SlidersHorizontal } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { NutritionGoalsForm } from "@/components/profile/nutrition-goals-form";
 import { NotificationPushSettings } from "@/components/profile/notification-push-settings";
+import { ParametrosSkeleton } from "@/components/skeletons/parametros-skeleton";
 import {
   PARAM_CHIP,
   PARAM_CONTROL,
@@ -152,10 +153,7 @@ export function PersonalizeParametersView() {
       </header>
 
       {isLoading ? (
-        <div className="flex items-center justify-center gap-2 rounded-2xl bg-white py-12 text-stone-400 shadow-sm">
-          <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-          <span className="text-[12px]">{t("loading")}</span>
-        </div>
+        <ParametrosSkeleton />
       ) : !userId ? (
         <p className="rounded-2xl bg-white p-4 text-[12px] text-stone-500 shadow-sm">
           {t("loginRequired")}

@@ -26,6 +26,8 @@ import { SandraRecipeContentEditor } from "@/components/recipes/sandra-recipe-co
 
 import { RecipeInstagramLink } from "@/components/recipes/recipe-instagram-link";
 
+import { RecipeDetailSkeleton } from "@/components/skeletons/recipe-detail-skeleton";
+
 import { PremiumUpgradeDialog } from "@/components/premium/premium-upgrade-dialog";
 
 import { AddToPlanSheet } from "@/components/scanner/add-to-plan-sheet";
@@ -1248,13 +1250,7 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
         </p>
       ) : null}
 
-      {isLoading ? (
-        <div className="space-y-4 animate-pulse">
-          <div className="aspect-video w-full bg-stone-100" />
-          <div className="h-10 w-3/4 rounded-lg bg-stone-100" />
-          <div className="h-48 rounded-2xl bg-stone-100" />
-        </div>
-      ) : null}
+      {isLoading ? <RecipeDetailSkeleton /> : null}
 
       {!isLoading && errorMessage ? (
         <p className="rounded-2xl border border-stone-100 bg-white p-5 text-sm text-stone-600 shadow-sm">

@@ -13,7 +13,8 @@ import { WaterGlassesTracker } from "@/components/hoy/water-glasses-tracker";
 import {
   HoyDailyChallengesSkeleton,
   HoyProgressBoardSkeleton,
-  HoyScanBannerSkeleton
+  HoyScanBannerSkeleton,
+  HoyTodayMenuSkeleton
 } from "@/components/skeletons/hoy-dashboard-skeleton";
 import { useHoyPageData } from "@/hooks/use-hoy-page-data";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
@@ -117,7 +118,7 @@ export function HoyDashboard() {
         )}
 
         {showPageSkeleton ? (
-          <div className="h-36 animate-pulse rounded-[22px] bg-stone-100/80" aria-hidden />
+          <HoyTodayMenuSkeleton />
         ) : (
           <TodayPlanNutrition
             data={data}

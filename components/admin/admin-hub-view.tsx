@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpen, Loader2, Pencil, ScanLine, Users, Wand2 } from "lucide-react";
+import { BookOpen, Pencil, ScanLine, Users, Wand2 } from "lucide-react";
+import { AdminHubSkeleton } from "@/components/skeletons/admin-skeleton";
 import { useSandraAdminGate } from "@/hooks/use-sandra-admin-gate";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
 
@@ -15,14 +16,7 @@ export function AdminHubView() {
   const authState = useSandraAdminGate(APP_ROUTES.admin);
 
   if (authState === "loading") {
-    return (
-      <section className="flex min-h-[40vh] items-center justify-center px-4 py-10">
-        <p className="inline-flex items-center gap-2 text-sm text-stone-500">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          Comprobando acceso…
-        </p>
-      </section>
-    );
+    return <AdminHubSkeleton />;
   }
 
   if (authState === "denied") {

@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { ChevronDown, Info, Loader2, Pencil, Plus, Target, Trash2 } from "lucide-react";
 import { CustomChallengeModal } from "@/components/hoy/custom-challenge-modal";
+import { RetosListSkeleton } from "@/components/skeletons/retos-skeleton";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   createCustomChallenge,
   deleteCustomChallenge,
@@ -354,7 +356,11 @@ export function ChallengesConfigView() {
               </span>
               <div className="min-w-0">
                 <p className="text-xs font-semibold text-stone-900">
-                  {isLoading ? tCommon("loading") : t("activeCount", { count: activeCount })}
+                  {isLoading ? (
+                    <Skeleton silent className="h-3 w-28 rounded" />
+                  ) : (
+                    t("activeCount", { count: activeCount })
+                  )}
                 </p>
                 <p className="text-[11px] text-stone-500">{t("activeHint")}</p>
               </div>
@@ -371,10 +377,7 @@ export function ChallengesConfigView() {
           ) : null}
 
           {isLoading ? (
-            <div className="flex items-center justify-center gap-2 py-8 text-xs text-stone-500">
-              <Loader2 className="h-4 w-4 animate-spin text-[#556B2F]" />
-              {t("loading")}
-            </div>
+            <RetosListSkeleton />
           ) : (
             <>
               <ChallengeSection

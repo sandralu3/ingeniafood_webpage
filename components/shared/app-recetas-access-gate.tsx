@@ -19,6 +19,7 @@ import {
 } from "@/lib/referral/referral";
 import { Header } from "@/components/shared/header";
 import { BottomNav } from "@/components/shared/bottom-nav";
+import { AppAccessGateSkeleton } from "@/components/skeletons/app-access-gate-skeleton";
 
 type AuthState = "loading" | "authenticated" | "unauthenticated";
 type BeforeInstallPromptEvent = Event & {
@@ -327,13 +328,7 @@ export function AppRecetasAccessGate({ children }: { children: React.ReactNode }
   };
 
   if (pendingAuthRedirect || !checkedStandalone) {
-    return (
-      <div
-        className="min-h-screen bg-[#FDFCFB]"
-        aria-busy="true"
-        suppressHydrationWarning
-      />
-    );
+    return <AppAccessGateSkeleton />;
   }
 
   if (!isStandalone && !allowWebAccess) {
@@ -348,13 +343,7 @@ export function AppRecetasAccessGate({ children }: { children: React.ReactNode }
   }
 
   if (authState === "loading") {
-    return (
-      <div
-        className="min-h-screen bg-[#FDFCFB]"
-        aria-busy="true"
-        suppressHydrationWarning
-      />
-    );
+    return <AppAccessGateSkeleton />;
   }
 
   if (authState === "unauthenticated") {

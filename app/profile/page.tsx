@@ -8,6 +8,7 @@ import { LanguageSelector } from "@/components/profile/language-selector";
 import { PremiumBillingActions } from "@/components/profile/premium-billing-actions";
 import { TesterPromoResetButton } from "@/components/profile/tester-promo-reset-button";
 import { PremiumLabel } from "@/components/premium/premium-label";
+import { ProfileSkeleton } from "@/components/skeletons/profile-skeleton";
 import { usePremium } from "@/hooks/use-premium";
 import { signOutUser } from "@/lib/auth/sign-out";
 import { PROFILE_COUNTRIES } from "@/lib/profile/profile-countries";
@@ -411,18 +412,7 @@ export default function ProfilePage() {
   };
 
   if (isLoading) {
-    return (
-      <section className="min-h-[calc(100dvh-10rem)] px-1 py-2">
-        <div className="mx-auto max-w-md animate-pulse space-y-6">
-          <div className="h-8 w-32 rounded-lg bg-stone-100" />
-          <div className="mx-auto h-28 w-28 rounded-full bg-stone-100" />
-          <div className="h-11 rounded-xl bg-stone-100" />
-          <div className="h-11 rounded-xl bg-stone-100" />
-          <div className="h-11 rounded-xl bg-stone-100" />
-          <div className="h-12 rounded-full bg-stone-100" />
-        </div>
-      </section>
-    );
+    return <ProfileSkeleton />;
   }
 
   return (

@@ -49,6 +49,8 @@ Tu misión no es “romper el código”, sino **vivir la app como una usuaria r
 
 > Si cierras la app instalada (PWA) y al reabrir te pide **login**, entra con tu correo: **no** deberías ver la landing pública («Muy pronto disponible en versión Beta»). Si ya tenías sesión, deberías volver directo a **Hoy**.
 
+Al cargar las pantallas principales (Hoy, Plan, Escáner, Recetas, Perfil, Retos, Parámetros) deberías ver un **esqueleto** con la forma de la pantalla (no solo un spinner o pantalla en blanco) hasta que lleguen los datos.
+
 #### ¿Olvidaste la contraseña?
 1. Pulsa **«¿Olvidaste tu contraseña?»**.
 2. En **Recuperar contraseña**, introduce tu correo.
