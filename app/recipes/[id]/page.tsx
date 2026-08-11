@@ -1382,7 +1382,11 @@ export default function RecipeDetailPage({ params }: RecipeDetailPageProps) {
                   {appliedFilters ? (
                     <RecipeAppliedFiltersBadges
                       filters={appliedFilters}
-                      omit={["mealType", "servings"]}
+                      omit={
+                        externalBadge
+                          ? ["mealType", "servings", "cuisineStyle", "complexity"]
+                          : ["mealType", "servings"]
+                      }
                     />
                   ) : null}
                 </>
