@@ -996,19 +996,19 @@ export function SnackRegisterModal({
                       "hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-50"
                     )}
                   >
-                    <Camera className="h-4 w-4 text-sky-700" strokeWidth={1.75} />
-                    <span className="text-[10px] font-semibold leading-tight text-sky-900">
+                    <Camera className="h-5 w-5 text-sky-700" strokeWidth={1.75} />
+                    <span className="text-[11px] font-semibold leading-snug text-sky-900">
                       {t.has("pickerActionScanPlateTitle")
                         ? t("pickerActionScanPlateTitle")
                         : "Tomar foto del plato"}
                     </span>
-                    <span className="text-[8px] leading-tight text-sky-800/70">
+                    <span className="text-[9px] leading-snug text-sky-800/80">
                       {t.has("pickerActionScanPlateSubtitle")
                         ? t("pickerActionScanPlateSubtitle")
                         : "Toma una foto y lo registramos por ti"}
                     </span>
                     {!isPremium ? (
-                      <span className="text-[8px] font-bold tracking-wide text-amber-800">
+                      <span className="text-[9px] font-bold tracking-wide text-amber-800">
                         👑 PRO
                       </span>
                     ) : null}
@@ -1026,13 +1026,13 @@ export function SnackRegisterModal({
                       "hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-50"
                     )}
                   >
-                    <PenLine className="h-4 w-4 text-violet-700" strokeWidth={1.75} />
-                    <span className="text-[10px] font-semibold leading-tight text-violet-900">
+                    <PenLine className="h-5 w-5 text-violet-700" strokeWidth={1.75} />
+                    <span className="text-[11px] font-semibold leading-snug text-violet-900">
                       {t.has("pickerActionQuickLogTitle")
                         ? t("pickerActionQuickLogTitle")
                         : "Describir lo que comí"}
                     </span>
-                    <span className="text-[8px] leading-tight text-violet-800/70">
+                    <span className="text-[9px] leading-snug text-violet-800/80">
                       {t.has("pickerActionQuickLogSubtitle")
                         ? t("pickerActionQuickLogSubtitle")
                         : "Añade tu comida en segundos"}
@@ -1054,7 +1054,7 @@ export function SnackRegisterModal({
 
                 <label className="relative block">
                   <Search
-                    className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400"
+                    className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-stone-400"
                     strokeWidth={1.5}
                     aria-hidden="true"
                   />
@@ -1069,7 +1069,7 @@ export function SnackRegisterModal({
                           ? t("searchPlaceholder")
                           : "Buscar snack..."
                     }
-                    className="w-full rounded-full border border-stone-200/80 bg-white py-2.5 pl-11 pr-4 text-sm text-stone-700 shadow-sm outline-none placeholder:text-stone-400 transition focus:border-[#4C6B3F] focus:ring-1 focus:ring-[#4C6B3F]"
+                    className="w-full rounded-full border border-stone-200/80 bg-white py-2 pl-9 pr-3 text-[11px] text-stone-700 shadow-sm outline-none placeholder:text-stone-400 transition focus:border-[#4C6B3F] focus:ring-1 focus:ring-[#4C6B3F]"
                   />
                 </label>
 

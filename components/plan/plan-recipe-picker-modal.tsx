@@ -349,7 +349,7 @@ export function PlanRecipePickerModal({
               <div className="space-y-2 border-b border-stone-200/80 bg-[#FAF8F5] px-5 py-2.5">
                 <div className="flex items-center gap-3">
                   <div className="h-px flex-1 bg-stone-300/70" />
-                  <p className="shrink-0 text-center text-[9px] font-bold uppercase tracking-[0.12em] text-stone-500">
+                  <p className="shrink-0 text-center text-[10px] font-bold uppercase tracking-[0.12em] text-stone-500">
                     {registerToggleLabel}
                   </p>
                   <div className="h-px flex-1 bg-stone-300/70" />
@@ -373,11 +373,11 @@ export function PlanRecipePickerModal({
                       canRegisterExternal ? "" : "sm:mx-auto sm:w-full sm:max-w-xs"
                     )}
                   >
-                    <WandSparkles className="h-4 w-4 text-[#556B2F]" strokeWidth={1.75} />
-                    <span className="text-[10px] font-semibold leading-tight text-[#3e5219]">
+                    <WandSparkles className="h-5 w-5 text-[#556B2F]" strokeWidth={1.75} />
+                    <span className="text-[11px] font-semibold leading-snug text-[#3e5219]">
                       {scanPantryTitle}
                     </span>
-                    <span className="text-[8px] leading-tight text-[#3e5219]/70">
+                    <span className="text-[9px] leading-snug text-[#3e5219]/75">
                       {scanPantrySubtitle}
                     </span>
                   </button>
@@ -393,15 +393,15 @@ export function PlanRecipePickerModal({
                           "hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-60"
                         )}
                       >
-                        <Camera className="h-4 w-4 text-sky-700" strokeWidth={1.75} />
-                        <span className="text-[10px] font-semibold leading-tight text-sky-900">
+                        <Camera className="h-5 w-5 text-sky-700" strokeWidth={1.75} />
+                        <span className="text-[11px] font-semibold leading-snug text-sky-900">
                           {scanPlateTitle}
                         </span>
-                        <span className="text-[8px] leading-tight text-sky-800/70">
+                        <span className="text-[9px] leading-snug text-sky-800/80">
                           {scanPlateSubtitle}
                         </span>
                         {!isPremium ? (
-                          <span className="text-[8px] font-bold tracking-wide text-amber-800">
+                          <span className="text-[9px] font-bold tracking-wide text-amber-800">
                             👑 PRO
                           </span>
                         ) : null}
@@ -416,15 +416,15 @@ export function PlanRecipePickerModal({
                           "hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-60"
                         )}
                       >
-                        <PenLine className="h-4 w-4 text-violet-700" strokeWidth={1.75} />
-                        <span className="text-[10px] font-semibold leading-tight text-violet-900">
+                        <PenLine className="h-5 w-5 text-violet-700" strokeWidth={1.75} />
+                        <span className="text-[11px] font-semibold leading-snug text-violet-900">
                           {quickLogTitle}
                         </span>
-                        <span className="text-[8px] leading-tight text-violet-800/70">
+                        <span className="text-[9px] leading-snug text-violet-800/80">
                           {quickLogSubtitle}
                         </span>
                         {!isPremium ? (
-                          <span className="text-[8px] font-bold tracking-wide text-amber-800">
+                          <span className="text-[9px] font-bold tracking-wide text-amber-800">
                             👑 PRO
                           </span>
                         ) : null}
@@ -434,10 +434,10 @@ export function PlanRecipePickerModal({
                 </div>
               </div>
 
-              <div className="space-y-3 px-5 py-3">
-                <div className="flex items-center gap-3">
+              <div className="space-y-1.5 px-5 pb-2 pt-1.5">
+                <div className="flex items-center gap-2.5">
                   <div className="h-px flex-1 bg-stone-200" />
-                  <p className="shrink-0 text-center text-[10px] font-bold uppercase tracking-[0.12em] text-stone-500">
+                  <p className="shrink-0 text-center text-[9px] font-bold uppercase tracking-[0.12em] text-stone-500">
                     {t.has("pickerBrowseSectionLabel")
                       ? t("pickerBrowseSectionLabel")
                       : "Buscar una receta"}
@@ -446,7 +446,7 @@ export function PlanRecipePickerModal({
                 </div>
 
               <div
-                className="mx-auto grid w-full max-w-md grid-cols-2 gap-1 rounded-2xl bg-stone-100 p-1"
+                className="mx-auto grid w-full max-w-md grid-cols-2 gap-0.5 rounded-xl bg-stone-100 p-0.5"
                 role="tablist"
                 aria-label={t.has("pickerTabsAria") ? t("pickerTabsAria") : "Origen de recetas"}
               >
@@ -456,15 +456,15 @@ export function PlanRecipePickerModal({
                   aria-selected={activeTab === "system"}
                   onClick={() => setActiveTab("system")}
                   className={cn(
-                    "inline-flex items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-[11px] font-semibold transition",
+                    "inline-flex items-center justify-center gap-1 rounded-lg px-1.5 py-1.5 text-[10px] font-semibold transition",
                     activeTab === "system"
                       ? "bg-white text-[#3e5219] shadow-sm"
                       : "text-stone-500 hover:text-stone-700"
                   )}
                 >
-                  <Sparkles className="h-3.5 w-3.5 shrink-0" strokeWidth={1.9} />
+                  <Sparkles className="h-3 w-3 shrink-0" strokeWidth={1.9} />
                   <span className="truncate">{systemTabLabel}</span>
-                  <span className="rounded-full bg-stone-200/80 px-1.5 text-[9px] font-bold text-stone-600">
+                  <span className="rounded-full bg-stone-200/80 px-1 text-[8px] font-bold text-stone-600">
                     {systemRecipes.length}
                   </span>
                 </button>
@@ -474,24 +474,24 @@ export function PlanRecipePickerModal({
                   aria-selected={activeTab === "saved"}
                   onClick={() => setActiveTab("saved")}
                   className={cn(
-                    "inline-flex items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-[11px] font-semibold transition",
+                    "inline-flex items-center justify-center gap-1 rounded-lg px-1.5 py-1.5 text-[10px] font-semibold transition",
                     activeTab === "saved"
                       ? "bg-white text-[#3e5219] shadow-sm"
                       : "text-stone-500 hover:text-stone-700"
                   )}
                 >
-                  <BookOpen className="h-3.5 w-3.5 shrink-0" strokeWidth={1.9} />
+                  <BookOpen className="h-3 w-3 shrink-0" strokeWidth={1.9} />
                   <span className="truncate">{savedTabLabel}</span>
-                  <span className="rounded-full bg-stone-200/80 px-1.5 text-[9px] font-bold text-stone-600">
+                  <span className="rounded-full bg-stone-200/80 px-1 text-[8px] font-bold text-stone-600">
                     {recipes.length}
                   </span>
                 </button>
               </div>
 
-              <div className="flex w-full items-center gap-2">
+              <div className="flex w-full items-center gap-1.5">
                 <label className="relative flex-1">
                   <Search
-                    className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400"
+                    className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-stone-400"
                     strokeWidth={1.5}
                     aria-hidden="true"
                   />
@@ -500,7 +500,7 @@ export function PlanRecipePickerModal({
                     value={searchTerm}
                     onChange={(event) => setSearchTerm(event.target.value)}
                     placeholder={t("searchPlaceholder")}
-                    className="w-full rounded-full border border-stone-200/80 bg-white py-2.5 pl-11 pr-4 text-sm text-stone-700 shadow-sm outline-none placeholder:text-stone-400 transition focus:border-[#4C6B3F] focus:ring-1 focus:ring-[#4C6B3F]"
+                    className="h-7 w-full rounded-full border border-stone-200/80 bg-white py-0 pl-8 pr-3 text-[11px] leading-none text-stone-700 shadow-sm outline-none placeholder:text-stone-400 transition focus:border-[#4C6B3F] focus:ring-1 focus:ring-[#4C6B3F]"
                   />
                 </label>
 
@@ -509,7 +509,7 @@ export function PlanRecipePickerModal({
                     type="button"
                     onClick={() => setIsFilterMenuOpen((current) => !current)}
                     className={cn(
-                      "relative flex h-10 w-10 items-center justify-center rounded-full border shadow-sm transition-colors",
+                      "relative flex h-7 w-7 items-center justify-center rounded-full border shadow-sm transition-colors",
                       isCategoryFilterActive
                         ? "border-[#4C6B3F]/40 bg-[#F0F4ED] text-[#3e5219]"
                         : "border-stone-200/70 bg-white text-stone-600 hover:bg-stone-50"
@@ -517,16 +517,16 @@ export function PlanRecipePickerModal({
                     aria-label={t("filterRecipesAria")}
                     aria-expanded={isFilterMenuOpen}
                   >
-                    <SlidersHorizontal size={16} strokeWidth={1.75} />
+                    <SlidersHorizontal size={13} strokeWidth={1.75} />
                     {isCategoryFilterActive ? (
-                      <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#556B2F] px-1 text-[9px] font-bold text-white">
+                      <span className="absolute -right-0.5 -top-0.5 flex h-3 min-w-3 items-center justify-center rounded-full bg-[#556B2F] px-0.5 text-[7px] font-bold text-white">
                         1
                       </span>
                     ) : null}
                   </button>
 
                   {isFilterMenuOpen ? (
-                    <div className="absolute right-0 z-50 mt-2 w-48 animate-fade-in overflow-hidden rounded-2xl border border-stone-100 bg-white p-2 shadow-xl">
+                    <div className="absolute right-0 z-50 mt-1.5 w-44 animate-fade-in overflow-hidden rounded-xl border border-stone-100 bg-white p-1.5 shadow-xl">
                       {SAVED_RECIPE_FILTERS.map((chip) => {
                         const isActive = chip === activeFilter;
                         return (
@@ -538,7 +538,7 @@ export function PlanRecipePickerModal({
                               setIsFilterMenuOpen(false);
                             }}
                             className={cn(
-                              "flex w-full rounded-xl px-3 py-2 text-left text-sm transition-colors",
+                              "flex w-full rounded-lg px-2.5 py-1.5 text-left text-xs transition-colors",
                               isActive
                                 ? "bg-[#F5EBE6] font-semibold text-[#C06A4F]"
                                 : "text-stone-600 hover:bg-stone-50"
@@ -554,12 +554,12 @@ export function PlanRecipePickerModal({
               </div>
 
               {isCategoryFilterActive && filterSummary ? (
-                <div className="flex items-center justify-between gap-2 rounded-xl border border-[#556B2F]/15 bg-[#F0F4ED] px-3 py-2">
-                  <p className="min-w-0 text-[12px] font-semibold text-[#3e5219]">
+                <div className="flex items-center justify-between gap-2 rounded-lg border border-[#556B2F]/15 bg-[#F0F4ED] px-2.5 py-1">
+                  <p className="min-w-0 truncate text-[10px] font-semibold text-[#3e5219]">
                     {t.has("filterActiveLabel")
                       ? t("filterActiveLabel", { filter: filterSummary })
                       : `Filtro: ${filterSummary}`}
-                    <span className="ml-1.5 font-medium text-[#556B2F]/80">
+                    <span className="ml-1 font-medium text-[#556B2F]/80">
                       ·{" "}
                       {t.has("filterActiveCount")
                         ? t("filterActiveCount", { count: activeRecipes.length })
@@ -569,7 +569,7 @@ export function PlanRecipePickerModal({
                   <button
                     type="button"
                     onClick={() => setActiveFilter("Todas")}
-                    className="shrink-0 text-[11px] font-semibold text-[#556B2F] underline-offset-2 hover:underline"
+                    className="shrink-0 text-[10px] font-semibold text-[#556B2F] underline-offset-2 hover:underline"
                   >
                     {clearFilterLabel}
                   </button>
@@ -580,10 +580,10 @@ export function PlanRecipePickerModal({
 
             <div
               ref={listScrollRef}
-              className="min-h-0 flex-1 overflow-y-auto bg-[#FAF8F5] px-5 py-4"
+              className="min-h-0 flex-1 overflow-y-auto bg-[#FAF8F5] px-5 py-2.5"
             >
               {errorMessage ? (
-                <p role="alert" className="mb-3 rounded-2xl bg-red-50 px-3 py-2 text-sm text-red-700">
+                <p role="alert" className="mb-2 rounded-2xl bg-red-50 px-3 py-2 text-sm text-red-700">
                   {errorMessage}
                 </p>
               ) : null}
@@ -591,10 +591,10 @@ export function PlanRecipePickerModal({
               {isLoading ? (
                 <PlanRecipePickerSkeleton />
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-2">
                   <section>
-                    <div className="mb-2.5 flex items-center justify-between gap-2">
-                      <p className="text-[12px] font-semibold text-stone-800">{activeSectionLabel}</p>
+                    <div className="mb-1.5 flex items-center justify-between gap-2">
+                      <p className="text-[11px] font-semibold text-stone-800">{activeSectionLabel}</p>
                     </div>
 
                     {showEmptySaved ? (
