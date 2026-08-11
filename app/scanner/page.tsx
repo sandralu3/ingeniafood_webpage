@@ -297,6 +297,7 @@ export default function ScannerPage() {
   const [pendingPlanAssignment, setPendingPlanAssignment] = useState<PendingPlanAssignment | null>(
     null
   );
+  const [showPendingAssignConfirm, setShowPendingAssignConfirm] = useState(false);
   const [coachRecipeIdea, setCoachRecipeIdea] = useState<string | null>(null);
   const recipeIdeaRef = useRef<string | null>(null);
   const pendingAutoGenerateRef = useRef(false);
@@ -1367,7 +1368,7 @@ export default function ScannerPage() {
     selectedRecipeIndex
   ]);
 
-  const handleSaveRecipe = async () => {
+  const finishSaveRecipe = async (pendingMode: "assign" | "saveOnly" | "none") => {
     if (!recipe || isSavingRecipe || isRecipeSaved || isGeneratingDishPhoto) return;
     setIsSavingRecipe(true);
     setSaveErrorMessage(null);
@@ -1390,8 +1391,12 @@ export default function ScannerPage() {
         return;
       }
 
-      const pending = readPendingPlanAssignment();
-      if (pending) {
+      if (pendingMode === "saveOnly") {
+        clearPendingPlanAssignment();
+        setPendingPlanAssignment(null);
+      }
+
+      if (pendingMode === "assign") {
         const assignment = await completePendingPlanAssignment(user.id, recipeId);
         setPendingPlanAssignment(null);
 
@@ -1428,6 +1433,19 @@ export default function ScannerPage() {
     } finally {
       setIsSavingRecipe(false);
     }
+  };
+
+  const handleSaveRecipe = async () => {
+    if (!recipe || isSavingRecipe || isRecipeSaved || isGeneratingDishPhoto) return;
+
+    const pending = readPendingPlanAssignment();
+    if (pending) {
+      setPendingPlanAssignment(pending);
+      setShowPendingAssignConfirm(true);
+      return;
+    }
+
+    await finishSaveRecipe("none");
   };
 
   const displayRecipe = useMemo(() => {
@@ -1774,6 +1792,47 @@ export default function ScannerPage() {
               const override = pendingIngredientsOverrideRef.current ?? undefined;
               pendingIngredientsOverrideRef.current = null;
               void generarReceta({ useDishPhoto: false, ingredientsOverride: override });
+            }}
+          />
+          <ConfirmDialog
+            open={showPendingAssignConfirm}
+            onOpenChange={setShowPendingAssignConfirm}
+            title={
+              t.has("pendingAssignConfirmTitle")
+                ? t("pendingAssignConfirmTitle", {
+                    slot: pendingPlanAssignment
+                      ? formatPendingPlanSlot(pendingPlanAssignment, tPlan, t)
+                      : ""
+                  })
+                : `¿Añadir al ${
+                    pendingPlanAssignment
+                      ? formatPendingPlanSlot(pendingPlanAssignment, tPlan, t)
+                      : "plan"
+                  }?`
+            }
+            description={
+              t.has("pendingAssignConfirmDescription")
+                ? t("pendingAssignConfirmDescription")
+                : "Puedes añadirla a este hueco del plan o guardarla solo en tu recetario."
+            }
+            confirmLabel={
+              t.has("pendingAssignConfirmYes")
+                ? t("pendingAssignConfirmYes")
+                : "Añadir al plan"
+            }
+            cancelLabel={
+              t.has("pendingAssignConfirmSaveOnly")
+                ? t("pendingAssignConfirmSaveOnly")
+                : "Solo guardar"
+            }
+            isLoading={isSavingRecipe}
+            onConfirm={() => {
+              setShowPendingAssignConfirm(false);
+              void finishSaveRecipe("assign");
+            }}
+            onCancel={() => {
+              setShowPendingAssignConfirm(false);
+              void finishSaveRecipe("saveOnly");
             }}
           />
           </div>

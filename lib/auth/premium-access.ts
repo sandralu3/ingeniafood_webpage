@@ -50,7 +50,7 @@ export type PremiumAccess = {
   premiumTrialRemaining: number;
   /** Histórico de reclamación; ya no habilita funciones. */
   premiumTrialClaimed: boolean;
-  /** admin/tester permanente, Stripe, o código 24h vigente. */
+  /** admin permanente, Stripe/Paddle, o código 24h vigente. Testers no son Premium solo por rol. */
   canUsePremiumFeatures: boolean;
   /** Siempre false: la simulación de prueba fue retirada. */
   canSimulatePremiumTrial: boolean;
@@ -103,10 +103,10 @@ export function resolveUserRole(
 ): UserRole {
   if (isSandraAdmin(email)) return "admin";
   const raw = typeof profile?.role === "string" ? profile.role.trim().toLowerCase() : "";
-  if (raw === "admin" || raw === "tester" || raw === "user") {
-    return raw;
-  }
-  if (profile?.is_tester === true) return "tester";
+  if (raw === "admin") return "admin";
+  // is_tester gana sobre role "user" (asignaciones admin que solo marcaban el flag).
+  if (profile?.is_tester === true || raw === "tester") return "tester";
+  if (raw === "user") return "user";
   return "user";
 }
 
@@ -122,9 +122,10 @@ export function isPremiumExpiryActive(
 
 /**
  * Resuelve acceso Premium:
- * - admin / tester → Premium permanente
- * - is_premium sin timer → Stripe / flag de pago
+ * - admin → Premium permanente
+ * - is_premium sin timer → Stripe/Paddle / flag de pago
  * - premium_expires_at vigente → Premium temporal (código o referido activado)
+ * - tester → NO es Premium automático: debe activar pase 24h o suscribirse (para poder probar el flujo)
  * - si Date.now() > premiumExpiresAt → Free automáticamente (aunque is_premium siga true)
  */
 export function resolvePremiumAccess(
@@ -134,7 +135,8 @@ export function resolvePremiumAccess(
   const now = options?.now ?? new Date();
   const role = resolveUserRole(profile, options?.email);
   const isTester = role === "admin" || role === "tester";
-  const isPermanentPremium = isTester;
+  /** Solo admin tiene Premium permanente por rol. Testers prueban claim/suscripción. */
+  const isPermanentPremium = role === "admin";
   const premiumExpiresAt =
     typeof profile?.premium_expires_at === "string" && profile.premium_expires_at.trim()
       ? profile.premium_expires_at
@@ -164,7 +166,7 @@ export function resolvePremiumAccess(
     ? 0
     : Math.max(
         0,
-        profile?.openai_photo_credits ?? (isPermanentPremium ? 1 : 0)
+        profile?.openai_photo_credits ?? (isPermanentPremium || isTester ? 1 : 0)
       );
 
   return {

@@ -1,7 +1,7 @@
 # 📱 Guía de Pruebas Beta — IngeniaFood
 
 > Documento para testers. Lenguaje de **pantalla**: lo que ves, tocas y experimentas.  
-> Última actualización: **10 agosto 2026**
+> Última actualización: **11 agosto 2026** (copy: Describir lo que comí, no «comida rápida»)
 
 ---
 
@@ -187,8 +187,8 @@ En la lista, cada tarjeta debería mostrar:
    - El detalle es el mismo layout que el resto (hero, ingredientes, preparación, tip…).
    - Si tiene reel, verás **«Ver en Instagram»** sobre la foto — ábrelo y comprueba que lleva al Instagram correcto.
    - **Admin**: en «Editar receta» puedes cambiar el **tipo de comida** (desayuno / almuerzo / cena / postre / snack), además de ingredientes y pasos. Tras guardar, comprueba que el filtro de Sandra y el badge del detalle reflejan el nuevo tipo.
-4. Desde el **Plan** → **«Elegir receta»**, en el pie o estado vacío prueba el botón **«Recetas de Sandra»**:
-   - Te lleva a **Recetas → Sandra** con un aviso de asignación al hueco.
+4. Desde el **Plan** → **«Elegir receta»**, abre la pestaña **«Mis recetas»** (incluye las de Sandra) o ve a **Recetas → Sandra** desde la barra inferior:
+   - Si llegaste desde el escáner con un hueco pendiente, verás un aviso de asignación.
    - Abre una receta y pulsa **«Añadir a este hueco»** (o el icono de calendario) para asignarla al plan.
 5. Confirma que la receta aparece en el día del Plan.
 
@@ -197,8 +197,8 @@ Disponible desde el **Plan**, al elegir o cambiar un plato (en **hoy** o **días
 
 1. Ve a **Plan** y selecciona el día de hoy (o uno pasado).
 2. En un hueco vacío pulsa **«Elegir receta»** (o el lápiz de **Cambiar plato**).
-3. Busca el bloque **«Registrar lo que comí»**.
-4. Pulsa **«📸 Escanear plato servido (IA)»** (badge **👑 PRO**).
+3. Encima de los tabs: bloque **«¿Ya comiste? Regístralo aquí»** (3 tarjetas de acción).
+4. Pulsa **«Tomar foto del plato»** (badge **👑 PRO**).
 5. Elige **Tomar Foto** o **Elegir de la Galería**.
 6. Pulsa **Analizar alimentos**.
 7. En **«Revisa los alimentos»**, ajusta cantidades si hace falta.
@@ -207,20 +207,28 @@ Disponible desde el **Plan**, al elegir o cambiar un plato (en **hoy** o **días
 
 > Sin Premium (ni pase 24h), debe abrirse el diálogo **«Función Premium»** en lugar de completar el flujo.
 
-#### D) Registrar comida rápida (función PRO)
-1. Desde el mismo bloque **«Registrar lo que comí»**.
-2. Pulsa **«✍️ Registrar comida rápida»** (**👑 PRO**).
-3. Describe qué comiste (ej.: *pechuga, arroz, ensalada*).
-4. Sigue la revisión de alimentos y guarda en el plan.
-5. Verifica el plato en **Plan** y, si aplica, en **Recetas → Registradas** (debe respetar filtros de dieta y el tipo de comida del hueco del plan).
+#### D) Describir lo que comí (función PRO)
+1. Desde el mismo bloque **«¿Ya comiste? Regístralo aquí»**.
+2. Pulsa **«Describir lo que comí»** (**👑 PRO**).
+3. Describe qué comiste separando por **comas** (ej.: *arroz, carne molida, zanahoria, papa, cebolla*).
+4. Pulsa **Analizar alimentos** → debe abrir la revisión (no un error de «imagen» si el texto es comida real).
+5. En **Revisa los alimentos**, comprueba o corrige **cantidad y unidad** de cada ítem: el total de **kcal** debe actualizarse al cambiar (no quedarse “pegado” a un número raro de la IA).
+6. Guarda en el plan y verifica el plato en **Plan** y, si aplica, en **Recetas → Registradas**.
+
+**Qué probar (calorías)**
+- [ ] Overnight oats / desayuno con avena en ml o taza: kcal razonables (no ~600 solo por 125 ml de avena)
+- [ ] Banano/guineo + mantequilla de almendras/maní: kcal cercanas a lo esperado (~150–200 si es ½ pieza + ~17 g)
+- [ ] Al cambiar cantidad o unidad en la revisión, suben o bajan las kcal del ítem y el total
 
 #### E) Snacks / tentempié
 1. En **Plan**, baja a **🍪 Snacks / Tentempié**.
 2. Si hay un snack registrado, verás su tarjeta (foto, título, kcal) con una **X** para descartarlo.
-3. Usa los **chips rápidos** grises (`+ Manzana`, etc.).
-4. Pulsa el botón verde musgo oscuro tipo  
+3. Pulsa el botón verde musgo oscuro tipo  
    **«✨ + Registrar snack • XXX kcal»** (o sin kcal si aún no hay snacks).
-5. Prueba registro por texto y, si eres Premium, **foto instantánea**.
+4. En el modal (mismo estilo que registrar comida):
+   - Arriba: **Tomar foto del plato** y **Describir lo que comí**
+   - Debajo: **Snacks de Sandra** en **rejilla de tarjetas** (foto, título, kcal), con **barra de buscar**
+5. Prueba una tarjeta de Sandra, registro por texto y, si eres Premium, **foto**.
 6. Elimina un snack con la **X** y confirma que desaparece.
 
 **Qué probar**
@@ -229,10 +237,11 @@ Disponible desde el **Plan**, al elegir o cambiar un plato (en **hoy** o **días
 - [ ] Escáner **sin** pestaña «Desde Instagram» (solo despensa)
 - [ ] Límite diario: Free **5** / Premium o pase 24h **20**
 - [ ] Recetas → Sandra: mismas tarjetas + detalle + «Ver en Instagram» sobre la foto
-- [ ] Plan → «Recetas de Sandra» → asignar al hueco
-- [ ] Escaneo de plato servido (con y sin Premium) desde **Registrar lo que comí**
-- [ ] Comida rápida (con y sin Premium)
-- [ ] Registrar y borrar snacks (chips + botón CTA)
+- [ ] Plan → Mis recetas / Recetas → Sandra → asignar al hueco
+- [ ] Escaneo de plato servido (con y sin Premium) desde **¿Ya comiste? Regístralo aquí**
+- [ ] **Describir lo que comí** (con y sin Premium): texto con varios alimentos (incl. **cebolla**) se analiza bien
+- [ ] Tras analizar: editar cantidad/unidad actualiza kcal; overnight oats y banano+mantequilla con totales razonables
+- [ ] Registrar snack: foto / describir / tarjetas **Snacks de Sandra** + buscar + borrar
 
 ---
 
@@ -250,18 +259,28 @@ Disponible desde el **Plan**, al elegir o cambiar un plato (en **hoy** o **días
 
 #### Asignar recetas
 1. En un hueco vacío de **☀️ Desayuno**, **🌤️ Almuerzo** o **🌙 Cena**, pulsa **«Elegir receta»**.
-2. En **«Elige una receta»** prueba:
-   - Pestaña **«Sugeridas»**
-   - Pestaña **«Mis recetas»**
-   - Buscador y filtros
-   - En el pie (o si tu libro está vacío): **«Escanear despensa»** y **«Recetas de Sandra»**
-3. Selecciona un plato y confirma la tarjeta:
+2. En el sheet verás el título del hueco (ej. **«Almuerzo del Martes»**) y:
+   - Pestañas **«Sugeridas»** / **«Mis recetas»**
+   - Buscador + icono de filtros
+   - Según el tab activo, rejilla **3 columnas**:
+     - Tab **Sugeridas** → **✨ Sugeridas de Sandra**
+     - Tab **Mis recetas** → **📖 Mis Recetas**
+   - Mientras carga: skeleton de tarjetas (no spinner solo)
+   - Encima de los tabs, bloque separado (fondo crema): **«¿Ya comiste? Regístralo aquí»** con 3 acciones en este orden:
+     1. **Escanear despensa**
+     2. **Tomar foto del plato**
+     3. **Describir lo que comí**
+   - Debajo, sección **«Buscar una receta»** (tabs + buscador + filtros)
+   - Pie fijo: aviso ámbar con icono (i): al guardar se asignará a ese hueco
+3. Si pulsas **«Escanear despensa»**, confirma **«Continuar»** y genera/guarda una receta:
+   - Al **Guardar**, aparece **«¿Añadir al …?»** → **«Añadir al plan»** o **«Solo guardar»**
+4. Si eliges un plato de la rejilla, confirma la tarjeta en el plan:
    - Foto, título
    - **kcal** (icono llama) y **tiempo** (reloj)
    - **Badges de macros**: `…g P` (verde), `…g C` (naranja), `…g G` (rosa), si hay datos
    - Botones circulares de **check (Ya comí)**, **lápiz** y **papelera** (el check solo en **hoy** o **días pasados**)
-4. Con una comida ya puesta, pulsa el botón píldora con borde punteado **«Agregar complemento»**.
-5. El complemento debe verse **anidado debajo** (fondo crema claro):
+5. Con una comida ya puesta, pulsa el botón píldora con borde punteado **«Agregar complemento»**.
+6. El complemento debe verse **anidado debajo** (fondo crema claro):
    - Etiqueta **«Agregado de Complemento:»**
    - Miniatura, nombre, kcal y acciones editar/eliminar
 
@@ -280,7 +299,7 @@ Disponible desde el **Plan**, al elegir o cambiar un plato (en **hoy** o **días
 
 #### Sobre «Ya comí» y el plan
 - **«Ya comí»** confirma que cocinaste/comiste el plato del plan: la receta **sigue visible**, pero **sale de la lista de compra**.
-- **«Registrar lo que comí»** (foto o texto) es para poner lo que comiste de verdad cuando no era (solo) la receta planificada; tampoco entra en la lista de compra.
+- **«¿Ya comiste? Regístralo aquí»** (foto o texto) es para poner lo que comiste de verdad cuando no era (solo) la receta planificada; tampoco entra en la lista de compra.
 - El **donut del día** (ej. 3/3) sube al asignar Desayuno, Almuerzo y Cena.
 - Las **calorías del día** y el **objetivo** se actualizan al añadir/quitar platos y snacks.
 - En **Hoy**, los **retos** sí pueden mostrar estados tipo **Completado / Pendiente** (flujo aparte del menú).
@@ -290,6 +309,8 @@ Disponible desde el **Plan**, al elegir o cambiar un plato (en **hoy** o **días
 **Qué probar**
 - [ ] Donut + kcal / objetivo se ven claros y cambian al editar el día
 - [ ] Macros visibles en las tarjetas de comida (si la receta los tiene)
+- [ ] Picker: rejilla 3 cols + skeleton al cargar + pie con 3 acciones + aviso (i) ámbar
+- [ ] Escanear despensa → diálogo Continuar → al Guardar: **Añadir al plan** vs **Solo guardar**
 - [ ] Complemento anidado debajo del plato principal
 - [ ] Botón «Agregar complemento» en estilo píldora
 - [ ] CTA de snacks verde musgo con ✨ y kcal
@@ -328,11 +349,15 @@ Disponible desde el **Plan**, al elegir o cambiar un plato (en **hoy** o **días
 
 ### 6. 💎 Suscripción y Pase Premium
 
+> **Importante para testers:** ser tester **no** te da Premium automático. Empiezas en **Free** (5 escaneos/día y funciones PRO bloqueadas) para poder probar el mismo recorrido que una usuaria real. Para pasar a Premium eliges una de estas dos vías:
+> 1. **Pase 24h** — banner en **Hoy** → **«Desbloquea tu experiencia premium»**
+> 2. **Suscripción** — en **Perfil**, bloque **Suscripción** / **IngeniaFood Premium** → checkout de prueba (Paddle)
+
 #### Dónde aparece el diálogo de Premium
 Prueba disparar **«Función Premium»** desde acciones como:
 
 - Proponer menú del día con IA  
-- Escanear plato servido / registrar comida rápida  
+- Escanear plato servido / **Describir lo que comí**  
 - Foto instantánea de snack  
 - Alternativas de receta (**Rápida / Fit**) o filtros avanzados del escáner  
 - Foto real del plato (si te lo ofrece)
@@ -360,9 +385,11 @@ En el diálogo deberías ver:
 - Comprueba qué pasa cuando el pase **caduca** (vuelven los bloqueos PRO y el límite de escaneos a **5**/día).
 
 **Qué probar**
+- [ ] Como tester: empezar en Free (paywall visible) sin Premium automático
+- [ ] Activar pase 24h desde **Hoy** y comprobar Premium temporal
 - [ ] Paywall claro (no pantalla en blanco)
 - [ ] Cerrar con **Entendido** sin romper la app
-- [ ] Completar checkout de prueba y volver con Premium activo
+- [ ] Completar checkout de prueba desde **Perfil** y volver con Premium activo
 - [ ] Función bloqueada → upgrade → misma función desbloqueada
 - [ ] Escaneos/día: Free 5 → Premium/pase 20 (y vuelta a 5 al caducar el pase)
 
@@ -537,9 +564,9 @@ Cuenta: Free / Pase 24h / Premium
 4. **Hoy**: si no hay vasos, CTA de agua → configurar → tracker  
 5. Activar notificaciones push → cerrar app → comprobar aviso del sistema  
 6. **Recetas**: filas **Cocinar / Sandra / Favoritas / Registradas** + Ver más en Sandra (reel Instagram si aplica)  
-7. **Plan**: llenar un día (donut + macros) + complemento + snack CTA; probar CTA **«Recetas de Sandra»**  
+7. **Plan**: llenar un día (donut + macros) + complemento + snack CTA; desde el picker, **Escanear despensa** con confirmación al Guardar  
 8. Lista de compras → copiar  
-9. Probar una función PRO (plato servido o menú del día)  
+9. Probar una función PRO (plato servido abajo del picker, o menú del día)  
 10. Perfil: revisar estado Premium  
 11. *(Solo admin)* Menú → **Administración** → Recetas de Sandra: Completar con IA + revisar 1 ficha  
 12. Reportar el fallo en **Jira** (tablero IF) con captura + plantilla

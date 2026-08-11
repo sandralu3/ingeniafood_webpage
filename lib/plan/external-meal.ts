@@ -1,4 +1,5 @@
 import { normalizeRecipeTags } from "@/lib/recipes/recipe-tags";
+import { macrosForFoodPortion } from "@/lib/plan/food-density";
 
 export const EXTERNAL_MEAL_BADGE = {
   comida_fuera: "comida_fuera",
@@ -227,20 +228,71 @@ export function createExternalMealFoodItem(input: {
   };
 }
 
-/** Recalcula macros del ítem al cambiar cantidad (proporcional a la ref de la IA). */
+/**
+ * Recalcula macros según nombre + cantidad + unidad (densidad conocida o escala de la IA).
+ * Usar al editar cantidad/unidad y al normalizar la respuesta inicial.
+ */
+export function recalculateExternalMealFoodItem(
+  item: ExternalMealFoodItem,
+  patch?: { cantidad?: number; unidad?: string; nombre?: string }
+): ExternalMealFoodItem {
+  const nombre = (patch?.nombre ?? item.nombre).trim() || item.nombre;
+  const cantidad = clampPositive(
+    patch?.cantidad ?? item.cantidad,
+    item.cantidad > 0 ? item.cantidad : 1,
+    5000
+  );
+  const unidad = (patch?.unidad ?? item.unidad).trim() || "g";
+
+  const macros = macrosForFoodPortion({
+    nombre,
+    cantidad,
+    unidad,
+    fallback: {
+      cantidad: item.cantidad_ref > 0 ? item.cantidad_ref : item.cantidad,
+      unidad: item.unidad,
+      calorias: item.calorias_ref,
+      proteinas_g: item.proteinas_ref
+    }
+  });
+
+  if (!macros) {
+    return {
+      ...item,
+      nombre,
+      cantidad,
+      unidad
+    };
+  }
+
+  return {
+    ...item,
+    nombre,
+    cantidad,
+    unidad,
+    calorias: macros.calorias,
+    proteinas_g: macros.proteinas_g,
+    // Refs = macros de la porción actual → ediciones posteriores escalan desde densidades ya aplicadas.
+    cantidad_ref: cantidad,
+    calorias_ref: macros.calorias,
+    proteinas_ref: macros.proteinas_g
+  };
+}
+
+/** Aplica densidades a todos los alimentos de una estimación (post-IA o post-parseo). */
+export function normalizeEstimateFoodMacrosFromDensities(
+  estimate: ExternalMealEstimate
+): ExternalMealEstimate {
+  const alimentos = estimate.alimentos.map((item) => recalculateExternalMealFoodItem(item));
+  return withEditedExternalMealFoods(estimate, alimentos);
+}
+
+/** Recalcula macros del ítem al cambiar cantidad (densidad o proporcional a la ref). */
 export function scaleExternalMealFoodItem(
   item: ExternalMealFoodItem,
   nextCantidad: number
 ): ExternalMealFoodItem {
-  const cantidad = clampPositive(nextCantidad, item.cantidad_ref || 1, 5000);
-  const ref = item.cantidad_ref > 0 ? item.cantidad_ref : cantidad;
-  const factor = cantidad / ref;
-  return {
-    ...item,
-    cantidad,
-    calorias: Math.max(0, Math.round(item.calorias_ref * factor)),
-    proteinas_g: Math.max(0, Math.round(item.proteinas_ref * factor))
-  };
+  return recalculateExternalMealFoodItem(item, { cantidad: nextCantidad });
 }
 
 export function sumExternalMealFoodMacros(items: ExternalMealFoodItem[]): {
@@ -263,10 +315,14 @@ export function withEditedExternalMealFoods(
   options?: { existingMealItems?: ExistingMealItem[] }
 ): ExternalMealEstimate {
   const totals = sumExternalMealFoodMacros(alimentos);
+  const calorias =
+    alimentos.length > 0
+      ? Math.min(2500, Math.max(0, totals.calorias))
+      : Math.min(2500, Math.max(80, estimate.calorias_est));
   const next: ExternalMealEstimate = {
     ...estimate,
     alimentos,
-    calorias_est: Math.min(2500, Math.max(80, totals.calorias || estimate.calorias_est)),
+    calorias_est: calorias,
     proteinas_est_g: Math.min(200, Math.max(0, totals.proteinas_g))
   };
   return {

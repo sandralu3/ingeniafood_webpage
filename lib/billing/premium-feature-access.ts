@@ -47,8 +47,7 @@ export async function resolveDishPhotoAccess(
     access.canUsePremiumFeatures ||
     access.isPaidPremium ||
     access.isCodePremium ||
-    access.role === "admin" ||
-    access.role === "tester";
+    access.role === "admin";
 
   if (!isPremiumUser) {
     return { allowed: false, reason: "PREMIUM_REQUIRED" };

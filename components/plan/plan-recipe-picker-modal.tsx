@@ -5,19 +5,22 @@ import { useRouter } from "next/navigation";
 import {
   BookOpen,
   Camera,
+  Info,
   Loader2,
-  MoreVertical,
   PenLine,
-  ScanLine,
   Search,
+  SlidersHorizontal,
   Sparkles,
+  WandSparkles,
   X
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { ExternalMealRegisterModal } from "@/components/plan/external-meal-register-modal";
-import { PlanRecipePickerRow } from "@/components/plan/plan-recipe-picker-row";
+import { PlanRecipePickerCard } from "@/components/plan/plan-recipe-picker-card";
 import type { PlanMeal } from "@/components/plan/plan-meal-card";
 import { PremiumUpgradeDialog } from "@/components/premium/premium-upgrade-dialog";
+import { PlanRecipePickerSkeleton } from "@/components/skeletons/plan-recipe-picker-skeleton";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { usePremium } from "@/hooks/use-premium";
 import type { RecipePickerItem } from "@/lib/plan/plan-service";
 import { WEEK_DAYS, type MealType, type WeekDay } from "@/lib/plan/constants";
@@ -108,6 +111,7 @@ export function PlanRecipePickerModal({
   const [externalMode, setExternalMode] = useState<"photo" | "text" | null>(null);
   const [externalBusy, setExternalBusy] = useState(false);
   const [showPremiumPaywall, setShowPremiumPaywall] = useState(false);
+  const [showScanConfirm, setShowScanConfirm] = useState(false);
   const filterMenuRef = useRef<HTMLDivElement>(null);
 
   const dayDisplay =
@@ -116,12 +120,20 @@ export function PlanRecipePickerModal({
       : dayLabel;
   const mealDisplay = t(`meals.${mealType}`);
 
+  const assignHint =
+    mode === "replace"
+      ? t.has("willReplaceHint")
+        ? t("willReplaceHint", { meal: mealDisplay, day: dayDisplay })
+        : `Se actualizará el ${mealDisplay} del ${dayDisplay}.`
+      : t("willAssignHint", { meal: mealDisplay, day: dayDisplay });
+
   useEffect(() => {
     if (!open) return;
     setActiveTab(systemRecipes.length > 0 ? "system" : "saved");
     setSearchTerm("");
     setActiveFilter(defaultFilterForMeal(mealType));
     setIsFilterMenuOpen(false);
+    setShowScanConfirm(false);
   }, [open, mealType, systemRecipes.length]);
 
   useEffect(() => {
@@ -130,6 +142,7 @@ export function PlanRecipePickerModal({
     setActiveFilter("Todas");
     setIsFilterMenuOpen(false);
     setActiveTab("system");
+    setShowScanConfirm(false);
   }, [open]);
 
   const requestClose = () => {
@@ -150,15 +163,25 @@ export function PlanRecipePickerModal({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isFilterMenuOpen]);
 
-  const tabRecipes = activeTab === "system" ? systemRecipes : recipes;
+  const listScrollRef = useRef<HTMLDivElement>(null);
 
-  const filteredRecipes = useMemo(
-    () =>
-      filterPickerRecipes(tabRecipes, {
-        searchTerm,
-        categoryFilter: activeFilter
-      }),
-    [activeFilter, searchTerm, tabRecipes]
+  useEffect(() => {
+    if (!open) return;
+    listScrollRef.current?.scrollTo({ top: 0 });
+  }, [activeTab, open]);
+
+  const filterOpts = useMemo(
+    () => ({ searchTerm, categoryFilter: activeFilter }),
+    [activeFilter, searchTerm]
+  );
+
+  const filteredSystem = useMemo(
+    () => filterPickerRecipes(systemRecipes, filterOpts),
+    [filterOpts, systemRecipes]
+  );
+  const filteredSaved = useMemo(
+    () => filterPickerRecipes(recipes, filterOpts),
+    [filterOpts, recipes]
   );
 
   const canRegisterExternal = useMemo(() => {
@@ -168,7 +191,7 @@ export function PlanRecipePickerModal({
     return canRegisterExternalMealForPlanDay(weekStartISO, dayLabel as WeekDay);
   }, [dayLabel, weekStartISO]);
 
-  const goToScannerForPlan = () => {
+  const proceedToScannerForPlan = () => {
     savePendingPlanAssignment({
       dayLabel: dayLabel as WeekDay,
       mealType,
@@ -179,24 +202,13 @@ export function PlanRecipePickerModal({
     router.push(APP_ROUTES.scanner);
   };
 
-  const goToSandraRecipesForPlan = () => {
-    savePendingPlanAssignment({
-      dayLabel: dayLabel as WeekDay,
-      mealType,
-      weekStartISO,
-      ...(mode === "replace" && planEntryId ? { planEntryId } : {})
-    });
-    onClose();
-    router.push(`${APP_ROUTES.guardadas}?tab=sandra`);
-  };
-
-  const handleExternalMealClick = (mode: "photo" | "text") => {
+  const handleExternalMealClick = (registerMode: "photo" | "text") => {
     if (isPremiumLoading) return;
     if (!isPremium) {
       setShowPremiumPaywall(true);
       return;
     }
-    setExternalMode(mode);
+    setExternalMode(registerMode);
   };
 
   const systemTabLabel = t.has("pickerTabSystem") ? t("pickerTabSystem") : "Sugeridas";
@@ -213,15 +225,70 @@ export function PlanRecipePickerModal({
   const emptySystemHint = t.has("pickerSystemEmptyHint")
     ? t("pickerSystemEmptyHint")
     : "Prueba otro filtro o busca por nombre.";
+  const slotTitle = t.has("pickerSlotTitle")
+    ? t("pickerSlotTitle", { meal: mealDisplay, day: dayDisplay })
+    : `${mealDisplay} del ${dayDisplay}`;
+  const registerToggleLabel = t.has("externalMealAlreadyAteLabel")
+    ? t("externalMealAlreadyAteLabel")
+    : "¿Ya comiste? Regístralo aquí";
+  const scanConfirmTitle = t.has("scanPantryConfirmTitle")
+    ? t("scanPantryConfirmTitle")
+    : "Crear receta para este hueco";
+  const scanConfirmDescription = t.has("scanPantryConfirmDescription")
+    ? t("scanPantryConfirmDescription", { meal: mealDisplay, day: dayDisplay })
+    : `Vas a crear una receta para el ${mealDisplay} del ${dayDisplay}. Al guardar, se asignará a este hueco.`;
+  const scanConfirmContinue = t.has("scanPantryConfirmContinue")
+    ? t("scanPantryConfirmContinue")
+    : "Continuar";
+  const systemSectionLabel = t.has("pickerSystemSectionLabel")
+    ? t("pickerSystemSectionLabel")
+    : "✨ Sugeridas de Sandra";
+  const savedSectionLabel = t.has("pickerSavedSectionLabel")
+    ? t("pickerSavedSectionLabel")
+    : "📖 Mis Recetas";
+  const scanPlateTitle = t.has("pickerActionScanPlateTitle")
+    ? t("pickerActionScanPlateTitle")
+    : "Tomar foto del plato";
+  const scanPlateSubtitle = t.has("pickerActionScanPlateSubtitle")
+    ? t("pickerActionScanPlateSubtitle")
+    : "Toma una foto y lo registramos por ti";
+  const quickLogTitle = t.has("pickerActionQuickLogTitle")
+    ? t("pickerActionQuickLogTitle")
+    : "Describir lo que comí";
+  const quickLogSubtitle = t.has("pickerActionQuickLogSubtitle")
+    ? t("pickerActionQuickLogSubtitle")
+    : "Añade tu comida en segundos";
+  const scanPantryTitle = t.has("pickerActionScanPantryTitle")
+    ? t("pickerActionScanPantryTitle")
+    : "Escanear despensa";
+  const scanPantrySubtitle = t.has("pickerActionScanPantrySubtitle")
+    ? t("pickerActionScanPantrySubtitle")
+    : "Detectamos lo que tienes y te damos ideas";
+  const isCategoryFilterActive = activeFilter !== "Todas";
+  const filterSummary = isCategoryFilterActive ? t(FILTER_LABEL_KEYS[activeFilter]) : "";
+  const clearFilterLabel = t.has("clearFilter") ? t("clearFilter") : "Quitar";
 
   if (!open && externalMode === null) return null;
 
-  const showSavedEmptyState =
-    !isLoading && activeTab === "saved" && recipes.length === 0 && !searchTerm.trim();
-  const showFilteredEmpty =
-    !isLoading &&
-    filteredRecipes.length === 0 &&
-    !(activeTab === "saved" && recipes.length === 0 && !searchTerm.trim());
+  const activeRecipes = activeTab === "system" ? filteredSystem : filteredSaved;
+  const activeSectionLabel =
+    activeTab === "system" ? systemSectionLabel : savedSectionLabel;
+  const showEmptySaved =
+    activeTab === "saved" && recipes.length === 0 && !searchTerm.trim();
+  const showEmptyFiltered = !isLoading && activeRecipes.length === 0 && !showEmptySaved;
+
+  const renderRecipeGrid = (items: RecipePickerItem[]) => (
+    <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
+      {items.map((recipe) => (
+        <PlanRecipePickerCard
+          key={recipe.id}
+          recipe={recipe}
+          disabled={isAssigning}
+          onSelect={() => onSelectRecipe(recipe.id)}
+        />
+      ))}
+    </div>
+  );
 
   return (
     <>
@@ -231,7 +298,7 @@ export function PlanRecipePickerModal({
             role="dialog"
             aria-modal="true"
             aria-labelledby="plan-picker-title"
-            className="flex max-h-[88vh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border border-neutral-100 bg-white shadow-2xl sm:rounded-3xl"
+            className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-3xl border border-neutral-100 bg-white shadow-2xl sm:rounded-3xl"
           >
             <div className="shrink-0 px-5 pt-0 pb-0">
               <SwipeToCloseHandle
@@ -240,19 +307,24 @@ export function PlanRecipePickerModal({
               />
             </div>
 
-            <div className="flex items-start justify-between gap-3 border-b border-stone-100 bg-white px-5 py-4">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-amber-700/80">
-                  {dayDisplay} · {mealDisplay}
-                </p>
-                <h2 id="plan-picker-title" className="mt-1 font-serif text-xl font-semibold text-stone-900">
+            <div className="flex shrink-0 items-start justify-between gap-3 bg-white px-5 pb-3 pt-1">
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#B07A4F]">
                   {mode === "replace"
                     ? t.has("pickerReplaceTitle")
                       ? t("pickerReplaceTitle")
                       : "Cambiar plato"
-                    : t("pickerTitle")}
+                    : t.has("pickerChooseEyebrow")
+                      ? t("pickerChooseEyebrow")
+                      : "Elegir receta"}
+                </p>
+                <h2
+                  id="plan-picker-title"
+                  className="mt-1 font-serif text-[1.35rem] font-semibold leading-tight text-stone-900"
+                >
+                  {slotTitle}
                 </h2>
-                <p className="mt-1 text-xs text-stone-500">
+                <p className="mt-1 text-xs leading-relaxed text-stone-500">
                   {mode === "replace"
                     ? t.has("pickerReplaceSubtitle")
                       ? t("pickerReplaceSubtitle")
@@ -273,69 +345,108 @@ export function PlanRecipePickerModal({
               </button>
             </div>
 
-            <div className="relative z-20 border-b border-stone-100 bg-white px-5 py-3">
-              {canRegisterExternal ? (
-                <div className="mb-3 rounded-2xl border border-violet-100/80 bg-gradient-to-br from-violet-50/80 to-sky-50/50 p-3">
-                  <p className="mb-2 text-center text-[11px] font-bold uppercase tracking-wide text-stone-500">
-                    {t.has("externalMealOptionsLabel")
-                      ? t("externalMealOptionsLabel")
-                      : "Registrar lo que comí"}
+            <div className="relative z-20 shrink-0 bg-white">
+              <div className="space-y-2 border-b border-stone-200/80 bg-[#FAF8F5] px-5 py-2.5">
+                <div className="flex items-center gap-3">
+                  <div className="h-px flex-1 bg-stone-300/70" />
+                  <p className="shrink-0 text-center text-[9px] font-bold uppercase tracking-[0.12em] text-stone-500">
+                    {registerToggleLabel}
                   </p>
-                  <div className="grid grid-cols-1 gap-2">
-                    <button
-                      type="button"
-                      disabled={isAssigning || isPremiumLoading}
-                      onClick={() => handleExternalMealClick("photo")}
-                      className={cn(
-                        "inline-flex items-center justify-center gap-1.5 rounded-xl border border-sky-200/80 bg-white px-3 py-2.5 text-xs font-semibold text-sky-900 shadow-sm transition",
-                        "hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-60"
-                      )}
-                    >
-                      <Camera className="h-4 w-4 shrink-0" />
-                      <span className="min-w-0 flex-1 text-left">
-                        {t.has("externalMealScanCta")
-                          ? t("externalMealScanCta")
-                          : "📸 Escanear plato servido (IA)"}
-                      </span>
-                      {!isPremium ? (
-                        <span className="shrink-0 text-[9px] font-bold tracking-wide text-amber-800">
-                          👑 PRO
-                        </span>
-                      ) : null}
-                    </button>
-                    <button
-                      type="button"
-                      disabled={isAssigning || isPremiumLoading}
-                      onClick={() => handleExternalMealClick("text")}
-                      className={cn(
-                        "inline-flex items-center justify-center gap-1.5 rounded-xl border border-violet-200/80 bg-white px-3 py-2.5 text-xs font-semibold text-violet-900 shadow-sm transition",
-                        "hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-60"
-                      )}
-                    >
-                      <PenLine className="h-4 w-4 shrink-0" />
-                      <span className="min-w-0 flex-1 text-left">
-                        {t.has("externalMealQuickCta")
-                          ? t("externalMealQuickCta")
-                          : "✍️ Registrar comida rápida"}
-                      </span>
-                      {!isPremium ? (
-                        <span className="shrink-0 text-[9px] font-bold tracking-wide text-amber-800">
-                          👑 PRO
-                        </span>
-                      ) : null}
-                    </button>
-                  </div>
+                  <div className="h-px flex-1 bg-stone-300/70" />
                 </div>
-              ) : (
-                <p className="mb-3 rounded-2xl border border-stone-100 bg-stone-50 px-3 py-2.5 text-center text-[11px] leading-relaxed text-stone-500">
-                  {t.has("externalMealFutureDayHint")
-                    ? t("externalMealFutureDayHint")
-                    : "Solo puedes registrar lo que comiste en hoy o días pasados."}
-                </p>
-              )}
+
+                <div
+                  className={cn(
+                    "grid gap-2",
+                    canRegisterExternal
+                      ? "grid-cols-3 max-[360px]:grid-cols-1"
+                      : "grid-cols-1"
+                  )}
+                >
+                  <button
+                    type="button"
+                    disabled={isAssigning}
+                    onClick={() => setShowScanConfirm(true)}
+                    className={cn(
+                      "flex flex-col items-center gap-0.5 rounded-xl border border-[#556B2F]/15 bg-[#F0F4ED] px-1.5 py-2 text-center transition",
+                      "hover:bg-[#e7eedf] disabled:cursor-not-allowed disabled:opacity-60",
+                      canRegisterExternal ? "" : "sm:mx-auto sm:w-full sm:max-w-xs"
+                    )}
+                  >
+                    <WandSparkles className="h-4 w-4 text-[#556B2F]" strokeWidth={1.75} />
+                    <span className="text-[10px] font-semibold leading-tight text-[#3e5219]">
+                      {scanPantryTitle}
+                    </span>
+                    <span className="text-[8px] leading-tight text-[#3e5219]/70">
+                      {scanPantrySubtitle}
+                    </span>
+                  </button>
+
+                  {canRegisterExternal ? (
+                    <>
+                      <button
+                        type="button"
+                        disabled={isAssigning || isPremiumLoading}
+                        onClick={() => handleExternalMealClick("photo")}
+                        className={cn(
+                          "flex flex-col items-center gap-0.5 rounded-xl border border-sky-100 bg-sky-50/70 px-1.5 py-2 text-center transition",
+                          "hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-60"
+                        )}
+                      >
+                        <Camera className="h-4 w-4 text-sky-700" strokeWidth={1.75} />
+                        <span className="text-[10px] font-semibold leading-tight text-sky-900">
+                          {scanPlateTitle}
+                        </span>
+                        <span className="text-[8px] leading-tight text-sky-800/70">
+                          {scanPlateSubtitle}
+                        </span>
+                        {!isPremium ? (
+                          <span className="text-[8px] font-bold tracking-wide text-amber-800">
+                            👑 PRO
+                          </span>
+                        ) : null}
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={isAssigning || isPremiumLoading}
+                        onClick={() => handleExternalMealClick("text")}
+                        className={cn(
+                          "flex flex-col items-center gap-0.5 rounded-xl border border-violet-100 bg-violet-50/70 px-1.5 py-2 text-center transition",
+                          "hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-60"
+                        )}
+                      >
+                        <PenLine className="h-4 w-4 text-violet-700" strokeWidth={1.75} />
+                        <span className="text-[10px] font-semibold leading-tight text-violet-900">
+                          {quickLogTitle}
+                        </span>
+                        <span className="text-[8px] leading-tight text-violet-800/70">
+                          {quickLogSubtitle}
+                        </span>
+                        {!isPremium ? (
+                          <span className="text-[8px] font-bold tracking-wide text-amber-800">
+                            👑 PRO
+                          </span>
+                        ) : null}
+                      </button>
+                    </>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="space-y-3 px-5 py-3">
+                <div className="flex items-center gap-3">
+                  <div className="h-px flex-1 bg-stone-200" />
+                  <p className="shrink-0 text-center text-[10px] font-bold uppercase tracking-[0.12em] text-stone-500">
+                    {t.has("pickerBrowseSectionLabel")
+                      ? t("pickerBrowseSectionLabel")
+                      : "Buscar una receta"}
+                  </p>
+                  <div className="h-px flex-1 bg-stone-200" />
+                </div>
 
               <div
-                className="mb-3 grid grid-cols-2 gap-1 rounded-2xl bg-stone-100 p-1"
+                className="mx-auto grid w-full max-w-md grid-cols-2 gap-1 rounded-2xl bg-stone-100 p-1"
                 role="tablist"
                 aria-label={t.has("pickerTabsAria") ? t("pickerTabsAria") : "Origen de recetas"}
               >
@@ -397,11 +508,21 @@ export function PlanRecipePickerModal({
                   <button
                     type="button"
                     onClick={() => setIsFilterMenuOpen((current) => !current)}
-                    className="flex h-10 w-10 items-center justify-center rounded-full border border-stone-200/60 bg-stone-100 text-stone-600 transition-colors hover:bg-stone-200/50"
+                    className={cn(
+                      "relative flex h-10 w-10 items-center justify-center rounded-full border shadow-sm transition-colors",
+                      isCategoryFilterActive
+                        ? "border-[#4C6B3F]/40 bg-[#F0F4ED] text-[#3e5219]"
+                        : "border-stone-200/70 bg-white text-stone-600 hover:bg-stone-50"
+                    )}
                     aria-label={t("filterRecipesAria")}
                     aria-expanded={isFilterMenuOpen}
                   >
-                    <MoreVertical size={18} />
+                    <SlidersHorizontal size={16} strokeWidth={1.75} />
+                    {isCategoryFilterActive ? (
+                      <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#556B2F] px-1 text-[9px] font-bold text-white">
+                        1
+                      </span>
+                    ) : null}
                   </button>
 
                   {isFilterMenuOpen ? (
@@ -431,9 +552,36 @@ export function PlanRecipePickerModal({
                   ) : null}
                 </div>
               </div>
+
+              {isCategoryFilterActive && filterSummary ? (
+                <div className="flex items-center justify-between gap-2 rounded-xl border border-[#556B2F]/15 bg-[#F0F4ED] px-3 py-2">
+                  <p className="min-w-0 text-[12px] font-semibold text-[#3e5219]">
+                    {t.has("filterActiveLabel")
+                      ? t("filterActiveLabel", { filter: filterSummary })
+                      : `Filtro: ${filterSummary}`}
+                    <span className="ml-1.5 font-medium text-[#556B2F]/80">
+                      ·{" "}
+                      {t.has("filterActiveCount")
+                        ? t("filterActiveCount", { count: activeRecipes.length })
+                        : `${activeRecipes.length} resultados`}
+                    </span>
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setActiveFilter("Todas")}
+                    className="shrink-0 text-[11px] font-semibold text-[#556B2F] underline-offset-2 hover:underline"
+                  >
+                    {clearFilterLabel}
+                  </button>
+                </div>
+              ) : null}
+              </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto bg-[#FAF8F5] px-5 py-4">
+            <div
+              ref={listScrollRef}
+              className="min-h-0 flex-1 overflow-y-auto bg-[#FAF8F5] px-5 py-4"
+            >
               {errorMessage ? (
                 <p role="alert" className="mb-3 rounded-2xl bg-red-50 px-3 py-2 text-sm text-red-700">
                   {errorMessage}
@@ -441,125 +589,46 @@ export function PlanRecipePickerModal({
               ) : null}
 
               {isLoading ? (
-                <div className="flex items-center justify-center gap-2 py-12 text-sm text-stone-500">
-                  <Loader2 className="h-4 w-4 animate-spin text-[#556B2F]" />
-                  {t("loadingRecipes")}
-                </div>
-              ) : null}
+                <PlanRecipePickerSkeleton />
+              ) : (
+                <div className="space-y-4">
+                  <section>
+                    <div className="mb-2.5 flex items-center justify-between gap-2">
+                      <p className="text-[12px] font-semibold text-stone-800">{activeSectionLabel}</p>
+                    </div>
 
-              {showSavedEmptyState ? (
-                <div className="rounded-2xl border border-dashed border-stone-200 bg-white px-4 py-8 text-center">
-                  <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-[#F0F4ED] text-[#556B2F]">
-                    <BookOpen className="h-5 w-5" strokeWidth={1.75} />
-                  </div>
-                  <p className="text-sm font-semibold text-stone-800">{emptySavedTitle}</p>
-                  <p className="mt-1 text-xs leading-relaxed text-stone-500">{emptySavedHint}</p>
-                  <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    <button
-                      type="button"
-                      disabled={isAssigning}
-                      onClick={() => goToScannerForPlan()}
-                      className={cn(
-                        "inline-flex items-center justify-center gap-1.5 rounded-2xl border border-[#556B2F]/20 bg-[#F0F4ED] px-3 py-2.5 text-xs font-semibold text-[#3e5219] transition",
-                        "hover:border-[#556B2F]/35 disabled:cursor-not-allowed disabled:opacity-60"
-                      )}
-                    >
-                      <ScanLine className="h-4 w-4 shrink-0" />
-                      {t("scanPantry")}
-                    </button>
-                    <button
-                      type="button"
-                      disabled={isAssigning}
-                      onClick={() => goToSandraRecipesForPlan()}
-                      className={cn(
-                        "inline-flex items-center justify-center gap-1.5 rounded-2xl bg-gradient-to-r from-[#556B2F] to-[#6b8a3e] px-3 py-2.5 text-xs font-semibold text-white shadow-sm transition",
-                        "hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
-                      )}
-                    >
-                      <BookOpen className="h-4 w-4 shrink-0" strokeWidth={1.75} />
-                      {t.has("browseSandraRecipes")
-                        ? t("browseSandraRecipes")
-                        : "Recetas de Sandra"}
-                    </button>
-                  </div>
-                </div>
-              ) : null}
+                    {showEmptySaved ? (
+                      <div className="rounded-2xl border border-dashed border-stone-200 bg-white px-3 py-6 text-center">
+                        <p className="text-sm font-semibold text-stone-800">{emptySavedTitle}</p>
+                        <p className="mt-1 text-xs leading-relaxed text-stone-500">{emptySavedHint}</p>
+                      </div>
+                    ) : null}
 
-              {showFilteredEmpty ? (
-                <div className="rounded-2xl border border-dashed border-stone-200 bg-white px-4 py-8 text-center">
-                  <p className="text-sm font-medium text-stone-700">
-                    {activeTab === "system" ? emptySystemTitle : t("noRecipes")}
-                  </p>
-                  <p className="mt-1 text-xs text-stone-500">
-                    {activeTab === "system" ? emptySystemHint : t("noRecipesHint")}
-                  </p>
-                </div>
-              ) : null}
+                    {showEmptyFiltered ? (
+                      <div className="rounded-2xl border border-dashed border-stone-200 bg-white px-3 py-6 text-center">
+                        <p className="text-sm font-medium text-stone-700">
+                          {activeTab === "system" ? emptySystemTitle : t("noRecipes")}
+                        </p>
+                        <p className="mt-1 text-xs text-stone-500">
+                          {activeTab === "system" ? emptySystemHint : t("noRecipesHint")}
+                        </p>
+                      </div>
+                    ) : null}
 
-              {!isLoading && filteredRecipes.length > 0 ? (
-                <div className="space-y-0">
-                  {filteredRecipes.map((recipe) => (
-                    <PlanRecipePickerRow
-                      key={recipe.id}
-                      recipe={recipe}
-                      disabled={isAssigning}
-                      onSelect={() => onSelectRecipe(recipe.id)}
-                    />
-                  ))}
+                    {!showEmptySaved && !showEmptyFiltered
+                      ? renderRecipeGrid(activeRecipes)
+                      : null}
+                  </section>
                 </div>
-              ) : null}
+              )}
             </div>
 
-            {!showSavedEmptyState ? (
-              <div className="border-t border-stone-100 bg-stone-50/80 px-5 py-4">
-                <p className="mb-3 text-center text-xs font-medium text-stone-500">{t("cantFindRecipe")}</p>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    disabled={isAssigning}
-                    onClick={() => goToScannerForPlan()}
-                    className={cn(
-                      "inline-flex items-center justify-center gap-1.5 rounded-2xl border border-[#556B2F]/20 bg-white px-3 py-3 text-xs font-semibold text-[#3e5219] shadow-sm transition",
-                      "hover:border-[#556B2F]/35 hover:bg-[#F0F4ED] disabled:cursor-not-allowed disabled:opacity-60"
-                    )}
-                  >
-                    <ScanLine className="h-4 w-4 shrink-0" />
-                    {t("scanPantry")}
-                  </button>
-                  <button
-                    type="button"
-                    disabled={isAssigning}
-                    onClick={() => goToSandraRecipesForPlan()}
-                    className={cn(
-                      "inline-flex items-center justify-center gap-1.5 rounded-2xl bg-gradient-to-r from-[#556B2F] to-[#6b8a3e] px-3 py-3 text-xs font-semibold text-white shadow-md transition",
-                      "hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
-                    )}
-                  >
-                    <BookOpen className="h-4 w-4 shrink-0" strokeWidth={1.75} />
-                    {t.has("browseSandraRecipes")
-                      ? t("browseSandraRecipes")
-                      : "Recetas de Sandra"}
-                  </button>
-                </div>
-                <p className="mt-2 text-center text-[10px] leading-relaxed text-stone-400">
-                  {mode === "replace"
-                    ? t.has("willReplaceHint")
-                      ? t("willReplaceHint", { meal: mealDisplay, day: dayDisplay })
-                      : `Se actualizará el ${mealDisplay} del ${dayDisplay}.`
-                    : t("willAssignHint", { meal: mealDisplay, day: dayDisplay })}
-                </p>
+            <div className="shrink-0 border-t border-stone-100 bg-white px-5 py-3">
+              <div className="flex items-start gap-2.5 rounded-2xl border border-amber-200/80 bg-amber-50/90 px-3 py-2.5">
+                <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" strokeWidth={2} />
+                <p className="text-xs font-medium leading-relaxed text-amber-950">{assignHint}</p>
               </div>
-            ) : (
-              <div className="border-t border-stone-100 bg-stone-50/80 px-5 py-3">
-                <p className="text-center text-[10px] leading-relaxed text-stone-400">
-                  {mode === "replace"
-                    ? t.has("willReplaceHint")
-                      ? t("willReplaceHint", { meal: mealDisplay, day: dayDisplay })
-                      : `Se actualizará el ${mealDisplay} del ${dayDisplay}.`
-                    : t("willAssignHint", { meal: mealDisplay, day: dayDisplay })}
-                </p>
-              </div>
-            )}
+            </div>
 
             {isAssigning ? (
               <div className="border-t border-stone-100 px-5 py-3 text-center text-xs font-medium text-[#556B2F]">
@@ -574,6 +643,19 @@ export function PlanRecipePickerModal({
           </div>
         </div>
       ) : null}
+
+      <ConfirmDialog
+        open={showScanConfirm}
+        onOpenChange={setShowScanConfirm}
+        title={scanConfirmTitle}
+        description={scanConfirmDescription}
+        confirmLabel={scanConfirmContinue}
+        cancelLabel={tCommon("cancel")}
+        onConfirm={() => {
+          setShowScanConfirm(false);
+          proceedToScannerForPlan();
+        }}
+      />
 
       <ExternalMealRegisterModal
         open={externalMode !== null}

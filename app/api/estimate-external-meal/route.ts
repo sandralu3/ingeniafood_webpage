@@ -12,6 +12,7 @@ import {
   createExternalMealFoodItem,
   evaluateExternalMealBalance,
   isExternalMealBadge,
+  normalizeEstimateFoodMacrosFromDensities,
   normalizeExistingMealItems,
   sumExternalMealFoodMacros,
   type ExistingMealItem,
@@ -591,7 +592,11 @@ function buildPrompt(
     "Analiza si la imagen o el texto corresponde a un plato de comida real, bebida o alimento comestible.\n" +
     "Si es captura de pantalla, texto promocional, mockup de app, publicidad, persona, objeto no comestible o imagen no gastronómica " +
     '(ej. "Imagen promocional de aplicación", banner IngeniaFood, UI de otra app):\n' +
-    'responde SOLO {"is_valid_food":false,"error":"NOT_FOOD","error_message":"No hemos podido detectar alimentos reales en esta imagen. Por favor, sube una foto de tu plato o escribe lo que has comido.","dish_name":null,"total_calories":null,"total_proteins_g":null,"detected_items":[],"recommendation_title":null,"recommendation_message":null}.\n' +
+    `responde SOLO {"is_valid_food":false,"error":"NOT_FOOD","error_message":"${
+      mode === "text"
+        ? "No hemos podido detectar alimentos reales en lo que escribiste. Describe el plato con nombres de comida (ej.: arroz, pollo, ensalada)."
+        : "No hemos podido detectar alimentos reales en esta imagen. Por favor, sube una foto de tu plato o escribe lo que has comido."
+    }","dish_name":null,"total_calories":null,"total_proteins_g":null,"detected_items":[],"recommendation_title":null,"recommendation_message":null}.\n` +
     "PROHIBIDO inventar calorías, alimentos o nombres promocionales cuando is_valid_food es false.\n\n";
 
   const source =
@@ -601,10 +606,13 @@ function buildPrompt(
         : "Analiza la foto de un plato ya servido (restaurante, evento o casa). Identifica el plato y cada alimento visible."
       : isSnack
         ? `El usuario describe un snack / tentempié:\n"""${description.replace(/"/g, "'")}"""\n` +
-          "Si el texto no describe comida/bebida real, is_valid_food=false. " +
+          "IMPORTANTE: esto es MODO TEXTO (no hay imagen). Listas de alimentos por comas son válidas (is_valid_food=true).\n" +
+          "Solo is_valid_food=false si el texto no es comida/bebida. " +
           "Si usa comas, cada fragmento es un alimento distinto. Respeta cantidades explícitas (g, ml, unidades)."
         : `El usuario describe una comida consumida:\n"""${description.replace(/"/g, "'")}"""\n` +
-          "Si el texto no describe comida/bebida real, is_valid_food=false. " +
+          "IMPORTANTE: esto es MODO TEXTO (no hay imagen). Una lista de alimentos separados por comas " +
+          "(ej. arroz, carne molida, zanahoria, papa, cebolla) ES comida real válida: is_valid_food=true.\n" +
+          "Solo is_valid_food=false si el texto es claramente no comestible (saludo, basura, objetos).\n" +
           "Si usa comas, cada fragmento es un alimento distinto. Respeta cantidades explícitas (g, ml, unidades).";
 
   const contextBlock =
@@ -777,7 +785,7 @@ export async function POST(request: Request) {
         {
           error: "NOT_FOOD",
           code: "NOT_FOOD",
-          message: foodDescriptionRejectionMessage(context)
+          message: foodDescriptionRejectionMessage(context, "text")
         },
         422
       );
@@ -860,6 +868,17 @@ export async function POST(request: Request) {
 
         const parsed = parseLooseJson(rawText);
         if (parsed && typeof parsed === "object" && looksLikeNonFoodEstimate(parsed)) {
+          // Texto ya validado localmente como comida: la IA a veces marca NOT_FOOD
+          // (y con mensaje de "imagen"). No bloquear; usar estimador local.
+          if (mode === "text" && isLikelyFoodOrDrinkDescription(description)) {
+            console.warn(
+              `[estimate-external-meal] IA NOT_FOOD ignorado en texto válido (${modelName})`
+            );
+            lastError = new Error(`Modelo ${modelName} marcó NOT_FOOD con texto comestible`);
+            lastRawText = rawText;
+            break;
+          }
+
           const record = parsed as {
             error_message?: string;
             message?: string;
@@ -869,7 +888,7 @@ export async function POST(request: Request) {
             (typeof record.error_message === "string" && record.error_message.trim()) ||
             (typeof record.message === "string" && record.message.trim()) ||
             (typeof record.mensaje === "string" && record.mensaje.trim()) ||
-            foodDescriptionRejectionMessage(context);
+            foodDescriptionRejectionMessage(context, mode);
           return jsonResponse(
             {
               error: "NOT_FOOD",
@@ -958,6 +977,9 @@ export async function POST(request: Request) {
     if (mode === "text") {
       estimate = preferParsedTextWhenAiUndershoots(description, estimate);
     }
+
+    // Cantidad + unidad confirmables: macros desde densidades (no confiar a ciegas en la IA).
+    estimate = normalizeEstimateFoodMacrosFromDensities(estimate);
 
     estimate = (context === "snack" ? applySnackAdvice : applyExternalMealAdvice)(estimate, {
       preferAi: estimate.recomendaciones.length > 0,

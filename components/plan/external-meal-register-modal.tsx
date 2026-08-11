@@ -10,7 +10,8 @@ import {
   applyExternalMealAdvice,
   createExternalMealFoodItem,
   planMealsToExistingItems,
-  scaleExternalMealFoodItem,
+  recalculateExternalMealFoodItem,
+  normalizeEstimateFoodMacrosFromDensities,
   withEditedExternalMealFoods,
   type ExistingMealItem,
   type ExternalMealEstimate,
@@ -193,7 +194,7 @@ export function ExternalMealRegisterModal({
         : "📸 Escanear plato servido"
       : t.has("externalMealQuickTitle")
         ? t("externalMealQuickTitle")
-        : "✍️ Registrar comida rápida";
+        : "✍️ Describir lo que comí";
 
   const handleFileChange = (file: File | null) => {
     if (!file || !file.type.startsWith("image/")) return;
@@ -225,7 +226,7 @@ export function ExternalMealRegisterModal({
     if (mode === "text") {
       const trimmed = description.trim();
       if (!isLikelyFoodOrDrinkDescription(trimmed)) {
-        setError(foodDescriptionRejectionMessage("meal"));
+        setError(foodDescriptionRejectionMessage("meal", "text"));
         return null;
       }
       if (descriptionNeedsCommaSeparation(trimmed)) {
@@ -260,15 +261,19 @@ export function ExternalMealRegisterModal({
     const data = (await response.json()) as EstimateApiResponse;
     if (!response.ok || !data.estimate) {
       const isNotFood = data.code === "NOT_FOOD" || data.error === "NOT_FOOD";
+      const rawMessage = data.message?.trim() || "";
+      const mentionsImage = /imagen|foto/i.test(rawMessage);
       setError(
-        data.message ??
-          (isNotFood
-            ? foodDescriptionRejectionMessage("meal")
-            : data.error && data.error !== "NOT_FOOD"
-              ? data.error
-              : t.has("externalMealEstimateError")
-                ? t("externalMealEstimateError")
-                : "No pudimos estimar la comida.")
+        isNotFood && mode === "text" && (mentionsImage || !rawMessage)
+          ? foodDescriptionRejectionMessage("meal", "text")
+          : rawMessage ||
+              (isNotFood
+                ? foodDescriptionRejectionMessage("meal", mode === "photo" ? "photo" : "text")
+                : data.error && data.error !== "NOT_FOOD"
+                  ? data.error
+                  : t.has("externalMealEstimateError")
+                    ? t("externalMealEstimateError")
+                    : "No pudimos estimar la comida.")
       );
       return null;
     }
@@ -326,10 +331,11 @@ export function ExternalMealRegisterModal({
       const nextEstimate = await estimateMeal();
       if (!nextEstimate) return;
 
-      setEstimate(nextEstimate);
-      setFoodItems(nextEstimate.alimentos);
+      const normalized = normalizeEstimateFoodMacrosFromDensities(nextEstimate);
+      setEstimate(normalized);
+      setFoodItems(normalized.alimentos);
       setQuantityDrafts({});
-      setDishName(nextEstimate.nombre_plato);
+      setDishName(normalized.nombre_plato);
       setStep("review");
     } catch (err) {
       console.error("[external-meal] analyze", err);
@@ -347,17 +353,20 @@ export function ExternalMealRegisterModal({
     setFoodItems((current) =>
       current.map((item) => {
         if (item.id !== id) return item;
-        if (patch.cantidad != null && patch.cantidad !== item.cantidad) {
-          const nextQty = Number(patch.cantidad);
-          if (!Number.isFinite(nextQty) || nextQty <= 0) return item;
-          return scaleExternalMealFoodItem(item, nextQty);
-        }
-        if (patch.unidad != null || patch.nombre != null) {
-          return {
-            ...item,
-            nombre: patch.nombre?.trim() || item.nombre,
-            unidad: patch.unidad?.trim() || item.unidad
-          };
+        if (
+          (patch.cantidad != null && patch.cantidad !== item.cantidad) ||
+          (patch.unidad != null && patch.unidad !== item.unidad) ||
+          (patch.nombre != null && patch.nombre !== item.nombre)
+        ) {
+          if (patch.cantidad != null) {
+            const nextQty = Number(patch.cantidad);
+            if (!Number.isFinite(nextQty) || nextQty <= 0) return item;
+          }
+          return recalculateExternalMealFoodItem(item, {
+            cantidad: patch.cantidad,
+            unidad: patch.unidad,
+            nombre: patch.nombre
+          });
         }
         return { ...item, ...patch };
       })

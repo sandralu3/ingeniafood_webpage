@@ -426,6 +426,8 @@ export async function updateUserTesterStatus(
     .from("profiles")
     .update({
       is_tester: isTester,
+      // Mantener role alineado: is_tester solo no basta (role "user" gana en resolveUserRole).
+      role: isTester ? "tester" : "user",
       // Testers: 1 foto OpenAI. Resto: 0.
       openai_photo_credits: isTester ? 1 : 0,
       updated_at: new Date().toISOString()

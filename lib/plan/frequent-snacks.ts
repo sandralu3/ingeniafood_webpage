@@ -1,5 +1,8 @@
 import { SNACK_PRESETS, type SnackPreset } from "@/lib/plan/snack-presets";
+import { parseMacrosFromJson } from "@/lib/recipes/recipe-macros";
+import { resolveSavedRecipeMealFilter } from "@/lib/recipes/saved-recipes-filter";
 import { createSupabaseClient } from "@/lib/supabaseClient";
+import type { Json } from "@/types/database.types";
 
 export type SnackSuggestion = {
   id: string;
@@ -9,9 +12,10 @@ export type SnackSuggestion = {
   proteinGrams: number;
   carbsGrams: number;
   fatGrams: number;
-  origin: "frequent" | "preset";
+  origin: "frequent" | "preset" | "sandra";
   /** Veces registrado (solo origin=frequent). */
   timesUsed?: number;
+  imageUrl?: string | null;
 };
 
 function stripAccents(text: string): string {
@@ -176,4 +180,101 @@ export async function fetchSnackSuggestionsForUser(
     );
 
   return mergeSnackSuggestions(frequent, limit);
+}
+
+type SandraSnackRow = {
+  id: string;
+  title: string;
+  image_url?: string | null;
+  meal_type?: string | null;
+  tags?: unknown;
+  macros?: Json | null;
+  is_system_recipe?: boolean | null;
+  is_sandra_recipe?: boolean | null;
+};
+
+function isSandraOrSystemSnack(row: SandraSnackRow): boolean {
+  const isBank = Boolean(row.is_sandra_recipe) || Boolean(row.is_system_recipe);
+  if (!isBank) return false;
+  const meal = resolveSavedRecipeMealFilter({
+    title: row.title,
+    meal_type: row.meal_type,
+    tags: row.tags
+  });
+  return meal === "Snacks" || meal === "Postres";
+}
+
+function mapSandraSnackRow(row: SandraSnackRow): SnackSuggestion {
+  const macros = parseMacrosFromJson(row.macros ?? null);
+  return {
+    id: `sandra:${row.id}`,
+    emoji: "✨",
+    title: row.title.trim() || "Snack",
+    kcal: Math.max(0, Math.round(macros?.calorias ?? 0)),
+    proteinGrams: Math.max(0, Math.round(macros?.proteinas_g ?? 0)),
+    carbsGrams: Math.max(0, Math.round(macros?.carbohidratos_g ?? 0)),
+    fatGrams: Math.max(0, Math.round(macros?.grasas_g ?? 0)),
+    origin: "sandra",
+    imageUrl: row.image_url ?? null
+  };
+}
+
+/**
+ * Snacks (y postres) del banco Sandra / sistema para el modal de registro.
+ */
+export async function fetchSandraSnackSuggestions(options?: {
+  limit?: number;
+}): Promise<SnackSuggestion[]> {
+  const limit = Math.max(1, options?.limit ?? 24);
+
+  let supabase;
+  try {
+    supabase = createSupabaseClient();
+  } catch {
+    return [];
+  }
+
+  const selectWithSandra =
+    "id, title, image_url, meal_type, tags, macros, is_system_recipe, is_sandra_recipe";
+  const selectSystemOnly =
+    "id, title, image_url, meal_type, tags, macros, is_system_recipe";
+
+  const load = async (select: string, sandraAware: boolean) => {
+    let query = supabase
+      .from("recipes")
+      .select(select)
+      .order("created_at", { ascending: true })
+      .limit(120);
+
+    if (sandraAware) {
+      query = query.or("is_sandra_recipe.eq.true,is_system_recipe.eq.true");
+    } else {
+      query = query.eq("is_system_recipe", true);
+    }
+
+    return query;
+  };
+
+  try {
+    const { data, error } = await load(selectWithSandra, true);
+    if (error) throw error;
+    return ((data ?? []) as unknown as SandraSnackRow[])
+      .filter(isSandraOrSystemSnack)
+      .map(mapSandraSnackRow)
+      .slice(0, limit);
+  } catch {
+    try {
+      const { data, error } = await load(selectSystemOnly, false);
+      if (error) throw error;
+      return ((data ?? []) as unknown as SandraSnackRow[])
+        .filter((row) =>
+          isSandraOrSystemSnack({ ...row, is_sandra_recipe: row.is_system_recipe })
+        )
+        .map(mapSandraSnackRow)
+        .slice(0, limit);
+    } catch (err) {
+      console.warn("[sandra-snacks] no se pudo cargar el banco:", err);
+      return [];
+    }
+  }
 }

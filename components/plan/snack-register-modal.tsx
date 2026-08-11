@@ -1,17 +1,20 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Camera, Loader2, PenLine, Trash2, X, Zap } from "lucide-react";
+import { Camera, Loader2, PenLine, Search, Trash2, X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
+import { PlanRecipePickerCard } from "@/components/plan/plan-recipe-picker-card";
 import { ModalSheetBackButton } from "@/components/ui/modal-sheet-back-button";
 import { PremiumUpgradeDialog } from "@/components/premium/premium-upgrade-dialog";
+import { PlanRecipePickerSkeleton } from "@/components/skeletons/plan-recipe-picker-skeleton";
 import { usePremium } from "@/hooks/use-premium";
 import type { MealType, WeekDay } from "@/lib/plan/constants";
 import {
   EXTERNAL_MEAL_UNITS,
   applySnackAdvice,
   createExternalMealFoodItem,
-  scaleExternalMealFoodItem,
+  recalculateExternalMealFoodItem,
+  normalizeEstimateFoodMacrosFromDensities,
   withEditedSnackFoods,
   type ExternalMealEstimate,
   type ExternalMealFoodItem
@@ -23,11 +26,13 @@ import {
   foodDescriptionRejectionMessage,
   isLikelyFoodOrDrinkDescription
 } from "@/lib/plan/food-description-validation";
-import { SNACK_PRESETS, type PlanSnack } from "@/lib/plan/snack-presets";
+import type { PlanSnack } from "@/lib/plan/snack-presets";
 import {
-  fetchSnackSuggestionsForUser,
+  fetchSandraSnackSuggestions,
+  normalizeSnackTitle,
   type SnackSuggestion
 } from "@/lib/plan/frequent-snacks";
+import type { RecipePickerItem } from "@/lib/plan/plan-service";
 import {
   addEstimatedSnackToPlan,
   addSuggestedSnackToPlan
@@ -43,6 +48,31 @@ import { ScanPhotoSheetStage } from "@/components/ui/scan-photo-sheet-stage";
 import { SwipeToCloseHandle } from "@/components/ui/swipe-to-close-handle";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import { cn } from "@/lib/utils";
+
+function snackSuggestionToPickerItem(suggestion: SnackSuggestion): RecipePickerItem {
+  const recipeId = suggestion.id.startsWith("sandra:")
+    ? suggestion.id.slice("sandra:".length)
+    : suggestion.id;
+  return {
+    id: recipeId,
+    title: suggestion.title,
+    image_url: suggestion.imageUrl ?? null,
+    instagram_url: null,
+    cooking_time: null,
+    is_airfryer: false,
+    is_flourless: false,
+    created_at: "",
+    meal_type: "Snack",
+    is_system_recipe: true,
+    is_sandra_recipe: true,
+    macros: {
+      calorias: suggestion.kcal,
+      proteinas_g: suggestion.proteinGrams,
+      carbohidratos_g: suggestion.carbsGrams,
+      grasas_g: suggestion.fatGrams
+    }
+  };
+}
 
 type Mode = "menu" | "text" | "photo";
 type Step = "input" | "review";
@@ -91,6 +121,7 @@ export function SnackRegisterModal({
   const [busyPresetId, setBusyPresetId] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<SnackSuggestion[]>([]);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [estimate, setEstimate] = useState<ExternalMealEstimate | null>(null);
   const [foodItems, setFoodItems] = useState<ExternalMealFoodItem[]>([]);
@@ -108,6 +139,7 @@ export function SnackRegisterModal({
     setFoodItems([]);
     setQuantityDrafts({});
     setDishName("");
+    setSearchTerm("");
     setError(null);
     setIsAnalyzing(false);
     setIsSaving(false);
@@ -133,46 +165,11 @@ export function SnackRegisterModal({
     const loadSuggestions = async () => {
       setSuggestionsLoading(true);
       try {
-        const supabase = createSupabaseClient();
-        const {
-          data: { user }
-        } = await supabase.auth.getUser();
-        if (!user) {
-          if (!cancelled) {
-            setSuggestions(
-              SNACK_PRESETS.map((preset) => ({
-                id: `preset:${preset.id}`,
-                emoji: preset.emoji,
-                title: preset.title,
-                kcal: preset.kcal,
-                proteinGrams: preset.proteinGrams,
-                carbsGrams: preset.carbsGrams,
-                fatGrams: preset.fatGrams,
-                origin: "preset" as const
-              })).slice(0, 6)
-            );
-          }
-          return;
-        }
-
-        const next = await fetchSnackSuggestionsForUser(user.id, { limit: 6 });
+        const next = await fetchSandraSnackSuggestions({ limit: 24 });
         if (!cancelled) setSuggestions(next);
       } catch (err) {
         console.warn("[snack-register] suggestions", err);
-        if (!cancelled) {
-          setSuggestions(
-            SNACK_PRESETS.map((preset) => ({
-              id: `preset:${preset.id}`,
-              emoji: preset.emoji,
-              title: preset.title,
-              kcal: preset.kcal,
-              proteinGrams: preset.proteinGrams,
-              carbsGrams: preset.carbsGrams,
-              fatGrams: preset.fatGrams,
-              origin: "preset" as const
-            })).slice(0, 6)
-          );
-        }
+        if (!cancelled) setSuggestions([]);
       } finally {
         if (!cancelled) setSuggestionsLoading(false);
       }
@@ -232,6 +229,12 @@ export function SnackRegisterModal({
       }),
     [liveEstimate, t]
   );
+
+  const filteredSuggestions = useMemo(() => {
+    const needle = normalizeSnackTitle(searchTerm);
+    if (!needle) return suggestions;
+    return suggestions.filter((item) => normalizeSnackTitle(item.title).includes(needle));
+  }, [searchTerm, suggestions]);
 
   if (!open) return null;
 
@@ -350,7 +353,7 @@ export function SnackRegisterModal({
     if (payloadMode === "text") {
       const trimmed = description.trim();
       if (!isLikelyFoodOrDrinkDescription(trimmed)) {
-        setError(foodDescriptionRejectionMessage("snack"));
+        setError(foodDescriptionRejectionMessage("snack", "text"));
         return null;
       }
       if (descriptionNeedsCommaSeparation(trimmed)) {
@@ -385,15 +388,19 @@ export function SnackRegisterModal({
     const data = (await response.json()) as EstimateApiResponse;
     if (!response.ok || !data.estimate) {
       const isNotFood = data.code === "NOT_FOOD" || data.error === "NOT_FOOD";
+      const rawMessage = data.message?.trim() || "";
+      const mentionsImage = /imagen|foto/i.test(rawMessage);
       setError(
-        data.message ??
-          (isNotFood
-            ? foodDescriptionRejectionMessage("snack")
-            : data.error && data.error !== "NOT_FOOD"
-              ? data.error
-              : t.has("externalMealEstimateError")
-                ? t("externalMealEstimateError")
-                : "No pudimos estimar el snack.")
+        isNotFood && mode === "text" && (mentionsImage || !rawMessage)
+          ? foodDescriptionRejectionMessage("snack", "text")
+          : rawMessage ||
+              (isNotFood
+                ? foodDescriptionRejectionMessage("snack", mode === "photo" ? "photo" : "text")
+                : data.error && data.error !== "NOT_FOOD"
+                  ? data.error
+                  : t.has("externalMealEstimateError")
+                    ? t("externalMealEstimateError")
+                    : "No pudimos estimar el snack.")
       );
       return null;
     }
@@ -439,10 +446,11 @@ export function SnackRegisterModal({
       const nextEstimate = await estimateSnack(mode);
       if (!nextEstimate) return;
 
-      setEstimate(nextEstimate);
-      setFoodItems(nextEstimate.alimentos);
+      const normalized = normalizeEstimateFoodMacrosFromDensities(nextEstimate);
+      setEstimate(normalized);
+      setFoodItems(normalized.alimentos);
       setQuantityDrafts({});
-      setDishName(nextEstimate.nombre_plato);
+      setDishName(normalized.nombre_plato);
       setStep("review");
     } catch (err) {
       console.error("[snack-register] analyze", err);
@@ -460,17 +468,20 @@ export function SnackRegisterModal({
     setFoodItems((current) =>
       current.map((item) => {
         if (item.id !== id) return item;
-        if (patch.cantidad != null && patch.cantidad !== item.cantidad) {
-          const nextQty = Number(patch.cantidad);
-          if (!Number.isFinite(nextQty) || nextQty <= 0) return item;
-          return scaleExternalMealFoodItem(item, nextQty);
-        }
-        if (patch.unidad != null || patch.nombre != null) {
-          return {
-            ...item,
-            nombre: patch.nombre?.trim() || item.nombre,
-            unidad: patch.unidad?.trim() || item.unidad
-          };
+        if (
+          (patch.cantidad != null && patch.cantidad !== item.cantidad) ||
+          (patch.unidad != null && patch.unidad !== item.unidad) ||
+          (patch.nombre != null && patch.nombre !== item.nombre)
+        ) {
+          if (patch.cantidad != null) {
+            const nextQty = Number(patch.cantidad);
+            if (!Number.isFinite(nextQty) || nextQty <= 0) return item;
+          }
+          return recalculateExternalMealFoodItem(item, {
+            cantidad: patch.cantidad,
+            unidad: patch.unidad,
+            nombre: patch.nombre
+          });
         }
         return { ...item, ...patch };
       })
@@ -630,10 +641,12 @@ export function SnackRegisterModal({
         aria-modal="true"
         aria-labelledby="snack-register-title"
         className={cn(
-          "flex w-full max-w-lg flex-col overflow-hidden rounded-t-3xl shadow-2xl sm:rounded-3xl",
+          "flex w-full flex-col overflow-hidden rounded-t-3xl shadow-2xl sm:rounded-3xl",
           showScanPhotoLayout
-            ? "h-[90dvh] max-h-[90dvh] border-0 bg-black sm:h-[min(90dvh,52rem)]"
-            : "max-h-[88vh] border border-neutral-100 bg-white"
+            ? "h-[90dvh] max-h-[90dvh] max-w-lg border-0 bg-black sm:h-[min(90dvh,52rem)]"
+            : mode === "menu" && step === "input"
+              ? "max-h-[92vh] max-w-2xl border border-neutral-100 bg-white"
+              : "max-h-[88vh] max-w-lg border border-neutral-100 bg-white"
         )}
         onClick={(event) => event.stopPropagation()}
       >
@@ -962,83 +975,138 @@ export function SnackRegisterModal({
 
           {step === "input" && mode === "menu" ? (
             <>
-              <div className="grid grid-cols-1 gap-2">
-                <button
-                  type="button"
-                  disabled={!canRegister}
-                  onClick={() => {
-                    setStep("input");
-                    setMode("text");
-                  }}
-                  className="inline-flex items-center gap-2 rounded-2xl border border-violet-200/80 bg-violet-50/50 px-3 py-3 text-left text-sm font-semibold text-violet-950 transition hover:bg-violet-50 disabled:opacity-50"
-                >
-                  <PenLine className="h-4 w-4 shrink-0" />
-                  {t.has("snackOptionText")
-                    ? t("snackOptionText")
-                    : "✍️ Registro por texto"}
-                </button>
-                <button
-                  type="button"
-                  disabled={!canRegister || isPremiumLoading}
-                  onClick={handlePhotoOptionClick}
-                  className="inline-flex items-center gap-2 rounded-2xl border border-sky-200/80 bg-sky-50/50 px-3 py-3 text-left text-sm font-semibold text-sky-950 transition hover:bg-sky-50 disabled:opacity-50"
-                >
-                  <Camera className="h-4 w-4 shrink-0" />
-                  <span className="min-w-0 flex-1">
-                    {t.has("snackOptionPhoto")
-                      ? t("snackOptionPhoto")
-                      : "📸 Foto instantánea"}
-                  </span>
-                  {!isPremium ? (
-                    <span className="shrink-0 text-[9px] font-bold tracking-wide text-amber-800">
-                      👑 PRO
+              <div className="space-y-2 rounded-2xl border border-stone-200/80 bg-[#FAF8F5] px-3 py-2.5">
+                <div className="flex items-center gap-3">
+                  <div className="h-px flex-1 bg-stone-300/70" />
+                  <p className="shrink-0 text-center text-[9px] font-bold uppercase tracking-[0.12em] text-stone-500">
+                    {t.has("externalMealAlreadyAteLabel")
+                      ? t("externalMealAlreadyAteLabel")
+                      : "¿Ya comiste? Regístralo aquí"}
+                  </p>
+                  <div className="h-px flex-1 bg-stone-300/70" />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    disabled={!canRegister || isPremiumLoading}
+                    onClick={handlePhotoOptionClick}
+                    className={cn(
+                      "flex flex-col items-center gap-0.5 rounded-xl border border-sky-100 bg-sky-50/70 px-1.5 py-2 text-center transition",
+                      "hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    )}
+                  >
+                    <Camera className="h-4 w-4 text-sky-700" strokeWidth={1.75} />
+                    <span className="text-[10px] font-semibold leading-tight text-sky-900">
+                      {t.has("pickerActionScanPlateTitle")
+                        ? t("pickerActionScanPlateTitle")
+                        : "Tomar foto del plato"}
                     </span>
-                  ) : null}
-                </button>
+                    <span className="text-[8px] leading-tight text-sky-800/70">
+                      {t.has("pickerActionScanPlateSubtitle")
+                        ? t("pickerActionScanPlateSubtitle")
+                        : "Toma una foto y lo registramos por ti"}
+                    </span>
+                    {!isPremium ? (
+                      <span className="text-[8px] font-bold tracking-wide text-amber-800">
+                        👑 PRO
+                      </span>
+                    ) : null}
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={!canRegister}
+                    onClick={() => {
+                      setStep("input");
+                      setMode("text");
+                    }}
+                    className={cn(
+                      "flex flex-col items-center gap-0.5 rounded-xl border border-violet-100 bg-violet-50/70 px-1.5 py-2 text-center transition",
+                      "hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    )}
+                  >
+                    <PenLine className="h-4 w-4 text-violet-700" strokeWidth={1.75} />
+                    <span className="text-[10px] font-semibold leading-tight text-violet-900">
+                      {t.has("pickerActionQuickLogTitle")
+                        ? t("pickerActionQuickLogTitle")
+                        : "Describir lo que comí"}
+                    </span>
+                    <span className="text-[8px] leading-tight text-violet-800/70">
+                      {t.has("pickerActionQuickLogSubtitle")
+                        ? t("pickerActionQuickLogSubtitle")
+                        : "Añade tu comida en segundos"}
+                    </span>
+                  </button>
+                </div>
               </div>
 
-              <div>
-                <p className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-stone-400">
-                  <Zap className="h-3.5 w-3.5" />
-                  {suggestions.some((item) => item.origin === "frequent")
-                    ? t.has("snackOptionFrequent")
-                      ? t("snackOptionFrequent")
-                      : "Tus snacks frecuentes"
-                    : t.has("snackOptionQuick")
-                      ? t("snackOptionQuick")
-                      : "Sugerencias rápidas"}
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {suggestionsLoading && suggestions.length === 0
-                    ? Array.from({ length: 4 }).map((_, index) => (
-                        <span
-                          key={`snack-skel-${index}`}
-                          className="h-8 w-24 animate-pulse rounded-full bg-stone-100"
-                        />
-                      ))
-                    : suggestions.map((suggestion) => (
-                        <button
-                          key={suggestion.id}
-                          type="button"
-                          disabled={!canRegister || busyPresetId !== null}
-                          onClick={() => void handleQuickSuggestion(suggestion)}
-                          className={cn(
-                            "inline-flex items-center gap-1 rounded-full border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 shadow-sm transition",
-                            "hover:border-[#4D6638]/35 hover:bg-[#4D6638]/5 disabled:opacity-50"
-                          )}
-                        >
-                          {busyPresetId === suggestion.id ? (
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                          ) : (
-                            <span aria-hidden>{suggestion.emoji}</span>
-                          )}
-                          + {suggestion.title}
-                          <span className="text-[10px] font-medium text-stone-400">
-                            {suggestion.kcal} kcal
-                          </span>
-                        </button>
-                      ))}
+              <div className="space-y-3 pt-1">
+                <div className="flex items-center gap-3">
+                  <div className="h-px flex-1 bg-stone-200" />
+                  <p className="shrink-0 text-center text-[9px] font-bold uppercase tracking-[0.12em] text-stone-500">
+                    {t.has("snackSandraSectionLabel")
+                      ? t("snackSandraSectionLabel")
+                      : "Snacks de Sandra"}
+                  </p>
+                  <div className="h-px flex-1 bg-stone-200" />
                 </div>
+
+                <label className="relative block">
+                  <Search
+                    className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400"
+                    strokeWidth={1.5}
+                    aria-hidden="true"
+                  />
+                  <input
+                    type="search"
+                    value={searchTerm}
+                    onChange={(event) => setSearchTerm(event.target.value)}
+                    placeholder={
+                      t.has("snackSearchPlaceholder")
+                        ? t("snackSearchPlaceholder")
+                        : t.has("searchPlaceholder")
+                          ? t("searchPlaceholder")
+                          : "Buscar snack..."
+                    }
+                    className="w-full rounded-full border border-stone-200/80 bg-white py-2.5 pl-11 pr-4 text-sm text-stone-700 shadow-sm outline-none placeholder:text-stone-400 transition focus:border-[#4C6B3F] focus:ring-1 focus:ring-[#4C6B3F]"
+                  />
+                </label>
+
+                {suggestionsLoading && suggestions.length === 0 ? (
+                  <PlanRecipePickerSkeleton cards={6} />
+                ) : null}
+
+                {!suggestionsLoading && suggestions.length === 0 ? (
+                  <p className="rounded-xl border border-dashed border-stone-200 bg-white px-3 py-4 text-center text-xs text-stone-500">
+                    {t.has("snackSandraEmpty")
+                      ? t("snackSandraEmpty")
+                      : "Aún no hay snacks publicados en el banco de Sandra."}
+                  </p>
+                ) : null}
+
+                {!suggestionsLoading &&
+                suggestions.length > 0 &&
+                filteredSuggestions.length === 0 ? (
+                  <p className="rounded-xl border border-dashed border-stone-200 bg-white px-3 py-4 text-center text-xs text-stone-500">
+                    {t.has("snackSearchEmpty")
+                      ? t("snackSearchEmpty")
+                      : "No hay snacks con ese nombre."}
+                  </p>
+                ) : null}
+
+                {filteredSuggestions.length > 0 ? (
+                  <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
+                    {filteredSuggestions.map((suggestion) => (
+                      <PlanRecipePickerCard
+                        key={suggestion.id}
+                        recipe={snackSuggestionToPickerItem(suggestion)}
+                        disabled={!canRegister || busyPresetId !== null}
+                        onSelect={() => void handleQuickSuggestion(suggestion)}
+                      />
+                    ))}
+                  </div>
+                ) : null}
               </div>
             </>
           ) : null}

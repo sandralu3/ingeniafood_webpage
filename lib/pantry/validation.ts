@@ -6,7 +6,7 @@ const HAS_VOWEL = /[aeiouáéíóúüAEIOUÁÉÍÓÚÜ]/;
 
 /** Utensilios / aparatos / no comida (también usados en ranking de frecuentes). */
 export const NON_FOOD_APPLIANCE_RE =
-  /air\s*fryer|airfryer|freidora|horno|microondas|batidora|licuadora|sarten|sartén|olla\b|robot\b|nevera|refrigerador|lavavajillas|cuchillo|tenedor|plato\b|vaso\b|taza\b(?!\s+de)/i;
+  /\b(?:air\s*fryer|airfryer|freidora|horno|microondas|batidora|licuadora|sarten|sartén|olla|robot|nevera|refrigerador|lavavajillas|cuchillo|tenedor|plato|vaso)\b|\btaza\b(?!\s+de)/i;
 
 /**
  * Nombres / tokens que NO son alimentos (persona de la app, nombres propios comunes, basura).

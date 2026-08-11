@@ -88,10 +88,27 @@ export function isLikelyFoodOrDrinkDescription(value: string): boolean {
   return contentTokens.some((token) => isLikelyEdibleIngredientName(token));
 }
 
-export function foodDescriptionRejectionMessage(context: "meal" | "snack" = "meal"): string {
-  return context === "snack"
-    ? "No hemos podido detectar alimentos reales. Por favor, sube una foto de tu snack o escribe lo que has comido."
-    : "No hemos podido detectar alimentos reales en esta imagen. Por favor, sube una foto de tu plato o escribe lo que has comido.";
+export function foodDescriptionRejectionMessage(
+  context: "meal" | "snack" = "meal",
+  source: "text" | "photo" | "any" = "any"
+): string {
+  if (context === "snack") {
+    if (source === "photo") {
+      return "No hemos podido detectar alimentos reales en esta foto. Sube una foto de tu snack o descríbelo por escrito.";
+    }
+    if (source === "text") {
+      return "No hemos podido detectar alimentos reales en lo que escribiste. Describe el snack con nombres de comida (ej.: yogur, fruta).";
+    }
+    return "No hemos podido detectar alimentos reales. Por favor, sube una foto de tu snack o escribe lo que has comido.";
+  }
+
+  if (source === "photo") {
+    return "No hemos podido detectar alimentos reales en esta imagen. Por favor, sube una foto de tu plato o escribe lo que has comido.";
+  }
+  if (source === "text") {
+    return "No hemos podido detectar alimentos reales en lo que escribiste. Describe el plato con nombres de comida (ej.: arroz, pollo, ensalada).";
+  }
+  return "No hemos podido detectar alimentos reales. Sube una foto de tu plato o escribe lo que has comido.";
 }
 
 /**

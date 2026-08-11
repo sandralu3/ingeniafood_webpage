@@ -61,6 +61,7 @@ export type RecipePickerItem = Pick<
   is_system_recipe?: boolean;
   is_sandra_recipe?: boolean;
   description?: string | null;
+  macros?: RecipeRow["macros"];
 };
 
 export type RecipesForPicker = {
@@ -376,11 +377,11 @@ export async function fetchWeeklyPlan(
 }
 
 const PICKER_SELECT_WITH_META =
-  "id, title, image_url, instagram_url, cooking_time, is_airfryer, is_flourless, created_at, tags, meal_type, description, is_system_recipe, is_sandra_recipe";
+  "id, title, image_url, instagram_url, cooking_time, is_airfryer, is_flourless, created_at, tags, meal_type, description, is_system_recipe, is_sandra_recipe, macros";
 const PICKER_SELECT_WITH_SYSTEM =
-  "id, title, image_url, instagram_url, cooking_time, is_airfryer, is_flourless, created_at, tags, meal_type, description, is_system_recipe";
+  "id, title, image_url, instagram_url, cooking_time, is_airfryer, is_flourless, created_at, tags, meal_type, description, is_system_recipe, macros";
 const PICKER_SELECT_FALLBACK =
-  "id, title, image_url, instagram_url, cooking_time, is_airfryer, is_flourless, created_at, tags, meal_type, description";
+  "id, title, image_url, instagram_url, cooking_time, is_airfryer, is_flourless, created_at, tags, meal_type, description, macros";
 
 function mapPickerRows(
   rows: Array<RecipePickerItem & { tags?: unknown; meal_type?: string | null; description?: string | null }>

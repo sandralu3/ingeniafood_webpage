@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>guia-pruebas-beta.md</title>
+<meta http-equiv="Content-type" content="text/html;charset=UTF-8">
+
+<style>
+/* https://github.com/microsoft/vscode/blob/master/extensions/markdown-language-features/media/markdown.css */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+body {
+	font-family: var(--vscode-markdown-font-family, -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif);
+	font-size: var(--vscode-markdown-font-size, 14px);
+	padding: 0 26px;
+	line-height: var(--vscode-markdown-line-height, 22px);
+	word-wrap: break-word;
+}
+
+#code-csp-warning {
+	position: fixed;
+	top: 0;
+	right: 0;
+	color: white;
+	margin: 16px;
+	text-align: center;
+	font-size: 12px;
+	font-family: sans-serif;
+	background-color:#444444;
+	cursor: pointer;
+	padding: 6px;
+	box-shadow: 1px 1px 1px rgba(0,0,0,.25);
+}
+
+#code-csp-warning:hover {
+	text-decoration: none;
+	background-color:#007acc;
+	box-shadow: 2px 2px 2px rgba(0,0,0,.25);
+}
+
+body.scrollBeyondLastLine {
+	margin-bottom: calc(100vh - 22px);
+}
+
+body.showEditorSelection .code-line {
+	position: relative;
+}
+
+body.showEditorSelection .code-active-line:before,
+body.showEditorSelection .code-line:hover:before {
+	content: "";
+	display: block;
+	position: absolute;
+	top: 0;
+	left: -12px;
+	height: 100%;
+}
+
+body.showEditorSelection li.code-active-line:before,
+body.showEditorSelection li.code-line:hover:before {
+	left: -30px;
+}
+
+.vscode-light.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.15);
+}
+
+.vscode-light.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.40);
+}
+
+.vscode-light.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-dark.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.4);
+}
+
+.vscode-dark.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.60);
+}
+
+.vscode-dark.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-high-contrast.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 160, 0, 0.7);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 160, 0, 1);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+img {
+	max-width: 100%;
+	max-height: 100%;
+}
+
+a {
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+a:focus,
+input:focus,
+select:focus,
+textarea:focus {
+	outline: 1px solid -webkit-focus-ring-color;
+	outline-offset: -1px;
+}
+
+hr {
+	border: 0;
+	height: 2px;
+	border-bottom: 2px solid;
+}
+
+h1 {
+	padding-bottom: 0.3em;
+	line-height: 1.2;
+	border-bottom-width: 1px;
+	border-bottom-style: solid;
+}
+
+h1, h2, h3 {
+	font-weight: normal;
+}
+
+table {
+	border-collapse: collapse;
+}
+
+table > thead > tr > th {
+	text-align: left;
+	border-bottom: 1px solid;
+}
+
+table > thead > tr > th,
+table > thead > tr > td,
+table > tbody > tr > th,
+table > tbody > tr > td {
+	padding: 5px 10px;
+}
+
+table > tbody > tr + tr > td {
+	border-top: 1px solid;
+}
+
+blockquote {
+	margin: 0 7px 0 5px;
+	padding: 0 16px 0 10px;
+	border-left-width: 5px;
+	border-left-style: solid;
+}
+
+code {
+	font-family: Menlo, Monaco, Consolas, "Droid Sans Mono", "Courier New", monospace, "Droid Sans Fallback";
+	font-size: 1em;
+	line-height: 1.357em;
+}
+
+body.wordWrap pre {
+	white-space: pre-wrap;
+}
+
+pre:not(.hljs),
+pre.hljs code > div {
+	padding: 16px;
+	border-radius: 3px;
+	overflow: auto;
+}
+
+pre code {
+	color: var(--vscode-editor-foreground);
+	tab-size: 4;
+}
+
+/** Theming */
+
+.vscode-light pre {
+	background-color: rgba(220, 220, 220, 0.4);
+}
+
+.vscode-dark pre {
+	background-color: rgba(10, 10, 10, 0.4);
+}
+
+.vscode-high-contrast pre {
+	background-color: rgb(0, 0, 0);
+}
+
+.vscode-high-contrast h1 {
+	border-color: rgb(0, 0, 0);
+}
+
+.vscode-light table > thead > tr > th {
+	border-color: rgba(0, 0, 0, 0.69);
+}
+
+.vscode-dark table > thead > tr > th {
+	border-color: rgba(255, 255, 255, 0.69);
+}
+
+.vscode-light h1,
+.vscode-light hr,
+.vscode-light table > tbody > tr + tr > td {
+	border-color: rgba(0, 0, 0, 0.18);
+}
+
+.vscode-dark h1,
+.vscode-dark hr,
+.vscode-dark table > tbody > tr + tr > td {
+	border-color: rgba(255, 255, 255, 0.18);
+}
+
+</style>
+
+<style>
+/* Tomorrow Theme */
+/* http://jmblog.github.com/color-themes-for-google-code-highlightjs */
+/* Original theme - https://github.com/chriskempson/tomorrow-theme */
+
+/* Tomorrow Comment */
+.hljs-comment,
+.hljs-quote {
+	color: #8e908c;
+}
+
+/* Tomorrow Red */
+.hljs-variable,
+.hljs-template-variable,
+.hljs-tag,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class,
+.hljs-regexp,
+.hljs-deletion {
+	color: #c82829;
+}
+
+/* Tomorrow Orange */
+.hljs-number,
+.hljs-built_in,
+.hljs-builtin-name,
+.hljs-literal,
+.hljs-type,
+.hljs-params,
+.hljs-meta,
+.hljs-link {
+	color: #f5871f;
+}
+
+/* Tomorrow Yellow */
+.hljs-attribute {
+	color: #eab700;
+}
+
+/* Tomorrow Green */
+.hljs-string,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-addition {
+	color: #718c00;
+}
+
+/* Tomorrow Blue */
+.hljs-title,
+.hljs-section {
+	color: #4271ae;
+}
+
+/* Tomorrow Purple */
+.hljs-keyword,
+.hljs-selector-tag {
+	color: #8959a8;
+}
+
+.hljs {
+	display: block;
+	overflow-x: auto;
+	color: #4d4d4c;
+	padding: 0.5em;
+}
+
+.hljs-emphasis {
+	font-style: italic;
+}
+
+.hljs-strong {
+	font-weight: bold;
+}
+</style>
+
+<style>
+/*
+ * Markdown PDF CSS
+ */
+
+ body {
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif, "Meiryo";
+	padding: 0 12px;
+}
+
+pre {
+	background-color: #f8f8f8;
+	border: 1px solid #cccccc;
+	border-radius: 3px;
+	overflow-x: auto;
+	white-space: pre-wrap;
+	overflow-wrap: break-word;
+}
+
+pre:not(.hljs) {
+	padding: 23px;
+	line-height: 19px;
+}
+
+blockquote {
+	background: rgba(127, 127, 127, 0.1);
+	border-color: rgba(0, 122, 204, 0.5);
+}
+
+.emoji {
+	height: 1.4em;
+}
+
+code {
+	font-size: 14px;
+	line-height: 19px;
+}
+
+/* for inline code */
+:not(pre):not(.hljs) > code {
+	color: #C9AE75; /* Change the old color so it seems less like an error */
+	font-size: inherit;
+}
+
+/* Page Break : use <div class="page"/> or <div class="page"></div> to insert page break
+-------------------------------------------------------- */
+.page {
+	page-break-after: always;
+}
+
+</style>
+
+<script src="https://unpkg.com/mermaid/dist/mermaid.min.js"></script>
+</head>
+<body>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: document.body.classList.contains('vscode-dark') || document.body.classList.contains('vscode-high-contrast')
+          ? 'dark'
+          : 'default'
+    });
+  </script>
+<h1 id="-guía-de-pruebas-beta--ingeniafood">📱 Guía de Pruebas Beta — IngeniaFood</h1>
+<blockquote>
+<p>Documento para testers. Lenguaje de <strong>pantalla</strong>: lo que ves, tocas y experimentas.<br>
+Última actualización: <strong>8 agosto 2026</strong></p>
+</blockquote>
+<hr>
+<h3 id="-objetivo-de-la-beta">🎯 Objetivo de la Beta</h3>
+<p>Probar las funciones principales de <strong>IngeniaFood</strong>: organizar comidas saludables de la semana, generar ideas a partir de lo que tienes en casa y disfrutar (o evaluar) la experiencia Premium.</p>
+<p>Tu misión no es “romper el código”, sino <strong>vivir la app como una usuaria real</strong> y reportar:</p>
+<ul>
+<li>Errores de interfaz (botones que no responden, textos cortados, pantallas en blanco).</li>
+<li>Fallos de experiencia (pasos confusos, resultados raros, tiempos de espera largos sin aviso).</li>
+<li>Cualquier detalle que te haga dudar de <em>qué hacer a continuación</em>.</li>
+</ul>
+<p><strong>Navegación principal</strong> (barra inferior):</p>
+<table>
+<thead>
+<tr>
+<th>Icono / pestaña</th>
+<th>Nombre en pantalla</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Casa / día</td>
+<td><strong>Hoy</strong></td>
+</tr>
+<tr>
+<td>Calendario</td>
+<td><strong>Plan</strong></td>
+</tr>
+<tr>
+<td>Cámara (centro)</td>
+<td><strong>Escáner</strong></td>
+</tr>
+<tr>
+<td>Libro</td>
+<td><strong>Recetas</strong> <em>(antes se llamaba Guardadas)</em></td>
+</tr>
+<tr>
+<td>Persona</td>
+<td><strong>Perfil</strong></td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h3 id="1--registro-y-acceso">1. 🔑 Registro y Acceso</h3>
+<h4 id="crear-una-cuenta">Crear una cuenta</h4>
+<ol>
+<li>Abre la app (idealmente <strong>instalada en el móvil</strong>, desde la pantalla de inicio).</li>
+<li>Si ves el aviso de instalación, pulsa <strong>«Instalar App Ahora»</strong> (o «Añadir a pantalla de inicio» en iPhone).</li>
+<li>Entra en <strong>Registro</strong> / <strong>Crear cuenta</strong>.</li>
+<li>Completa:
+<ul>
+<li><strong>Nombre y apellidos</strong></li>
+<li><strong>Correo electrónico</strong></li>
+<li><strong>Contraseña</strong></li>
+</ul>
+</li>
+<li>Pulsa <strong>«Crear cuenta»</strong>.</li>
+<li>Deberías ver un mensaje del estilo: <em>revisa tu correo para confirmar</em>.</li>
+<li>Abre el correo, confirma y vuelve a <strong>Iniciar sesión</strong>.</li>
+</ol>
+<h4 id="iniciar-sesión">Iniciar sesión</h4>
+<ol>
+<li>Pantalla <strong>«Iniciar sesión»</strong>.</li>
+<li>Escribe correo y contraseña.</li>
+<li>Pulsa <strong>«Iniciar sesion»</strong> (o el botón equivalente).</li>
+<li>Comprueba que llegas a la pestaña <strong>Hoy</strong>.</li>
+</ol>
+<h4 id="olvidaste-la-contraseña">¿Olvidaste la contraseña?</h4>
+<ol>
+<li>Pulsa <strong>«¿Olvidaste tu contraseña?»</strong>.</li>
+<li>En <strong>Recuperar contraseña</strong>, introduce tu correo.</li>
+<li>Pulsa <strong>«Enviar enlace de recuperación»</strong>.</li>
+<li>Sigue el correo y comprueba que puedes entrar de nuevo.</li>
+</ol>
+<h4 id="pase-premium-de-24-horas-acceso-temporal">Pase Premium de 24 horas (acceso temporal)</h4>
+<p>No hay un campo en pantalla para “escribir un código”. El pase llega así:</p>
+<ol>
+<li>Entra con el <strong>enlace de invitación</strong> que te hayan pasado (o abre la app si ya tienes un pase pendiente).</li>
+<li>Ve a la pestaña <strong>Hoy</strong>.</li>
+<li>Busca el banner:
+<ul>
+<li><strong>«Pase Premium de 24 horas disponible»</strong> o</li>
+<li><strong>«🎁 Pase 24H Premium»</strong></li>
+</ul>
+</li>
+<li>Lee el texto: algo como <em>«Actívalo ahora y desbloquea…»</em>.</li>
+<li>Pulsa <strong>«Desbloquea tu experiencia premium»</strong>.</li>
+<li>Debe aparecer un mensaje de éxito: <em>«¡Tu pase Premium de 24 horas ya está activo!…»</em>.</li>
+<li>Comprueba que ves indicadores <strong>Premium</strong> (por ejemplo en la cabecera o al usar funciones PRO).</li>
+</ol>
+<p><strong>Qué probar</strong></p>
+<ul>
+<li><input type="checkbox" id="checkbox0"><label for="checkbox0">Registro + confirmación de correo</label></li>
+<li><input type="checkbox" id="checkbox1"><label for="checkbox1">Login correcto e incorrecto (contraseña mala)</label></li>
+<li><input type="checkbox" id="checkbox2"><label for="checkbox2">Recuperación de contraseña</label></li>
+<li><input type="checkbox" id="checkbox3"><label for="checkbox3">Activar el pase de 24h desde <strong>Hoy</strong> (si te corresponde)</label></li>
+<li><input type="checkbox" id="checkbox4"><label for="checkbox4">Tras activar el pase, que las funciones PRO dejen de bloquearse durante ese tiempo</label></li>
+</ul>
+<hr>
+<h3 id="2--libro-de-recetas-pestaña-recetas">2. 🥗 Libro de Recetas (pestaña <strong>Recetas</strong>)</h3>
+<h4 id="dónde-están-las-recetas">Dónde están las recetas</h4>
+<ol>
+<li>Abre la pestaña inferior <strong>Recetas</strong> (libro).</li>
+<li>Título esperado: <strong>«Recetas ✨»</strong>.</li>
+<li>Debajo verás un subtítulo con el número de recetas del libro.</li>
+<li>Prueba las <strong>píldoras / chips</strong> de sección (fila horizontal):
+<ul>
+<li><strong>Mías</strong> — tus recetas del recetario personal</li>
+<li><strong>Sandra</strong> — <strong>Recetas de Sandra</strong> (banco oficial + recetas del catálogo de Instagram, con insignia «Receta de Sandra»)</li>
+<li><strong>Favoritas</strong> — las marcadas con corazón</li>
+<li><strong>Fuera</strong> — comidas registradas fuera de casa (escaneadas o escritas)</li>
+</ul>
+</li>
+</ol>
+<blockquote>
+<p>El chip activo se ve en verde suave (salvia), con el contador y pequeños ✨.<br>
+Las recetas <strong>sugeridas</strong> también siguen apareciendo al elegir un plato desde el <strong>Plan</strong> → <strong>«Elegir receta»</strong> → <strong>«Sugeridas»</strong>.<br>
+<strong>Nota:</strong> el catálogo de Instagram <strong>ya no está en el Escáner</strong>; vive en <strong>Recetas → Sandra</strong>.</p>
+</blockquote>
+<h4 id="buscar-y-filtrar">Buscar y filtrar</h4>
+<ol>
+<li>Usa el buscador en forma de <strong>píldora</strong> (<strong>«Buscar recetas...»</strong>), con fondo crema/champagne suave.</li>
+<li>A la derecha, el botón circular de filtros (icono de <strong>deslizadores</strong> / sliders).</li>
+<li>En el menú de filtros prueba:
+<ul>
+<li><strong>Todas · Desayunos · Almuerzos · Cenas · Snacks · Airfryer · Sin Harinas</strong></li>
+</ul>
+</li>
+<li>Comprueba el aviso <strong>«Filtro: …»</strong> y el botón <strong>«Quitar»</strong>.</li>
+</ol>
+<h4 id="cómo-se-ve-cada-tarjeta-de-receta">Cómo se ve cada tarjeta de receta</h4>
+<p>En la lista, cada tarjeta debería mostrar:</p>
+<ul>
+<li><strong>Foto grande</strong> a la izquierda (ocupa el borde de la tarjeta, sin mucho margen blanco).</li>
+<li><strong>Título</strong> y <strong>fecha</strong> corta arriba a la derecha (ej. <code>8 ago 2026</code>).</li>
+<li>Etiquetas de origen si aplica:
+<ul>
+<li><strong>Escaneado</strong> (verde menta + icono de escáner)</li>
+<li><strong>Comida fuera</strong> (naranja/melocotón + cubiertos)</li>
+<li>O insignia <strong>Receta de Sandra</strong> / tipo de comida (Desayuno, Cena…)</li>
+</ul>
+</li>
+<li><strong>Calorías</strong> (llama) y <strong>tiempo</strong> (reloj), si hay datos.</li>
+<li><strong>Macros</strong> compactos: <code>…g P · …g C · …g G</code>.</li>
+<li>Acciones abajo a la derecha: <strong>corazón</strong>, <strong>compartir</strong>, <strong>lápiz</strong> (abrir/editar) y <strong>papelera</strong> (si es tuya).</li>
+</ul>
+<h4 id="ver-el-detalle-de-una-receta">Ver el detalle de una receta</h4>
+<ol>
+<li>Toca una tarjeta (foto, título o lápiz).</li>
+<li>En el detalle, revisa:
+<ul>
+<li>Foto del plato</li>
+<li>Etiquetas, tiempo / dificultad</li>
+<li><strong>Macronutrientes</strong>, <strong>Ingredientes</strong>, <strong>Preparación</strong></li>
+<li><strong>Tip de Sandra</strong> / consejo experto (si existe)</li>
+<li>Si viene de Instagram: botón <strong>«Ver reel en Instagram»</strong> (abre el reel en otra pestaña)</li>
+</ul>
+</li>
+<li>Prueba: favorito, compartir, asignar al Plan (si aparece) y volver atrás.</li>
+</ol>
+<p><strong>Qué probar</strong></p>
+<ul>
+<li><input type="checkbox" id="checkbox5"><label for="checkbox5">La pestaña inferior se llama <strong>Recetas</strong> (no “Guardadas”)</label></li>
+<li><input type="checkbox" id="checkbox6"><label for="checkbox6">Chip <strong>Sandra</strong> muestra recetas oficiales (incluidas las de Instagram) con insignia</label></li>
+<li><input type="checkbox" id="checkbox6b"><label for="checkbox6b">En detalle de una receta de Instagram aparece <strong>«Ver reel en Instagram»</strong></label></li>
+<li><input type="checkbox" id="checkbox7"><label for="checkbox7"><strong>Mías / Favoritas / Fuera</strong> filtran bien</label></li>
+<li><input type="checkbox" id="checkbox8"><label for="checkbox8">Búsqueda y filtros de categoría funcionan</label></li>
+<li><input type="checkbox" id="checkbox9"><label for="checkbox9">Las tarjetas se leen bien en móvil (sin textos cortados)</label></li>
+<li><input type="checkbox" id="checkbox10"><label for="checkbox10">Favoritos se guardan al salir y volver a entrar</label></li>
+</ul>
+<hr>
+<h3 id="3--creación-de-recetas-e-ingredientes">3. 📸 Creación de Recetas e Ingredientes</h3>
+<h4 id="a-escanear-despensa">A) Escanear despensa</h4>
+<ol>
+<li>Abre la pestaña <strong>Escáner</strong>.</li>
+<li>Lee el mensaje tipo <strong>«Escanea tu despensa»</strong> o <strong>«Escanear Nevera o Despensa»</strong>.</li>
+<li>Prueba:
+<ul>
+<li><strong>«📷 Tomar foto a mi nevera»</strong> / <strong>«Escanear ahora»</strong>, <strong>o</strong></li>
+<li>Añadir ingredientes a mano en <strong>«Ingredientes a la mano»</strong> / <strong>«Tu Despensa»</strong>.</li>
+</ul>
+</li>
+<li>En <strong>«Confirmar ingredientes»</strong>, revisa la lista, corrige si hace falta y continúa.</li>
+<li>Pulsa <strong>«✨ Generar Recetas…»</strong> / <strong>«✨ Buscar Recetas»</strong> / <strong>«Generar receta con mi despensa»</strong>.</li>
+<li>En el resultado, prueba las opciones <strong>Clásica</strong>, <strong>Rápida</strong> y <strong>Fit</strong> (algunas pueden pedir Premium).</li>
+<li>Revisa pestañas <strong>Ingredientes</strong> y <strong>Preparación</strong>.</li>
+<li>Guarda con:
+<ul>
+<li><strong>«🍳 Guardar en mi Plan / Cocinar»</strong>, y/o</li>
+<li><strong>«Guardar en mi recetario»</strong></li>
+</ul>
+</li>
+</ol>
+<blockquote>
+<p>El Escáner <strong>solo</strong> sirve para generar recetas con tu despensa. Las recetas de Instagram están en <strong>Recetas → Sandra</strong> (apartado B).</p>
+</blockquote>
+<h4 id="b-recetas-de-sandra-incluye-instagram">B) Recetas de Sandra (incluye Instagram)</h4>
+<ol>
+<li>Ve a <strong>Recetas</strong> → chip <strong>Sandra</strong>.</li>
+<li>Deberías ver las recetas oficiales <strong>y</strong> las del catálogo de Instagram, con el <strong>mismo estilo de tarjeta</strong> que Mías / Favoritas / Fuera (foto, macros, acciones).</li>
+<li>Abre una receta:
+<ul>
+<li>El detalle es el mismo layout que el resto (hero, ingredientes, preparación, tip…).</li>
+<li>Si tiene reel, verás <strong>«Ver reel en Instagram»</strong> — ábrelo y comprueba que lleva al Instagram correcto.</li>
+</ul>
+</li>
+<li>Desde el <strong>Plan</strong> → <strong>«Elegir receta»</strong>, en el pie o estado vacío prueba el botón <strong>«Recetas de Sandra»</strong>:
+<ul>
+<li>Te lleva a <strong>Recetas → Sandra</strong> con un aviso de asignación al hueco.</li>
+<li>Abre una receta y pulsa <strong>«Añadir a este hueco»</strong> (o el icono de calendario) para asignarla al plan.</li>
+</ul>
+</li>
+<li>Confirma que la receta aparece en el día del Plan.</li>
+</ol>
+<h4 id="c-escanear-plato-servido-función-pro--premium">C) Escanear plato servido (función PRO / Premium)</h4>
+<p>Disponible desde el <strong>Plan</strong>, al elegir o cambiar un plato (en <strong>hoy</strong> o <strong>días pasados</strong>):</p>
+<ol>
+<li>Ve a <strong>Plan</strong> y selecciona el día de hoy (o uno pasado).</li>
+<li>En un hueco vacío pulsa <strong>«Elegir receta»</strong> (o el lápiz de <strong>Cambiar plato</strong>).</li>
+<li>Busca el bloque <strong>«¿Comiste fuera?»</strong>.</li>
+<li>Pulsa <strong>«📸 Escanear plato servido (IA)»</strong> (badge <strong>👑 PRO</strong>).</li>
+<li>Elige <strong>Tomar Foto</strong> o <strong>Elegir de la Galería</strong>.</li>
+<li>Pulsa <strong>Analizar alimentos</strong>.</li>
+<li>En <strong>«Revisa los alimentos»</strong>, ajusta cantidades si hace falta.</li>
+<li>Pulsa <strong>«Guardar y asignar al plan»</strong>.</li>
+<li>Comprueba que la comida aparece en el día con su nombre y calorías.</li>
+</ol>
+<blockquote>
+<p>Sin Premium (ni pase 24h), debe abrirse el diálogo <strong>«Función Premium»</strong> en lugar de completar el flujo.</p>
+</blockquote>
+<h4 id="d-registrar-comida-rápida-función-pro">D) Registrar comida rápida (función PRO)</h4>
+<ol>
+<li>Desde el mismo bloque <strong>«¿Comiste fuera?»</strong>.</li>
+<li>Pulsa <strong>«✍️ Registrar comida rápida»</strong> (<strong>👑 PRO</strong>).</li>
+<li>Describe qué comiste (ej.: <em>pechuga, arroz, ensalada</em>).</li>
+<li>Sigue la revisión de alimentos y guarda en el plan.</li>
+<li>Verifica el plato en <strong>Plan</strong> y, si aplica, en <strong>Recetas → Fuera</strong>.</li>
+</ol>
+<h4 id="e-snacks--tentempié">E) Snacks / tentempié</h4>
+<ol>
+<li>En <strong>Plan</strong>, baja a <strong>🍪 Snacks / Tentempié</strong>.</li>
+<li>Si hay un snack registrado, verás su tarjeta (foto, título, kcal) con una <strong>X</strong> para descartarlo.</li>
+<li>Usa los <strong>chips rápidos</strong> grises (<code>+ Manzana</code>, etc.).</li>
+<li>Pulsa el botón verde musgo oscuro tipo<br>
+<strong>«✨ + Registrar snack • XXX kcal»</strong> (o sin kcal si aún no hay snacks).</li>
+<li>Prueba registro por texto y, si eres Premium, <strong>foto instantánea</strong>.</li>
+<li>Elimina un snack con la <strong>X</strong> y confirma que desaparece.</li>
+</ol>
+<p><strong>Qué probar</strong></p>
+<ul>
+<li><input type="checkbox" id="checkbox11"><label for="checkbox11">Foto de despensa → ingredientes → receta generada</label></li>
+<li><input type="checkbox" id="checkbox12"><label for="checkbox12">Despensa manual sin foto</label></li>
+<li><input type="checkbox" id="checkbox13"><label for="checkbox13">Escáner <strong>sin</strong> pestaña «Desde Instagram» (solo despensa)</label></li>
+<li><input type="checkbox" id="checkbox13b"><label for="checkbox13b">Recetas → Sandra: mismas tarjetas + detalle + «Ver reel en Instagram»</label></li>
+<li><input type="checkbox" id="checkbox13c"><label for="checkbox13c">Plan → «Recetas de Sandra» → asignar al hueco</label></li>
+<li><input type="checkbox" id="checkbox14"><label for="checkbox14">Escaneo de plato servido (con y sin Premium)</label></li>
+<li><input type="checkbox" id="checkbox15"><label for="checkbox15">Comida rápida (con y sin Premium)</label></li>
+<li><input type="checkbox" id="checkbox16"><label for="checkbox16">Registrar y borrar snacks (chips + botón CTA)</label></li>
+</ul>
+<hr>
+<h3 id="4--planificador-semanal-de-menús">4. 📅 Planificador Semanal de Menús</h3>
+<ol>
+<li>Abre la pestaña <strong>Plan</strong>.</li>
+<li>Título esperado: <strong>«Tu plan semanal»</strong>.</li>
+<li>Cambia de día con el selector de la semana (Lunes… Domingo).</li>
+<li>Revisa el <strong>resumen superior del día</strong>:
+<ul>
+<li>Nombre del día + fecha</li>
+<li>Texto de ayuda: <strong>«Toca un plato para verlo, o usa el lápiz y la papelera para editarlo»</strong><br>
+<em>(ya no se habla de arrastrar comidas)</em></li>
+<li><strong>Círculo / donut</strong> de progreso (ej. <strong>2/3</strong> comidas asignadas), en tono ámbar/dorado</li>
+<li><strong>Calorías consumidas</strong> a la derecha (ej. <code>915 kcal</code>) y debajo <strong>«Objetivo: … kcal»</strong></li>
+</ul>
+</li>
+</ol>
+<h4 id="asignar-recetas">Asignar recetas</h4>
+<ol>
+<li>En un hueco vacío de <strong>☀️ Desayuno</strong>, <strong>🌤️ Almuerzo</strong> o <strong>🌙 Cena</strong>, pulsa <strong>«Elegir receta»</strong>.</li>
+<li>En <strong>«Elige una receta»</strong> prueba:
+<ul>
+<li>Pestaña <strong>«Sugeridas»</strong></li>
+<li>Pestaña <strong>«Mis recetas»</strong></li>
+<li>Buscador y filtros</li>
+<li>En el pie (o si tu libro está vacío): <strong>«Escanear despensa»</strong> y <strong>«Recetas de Sandra»</strong></li>
+</ul>
+</li>
+<li>Selecciona un plato y confirma la tarjeta:
+<ul>
+<li>Foto, título</li>
+<li><strong>kcal</strong> (icono llama) y <strong>tiempo</strong> (reloj)</li>
+<li><strong>Badges de macros</strong>: <code>…g P</code> (verde), <code>…g C</code> (naranja), <code>…g G</code> (rosa), si hay datos</li>
+<li>Botones circulares de <strong>lápiz</strong> y <strong>papelera</strong></li>
+</ul>
+</li>
+<li>Con una comida ya puesta, pulsa el botón píldora con borde punteado <strong>«Agregar complemento»</strong>.</li>
+<li>El complemento debe verse <strong>anidado debajo</strong> (fondo crema claro):
+<ul>
+<li>Etiqueta <strong>«Agregado de Complemento:»</strong></li>
+<li>Miniatura, nombre, kcal y acciones editar/eliminar</li>
+</ul>
+</li>
+</ol>
+<h4 id="cambiar-o-eliminar">Cambiar o eliminar</h4>
+<ol>
+<li><strong>Lápiz</strong> → <strong>Cambiar plato</strong> → elige otra receta.</li>
+<li><strong>Papelera</strong> → confirma <strong>«¿Quitar esta receta del día?»</strong> → <strong>«Quitar receta»</strong>.</li>
+<li>Toca el nombre/foto del plato para abrir el detalle y vuelve atrás.</li>
+</ol>
+<h4 id="menú-sugerido-del-día">Menú sugerido del día</h4>
+<ol>
+<li>Si faltan comidas, busca <strong>«✨ Proponer menú del día»</strong> o <strong>«✨ Sugerir comidas que faltan»</strong>.</li>
+<li>Con Premium (o pase 24h) debería rellenar huecos vacíos.</li>
+<li>Sin Premium, debería aparecer el aviso de <strong>Función Premium</strong>.</li>
+</ol>
+<h4 id="sobre-marcar-como-completada">Sobre “marcar como completada”</h4>
+<p>En esta versión <strong>no hay un botón “Marcado como comido / completado”</strong> por plato.<br>
+Lo que sí debes comprobar:</p>
+<ul>
+<li>Que el <strong>donut del día</strong> (ej. 3/3) sube al asignar Desayuno, Almuerzo y Cena.</li>
+<li>Que las <strong>calorías del día</strong> y el <strong>objetivo</strong> se actualizan al añadir/quitar platos y snacks.</li>
+<li>En <strong>Hoy</strong>, los <strong>retos</strong> sí pueden mostrar estados tipo <strong>Completado / Pendiente</strong> (flujo aparte del menú).</li>
+</ul>
+<blockquote>
+<p><strong>Nota:</strong> el arrastre entre huecos <strong>no está operativo</strong>; no intentes “arrastrar” comidas. Usa lápiz / papelera / elegir receta.</p>
+</blockquote>
+<p><strong>Qué probar</strong></p>
+<ul>
+<li><input type="checkbox" id="checkbox17"><label for="checkbox17">Donut + kcal / objetivo se ven claros y cambian al editar el día</label></li>
+<li><input type="checkbox" id="checkbox18"><label for="checkbox18">Macros visibles en las tarjetas de comida (si la receta los tiene)</label></li>
+<li><input type="checkbox" id="checkbox19"><label for="checkbox19">Complemento anidado debajo del plato principal</label></li>
+<li><input type="checkbox" id="checkbox20"><label for="checkbox20">Botón «Agregar complemento» en estilo píldora</label></li>
+<li><input type="checkbox" id="checkbox21"><label for="checkbox21">CTA de snacks verde musgo con ✨ y kcal</label></li>
+<li><input type="checkbox" id="checkbox22"><label for="checkbox22">Proponer menú del día (Premium vs Free)</label></li>
+<li><input type="checkbox" id="checkbox23"><label for="checkbox23"><strong>Copiar semana anterior</strong> (si hay menú la semana previa)</label></li>
+<li><input type="checkbox" id="checkbox24"><label for="checkbox24">Navegar entre semanas (anterior / siguiente)</label></li>
+</ul>
+<hr>
+<h3 id="5--lista-de-la-compra-automática">5. 🛒 Lista de la Compra Automática</h3>
+<ol>
+<li>En <strong>Plan</strong>, pulsa <strong>«Lista de compras»</strong>.</li>
+<li>Se abre un panel con el rango de fechas de la semana.</li>
+<li>Comprueba que aparecen ingredientes agrupados (verduras, proteínas, lácteos, despensa, etc.).</li>
+<li>Prueba:
+<ul>
+<li><strong>Quitar</strong> un ingrediente de la lista (icono de papelera / quitar).</li>
+<li><strong>«Copiar lista»</strong> y pegarla en Notas o WhatsApp para verificar el texto.</li>
+</ul>
+</li>
+<li>Vacía el plan de un día, regenera o vuelve a abrir la lista y mira si el contenido tiene sentido.</li>
+</ol>
+<blockquote>
+<p><strong>Nota para testers:</strong> la lista <strong>no usa casillas de “comprado”</strong>. La forma de gestionarla es <strong>quitar ítems</strong> o <strong>copiar</strong> la lista completa.</p>
+</blockquote>
+<p><strong>Qué probar</strong></p>
+<ul>
+<li><input type="checkbox" id="checkbox25"><label for="checkbox25">Lista vacía cuando no hay recetas en la semana</label></li>
+<li><input type="checkbox" id="checkbox26"><label for="checkbox26">Lista con varias recetas (ingredientes agrupados, sin duplicados raros)</label></li>
+<li><input type="checkbox" id="checkbox27"><label for="checkbox27">Quitar un ítem y copiar la lista</label></li>
+</ul>
+<hr>
+<h3 id="6--suscripción-y-pase-premium">6. 💎 Suscripción y Pase Premium</h3>
+<h4 id="dónde-aparece-el-diálogo-de-premium">Dónde aparece el diálogo de Premium</h4>
+<p>Prueba disparar <strong>«Función Premium»</strong> desde acciones como:</p>
+<ul>
+<li>Proponer menú del día con IA</li>
+<li>Escanear plato servido / registrar comida rápida</li>
+<li>Foto instantánea de snack</li>
+<li>Alternativas de receta (<strong>Rápida / Fit</strong>) o filtros avanzados del escáner</li>
+<li>Foto real del plato (si te lo ofrece)</li>
+</ul>
+<p>En el diálogo deberías ver:</p>
+<ul>
+<li>Título <strong>«Función Premium»</strong></li>
+<li>Explicación de la función bloqueada</li>
+<li>Botón <strong>«Desbloquear Premium»</strong> (o indicación de activar el pase desde <strong>Hoy</strong>)</li>
+<li><strong>«Entendido»</strong> para cerrar</li>
+</ul>
+<h4 id="flujo-de-upgrade--pago-de-prueba">Flujo de upgrade / pago de prueba</h4>
+<ol>
+<li>Ve a <strong>Perfil</strong> (si eres tester verás bloque <strong>Suscripción</strong> / <strong>IngeniaFood Premium</strong>).</li>
+<li>Pulsa <strong>«Upgrade a Premium»</strong> o <strong>«Desbloquear Premium»</strong>.</li>
+<li>Debe abrirse la pasarela de pago de prueba (pantalla de checkout).</li>
+<li>Completa el flujo de <strong>pago de prueba</strong> que os indiquen el equipo (tarjeta de prueba / entorno de ensayos).</li>
+<li>Tras el éxito, vuelve a la app y comprueba:
+<ul>
+<li>Badge o estado <strong>Premium</strong></li>
+<li>Que la función que estaba bloqueada ahora funciona</li>
+</ul>
+</li>
+<li>Si aplica: <strong>«Gestionar suscripción»</strong>.</li>
+</ol>
+<h4 id="pase-temporal-vs-suscripción">Pase temporal vs suscripción</h4>
+<ul>
+<li>Con pase 24h: mensaje tipo <strong>«Premium temporal activo hasta {fecha}»</strong>.</li>
+<li>Comprueba qué pasa cuando el pase <strong>caduca</strong> (vuelven a aparecer los bloqueos).</li>
+</ul>
+<p><strong>Qué probar</strong></p>
+<ul>
+<li><input type="checkbox" id="checkbox28"><label for="checkbox28">Paywall claro (no pantalla en blanco)</label></li>
+<li><input type="checkbox" id="checkbox29"><label for="checkbox29">Cerrar con <strong>Entendido</strong> sin romper la app</label></li>
+<li><input type="checkbox" id="checkbox30"><label for="checkbox30">Completar checkout de prueba y volver con Premium activo</label></li>
+<li><input type="checkbox" id="checkbox31"><label for="checkbox31">Función bloqueada → upgrade → misma función desbloqueada</label></li>
+</ul>
+<hr>
+<h3 id="7--programa-de-invitaciones--referidos">7. 🎁 Programa de Invitaciones / Referidos</h3>
+<p>En esta versión <strong>no hay un botón “Invitar amigos” visible dentro de la app</strong>.</p>
+<p>El flujo que debéis validar es:</p>
+<ol>
+<li>El equipo (o una persona con enlace) <strong>comparte un enlace de invitación</strong>.</li>
+<li>La persona invitada <strong>abre ese enlace</strong> e inicia sesión / se registra.</li>
+<li>En <strong>Hoy</strong> aparece el <strong>Pase Premium de 24 horas</strong> pendiente de activar.</li>
+<li>La invitada pulsa <strong>«Desbloquea tu experiencia premium»</strong> y disfruta el pase.</li>
+</ol>
+<p><strong>Qué probar (como invitada)</strong></p>
+<ul>
+<li><input type="checkbox" id="checkbox32"><label for="checkbox32">Abrir el enlace de invitación en móvil</label></li>
+<li><input type="checkbox" id="checkbox33"><label for="checkbox33">Registrarse o iniciar sesión</label></li>
+<li><input type="checkbox" id="checkbox34"><label for="checkbox34">Ver y activar el banner de 24h en <strong>Hoy</strong></label></li>
+<li><input type="checkbox" id="checkbox35"><label for="checkbox35">Confirmar que el pase se aplica a la cuenta correcta</label></li>
+</ul>
+<p><strong>Qué probar (como quien invita)</strong><br>
+Si el equipo os da un enlace o código para compartir:</p>
+<ul>
+<li><input type="checkbox" id="checkbox36"><label for="checkbox36">Compartir por WhatsApp / correo</label></li>
+<li><input type="checkbox" id="checkbox37"><label for="checkbox37">Verificar que la otra persona recibe el pase (no hace falta que veáis un “contador de referidos” en pantalla: puede no existir aún)</label></li>
+</ul>
+<blockquote>
+<p><strong>No confundir</strong> con <strong>«Compartir receta»</strong> (eso genera/envía la imagen de un plato, no una invitación).</p>
+</blockquote>
+<hr>
+<h3 id="-cómo-reportar-un-error">🐞 ¿Cómo reportar un error?</h3>
+<p>Cuando algo falle, envía el reporte con este checklist:</p>
+<ol>
+<li><strong>📸 Captura de pantalla o vídeo corto</strong> del problema (idealmente mostrando el botón o mensaje exacto).</li>
+<li><strong>📱 Dispositivo usado</strong>
+<ul>
+<li>iPhone / Android / ordenador</li>
+<li>Modelo aproximado y navegador (Safari, Chrome…) si lo sabes</li>
+</ul>
+</li>
+<li><strong>🧭 ¿Qué estabas intentando hacer</strong> cuando ocurrió el fallo?<br>
+Ejemplo: <em>“En Plan → Sábado → Elegir receta → Escanear plato servido → al pulsar Analizar se quedó cargando”</em>.<br>
+Otro ejemplo: <em>“En Recetas → chip Sandra → la tarjeta no muestra macros”</em>.</li>
+<li><strong>🔁 ¿Se puede repetir?</strong> (siempre / a veces / solo una vez)</li>
+<li><strong>👤 Estado de tu cuenta</strong> (Free / Pase 24h / Premium), si lo sabes.</li>
+<li><strong>🕐 Fecha y hora aproximada</strong> del fallo.</li>
+</ol>
+<h4 id="plantilla-rápida-para-copiar">Plantilla rápida para copiar</h4>
+<pre class="hljs"><code><div>🐛 Error Beta IngeniaFood
+
+Qué hacía:
+Dispositivo:
+Pantalla / pestaña:
+Qué esperaba:
+Qué ocurrió:
+Se puede repetir: Sí / No / A veces
+Captura o vídeo: (adjunto)
+Cuenta: Free / Pase 24h / Premium
+</div></code></pre>
+<hr>
+<h3 id="-ruta-sugerida-de-una-sesión-de-prueba-3045-min">✅ Ruta sugerida de una sesión de prueba (30–45 min)</h3>
+<ol>
+<li>Instalar app → registro / login</li>
+<li>Activar pase 24h (si aplica)</li>
+<li>Escáner de despensa → guardar una receta</li>
+<li><strong>Recetas</strong>: chips <strong>Mías / Sandra / Favoritas / Fuera</strong> + abrir una de Sandra (reel Instagram si aplica)</li>
+<li><strong>Plan</strong>: llenar un día (donut + macros) + complemento + snack CTA; probar CTA <strong>«Recetas de Sandra»</strong></li>
+<li>Lista de compras → copiar</li>
+<li>Probar una función PRO (plato servido o menú del día)</li>
+<li>Perfil: revisar estado Premium</li>
+<li>Reportar cualquier roce de UX aunque “no sea un bug grave”</li>
+</ol>
+<p>¡Gracias por ayudar a pulir IngeniaFood! 💚</p>
+
+</body>
+</html>
