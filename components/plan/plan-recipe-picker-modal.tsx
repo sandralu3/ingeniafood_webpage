@@ -143,6 +143,7 @@ export function PlanRecipePickerModal({
     setIsFilterMenuOpen(false);
     setActiveTab("system");
     setShowScanConfirm(false);
+    setExternalMode(null);
   }, [open]);
 
   const requestClose = () => {
@@ -292,7 +293,7 @@ export function PlanRecipePickerModal({
 
   return (
     <>
-      {open ? (
+      {open && externalMode === null ? (
         <div className="fixed inset-0 z-[160] flex items-end justify-center bg-black/45 px-0 backdrop-blur-[2px] sm:items-center sm:px-4">
           <div
             role="dialog"
@@ -671,6 +672,10 @@ export function PlanRecipePickerModal({
         existingSlotMeals={existingSlotMeals}
         onBusyChange={setExternalBusy}
         onClose={() => {
+          if (externalBusy) return;
+          setExternalMode(null);
+        }}
+        onBackToPicker={() => {
           if (externalBusy) return;
           setExternalMode(null);
         }}

@@ -32,7 +32,7 @@ import {
   RecipeAdvisoryPulseButton
 } from "@/components/recipes/recipe-advisory-alert";
 import { ModalSheetBackButton } from "@/components/ui/modal-sheet-back-button";
-import { PhotoSourcePicker } from "@/components/ui/photo-source-picker";
+import { MealPhotoSourceCards } from "@/components/ui/meal-photo-source-cards";
 import { ScanPhotoSheetStage } from "@/components/ui/scan-photo-sheet-stage";
 import { SwipeToCloseHandle } from "@/components/ui/swipe-to-close-handle";
 import { createSupabaseClient } from "@/lib/supabaseClient";
@@ -52,6 +52,8 @@ type Props = {
   /** Platos ya registrados en este bloque de comida (para consejo acumulado). */
   existingSlotMeals?: PlanMeal[];
   onClose: () => void;
+  /** Vuelve al picker de recetas sin cerrar el flujo del plan (p. ej. paso de elegir foto). */
+  onBackToPicker?: () => void;
   onRegistered: (meal: PlanMeal) => void;
   /** true mientras analiza o guarda: el padre no debe desmontar el modal. */
   onBusyChange?: (busy: boolean) => void;
@@ -73,6 +75,7 @@ export function ExternalMealRegisterModal({
   replacePlanEntryId,
   existingSlotMeals = [],
   onClose,
+  onBackToPicker,
   onRegistered,
   onBusyChange
 }: Props) {
@@ -187,14 +190,53 @@ export function ExternalMealRegisterModal({
     onClose();
   };
 
+  const requestBackToPicker = () => {
+    if (isAnalyzing || isSaving) return;
+    if (onBackToPicker) {
+      onBackToPicker();
+      return;
+    }
+    onClose();
+  };
+
+  const isPhotoSourceStep =
+    step === "input" && mode === "photo" && (!previewUrl || showSourcePicker);
+
   const title =
     mode === "photo"
-      ? t.has("externalMealScanTitle")
-        ? t("externalMealScanTitle")
-        : "📸 Escanear plato servido"
+      ? isPhotoSourceStep
+        ? t.has("externalMealPhotoScreenTitle")
+          ? t("externalMealPhotoScreenTitle")
+          : t.has("pickerActionScanPlateTitle")
+            ? t("pickerActionScanPlateTitle")
+            : "Tomar foto del plato"
+        : t.has("externalMealScanTitle")
+          ? t("externalMealScanTitle")
+          : "📸 Escanear plato servido"
       : t.has("externalMealQuickTitle")
         ? t("externalMealQuickTitle")
         : "✍️ Describir lo que comí";
+
+  const headerSubtitle =
+    step === "review"
+      ? t.has("externalMealReviewSubtitle")
+        ? t("externalMealReviewSubtitle")
+        : "Ajusta cantidades o pesos antes de guardar en tu plan."
+      : mode === "photo" && isPhotoSourceStep
+        ? t.has("externalMealPhotoScreenSubtitle")
+          ? t("externalMealPhotoScreenSubtitle")
+          : "Elige cámara o galería. Después estimamos calorías y proteínas."
+        : mode === "photo" && previewUrl
+          ? t.has("externalMealPhotoPreviewSubtitle")
+            ? t("externalMealPhotoPreviewSubtitle")
+            : "Revisa la foto y pulsa Analizar alimentos."
+          : mode === "text"
+            ? t.has("externalMealDescriptionCommaHint")
+              ? t("externalMealDescriptionCommaHint")
+              : "Si son varios alimentos, sepáralos por comas."
+            : t.has("externalMealSubtitle")
+              ? t("externalMealSubtitle")
+              : "Estimamos calorías y proteínas para mantener el balance del día.";
 
   const handleFileChange = (file: File | null) => {
     if (!file || !file.type.startsWith("image/")) return;
@@ -482,8 +524,6 @@ export function ExternalMealRegisterModal({
   const canAnalyze =
     mode === "text" ? description.trim().length >= 3 : Boolean(selectedFile);
 
-  const isPhotoSourceStep =
-    step === "input" && mode === "photo" && (!previewUrl || showSourcePicker);
   // En modo texto no queremos que el cuerpo se estire (reduce el espacio en blanco).
   const dialogNeedsTallBody =
     step === "review" || (mode === "photo" && !isPhotoSourceStep);
@@ -547,15 +587,7 @@ export function ExternalMealRegisterModal({
               : "Revisa los alimentos"
             : title}
         </h2>
-        <p className="mt-0.5 text-xs text-stone-500">
-          {step === "review"
-            ? t.has("externalMealReviewSubtitle")
-              ? t("externalMealReviewSubtitle")
-              : "Ajusta cantidades o pesos antes de guardar en tu plan."
-            : t.has("externalMealSubtitle")
-              ? t("externalMealSubtitle")
-              : "Estimamos calorías y proteínas para mantener el balance del día."}
-        </p>
+        <p className="mt-0.5 text-xs text-stone-500">{headerSubtitle}</p>
       </div>
       <button
         type="button"
@@ -577,30 +609,39 @@ export function ExternalMealRegisterModal({
       )}
     >
       {step === "input" ? (
-        <button
-          type="button"
-          disabled={isAnalyzing || !canAnalyze}
-          onClick={() => void handleAnalyze()}
-          className={cn(
-            "flex w-full items-center justify-center gap-2 rounded-2xl bg-[#4D6638] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-105",
-            "disabled:cursor-not-allowed disabled:opacity-60"
-          )}
-        >
-          {isAnalyzing ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : mode === "photo" ? (
-            <Camera className="h-4 w-4" />
-          ) : (
-            <PenLine className="h-4 w-4" />
-          )}
-          {isAnalyzing
-            ? t.has("externalMealAnalyzing")
-              ? t("externalMealAnalyzing")
-              : "Analizando plato…"
-            : t.has("externalMealAnalyzeCta")
-              ? t("externalMealAnalyzeCta")
-              : "Analizar alimentos"}
-        </button>
+        isPhotoSourceStep ? (
+          <ModalSheetBackButton
+            disabled={isAnalyzing}
+            label={t.has("externalMealBack") ? t("externalMealBack") : "Atrás"}
+            onClick={requestBackToPicker}
+            className="w-full justify-center"
+          />
+        ) : (
+          <button
+            type="button"
+            disabled={isAnalyzing || !canAnalyze}
+            onClick={() => void handleAnalyze()}
+            className={cn(
+              "flex w-full items-center justify-center gap-2 rounded-2xl bg-[#4D6638] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-105",
+              "disabled:cursor-not-allowed disabled:opacity-60"
+            )}
+          >
+            {isAnalyzing ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : mode === "photo" ? (
+              <Camera className="h-4 w-4" />
+            ) : (
+              <PenLine className="h-4 w-4" />
+            )}
+            {isAnalyzing
+              ? t.has("externalMealAnalyzing")
+                ? t("externalMealAnalyzing")
+                : "Analizando plato…"
+              : t.has("externalMealAnalyzeCta")
+                ? t("externalMealAnalyzeCta")
+                : "Analizar alimentos"}
+          </button>
+        )
       ) : (
         <div className="flex gap-2">
           <ModalSheetBackButton
@@ -644,27 +685,37 @@ export function ExternalMealRegisterModal({
       {step === "input" && mode === "photo" && !showScanPhotoLayout ? (
         <div className="space-y-3">
           {photoFileInputs}
-          <PhotoSourcePicker
-            title={
-              t.has("externalMealAddPhotoTitle")
-                ? t("externalMealAddPhotoTitle")
-                : "Añadir foto del plato"
-            }
+          <MealPhotoSourceCards
+            disabled={isAnalyzing}
+            showCancel={Boolean(previewUrl)}
             takePhotoLabel={
-              t.has("externalMealTakePhoto") ? t("externalMealTakePhoto") : "Tomar Foto"
+              t.has("externalMealTakePhoto") ? t("externalMealTakePhoto") : "Tomar foto"
             }
             galleryLabel={
               t.has("externalMealChooseGallery")
                 ? t("externalMealChooseGallery")
-                : "Elegir de la Galería"
+                : "Elegir de galería"
+            }
+            takePhotoHint={
+              t.has("externalMealPhotoCameraHint")
+                ? t("externalMealPhotoCameraHint")
+                : "Abre la cámara ahora"
+            }
+            galleryHint={
+              t.has("externalMealPhotoGalleryHint")
+                ? t("externalMealPhotoGalleryHint")
+                : "Usa una foto que ya tengas"
+            }
+            sectionLabel={
+              t.has("externalMealAddPhotoTitle")
+                ? t("externalMealAddPhotoTitle")
+                : "Añadir foto del plato"
             }
             cancelLabel={
               t.has("externalMealCancelChangePhoto")
                 ? t("externalMealCancelChangePhoto")
                 : "Cancelar"
             }
-            showCancel={Boolean(previewUrl)}
-            disabled={isAnalyzing}
             onTakePhoto={openCamera}
             onChooseGallery={openGallery}
             onCancel={() => setShowSourcePicker(false)}
@@ -910,7 +961,7 @@ export function ExternalMealRegisterModal({
 
   return (
     <div
-      className="fixed inset-0 z-[170] flex items-end justify-center bg-black/50 px-0 backdrop-blur-[2px] sm:items-center sm:px-4"
+      className="fixed inset-0 z-[160] flex items-end justify-center bg-black/45 px-0 backdrop-blur-[2px] sm:items-center sm:px-4"
       onClick={(event) => {
         if (event.target !== event.currentTarget) return;
         requestClose();

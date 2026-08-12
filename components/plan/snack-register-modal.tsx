@@ -5,6 +5,7 @@ import { Camera, Loader2, PenLine, Search, Trash2, X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { PlanRecipePickerCard } from "@/components/plan/plan-recipe-picker-card";
 import { ModalSheetBackButton } from "@/components/ui/modal-sheet-back-button";
+import { MealPhotoSourceCards } from "@/components/ui/meal-photo-source-cards";
 import { PremiumUpgradeDialog } from "@/components/premium/premium-upgrade-dialog";
 import { PlanRecipePickerSkeleton } from "@/components/skeletons/plan-recipe-picker-skeleton";
 import { usePremium } from "@/hooks/use-premium";
@@ -43,7 +44,6 @@ import {
   buildUnhealthyBalanceAdvisory,
   RecipeAdvisoryPulseButton
 } from "@/components/recipes/recipe-advisory-alert";
-import { PhotoSourcePicker } from "@/components/ui/photo-source-picker";
 import { ScanPhotoSheetStage } from "@/components/ui/scan-photo-sheet-stage";
 import { SwipeToCloseHandle } from "@/components/ui/swipe-to-close-handle";
 import { createSupabaseClient } from "@/lib/supabaseClient";
@@ -588,26 +588,49 @@ export function SnackRegisterModal({
         ? Boolean(selectedFile)
         : false;
 
+  const isPhotoSourceStep =
+    step === "input" && mode === "photo" && (!previewUrl || showSourcePicker);
+
   const headerTitle =
     step === "review"
       ? t.has("externalMealReviewTitle")
         ? t("externalMealReviewTitle")
         : "Revisa los alimentos"
-      : t.has("snackRegisterTitle")
-        ? t("snackRegisterTitle")
-        : "Registrar snack";
+      : mode === "photo"
+        ? t.has("snackPhotoScreenTitle")
+          ? t("snackPhotoScreenTitle")
+          : t.has("pickerActionScanPlateTitle")
+            ? t("pickerActionScanPlateTitle")
+            : "Tomar foto del snack"
+        : mode === "text"
+          ? t.has("pickerActionQuickLogTitle")
+            ? t("pickerActionQuickLogTitle")
+            : "Describir lo que comí"
+          : t.has("snackRegisterTitle")
+            ? t("snackRegisterTitle")
+            : "Registrar snack";
 
   const headerSubtitle =
     step === "review"
       ? t.has("externalMealReviewSubtitle")
         ? t("externalMealReviewSubtitle")
         : "Ajusta cantidades o pesos antes de guardar en tu plan."
-      : t.has("snackRegisterSubtitle")
-        ? t("snackRegisterSubtitle")
-        : "Añade un tentempié en segundos. Cuenta para el balance del día.";
+      : mode === "photo" && isPhotoSourceStep
+        ? t.has("snackPhotoScreenSubtitle")
+          ? t("snackPhotoScreenSubtitle")
+          : "Elige cámara o galería. Después estimamos calorías y proteínas."
+        : mode === "photo" && previewUrl
+          ? t.has("snackPhotoPreviewSubtitle")
+            ? t("snackPhotoPreviewSubtitle")
+            : "Revisa la foto y pulsa Analizar alimentos."
+          : mode === "text"
+            ? t.has("snackDescriptionCommaHint")
+              ? t("snackDescriptionCommaHint")
+              : "Si son varios alimentos, sepáralos por comas."
+            : t.has("snackRegisterSubtitle")
+              ? t("snackRegisterSubtitle")
+              : "Añade un tentempié en segundos. Cuenta para el balance del día.";
 
-  const isPhotoSourceStep =
-    step === "input" && mode === "photo" && (!previewUrl || showSourcePicker);
   const dialogNeedsTallBody =
     step === "review" || mode === "menu" || mode === "text" || !isPhotoSourceStep;
 
@@ -1193,35 +1216,43 @@ export function SnackRegisterModal({
                   </button>
                 </div>
               ) : (
-                <div className="space-y-2">
-                  <PhotoSourcePicker
-                    title={
-                      t.has("snackAddPhotoTitle")
-                        ? t("snackAddPhotoTitle")
-                        : "Añadir foto del snack"
-                    }
-                    takePhotoLabel={
-                      t.has("externalMealTakePhoto")
-                        ? t("externalMealTakePhoto")
-                        : "Tomar Foto"
-                    }
-                    galleryLabel={
-                      t.has("externalMealChooseGallery")
-                        ? t("externalMealChooseGallery")
-                        : "Elegir de la Galería"
-                    }
-                    cancelLabel={
-                      t.has("externalMealCancelChangePhoto")
-                        ? t("externalMealCancelChangePhoto")
-                        : "Cancelar"
-                    }
-                    showCancel={Boolean(previewUrl)}
-                    disabled={isAnalyzing}
-                    onTakePhoto={openCamera}
-                    onChooseGallery={openGallery}
-                    onCancel={() => setShowSourcePicker(false)}
-                  />
-                </div>
+                <MealPhotoSourceCards
+                  disabled={isAnalyzing}
+                  showCancel={Boolean(previewUrl)}
+                  takePhotoLabel={
+                    t.has("externalMealTakePhoto")
+                      ? t("externalMealTakePhoto")
+                      : "Tomar foto"
+                  }
+                  galleryLabel={
+                    t.has("externalMealChooseGallery")
+                      ? t("externalMealChooseGallery")
+                      : "Elegir de galería"
+                  }
+                  takePhotoHint={
+                    t.has("snackPhotoCameraHint")
+                      ? t("snackPhotoCameraHint")
+                      : "Abre la cámara ahora"
+                  }
+                  galleryHint={
+                    t.has("snackPhotoGalleryHint")
+                      ? t("snackPhotoGalleryHint")
+                      : "Usa una foto que ya tengas"
+                  }
+                  sectionLabel={
+                    t.has("snackAddPhotoTitle")
+                      ? t("snackAddPhotoTitle")
+                      : "Añadir foto del snack"
+                  }
+                  cancelLabel={
+                    t.has("externalMealCancelChangePhoto")
+                      ? t("externalMealCancelChangePhoto")
+                      : "Cancelar"
+                  }
+                  onTakePhoto={openCamera}
+                  onChooseGallery={openGallery}
+                  onCancel={() => setShowSourcePicker(false)}
+                />
               )}
             </div>
           ) : null}
@@ -1403,7 +1434,7 @@ export function SnackRegisterModal({
             )}
           >
             {step === "input" ? (
-              <div className="flex gap-2">
+              isPhotoSourceStep ? (
                 <ModalSheetBackButton
                   disabled={isAnalyzing || Boolean(busyPresetId)}
                   label={t.has("externalMealBack") ? t("externalMealBack") : "Atrás"}
@@ -1411,32 +1442,44 @@ export function SnackRegisterModal({
                     setMode("menu");
                     setError(null);
                   }}
+                  className="w-full justify-center"
                 />
-                <button
-                  type="button"
-                  disabled={isAnalyzing || !canAnalyze || !canRegister}
-                  onClick={() => void handleAnalyze()}
-                  className={cn(
-                    "flex min-w-0 flex-1 items-center justify-center gap-2 rounded-2xl bg-[#4D6638] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-105",
-                    "disabled:cursor-not-allowed disabled:opacity-60"
-                  )}
-                >
-                  {isAnalyzing ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : mode === "photo" ? (
-                    <Camera className="h-4 w-4" />
-                  ) : (
-                    <PenLine className="h-4 w-4" />
-                  )}
-                  {isAnalyzing
-                    ? t.has("externalMealAnalyzing")
-                      ? t("externalMealAnalyzing")
-                      : "Analizando…"
-                    : t.has("externalMealAnalyzeCta")
-                      ? t("externalMealAnalyzeCta")
-                      : "Analizar alimentos"}
-                </button>
-              </div>
+              ) : (
+                <div className="flex gap-2">
+                  <ModalSheetBackButton
+                    disabled={isAnalyzing || Boolean(busyPresetId)}
+                    label={t.has("externalMealBack") ? t("externalMealBack") : "Atrás"}
+                    onClick={() => {
+                      setMode("menu");
+                      setError(null);
+                    }}
+                  />
+                  <button
+                    type="button"
+                    disabled={isAnalyzing || !canAnalyze || !canRegister}
+                    onClick={() => void handleAnalyze()}
+                    className={cn(
+                      "flex min-w-0 flex-1 items-center justify-center gap-2 rounded-2xl bg-[#4D6638] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-105",
+                      "disabled:cursor-not-allowed disabled:opacity-60"
+                    )}
+                  >
+                    {isAnalyzing ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : mode === "photo" ? (
+                      <Camera className="h-4 w-4" />
+                    ) : (
+                      <PenLine className="h-4 w-4" />
+                    )}
+                    {isAnalyzing
+                      ? t.has("externalMealAnalyzing")
+                        ? t("externalMealAnalyzing")
+                        : "Analizando…"
+                      : t.has("externalMealAnalyzeCta")
+                        ? t("externalMealAnalyzeCta")
+                        : "Analizar alimentos"}
+                  </button>
+                </div>
+              )
             ) : (
               <div className="flex gap-2">
                 <ModalSheetBackButton

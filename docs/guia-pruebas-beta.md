@@ -1,7 +1,7 @@
 # 📱 Guía de Pruebas Beta — IngeniaFood
 
 > Documento para testers. Lenguaje de **pantalla**: lo que ves, tocas y experimentas.  
-> Última actualización: **11 agosto 2026** (copy: Describir lo que comí, no «comida rápida»)
+> Última actualización: **12 agosto 2026** (foto comida/snack: tarjetas cámara/galería en bloque crema)
 
 ---
 
@@ -199,7 +199,7 @@ Disponible desde el **Plan**, al elegir o cambiar un plato (en **hoy** o **días
 2. En un hueco vacío pulsa **«Elegir receta»** (o el lápiz de **Cambiar plato**).
 3. Encima de los tabs: bloque **«¿Ya comiste? Regístralo aquí»** (3 tarjetas de acción).
 4. Pulsa **«Tomar foto del plato»** (badge **👑 PRO**).
-5. Elige **Tomar Foto** o **Elegir de la Galería**.
+5. Verás **Tomar foto del plato** con dos tarjetas (**Tomar foto** / **Elegir de galería**) en bloque crema; el picker de recetas **se oculta** (como en snacks). **Atrás** vuelve al picker; **Analizar alimentos** aparece después de elegir la foto.
 6. Pulsa **Analizar alimentos**.
 7. En **«Revisa los alimentos»**, ajusta cantidades si hace falta.
 8. Pulsa **«Guardar y asignar al plan»**.
@@ -228,7 +228,9 @@ Disponible desde el **Plan**, al elegir o cambiar un plato (en **hoy** o **días
 4. En el modal (mismo estilo que registrar comida):
    - Arriba: **Tomar foto del plato** y **Describir lo que comí**
    - Debajo: **Snacks de Sandra** en **rejilla de tarjetas** (foto, título, kcal), con **barra de buscar**
-5. Prueba una tarjeta de Sandra, registro por texto y, si eres Premium, **foto**.
+5. Prueba una tarjeta de Sandra, registro por texto y, si eres Premium, **foto**:
+   - Tras **Tomar foto del plato**, verás **Tomar foto del snack** con dos tarjetas (**Tomar foto** / **Elegir de galería**) en bloque crema, igual que el menú del modal.
+   - Tras elegir foto, aparece la vista con imagen grande y el botón **Analizar alimentos** (no antes).
 6. Elimina un snack con la **X** y confirma que desaparece.
 
 **Qué probar**
@@ -239,9 +241,11 @@ Disponible desde el **Plan**, al elegir o cambiar un plato (en **hoy** o **días
 - [ ] Recetas → Sandra: mismas tarjetas + detalle + «Ver en Instagram» sobre la foto
 - [ ] Plan → Mis recetas / Recetas → Sandra → asignar al hueco
 - [ ] Escaneo de plato servido (con y sin Premium) desde **¿Ya comiste? Regístralo aquí**
+- [ ] Foto de comida: tarjetas cámara/galería → preview → **Analizar alimentos**
 - [ ] **Describir lo que comí** (con y sin Premium): texto con varios alimentos (incl. **cebolla**) se analiza bien
 - [ ] Tras analizar: editar cantidad/unidad actualiza kcal; overnight oats y banano+mantequilla con totales razonables
 - [ ] Registrar snack: foto / describir / tarjetas **Snacks de Sandra** + buscar + borrar
+- [ ] Snack por foto: tarjetas cámara/galería → preview → **Analizar alimentos**
 
 ---
 
