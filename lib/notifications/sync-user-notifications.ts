@@ -1,6 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getBuiltinHealthyTips } from "@/lib/content/builtin-tips";
 import { getTodayDateString } from "@/lib/gamification/challenges";
+import {
+  fetchLifestyleActivityDates,
+  mergeActivityIntoCompletions
+} from "@/lib/gamification/activity-streak";
 import { getCurrentStreakDateSet } from "@/lib/gamification/weekly-metrics";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
 import { MEAL_TYPES } from "@/lib/plan/constants";
@@ -128,14 +132,21 @@ export async function syncUserNotifications(
       rows = fallbackCompletions.data ?? [];
     }
 
-    const completedToday = rows.some((row) => row.completado_at === today);
-    const streakDays = getCurrentStreakDateSet(rows, today).size;
+    const lifestyleDates = await fetchLifestyleActivityDates(
+      client,
+      input.userId,
+      lookbackIso,
+      today
+    );
+    const activityRows = mergeActivityIntoCompletions(rows, lifestyleDates);
+    const completedToday = activityRows.some((row) => row.completado_at === today);
+    const streakDays = getCurrentStreakDateSet(activityRows, today).size;
 
     if (streakDays > 0 && !completedToday) {
       drafts.push({
         type: "streak_at_risk",
         title: "Tu racha está en riesgo",
-        body: `Llevas ${streakDays} día${streakDays === 1 ? "" : "s"} seguidos. Completa un reto antes de medianoche.`,
+        body: `Llevas ${streakDays} día${streakDays === 1 ? "" : "s"} seguidos. Antes de medianoche: un vaso de agua, registra una comida, usa el escáner o completa un reto.`,
         href: APP_ROUTES.hoy,
         dedupeKey: `streak_at_risk:${today}`,
         payload: { streakDays, date: today }

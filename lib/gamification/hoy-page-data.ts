@@ -1,11 +1,16 @@
 import type { DailyChallenge } from "@/lib/gamification/challenges";
 import {
+  fetchLifestyleActivityDates,
+  mergeActivityIntoCompletions
+} from "@/lib/gamification/activity-streak";
+import {
   fetchActiveDailyChallengesForUser,
   fetchAllChallengesForUser,
   fetchCompletionsInRange,
   fetchTodayCompletedChallengeIds
 } from "@/lib/gamification/challenge-service";
 import { calculateWeeklyHealthMetrics, type WeeklyHealthMetrics } from "@/lib/gamification/weekly-metrics";
+import { createSupabaseClient } from "@/lib/supabaseClient";
 import {
   EMPTY_DAY_PLAN_NUTRITION,
   buildTodayPlanMealSlots,
@@ -66,12 +71,15 @@ async function loadHoyPageData(userId: string): Promise<HoyPageData> {
     new Date(new Date(`${today}T12:00:00`).setDate(new Date(`${today}T12:00:00`).getDate() - 30))
   );
 
+  const supabase = createSupabaseClient();
+
   const [
     activeChallenges,
     allChallenges,
     todayCompletedIds,
-    weekCompletions,
-    streakCompletions,
+    weekCompletionsRaw,
+    streakCompletionsRaw,
+    lifestyleDates,
     weeklyPlan
   ] = await Promise.all([
     fetchActiveDailyChallengesForUser(userId),
@@ -79,11 +87,21 @@ async function loadHoyPageData(userId: string): Promise<HoyPageData> {
     fetchTodayCompletedChallengeIds(userId),
     fetchCompletionsInRange(userId, weekStart, today),
     fetchCompletionsInRange(userId, streakLookbackDate, today),
+    fetchLifestyleActivityDates(supabase, userId, streakLookbackDate, today),
     fetchWeeklyPlan(userId).catch((error) => {
       console.error("[hoy-page-data] Error cargando plan semanal:", error);
       return { weekStart, days: [] };
     })
   ]);
+
+  const weekCompletions = mergeActivityIntoCompletions(
+    weekCompletionsRaw,
+    lifestyleDates.filter((iso) => iso >= weekStart && iso <= today)
+  );
+  const streakCompletions = mergeActivityIntoCompletions(
+    streakCompletionsRaw,
+    lifestyleDates
+  );
 
   const todayPlanDay = weeklyPlan.days.find((day) => day.isToday);
   const todayPlanNutrition: DayPlanNutritionSummary =

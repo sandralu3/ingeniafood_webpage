@@ -6,7 +6,7 @@ import { invalidatePremiumInsightsCache } from "@/lib/premium-stories/stories-ca
 import type { HoyPageData } from "@/lib/gamification/hoy-page-data";
 
 /** Bump when HoyPageData shape changes so soft-nav never hydrates stale payloads. */
-const HOY_CACHE_PREFIX = "ingeniafood_hoy_data_v8";
+const HOY_CACHE_PREFIX = "ingeniafood_hoy_data_v9";
 
 function buildCacheKey(userId: string): string {
   return `${HOY_CACHE_PREFIX}_${userId}_${getTodayDateString()}`;

@@ -15,6 +15,10 @@ import { createSupabaseClient } from "@/lib/supabaseClient";
 import type { Database } from "@/types/database.types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
+  fetchLifestyleActivityDates,
+  mergeActivityIntoCompletions
+} from "@/lib/gamification/activity-streak";
+import {
   calculateWeeklyHealthMetrics,
   type WeeklyHealthMetrics
 } from "@/lib/gamification/weekly-metrics";
@@ -555,25 +559,35 @@ export async function fetchWeeklyHealthMetrics(userId: string): Promise<WeeklyHe
     new Date(new Date(`${today}T12:00:00`).setDate(new Date(`${today}T12:00:00`).getDate() - 30))
   );
 
+  const supabase = createSupabaseClient();
+
   const [
     activeChallenges,
     allChallenges,
     todayCompletedIds,
-    weekCompletions,
-    streakCompletions
+    weekCompletionsRaw,
+    streakCompletionsRaw,
+    lifestyleDates
   ] = await Promise.all([
     fetchActiveDailyChallengesForUser(userId),
     fetchAllChallengesForUser(userId),
     fetchTodayCompletedChallengeIds(userId),
     fetchCompletionsInRange(userId, weekStart, today),
-    fetchCompletionsInRange(userId, streakLookbackDate, today)
+    fetchCompletionsInRange(userId, streakLookbackDate, today),
+    fetchLifestyleActivityDates(supabase, userId, streakLookbackDate, today)
   ]);
 
   return calculateWeeklyHealthMetrics({
     activeChallenges,
     allChallenges,
-    weekCompletions,
-    streakCompletions,
+    weekCompletions: mergeActivityIntoCompletions(
+      weekCompletionsRaw,
+      lifestyleDates.filter((iso) => iso >= weekStart && iso <= today)
+    ),
+    streakCompletions: mergeActivityIntoCompletions(
+      streakCompletionsRaw,
+      lifestyleDates
+    ),
     todayCompletedIds,
     today
   });

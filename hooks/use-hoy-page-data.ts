@@ -12,6 +12,7 @@ import {
   writeHoyCache
 } from "@/lib/gamification/hoy-cache";
 import { fetchHoyPageData, type HoyPageData } from "@/lib/gamification/hoy-page-data";
+import { subscribeWaterIntakeChanged } from "@/lib/hydration/water-intake";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 
 type UseHoyPageDataResult = {
@@ -111,6 +112,25 @@ export function useHoyPageData(): UseHoyPageDataResult {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const unsubscribe = subscribeWaterIntakeChanged((payload) => {
+      if (payload.userId !== userId) return;
+      if (typeof payload.glassesDrunk !== "number") return;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        void refresh({ force: true });
+      }, 400);
+    });
+
+    return () => {
+      if (timer) clearTimeout(timer);
+      unsubscribe();
+    };
+  }, [userId, refresh]);
 
   return {
     data,

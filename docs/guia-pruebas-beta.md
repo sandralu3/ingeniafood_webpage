@@ -1,7 +1,7 @@
 # 📱 Guía de Pruebas Beta — IngeniaFood
 
 > Documento para testers. Lenguaje de **pantalla**: lo que ves, tocas y experimentas.  
-> Última actualización: **14 agosto 2026** (enlace: cómo escribir el texto abierto)
+> Última actualización: **14 agosto 2026** (racha: agua, comida registrada y escáner)
 
 ---
 
@@ -78,6 +78,16 @@ No hay un campo en pantalla para “escribir un código”. El pase llega así:
    - Pulsa **«Configurar vasos de agua»** → vas a **Personalizar parámetros**.
 3. Elige un número de vasos (ej. **8**) y guarda.
 4. Vuelve a **Hoy**: deben aparecer los vasos tocables y el progreso (ej. `0/8`).
+5. Toca **al menos un vaso**: el número de **Racha** (tarjeta naranja del tablero) debe subir si ese día aún no contaba.
+
+#### Hoy · Racha
+La racha **no** depende solo de los retos. Un día cuenta si haces **cualquiera** de esto:
+- Completas un **reto**
+- Tocas **al menos un vaso** de agua
+- **Registras una comida** o un snack (foto o «Describir lo que comí»)
+- Usas el **Escáner** de despensa
+
+Si saltas un día completo, la racha vuelve a 0. El calendario naranja es la racha seguida; el gris es un día con actividad que ya no forma parte de la racha actual.
 
 **Qué probar**
 - [ ] Registro + confirmación de correo
@@ -87,6 +97,7 @@ No hay un campo en pantalla para “escribir un código”. El pase llega así:
 - [ ] Tras activar el pase, que las funciones PRO dejen de bloquearse durante ese tiempo
 - [ ] Con pase 24h / Premium: **20** escaneos/día en Escáner (Free: **5**)
 - [ ] Sin meta de agua: CTA en Hoy → configurar en parámetros → tracker visible
+- [ ] Un vaso, registrar comida o un escaneo suben la **Racha** aunque no marques un reto
 
 ---
 
@@ -443,7 +454,7 @@ Si el equipo os da un enlace o código para compartir:
 Con push activado, las alertas del sistema pueden llegar **aunque no tengas la app abierta** (el servidor las envía un par de veces al día), por ejemplo:
 - Tip de Sandra del día
 - Recordatorio de agua (media jornada)
-- Racha en riesgo (por la tarde)
+- Racha en riesgo (por la tarde: si llevas racha y hoy aún no hay vaso, comida, escáner ni reto)
 - Huecos vacíos del plan de hoy
 - Reenganche si llevas varios días sin entrar
 - Pase Premium pendiente de activar
@@ -571,7 +582,7 @@ Cuenta: Free / Pase 24h / Premium
 1. Instalar app → registro / login  
 2. Activar pase 24h (si aplica) y comprobar **20** escaneos/día  
 3. Escáner de despensa → guardar una receta  
-4. **Hoy**: si no hay vasos, CTA de agua → configurar → tracker  
+4. **Hoy**: si no hay vasos, CTA de agua → configurar → tracker; comprueba que un vaso sube la **Racha**  
 5. Activar notificaciones push → cerrar app → comprobar aviso del sistema  
 6. **Recetas**: filas **Cocinar / Sandra / Favoritas / Registradas** + Ver más en Sandra (reel Instagram si aplica)  
 7. **Plan**: llenar un día (donut + macros) + complemento + snack CTA; desde el picker, **Escanear despensa** con confirmación al Guardar  

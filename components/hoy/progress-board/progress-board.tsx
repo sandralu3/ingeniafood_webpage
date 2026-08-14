@@ -13,7 +13,8 @@ import { usePremium } from "@/hooks/use-premium";
 import { getBuiltinHealthyTips } from "@/lib/content/builtin-tips";
 import { pickDailyTipIndex } from "@/lib/content/daily-tip";
 import type { HoyPageData } from "@/lib/gamification/hoy-page-data";
-import type { WeeklyHealthMetrics } from "@/lib/gamification/weekly-metrics";
+import { mergeActivityIntoCompletions } from "@/lib/gamification/activity-streak";
+import { getCurrentStreakDateSet } from "@/lib/gamification/weekly-metrics";
 import { buildWeekConsistencyDays, type WeekConsistencyDay } from "@/lib/gamification/week-consistency";
 import {
   fetchTodayWaterGlassesDrunk,
@@ -27,23 +28,6 @@ import { isLikelyLiquidMealTitle } from "@/lib/plan/plan-nutrition";
 import { parseAppLocale } from "@/i18n/config";
 import { toISODateString } from "@/lib/plan/week-utils";
 import { cn } from "@/lib/utils";
-
-const EMPTY_METRICS: WeeklyHealthMetrics = {
-  earnedPoints: 0,
-  maxPoints: 0,
-  percentage: 0,
-  completedToday: 0,
-  totalActiveChallenges: 0,
-  streakDays: 0,
-  activeDaysThisWeek: 0
-};
-
-type ProgressBoardProps = {
-  data: HoyPageData | null;
-  isLoading?: boolean;
-  firstName?: string | null;
-  className?: string;
-};
 
 function ConsistencyDotsWeek({ days }: { days: WeekConsistencyDay[] }) {
   return (
@@ -208,6 +192,13 @@ function snapshotFromHoyPlan(
   };
 }
 
+type ProgressBoardProps = {
+  data: HoyPageData | null;
+  isLoading?: boolean;
+  firstName?: string | null;
+  className?: string;
+};
+
 export function ProgressBoard({
   data,
   isLoading = false,
@@ -230,7 +221,6 @@ export function ProgressBoard({
   const [waterGoal, setWaterGoal] = useState<number | null>(null);
 
   const today = toISODateString(new Date());
-  const metrics = data?.metrics ?? EMPTY_METRICS;
   const premiumReady = isPremium && !isPremiumLoading;
   const planRevision = useMemo(() => buildPlanRevision(data), [data]);
 
@@ -305,14 +295,28 @@ export function ProgressBoard({
     [data, calorieTarget]
   );
 
+  const liveActivityDates = useMemo(
+    () => (waterDrunk > 0 ? [today] : []),
+    [waterDrunk, today]
+  );
+  const liveWeekCompletions = useMemo(
+    () =>
+      mergeActivityIntoCompletions(data?.weekCompletions ?? [], liveActivityDates),
+    [data?.weekCompletions, liveActivityDates]
+  );
+  const liveStreakCompletions = useMemo(
+    () =>
+      mergeActivityIntoCompletions(
+        data?.streakCompletions ?? data?.weekCompletions ?? [],
+        liveActivityDates
+      ),
+    [data?.weekCompletions, data?.streakCompletions, liveActivityDates]
+  );
+
   const weekConsistency = useMemo(
     () =>
-      buildWeekConsistencyDays(
-        data?.weekCompletions ?? [],
-        today,
-        data?.streakCompletions ?? data?.weekCompletions ?? []
-      ),
-    [data?.weekCompletions, data?.streakCompletions, today]
+      buildWeekConsistencyDays(liveWeekCompletions, today, liveStreakCompletions),
+    [liveWeekCompletions, liveStreakCompletions, today]
   );
 
   const freeDailyTip = useMemo(() => {
@@ -339,7 +343,14 @@ export function ProgressBoard({
   const showSkeleton =
     (isLoading && !data) || awaitingPremiumStatus || awaitingPremiumDose;
 
-  const { streakDays, activeDaysThisWeek } = metrics;
+  const streakDays = useMemo(
+    () => getCurrentStreakDateSet(liveStreakCompletions, today).size,
+    [liveStreakCompletions, today]
+  );
+  const activeDaysThisWeek = useMemo(
+    () => weekConsistency.filter((day) => day.active && day.isoDate <= today).length,
+    [weekConsistency, today]
+  );
 
   const previewHeadline =
     doseReport?.highlight?.trim() ||
@@ -352,10 +363,10 @@ export function ProgressBoard({
     streakDays === 0
       ? t.has("streakCardMotivateStart")
         ? t("streakCardMotivateStart")
-        : "Completa un hábito hoy y enciende tu racha."
+        : "Un vaso, una comida, un escaneo o un reto: enciende tu racha."
       : t.has("streakCardMotivateKeep")
         ? t("streakCardMotivateKeep", { count: streakDays })
-        : `¡Vas genial! Llevas ${streakDays} días alimentándote mejor.`;
+        : `¡Vas genial! Llevas ${streakDays} días cuidándote.`;
 
   const doseScore = doseBalance?.score ?? (premiumReady ? 0 : 0);
   const doseLabel =

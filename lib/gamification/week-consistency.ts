@@ -5,7 +5,7 @@ import { getCurrentStreakDateSet } from "@/lib/gamification/weekly-metrics";
 export type WeekConsistencyDay = {
   label: string;
   isoDate: string;
-  /** Hubo al menos un reto completado ese día */
+  /** Hubo actividad ese día (reto, agua, comida registrada o escáner) */
   active: boolean;
   /** Forma parte de la racha consecutiva actual */
   inCurrentStreak: boolean;
