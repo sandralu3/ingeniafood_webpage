@@ -64,7 +64,7 @@ export function CalorieCalcNote({
           ? t("calorieCalcTitle")
           : "De dónde salen las calorías"}
       </p>
-      {showAiLine ? (
+      {showAiLine && aiName && typeof aiKcal === "number" ? (
         <p className="mt-1 text-[11px] leading-snug text-stone-600">
           {t.has("calorieCalcAiLine")
             ? t("calorieCalcAiLine", {
