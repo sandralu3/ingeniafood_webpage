@@ -1,5 +1,5 @@
 import { normalizeRecipeTags } from "@/lib/recipes/recipe-tags";
-import { macrosForFoodPortion } from "@/lib/plan/food-density";
+import { macrosForFoodPortion, type FoodDensity } from "@/lib/plan/food-density";
 
 export const EXTERNAL_MEAL_BADGE = {
   comida_fuera: "comida_fuera",
@@ -34,6 +34,8 @@ export type ExternalMealFoodItem = {
   cantidad_ref: number;
   calorias_ref: number;
   proteinas_ref: number;
+  /** Densidad fijada (catálogo, alimento guardado u Open Food Facts). */
+  density?: FoodDensity;
 };
 
 export type ExternalMealBalance = "equilibrado" | "mejorable" | "poco_saludable";
@@ -62,6 +64,22 @@ export type ExternalMealEstimate = {
   recomendaciones: string[];
   /** Título empático del aviso (opcional, viene de la IA). */
   recommendation_title?: string;
+  /** Cómo interpretó la IA el alimento (leche, azúcar, tamaño…). */
+  assumptions?: string;
+  /** Cálculo crudo de la IA, antes de tabla o parseo local. */
+  ai_calculo?: {
+    nombre_plato: string;
+    calorias_est: number;
+    assumptions?: string;
+    alimentos: Array<{
+      nombre: string;
+      cantidad: number;
+      unidad: string;
+      calorias: number;
+    }>;
+  };
+  /** Origen del total mostrado al llegar a la revisión. */
+  calculo_origen?: "tabla" | "ia" | "texto";
   /**
    * Solo Admin (escaneo foto): pasos de cocina para publicar como Receta de Sandra.
    * Los usuarios normales no reciben este campo.
@@ -207,6 +225,7 @@ export function createExternalMealFoodItem(input: {
   calorias: number;
   proteinas_g: number;
   id?: string;
+  density?: FoodDensity;
 }): ExternalMealFoodItem {
   const cantidad = clampPositive(input.cantidad, 1, 5000);
   const calorias = Math.max(0, Math.round(input.calorias));
@@ -224,7 +243,8 @@ export function createExternalMealFoodItem(input: {
     proteinas_g,
     cantidad_ref: cantidad,
     calorias_ref: calorias,
-    proteinas_ref: proteinas_g
+    proteinas_ref: proteinas_g,
+    ...(input.density ? { density: input.density } : {})
   };
 }
 
@@ -248,6 +268,7 @@ export function recalculateExternalMealFoodItem(
     nombre,
     cantidad,
     unidad,
+    density: item.density,
     fallback: {
       cantidad: item.cantidad_ref > 0 ? item.cantidad_ref : item.cantidad,
       unidad: item.unidad,
@@ -318,7 +339,7 @@ export function withEditedExternalMealFoods(
   const calorias =
     alimentos.length > 0
       ? Math.min(2500, Math.max(0, totals.calorias))
-      : Math.min(2500, Math.max(80, estimate.calorias_est));
+      : Math.min(2500, Math.max(0, estimate.calorias_est));
   const next: ExternalMealEstimate = {
     ...estimate,
     alimentos,
@@ -595,7 +616,7 @@ export function withEditedSnackFoods(
   const next: ExternalMealEstimate = {
     ...estimate,
     alimentos,
-    calorias_est: Math.min(1200, Math.max(20, totals.calorias || estimate.calorias_est)),
+    calorias_est: Math.min(1200, Math.max(0, totals.calorias || estimate.calorias_est)),
     proteinas_est_g: Math.min(80, Math.max(0, totals.proteinas_g))
   };
   return {

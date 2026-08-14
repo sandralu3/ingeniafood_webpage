@@ -43,6 +43,10 @@ function parseLeadingAmount(raw: string): { amount: number; rest: string } | nul
       return { amount: num / den, rest: fraction[3].trim() };
     }
   }
+  const halfWord = raw.match(/^(media|medio|mitad)\s+(.*)$/i);
+  if (halfWord) {
+    return { amount: 0.5, rest: halfWord[2].trim() };
+  }
   const decimal = raw.match(/^(\d+(?:[.,]\d+)?)\s*(.*)$/);
   if (decimal) {
     return { amount: Number(decimal[1].replace(",", ".")), rest: decimal[2].trim() };
@@ -84,6 +88,23 @@ export function splitFoodDescriptionSegments(description: string): ParsedSegment
         : [part];
 
     for (const chunk of chunks) {
+      // "media taza de café" / "medio vaso de leche"
+      const halfUnitFood = chunk.match(
+        new RegExp(
+          `^(media|medio|mitad)\\s+(${UNIT_TOKEN})(?:\\s+de)?\\s+(.+)$`,
+          "i"
+        )
+      );
+      if (halfUnitFood) {
+        segments.push({
+          raw: chunk,
+          amount: 0.5,
+          unit: normalizeFoodUnit(halfUnitFood[2]),
+          foodText: halfUnitFood[3].trim()
+        });
+        continue;
+      }
+
       const leadingQty = chunk.match(
         new RegExp(
           `^(\\d+(?:[.,]\\d+)?|\\d+\\s*/\\s*\\d+)\\s*(${UNIT_TOKEN})(?:\\s+de)?\\s+(.+)$`,
@@ -198,14 +219,40 @@ function segmentToFoodItem(segment: ParsedSegment): ExternalMealFoodItem {
   });
 }
 
+function buildDishTitleFromFoods(foods: ExternalMealFoodItem[]): string {
+  if (foods.length >= 2) return `${foods[0].nombre} con ${foods[1].nombre}`;
+  if (foods.length === 1) return foods[0].nombre;
+  return "Comida";
+}
+
 function buildDishTitle(description: string, foods: ExternalMealFoodItem[]): string {
   const trimmed = description.trim().replace(/\s+/g, " ");
-  if (trimmed.length <= 70) return trimmed;
-  if (foods.length >= 2) {
-    return `${foods[0].nombre} con ${foods[1].nombre}`;
-  }
-  if (foods.length === 1) return foods[0].nombre;
-  return `${trimmed.slice(0, 67).trim()}…`;
+  if (trimmed.length <= 70 && trimmed.length > 0) return trimmed;
+  return buildDishTitleFromFoods(foods);
+}
+
+function estimateFromFoodItems(alimentos: ExternalMealFoodItem[], title: string): ExternalMealEstimate {
+  const totals = sumExternalMealFoodMacros(alimentos);
+  const hasVeggies = alimentos.some((item) =>
+    /verdura|ensalada|tomate|lechuga|brocoli|br[oó]coli|espinaca|pepino|calabac/i.test(item.nombre)
+  );
+
+  const base: ExternalMealEstimate = {
+    nombre_plato: title,
+    calorias_est: Math.min(2500, Math.max(0, totals.calorias)),
+    proteinas_est_g: Math.min(200, Math.max(0, totals.proteinas_g)),
+    tiene_vegetales: hasVeggies,
+    badge: EXTERNAL_MEAL_BADGE.comida_fuera,
+    alimentos,
+    balance: "mejorable",
+    recomendaciones: [],
+    calculo_origen: "tabla"
+  };
+
+  return {
+    ...base,
+    ...evaluateExternalMealBalance(base)
+  };
 }
 
 /**
@@ -218,31 +265,12 @@ export function estimateMealFromOpenText(description: string): ExternalMealEstim
   const alimentos = segments.map(segmentToFoodItem).slice(0, 10);
   if (alimentos.length === 0) return null;
 
-  const totals = sumExternalMealFoodMacros(alimentos);
-  const hasVeggies = alimentos.some((item) =>
-    /verdura|ensalada|tomate|lechuga|brocoli|br[oó]coli|espinaca|pepino|calabac/i.test(item.nombre)
-  );
-
-  const base: ExternalMealEstimate = {
-    nombre_plato: buildDishTitle(description, alimentos),
-    calorias_est: Math.min(2500, Math.max(20, totals.calorias || 20)),
-    proteinas_est_g: Math.min(200, Math.max(0, totals.proteinas_g)),
-    tiene_vegetales: hasVeggies,
-    badge: EXTERNAL_MEAL_BADGE.comida_fuera,
-    alimentos,
-    balance: "mejorable",
-    recomendaciones: []
-  };
-
-  return {
-    ...base,
-    ...evaluateExternalMealBalance(base)
-  };
+  return estimateFromFoodItems(alimentos, buildDishTitle(description, alimentos));
 }
 
 export function descriptionHasExplicitQuantities(description: string): boolean {
   return new RegExp(
-    `\\d+(?:[.,]\\d+)?\\s*(?:${UNIT_TOKEN})\\b|\\d+\\s*/\\s*\\d+`,
+    `\\d+(?:[.,]\\d+)?\\s*(?:${UNIT_TOKEN})\\b|\\d+\\s*/\\s*\\d+|\\b(media|medio|mitad)\\s+(?:${UNIT_TOKEN})\\b`,
     "i"
   ).test(description);
 }

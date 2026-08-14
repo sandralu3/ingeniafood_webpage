@@ -175,7 +175,7 @@ export function PlanDayMealsPanel({
     assignedItems > 0
       ? t.has("dragToReorderHint")
         ? t("dragToReorderHint")
-        : "Toca un plato para verlo, o usa el lápiz y la papelera para editarlo"
+        : "Toca un plato para verlo. Usa el check, mover, el lápiz o la papelera"
       : null;
 
   return (
@@ -286,6 +286,19 @@ export function PlanDayMealsPanel({
                                 ? (selected) => onChangeMeal(day.label, selected)
                                 : undefined
                             }
+                            onMoveToMealType={(toMealType) =>
+                              void handleMove(
+                                {
+                                  dayLabel: day.label,
+                                  mealType,
+                                  planEntryId: meal.id,
+                                  title: meal.title,
+                                  imageUrl: meal.imageUrl
+                                },
+                                { dayLabel: day.label, mealType: toMealType }
+                              )
+                            }
+                            moveDisabled={isMoving || isProposingDayMenu}
                             canMarkConsumed={canMarkConsumed}
                             onConsumedChange={
                               onConsumedChange

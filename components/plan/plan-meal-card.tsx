@@ -2,8 +2,9 @@
 
 import { useState, type HTMLAttributes } from "react";
 import Link from "next/link";
-import { Coffee, Clock3, Check, Flame, GripVertical, Loader2, Pencil, Soup, Trash2, Utensils } from "lucide-react";
+import { ArrowRightLeft, Coffee, Clock3, Check, Flame, GripVertical, Loader2, Pencil, Soup, Trash2, Utensils } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { MoveMealSlotDialog } from "@/components/plan/move-meal-slot-dialog";
 import { RecipeInstagramLink } from "@/components/recipes/recipe-instagram-link";
 import { RecipeMedia } from "@/components/recipes/recipe-media";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -51,6 +52,9 @@ type PlanMealCardProps = {
   onRemoveError?: (message: string) => void;
   /** Abrir selector para cambiar el plato de esta entrada. */
   onChangeMeal?: (meal: PlanMeal) => void;
+  /** Mover este plato a otro momento del mismo día. */
+  onMoveToMealType?: (toMealType: MealType) => void;
+  moveDisabled?: boolean;
   /** Hoy o pasado: permite «Ya comí». */
   canMarkConsumed?: boolean;
   onConsumedChange?: (
@@ -256,6 +260,7 @@ function CompactActionButtons({
   changeDisabled,
   onRemove,
   onChange,
+  onMove,
   onToggleConsumed,
   canMarkConsumed,
   isConsumed,
@@ -264,6 +269,7 @@ function CompactActionButtons({
   mini = false,
   removeAria,
   changeAria,
+  moveAria,
   markConsumedAria,
   undoConsumedAria
 }: {
@@ -272,6 +278,7 @@ function CompactActionButtons({
   changeDisabled?: boolean;
   onRemove: () => void;
   onChange?: () => void;
+  onMove?: () => void;
   onToggleConsumed?: () => void;
   canMarkConsumed?: boolean;
   isConsumed?: boolean;
@@ -280,6 +287,7 @@ function CompactActionButtons({
   mini?: boolean;
   removeAria: string;
   changeAria?: string;
+  moveAria?: string;
   markConsumedAria?: string;
   undoConsumedAria?: string;
 }) {
@@ -339,6 +347,25 @@ function CompactActionButtons({
         </button>
       ) : null}
 
+      {onMove ? (
+        <button
+          type="button"
+          onClick={onMove}
+          disabled={removeDisabled}
+          aria-label={moveAria}
+          title={moveAria}
+          className={cn(
+            "inline-flex items-center justify-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-50",
+            mini
+              ? "bg-transparent text-stone-400 hover:bg-sky-50 hover:text-sky-700"
+              : "bg-sky-50 text-sky-800 hover:bg-sky-100",
+            buttonSize
+          )}
+        >
+          <ArrowRightLeft className={iconSize} strokeWidth={2.25} />
+        </button>
+      ) : null}
+
       <button
         type="button"
         onClick={onRemove}
@@ -372,6 +399,7 @@ function HorizontalMealCard({
   removeDisabled,
   onRemove,
   onChange,
+  onMove,
   onToggleConsumed,
   canMarkConsumed,
   isTogglingConsumed,
@@ -379,6 +407,7 @@ function HorizontalMealCard({
   mealTypeLabel,
   removeAria,
   changeAria,
+  moveAria,
   markConsumedAria,
   undoConsumedAria,
   consumedBadgeLabel,
@@ -399,6 +428,7 @@ function HorizontalMealCard({
   removeDisabled: boolean;
   onRemove: () => void;
   onChange?: () => void;
+  onMove?: () => void;
   onToggleConsumed?: () => void;
   canMarkConsumed?: boolean;
   isTogglingConsumed?: boolean;
@@ -406,6 +436,7 @@ function HorizontalMealCard({
   mealTypeLabel: string;
   removeAria: string;
   changeAria?: string;
+  moveAria?: string;
   markConsumedAria?: string;
   undoConsumedAria?: string;
   consumedBadgeLabel?: string;
@@ -456,12 +487,14 @@ function HorizontalMealCard({
         changeDisabled={removeDisabled}
         onRemove={onRemove}
         onChange={onChange}
+        onMove={onMove}
         onToggleConsumed={onToggleConsumed}
         canMarkConsumed={canMarkConsumed}
         isConsumed={Boolean(meal.consumido)}
         isTogglingConsumed={isTogglingConsumed}
         removeAria={removeAria}
         changeAria={changeAria}
+        moveAria={moveAria}
         markConsumedAria={markConsumedAria}
         undoConsumedAria={undoConsumedAria}
       />
@@ -685,6 +718,8 @@ export function PlanMealCard({
   onMealRemoved,
   onRemoveError,
   onChangeMeal,
+  onMoveToMealType,
+  moveDisabled = false,
   canMarkConsumed = false,
   onConsumedChange,
   variant = "default",
@@ -697,6 +732,7 @@ export function PlanMealCard({
   const tCommon = useTranslations("Common");
   const [isRemoving, setIsRemoving] = useState(false);
   const [isRemoveDialogOpen, setIsRemoveDialogOpen] = useState(false);
+  const [isMoveDialogOpen, setIsMoveDialogOpen] = useState(false);
   const [isTogglingConsumed, setIsTogglingConsumed] = useState(false);
 
   const isPanel = variant === "panel";
@@ -704,13 +740,16 @@ export function PlanMealCard({
   const hasReel = Boolean(meal.instagramUrl && !meal.imageUrl);
   const useHeroLayout = isCompact && (Boolean(meal.imageUrl) || hasReel);
 
-  const removeDisabled = isRemoving || isTogglingConsumed;
+  const removeDisabled = isRemoving || isTogglingConsumed || moveDisabled;
   const allowMarkConsumed =
     canMarkConsumed && !meal.externalBadge && Boolean(onConsumedChange);
 
   const mealTypeLabel = t(`meals.${meal.mealType}`);
   const removeAria = t("removeAria");
   const changeAria = t.has("changeRecipeAria") ? t("changeRecipeAria") : "Cambiar plato";
+  const moveAria = t.has("moveRecipeAria")
+    ? t("moveRecipeAria")
+    : "Mover a otra comida del día";
   const markConsumedAria = t.has("markConsumedAria")
     ? t("markConsumedAria")
     : "Marcar como Ya comí";
@@ -826,12 +865,19 @@ export function PlanMealCard({
     removeDisabled,
     onRemove: requestRemove,
     onChange: onChangeMeal ? handleChange : undefined,
+    onMove: onMoveToMealType
+      ? () => {
+          if (removeDisabled) return;
+          setIsMoveDialogOpen(true);
+        }
+      : undefined,
     onToggleConsumed: allowMarkConsumed ? () => void handleToggleConsumed() : undefined,
     canMarkConsumed: allowMarkConsumed,
     isTogglingConsumed,
     mealTypeLabel,
     removeAria,
     changeAria,
+    moveAria,
     markConsumedAria,
     undoConsumedAria,
     consumedBadgeLabel,
@@ -843,6 +889,7 @@ export function PlanMealCard({
   };
 
   const confirmDialog = (
+    <>
     <ConfirmDialog
       open={isRemoveDialogOpen}
       onOpenChange={setIsRemoveDialogOpen}
@@ -857,6 +904,17 @@ export function PlanMealCard({
       isLoading={isRemoving}
       destructive
     />
+    {onMoveToMealType ? (
+      <MoveMealSlotDialog
+        open={isMoveDialogOpen}
+        onOpenChange={setIsMoveDialogOpen}
+        currentMealType={meal.mealType}
+        dishTitle={meal.title}
+        disabled={removeDisabled}
+        onSelect={(toMealType) => onMoveToMealType(toMealType)}
+      />
+    ) : null}
+    </>
   );
 
   if (isPanel || variant === "default") {

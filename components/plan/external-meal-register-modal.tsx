@@ -35,6 +35,8 @@ import { ModalSheetBackButton } from "@/components/ui/modal-sheet-back-button";
 import { MealPhotoSourceCards } from "@/components/ui/meal-photo-source-cards";
 import { ScanPhotoSheetStage } from "@/components/ui/scan-photo-sheet-stage";
 import { SwipeToCloseHandle } from "@/components/ui/swipe-to-close-handle";
+import { CalorieCalcNote } from "@/components/plan/calorie-calc-note";
+import { OpenTextFoodTipsLink } from "@/components/plan/open-text-food-tips-link";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import { cn } from "@/lib/utils";
 
@@ -221,7 +223,7 @@ export function ExternalMealRegisterModal({
     step === "review"
       ? t.has("externalMealReviewSubtitle")
         ? t("externalMealReviewSubtitle")
-        : "Ajusta cantidades o pesos antes de guardar en tu plan."
+        : "Ajusta cantidad o unidad. Si las kcal no cuadran, pulsa Atrás y descríbelo mejor en el texto."
       : mode === "photo" && isPhotoSourceStep
         ? t.has("externalMealPhotoScreenSubtitle")
           ? t("externalMealPhotoScreenSubtitle")
@@ -737,6 +739,7 @@ export function ExternalMealRegisterModal({
       ) : null}
 
       {step === "input" && mode === "text" ? (
+        <div className="space-y-1.5">
         <label className="block space-y-1.5">
           <span className="text-[11px] font-bold uppercase tracking-wide text-stone-400">
             {t.has("externalMealDescriptionLabel")
@@ -763,9 +766,11 @@ export function ExternalMealRegisterModal({
           <p className="text-[11px] leading-snug text-stone-500">
             {t.has("externalMealDescriptionCommaHint")
               ? t("externalMealDescriptionCommaHint")
-              : "Si son varios alimentos, sepáralos por comas para identificarlos mejor."}
+              : "Si son varios, sepáralos por comas. Incluye cantidad y cómo es (ej.: 2 galletas caseras sin azúcar)."}
           </p>
         </label>
+          <OpenTextFoodTipsLink />
+        </div>
       ) : null}
 
       {step === "review" && liveEstimate ? (
@@ -910,6 +915,14 @@ export function ExternalMealRegisterModal({
               ))}
             </div>
           </div>
+
+          <CalorieCalcNote
+            shownKcal={liveEstimate.calorias_est}
+            currentFoods={foodItems}
+            originalFoods={estimate?.alimentos ?? foodItems}
+            aiCalculo={liveEstimate.ai_calculo}
+            initialOrigen={liveEstimate.calculo_origen}
+          />
 
           {liveEstimate.pasos_ordenados && liveEstimate.pasos_ordenados.length >= 2 ? (
             <div className="space-y-1.5">

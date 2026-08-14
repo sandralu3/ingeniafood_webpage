@@ -56,13 +56,15 @@ export async function registerExternalMealToPlan(params: {
   const supabase = createSupabaseClient();
   const tags = buildExternalMealTags(params.estimate);
 
-  const proteinKcal = params.estimate.proteinas_est_g * 4;
-  const remainingKcal = Math.max(0, params.estimate.calorias_est - proteinKcal);
+  const calories = Math.max(0, Math.round(params.estimate.calorias_est));
+  const proteinGrams = Math.max(0, Math.round(params.estimate.proteinas_est_g));
+  const proteinKcal = proteinGrams * 4;
+  const remainingKcal = Math.max(0, calories - proteinKcal);
   const macros = {
-    calorias: params.estimate.calorias_est,
-    proteinas_g: params.estimate.proteinas_est_g,
-    carbohidratos_g: Math.max(15, Math.round((remainingKcal * 0.55) / 4)),
-    grasas_g: Math.max(5, Math.round((remainingKcal * 0.45) / 9))
+    calorias: calories,
+    proteinas_g: proteinGrams,
+    carbohidratos_g: Math.max(0, Math.round((remainingKcal * 0.55) / 4)),
+    grasas_g: Math.max(0, Math.round((remainingKcal * 0.45) / 9))
   };
 
   const platePhoto = params.imageUrl?.trim() || null;

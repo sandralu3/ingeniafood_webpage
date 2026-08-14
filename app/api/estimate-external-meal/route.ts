@@ -29,6 +29,10 @@ import {
   isLikelyFoodOrDrinkDescription
 } from "@/lib/plan/food-description-validation";
 import {
+  captureAiCalculo,
+  describeShownCalorieSource
+} from "@/lib/plan/calorie-calc-explain";
+import {
   countCommaSeparatedFoods,
   descriptionHasExplicitQuantities,
   estimateMealFromOpenText
@@ -113,6 +117,30 @@ function clampNumber(value: unknown, min: number, max: number, fallback: number)
   const n = typeof value === "number" ? value : Number(value);
   if (!Number.isFinite(n)) return fallback;
   return Math.min(max, Math.max(min, Math.round(n)));
+}
+
+/** Cantidades de porción: admite fracciones (0.5 taza) sin redondear a entero. */
+function clampQuantity(value: unknown, fallback = 1): number {
+  let n: number;
+  if (typeof value === "number") {
+    n = value;
+  } else if (typeof value === "string") {
+    const trimmed = value.trim().replace(",", ".");
+    const fraction = trimmed.match(/^(\d+)\s*\/\s*(\d+)$/);
+    if (fraction) {
+      const den = Number(fraction[2]);
+      n = den > 0 ? Number(fraction[1]) / den : NaN;
+    } else if (/^(media|medio|mitad)$/i.test(trimmed)) {
+      n = 0.5;
+    } else {
+      n = Number(trimmed);
+    }
+  } else {
+    n = Number(value);
+  }
+  if (!Number.isFinite(n) || n <= 0) return fallback;
+  const rounded = Math.round(n * 100) / 100;
+  return Math.min(5000, Math.max(0.1, rounded));
 }
 
 /** Limpia y parsea JSON tolerante (comillas tipográficas, trailing commas, fences). */
@@ -206,10 +234,8 @@ function normalizeFoodItems(raw: unknown): ExternalMealFoodItem[] {
       "";
     if (!nombre) continue;
 
-    const cantidad = clampNumber(
+    const cantidad = clampQuantity(
       obj.cantidad ?? obj.quantity ?? obj.peso ?? obj.amount ?? obj.grams,
-      1,
-      5000,
       100
     );
     const unidadRaw =
@@ -220,7 +246,7 @@ function normalizeFoodItems(raw: unknown): ExternalMealFoodItem[] {
       obj.calorias ?? obj.calories ?? obj.kcal ?? obj.calorias_est,
       0,
       1500,
-      Math.max(20, Math.round(cantidad * 1.2))
+      Math.max(0, Math.round(cantidad * 1.2))
     );
     const proteinas = clampNumber(
       obj.proteinas_g ?? obj.proteinas ?? obj.protein_g ?? obj.protein,
@@ -352,7 +378,7 @@ function normalizeEstimate(
       obj.calorias ??
       obj.calories ??
       obj.kcal,
-    80,
+    0,
     2500,
     450
   );
@@ -370,7 +396,7 @@ function normalizeEstimate(
 
   if (alimentos.length > 0) {
     const totals = sumExternalMealFoodMacros(alimentos);
-    if (totals.calorias > 0) calorias = Math.min(2500, Math.max(80, totals.calorias));
+    if (totals.calorias > 0) calorias = Math.min(2500, Math.max(0, totals.calorias));
     proteinas = Math.min(200, Math.max(0, totals.proteinas_g));
   }
 
@@ -415,6 +441,13 @@ function normalizeEstimate(
   const tip_sandra =
     typeof tipRaw === "string" && tipRaw.trim() ? tipRaw.trim().slice(0, 400) : undefined;
 
+  const assumptionsRaw =
+    obj.assumptions ?? obj.supuestos ?? obj.interpretacion ?? obj.interpretation;
+  const assumptions =
+    typeof assumptionsRaw === "string" && assumptionsRaw.trim()
+      ? assumptionsRaw.trim().slice(0, 220)
+      : undefined;
+
   const base: ExternalMealEstimate = {
     nombre_plato: nombre.slice(0, 120),
     calorias_est: calorias,
@@ -425,6 +458,7 @@ function normalizeEstimate(
     balance: balance ?? "mejorable",
     recomendaciones,
     recommendation_title: recommendationTitle?.slice(0, 80),
+    assumptions,
     ...(pasos_ordenados && pasos_ordenados.length >= 2
       ? { pasos_ordenados, tiempo_preparacion, tip_sandra }
       : {})
@@ -518,6 +552,15 @@ function preferParsedTextWhenAiUndershoots(
 
   if (!descriptionHasExplicitQuantities(description)) return aiEstimate;
 
+  const withAiTips = (local: ExternalMealEstimate): ExternalMealEstimate => ({
+    ...local,
+    badge: aiEstimate.badge,
+    recomendaciones:
+      aiEstimate.recomendaciones.length > 0
+        ? aiEstimate.recomendaciones
+        : local.recomendaciones
+  });
+
   const aiLooksGeneric =
     aiEstimate.alimentos.length <= 1 &&
     aiEstimate.alimentos.every(
@@ -528,27 +571,19 @@ function preferParsedTextWhenAiUndershoots(
 
   const proteinGap = parsed.proteinas_est_g - aiEstimate.proteinas_est_g;
   const kcalGap = parsed.calorias_est - aiEstimate.calorias_est;
+  const kcalOvershoot = aiEstimate.calorias_est - parsed.calorias_est;
+
+  // IA infla bebidas/porciones bajas (ej. café negro ~1 kcal → 80): preferir parseo local.
+  if (kcalOvershoot >= 40 && parsed.calorias_est <= 80) {
+    return withAiTips(parsed);
+  }
 
   if (aiLooksGeneric && (proteinGap >= 10 || kcalGap >= 120)) {
-    return {
-      ...parsed,
-      badge: aiEstimate.badge,
-      recomendaciones:
-        aiEstimate.recomendaciones.length > 0
-          ? aiEstimate.recomendaciones
-          : parsed.recomendaciones
-    };
+    return withAiTips(parsed);
   }
 
   if (proteinGap >= 15 && parsed.proteinas_est_g >= aiEstimate.proteinas_est_g * 1.6) {
-    return {
-      ...parsed,
-      badge: aiEstimate.badge,
-      recomendaciones:
-        aiEstimate.recomendaciones.length > 0
-          ? aiEstimate.recomendaciones
-          : parsed.recomendaciones
-    };
+    return withAiTips(parsed);
   }
 
   return aiEstimate;
@@ -668,8 +703,8 @@ function buildPrompt(
     : "";
 
   const jsonShape = includeCookingRecipe
-    ? `{"is_valid_food":true,"meal_type_detected":"${mealMoment}","dish_name":"string","total_calories":510,"total_proteins_g":21,"tiene_vegetales":true,"badge":"${badge}","detected_items":[{"name":"Pechuga de pollo","quantity":180,"unit":"g","calorias":280,"proteinas_g":45}],"pasos_ordenados":["Paso 1 concreto...","Paso 2..."],"tiempo_preparacion":"25 min","tip_sandra":"Consejo breve.","balance":"equilibrado","recommendation_title":"¡Gran combinación!","recommendation_message":"Disfruta el plato.","error_message":null}`
-    : `{"is_valid_food":true,"meal_type_detected":"${mealMoment}","dish_name":"string","total_calories":510,"total_proteins_g":21,"tiene_vegetales":true,"badge":"${badge}","detected_items":[{"name":"Pan integral","quantity":2,"unit":"rebanada","calorias":160,"proteinas_g":6}],"balance":"equilibrado","recommendation_title":"¡Gran combinación de sabores!","recommendation_message":"Un plato completo y variado. Disfruta del contraste entre lo salado y lo dulce.","error_message":null}`;
+    ? `{"is_valid_food":true,"meal_type_detected":"${mealMoment}","dish_name":"string","total_calories":510,"total_proteins_g":21,"tiene_vegetales":true,"badge":"${badge}","detected_items":[{"name":"Pechuga de pollo","quantity":180,"unit":"g","calorias":280,"proteinas_g":45}],"assumptions":"Pechuga a la plancha, 180 g, sin salsas.","pasos_ordenados":["Paso 1 concreto...","Paso 2..."],"tiempo_preparacion":"25 min","tip_sandra":"Consejo breve.","balance":"equilibrado","recommendation_title":"¡Gran combinación!","recommendation_message":"Disfruta el plato.","error_message":null}`
+    : `{"is_valid_food":true,"meal_type_detected":"${mealMoment}","dish_name":"string","total_calories":510,"total_proteins_g":21,"tiene_vegetales":true,"badge":"${badge}","detected_items":[{"name":"Pan integral","quantity":2,"unit":"rebanada","calorias":160,"proteinas_g":6}],"assumptions":"2 rebanadas de pan integral, sin mantequilla.","balance":"equilibrado","recommendation_title":"¡Gran combinación de sabores!","recommendation_message":"Un plato completo y variado. Disfruta del contraste entre lo salado y lo dulce.","error_message":null}`;
 
   return (
     validationBlock +
@@ -680,6 +715,11 @@ function buildPrompt(
     cookingRecipeBlock +
     "Lista cada alimento con cantidad estimada (g/ml/unidades) y macros para ESA cantidad. " +
     "Los totales del elemento actual deben coincidir con la suma de detected_items.\n" +
+    "BEBIDAS NEGRAS SIN AZÚCAR NI LECHE: café solo/negro, espresso, té e infusiones aportan ~0–5 kcal por taza " +
+    "(media taza ≈ 1–2 kcal). NO uses valores de café en polvo ni mínimos inventados (p. ej. 80 kcal).\n" +
+    "Respeta fracciones del usuario (media taza, 1/2 taza, 0.5) sin redondear a 1.\n" +
+    "assumptions: 1 frase concreta de lo que ASUMISTE para calcular (si hay leche, azúcar, aceite, tamaño, cocido vs crudo). " +
+    "Si el usuario dijo sin azúcar / sin leche, NO asumas lo contrario. Si asumes café con leche, dilo explícitamente.\n" +
     "Indica tiene_vegetales si hay verdura significativa EN EL ELEMENTO ACTUAL " +
     "(si los vegetales solo están en platos previos, tiene_vegetables puede ser false; la recomendación sí debe considerar el conjunto).\n" +
     (isSnack
@@ -843,6 +883,7 @@ export async function POST(request: Request) {
     let lastError: unknown = null;
     let lastRawText = "";
     let estimate: ExternalMealEstimate | null = null;
+    let hadModelEstimate = false;
 
     const fallbackBadge =
       mode === "photo" ? EXTERNAL_MEAL_BADGE.escaneado : EXTERNAL_MEAL_BADGE.comida_fuera;
@@ -903,6 +944,7 @@ export async function POST(request: Request) {
         const normalized = normalizeEstimate(parsed, fallbackBadge);
         if (normalized) {
           estimate = normalized;
+          hadModelEstimate = true;
           break;
         }
 
@@ -974,12 +1016,26 @@ export async function POST(request: Request) {
       ];
     }
 
+    const estimateBeforeOverrides = estimate;
     if (mode === "text") {
       estimate = preferParsedTextWhenAiUndershoots(description, estimate);
     }
 
+    const aiCalculo = hadModelEstimate ? captureAiCalculo(estimateBeforeOverrides) : undefined;
+    const usedLocalText = mode === "text" && estimate !== estimateBeforeOverrides;
+
     // Cantidad + unidad confirmables: macros desde densidades (no confiar a ciegas en la IA).
     estimate = normalizeEstimateFoodMacrosFromDensities(estimate);
+
+    const shownSource = describeShownCalorieSource(estimate.alimentos);
+    estimate.ai_calculo = aiCalculo;
+    estimate.calculo_origen = usedLocalText
+      ? "texto"
+      : shownSource.kind === "tabla"
+        ? "tabla"
+        : hadModelEstimate
+          ? "ia"
+          : "texto";
 
     estimate = (context === "snack" ? applySnackAdvice : applyExternalMealAdvice)(estimate, {
       preferAi: estimate.recomendaciones.length > 0,

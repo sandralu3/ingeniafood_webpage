@@ -46,6 +46,8 @@ import {
 } from "@/components/recipes/recipe-advisory-alert";
 import { ScanPhotoSheetStage } from "@/components/ui/scan-photo-sheet-stage";
 import { SwipeToCloseHandle } from "@/components/ui/swipe-to-close-handle";
+import { CalorieCalcNote } from "@/components/plan/calorie-calc-note";
+import { OpenTextFoodTipsLink } from "@/components/plan/open-text-food-tips-link";
 import { createSupabaseClient } from "@/lib/supabaseClient";
 import { cn } from "@/lib/utils";
 
@@ -614,7 +616,7 @@ export function SnackRegisterModal({
     step === "review"
       ? t.has("externalMealReviewSubtitle")
         ? t("externalMealReviewSubtitle")
-        : "Ajusta cantidades o pesos antes de guardar en tu plan."
+        : "Ajusta cantidad o unidad. Si las kcal no cuadran, pulsa Atrás y descríbelo mejor en el texto."
       : mode === "photo" && isPhotoSourceStep
         ? t.has("snackPhotoScreenSubtitle")
           ? t("snackPhotoScreenSubtitle")
@@ -874,6 +876,14 @@ export function SnackRegisterModal({
                       ))}
                     </div>
                   </div>
+
+                  <CalorieCalcNote
+                    shownKcal={liveEstimate.calorias_est}
+                    currentFoods={foodItems}
+                    originalFoods={estimate?.alimentos ?? foodItems}
+                    aiCalculo={liveEstimate.ai_calculo}
+                    initialOrigen={liveEstimate.calculo_origen}
+                  />
                 </div>
               ) : null}
 
@@ -1135,6 +1145,7 @@ export function SnackRegisterModal({
           ) : null}
 
           {step === "input" && mode === "text" ? (
+            <div className="space-y-1.5">
             <label className="block space-y-1.5">
               <span className="text-[11px] font-bold uppercase tracking-wide text-stone-400">
                 {t.has("snackDescriptionLabel")
@@ -1154,16 +1165,18 @@ export function SnackRegisterModal({
                 placeholder={
                   t.has("snackDescriptionPlaceholder")
                     ? t("snackDescriptionPlaceholder")
-                    : 'Ej.: galletas, café con leche'
+                    : "Ej.: galletas, café con leche"
                 }
                 className="w-full resize-none rounded-2xl border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-800 outline-none focus:border-[#4D6638] focus:ring-1 focus:ring-[#4D6638]"
               />
               <p className="text-[11px] leading-snug text-stone-500">
                 {t.has("snackDescriptionCommaHint")
                   ? t("snackDescriptionCommaHint")
-                  : "Si son varios alimentos, sepáralos por comas para identificarlos mejor."}
+                  : "Si son varios, sepáralos por comas. Incluye cantidad y cómo es (ej.: 2 galletas caseras sin azúcar)."}
               </p>
             </label>
+              <OpenTextFoodTipsLink />
+            </div>
           ) : null}
 
           {step === "input" && mode === "photo" ? (
@@ -1415,6 +1428,14 @@ export function SnackRegisterModal({
                   ))}
                 </div>
               </div>
+
+              <CalorieCalcNote
+                shownKcal={liveEstimate.calorias_est}
+                currentFoods={foodItems}
+                originalFoods={estimate?.alimentos ?? foodItems}
+                aiCalculo={liveEstimate.ai_calculo}
+                initialOrigen={liveEstimate.calculo_origen}
+              />
 
             </div>
           ) : null}

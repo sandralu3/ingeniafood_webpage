@@ -1,7 +1,7 @@
 # 📱 Guía de Pruebas Beta — IngeniaFood
 
 > Documento para testers. Lenguaje de **pantalla**: lo que ves, tocas y experimentas.  
-> Última actualización: **12 agosto 2026** (foto comida/snack: tarjetas cámara/galería en bloque crema)
+> Última actualización: **14 agosto 2026** (enlace: cómo escribir el texto abierto)
 
 ---
 
@@ -210,15 +210,17 @@ Disponible desde el **Plan**, al elegir o cambiar un plato (en **hoy** o **días
 #### D) Describir lo que comí (función PRO)
 1. Desde el mismo bloque **«¿Ya comiste? Regístralo aquí»**.
 2. Pulsa **«Describir lo que comí»** (**👑 PRO**).
-3. Describe qué comiste separando por **comas** (ej.: *arroz, carne molida, zanahoria, papa, cebolla*).
+3. Describe qué comiste separando por **comas**. Incluye **cantidad** y **cómo es**. Debajo hay el enlace **«Cómo escribir lo que comí»** con ejemplos.
 4. Pulsa **Analizar alimentos** → debe abrir la revisión (no un error de «imagen» si el texto es comida real).
-5. En **Revisa los alimentos**, comprueba o corrige **cantidad y unidad** de cada ítem: el total de **kcal** debe actualizarse al cambiar (no quedarse “pegado” a un número raro de la IA).
+5. En **Revisa los alimentos**, el **nombre del alimento no se puede editar**. Solo ajusta **cantidad y unidad**. Si las kcal no cuadran, pulsa **Atrás** y reescribe el texto (marca, casera, sin azúcar, gramos). En **«De dónde salen las calorías»** ves el cálculo de ahora.
 6. Guarda en el plan y verifica el plato en **Plan** y, si aplica, en **Recetas → Registradas**.
 
 **Qué probar (calorías)**
 - [ ] Overnight oats / desayuno con avena en ml o taza: kcal razonables (no ~600 solo por 125 ml de avena)
 - [ ] Banano/guineo + mantequilla de almendras/maní: kcal cercanas a lo esperado (~150–200 si es ½ pieza + ~17 g)
-- [ ] Al cambiar cantidad o unidad en la revisión, suben o bajan las kcal del ítem y el total
+- [ ] Café solo / media taza de café ~1–5 kcal; café con leche es otro alimento
+- [ ] El nombre del alimento en la revisión **no** se puede escribir; cantidad/unidad sí
+- [ ] El enlace **«Cómo escribir lo que comí»** abre una lista de ejemplos (cantidad, comas, casera, sin azúcar…)
 
 #### E) Snacks / tentempié
 1. En **Plan**, baja a **🍪 Snacks / Tentempié**.
@@ -228,7 +230,7 @@ Disponible desde el **Plan**, al elegir o cambiar un plato (en **hoy** o **días
 4. En el modal (mismo estilo que registrar comida):
    - Arriba: **Tomar foto del plato** y **Describir lo que comí**
    - Debajo: **Snacks de Sandra** en **rejilla de tarjetas** (foto, título, kcal), con **barra de buscar**
-5. Prueba una tarjeta de Sandra, registro por texto y, si eres Premium, **foto**:
+5. Prueba una tarjeta de Sandra, **Describir lo que comí** (texto libre + comas, igual que en comidas) y, si eres Premium, **foto**:
    - Tras **Tomar foto del plato**, verás **Tomar foto del snack** con dos tarjetas (**Tomar foto** / **Elegir de galería**) en bloque crema, igual que el menú del modal.
    - Tras elegir foto, aparece la vista con imagen grande y el botón **Analizar alimentos** (no antes).
 6. Elimina un snack con la **X** y confirma que desaparece.
@@ -243,8 +245,11 @@ Disponible desde el **Plan**, al elegir o cambiar un plato (en **hoy** o **días
 - [ ] Escaneo de plato servido (con y sin Premium) desde **¿Ya comiste? Regístralo aquí**
 - [ ] Foto de comida: tarjetas cámara/galería → preview → **Analizar alimentos**
 - [ ] **Describir lo que comí** (con y sin Premium): texto con varios alimentos (incl. **cebolla**) se analiza bien
-- [ ] Tras analizar: editar cantidad/unidad actualiza kcal; overnight oats y banano+mantequilla con totales razonables
-- [ ] Registrar snack: foto / describir / tarjetas **Snacks de Sandra** + buscar + borrar
+- [ ] Tras analizar: el nombre del alimento no se edita; cantidad/unidad sí actualiza kcal; **«De dónde salen las calorías»** recomienda **Atrás** si no cuadran
+- [ ] Café vs café con leche son ítems distintos; media taza de café ~1–5 kcal
+- [ ] «Galleta» de paquete vs **galleta casera sin azúcar**: al escribir o cambiar el nombre, las kcal no son las mismas
+- [ ] Al abrir esa receta desde el plan, el detalle muestra las **mismas kcal** que la tarjeta (no ~80)
+- [ ] Registrar snack: foto / texto libre / tarjetas **Snacks de Sandra** + buscar + borrar
 - [ ] Snack por foto: tarjetas cámara/galería → preview → **Analizar alimentos**
 
 ---
@@ -256,7 +261,7 @@ Disponible desde el **Plan**, al elegir o cambiar un plato (en **hoy** o **días
 3. Cambia de día con el selector de la semana (Lunes… Domingo).
 4. Revisa el **resumen superior del día**:
    - Nombre del día + fecha
-   - Texto de ayuda: **«Toca un plato para verlo. Usa el check (Ya comí), el lápiz o la papelera»**  
+   - Texto de ayuda: **«Toca un plato para verlo. Usa el check (Ya comí), mover, el lápiz o la papelera»**  
      *(ya no se habla de arrastrar comidas)*
    - **Círculo / donut** de progreso (ej. **2/3** comidas asignadas), en tono ámbar/dorado
    - **Calorías consumidas** a la derecha (ej. `915 kcal`) y debajo **«Objetivo: … kcal»**
@@ -282,19 +287,20 @@ Disponible desde el **Plan**, al elegir o cambiar un plato (en **hoy** o **días
    - Foto, título
    - **kcal** (icono llama) y **tiempo** (reloj)
    - **Badges de macros**: `…g P` (verde), `…g C` (naranja), `…g G` (rosa), si hay datos
-   - Botones circulares de **check (Ya comí)**, **lápiz** y **papelera** (el check solo en **hoy** o **días pasados**)
+   - Botones circulares de **check (Ya comí)**, **mover** (flechas), **lápiz** y **papelera** (el check solo en **hoy** o **días pasados**)
 5. Con una comida ya puesta, pulsa el botón píldora con borde punteado **«Agregar complemento»**.
 6. El complemento debe verse **anidado debajo** (fondo crema claro):
    - Etiqueta **«Agregado de Complemento:»**
    - Miniatura, nombre, kcal y acciones editar/eliminar
 
-#### Cambiar, eliminar o marcar «Ya comí»
+#### Cambiar, eliminar, mover o marcar «Ya comí»
 1. **Lápiz** → **Cambiar plato** → elige otra receta.
-2. **Papelera** → confirma **«¿Quitar esta receta del día?»** → **«Quitar receta»**.
-3. En **hoy** o un **día pasado**, con una receta del plan (no registrada por foto/texto):
+2. **Flechas (mover)** → elige **Desayuno**, **Almuerzo** o **Cena**. El plato pasa a esa sección (si ya había uno, queda como complemento).
+3. **Papelera** → confirma **«¿Quitar esta receta del día?»** → **«Quitar receta»**.
+4. En **hoy** o un **día pasado**, con una receta del plan (no registrada por foto/texto):
    - Pulsa el **check** → badge **«Ya comí»** y aviso de que **no entra en la lista de compra**.
    - Vuelve a pulsar el check para **desmarcar**.
-4. Toca el nombre/foto del plato para abrir el detalle y vuelve atrás.
+5. Toca el nombre/foto del plato para abrir el detalle y vuelve atrás.
 
 #### Menú sugerido del día
 1. Si faltan comidas, busca **«✨ Proponer menú del día»** o **«✨ Sugerir comidas que faltan»**.
@@ -308,7 +314,7 @@ Disponible desde el **Plan**, al elegir o cambiar un plato (en **hoy** o **días
 - Las **calorías del día** y el **objetivo** se actualizan al añadir/quitar platos y snacks.
 - En **Hoy**, los **retos** sí pueden mostrar estados tipo **Completado / Pendiente** (flujo aparte del menú).
 
-> **Nota:** el arrastre entre huecos **no está operativo**; no intentes “arrastrar” comidas. Usa check / lápiz / papelera / elegir receta.
+> **Nota:** para cambiar un plato de **desayuno** a **almuerzo** o **cena**, usa el botón de **flechas (mover)**. No hace falta borrar y volver a registrar.
 
 **Qué probar**
 - [ ] Donut + kcal / objetivo se ven claros y cambian al editar el día
@@ -319,7 +325,7 @@ Disponible desde el **Plan**, al elegir o cambiar un plato (en **hoy** o **días
 - [ ] Botón «Agregar complemento» en estilo píldora
 - [ ] CTA de snacks verde musgo con ✨ y kcal
 - [ ] Proponer menú del día (Premium vs Free)
-- [ ] **Ya comí** en hoy/pasados: badge + sale de la lista de compra; se puede desmarcar
+- [ ] **Mover** un plato (p. ej. de Desayuno a Almuerzo): desaparece del origen y aparece en el destino
 - [ ] **Copiar semana anterior** (si hay menú la semana previa)
 - [ ] Navegar entre semanas (anterior / siguiente)
 

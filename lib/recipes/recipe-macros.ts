@@ -17,7 +17,7 @@ const MACRO_LIMITS = {
   proteinas_g: { min: 0, max: 120 },
   carbohidratos_g: { min: 0, max: 150 },
   grasas_g: { min: 0, max: 80 },
-  calorias: { min: 80, max: 1200 }
+  calorias: { min: 0, max: 1200 }
 } as const;
 
 function clampRound(value: number, min: number, max: number): number {
@@ -90,12 +90,13 @@ export function normalizeRecipeMacros(raw: unknown): RecipeMacros | null {
       MACRO_LIMITS.calorias.max
     );
   } else {
-    const clamped = clampRound(caloriasRaw, MACRO_LIMITS.calorias.min, MACRO_LIMITS.calorias.max);
-    const diffRatio = Math.abs(clamped - computedCalories) / Math.max(computedCalories, 1);
-    normalized.calorias =
-      diffRatio > 0.25
-        ? clampRound(computedCalories, MACRO_LIMITS.calorias.min, MACRO_LIMITS.calorias.max)
-        : clamped;
+    // Confiar en las kcal guardadas (café, infusiones, etc. pueden ser < 80).
+    // No recalcular desde P/C/G: esos macros a veces se rellenan con mínimos.
+    normalized.calorias = clampRound(
+      caloriasRaw,
+      MACRO_LIMITS.calorias.min,
+      MACRO_LIMITS.calorias.max
+    );
   }
 
   return normalized;

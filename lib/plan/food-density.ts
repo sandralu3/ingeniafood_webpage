@@ -247,6 +247,29 @@ const FOOD_DENSITIES: Array<{ match: RegExp; density: FoodDensity }> = [
     density: { name: "Fruta", kcalPer100: 60, proteinPer100: 0.5, defaultGrams: 120 }
   },
   {
+    match:
+      /\bgalletas?\b(?=.*\bsin\s+azucar\b)|\bcookies?\b(?=.*\b(sugar[- ]free|no\s+sugar)\b)|\bsin\s+azucar\b(?=.*\bgalletas?\b)/,
+    density: {
+      name: "Galleta casera sin azúcar",
+      kcalPer100: 300,
+      proteinPer100: 7,
+      defaultGrams: 36,
+      defaultUnit: "unidad",
+      gramsPerUnit: 18
+    }
+  },
+  {
+    match: /\bgalletas?\b(?=.*\bcaseras?\b)|\bcaseras?\b(?=.*\bgalletas?\b)|\bhomemade\s+cookies?\b/,
+    density: {
+      name: "Galleta casera",
+      kcalPer100: 380,
+      proteinPer100: 6,
+      defaultGrams: 36,
+      defaultUnit: "unidad",
+      gramsPerUnit: 18
+    }
+  },
+  {
     match: /\bgalletas?\b|\bcookies?\b/,
     density: {
       name: "Galletas",
@@ -262,12 +285,40 @@ const FOOD_DENSITIES: Array<{ match: RegExp; density: FoodDensity }> = [
     density: { name: "Pizza", kcalPer100: 270, proteinPer100: 11, defaultGrams: 250 }
   },
   {
-    match: /\bcafe(\s+en\s+polvo)?\b|\bcoffee\b/,
+    match:
+      /\bcafe\s+con\s+leche\b|\blatte\b|\bcortado\b|\bcapuccino\b|\bcappuccino\b|\bflat\s+white\b/,
+    density: {
+      name: "Café con leche",
+      kcalPer100: 45,
+      proteinPer100: 3,
+      defaultGrams: 240,
+      defaultUnit: "ml",
+      gramsPerCup: 240
+    }
+  },
+  {
+    // Café preparado (bebida): ~1–2 kcal / 100 ml. Prioridad sobre el polvo.
+    match:
+      /\bcafe(\s+(solo|negro|americano|filtrado|tinto))?\b(?!\s+(en\s+polvo|instantaneo|con\s+leche|con\s+azucar))|\bcoffee(\s+(black|brewed|americano))?\b(?!\s+(powder|with\s+milk))|\bespresso\b|\bexpreso\b/,
     density: {
       name: "Café",
-      kcalPer100: 2,
+      kcalPer100: 1,
       proteinPer100: 0.1,
+      defaultGrams: 120,
+      defaultUnit: "ml",
+      gramsPerCup: 240,
+      gramsPerTbsp: 15,
+      gramsPerTsp: 5
+    }
+  },
+  {
+    match: /\bcafe\s+en\s+polvo\b|\bcafe\s+instantaneo\b|\bcoffee\s+powder\b|\binstant\s+coffee\b/,
+    density: {
+      name: "Café en polvo",
+      kcalPer100: 360,
+      proteinPer100: 12,
       defaultGrams: 2,
+      defaultUnit: "cdta",
       gramsPerTsp: 2,
       gramsPerTbsp: 5
     }
@@ -279,17 +330,6 @@ const FOOD_DENSITIES: Array<{ match: RegExp; density: FoodDensity }> = [
       kcalPer100: 5,
       proteinPer100: 0,
       defaultGrams: 200,
-      defaultUnit: "ml",
-      gramsPerCup: 240
-    }
-  },
-  {
-    match: /\blatte\b/,
-    density: {
-      name: "Latte",
-      kcalPer100: 45,
-      proteinPer100: 3,
-      defaultGrams: 240,
       defaultUnit: "ml",
       gramsPerCup: 240
     }
@@ -326,6 +366,62 @@ const FOOD_DENSITIES: Array<{ match: RegExp; density: FoodDensity }> = [
       defaultUnit: "ml",
       gramsPerCup: 240
     }
+  },
+  {
+    match: /\byuca\b|\bcassava\b|\bmandioca\b/,
+    density: { name: "Yuca", kcalPer100: 160, proteinPer100: 1.4, defaultGrams: 150 }
+  },
+  {
+    match: /\barepas?\b/,
+    density: {
+      name: "Arepa",
+      kcalPer100: 218,
+      proteinPer100: 5.5,
+      defaultGrams: 120,
+      defaultUnit: "unidad",
+      gramsPerUnit: 120
+    }
+  },
+  {
+    match: /\bempanadas?\b/,
+    density: {
+      name: "Empanada",
+      kcalPer100: 290,
+      proteinPer100: 8,
+      defaultGrams: 80,
+      defaultUnit: "unidad",
+      gramsPerUnit: 80
+    }
+  },
+  {
+    match: /\bpatacones?\b|\btostones?\b/,
+    density: { name: "Patacón", kcalPer100: 250, proteinPer100: 1.5, defaultGrams: 80 }
+  },
+  {
+    match: /\bmaiz\b|\belote\b|\bchoclo\b/,
+    density: { name: "Maíz", kcalPer100: 96, proteinPer100: 3.4, defaultGrams: 150 }
+  },
+  {
+    match: /\bjugo\s+de\s+naranja\b|\bzumo\s+de\s+naranja\b|\borange\s+juice\b/,
+    density: {
+      name: "Jugo de naranja",
+      kcalPer100: 45,
+      proteinPer100: 0.7,
+      defaultGrams: 240,
+      defaultUnit: "ml",
+      gramsPerCup: 240
+    }
+  },
+  {
+    match: /\bagua\b|\bwater\b/,
+    density: {
+      name: "Agua",
+      kcalPer100: 0,
+      proteinPer100: 0,
+      defaultGrams: 250,
+      defaultUnit: "ml",
+      gramsPerCup: 240
+    }
   }
 ];
 
@@ -336,6 +432,123 @@ export function findFoodDensity(foodText: string): FoodDensity | null {
     if (entry.match.test(normalized)) return entry.density;
   }
   return null;
+}
+
+export type FoodCatalogItem = {
+  id: string;
+  name: string;
+  density: FoodDensity;
+  defaultAmount: number;
+  defaultUnit: string;
+  units: string[];
+  searchText: string;
+};
+
+function slugFromName(name: string): string {
+  return normalizeForMatch(name).replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
+function unitsForDensity(density: FoodDensity): string[] {
+  const units = new Set<string>();
+  const fallback = density.defaultUnit ?? "g";
+  units.add(fallback);
+  if (density.gramsPerCup) units.add("taza");
+  if (density.gramsPerTbsp) units.add("cda");
+  if (density.gramsPerTsp) units.add("cdta");
+  if (density.gramsPerUnit) units.add("unidad");
+  if (density.gramsPerSlice) units.add("rebanada");
+  if (fallback === "ml" || density.defaultUnit === "ml") {
+    units.add("ml");
+    units.add("taza");
+  } else {
+    units.add("g");
+  }
+  return Array.from(units);
+}
+
+export function catalogPortionDefaults(density: FoodDensity): {
+  amount: number;
+  unit: string;
+} {
+  if (density.gramsPerCup && density.defaultUnit === "ml") {
+    return { amount: 1, unit: "taza" };
+  }
+  if (density.gramsPerCup && density.defaultUnit !== "ml" && !density.defaultUnit) {
+    const cups = density.gramsPerCup > 0 ? density.defaultGrams / density.gramsPerCup : 1;
+    const amount = Math.round(cups * 100) / 100;
+    return { amount: amount > 0 ? amount : 1, unit: "taza" };
+  }
+  const unit = density.defaultUnit ?? "g";
+  const amount = unit === "g" || unit === "ml" ? density.defaultGrams : 1;
+  return { amount, unit };
+}
+
+function toCatalogItem(entry: { match: RegExp; density: FoodDensity }): FoodCatalogItem {
+  const regexBits = entry.match.source.replace(/\\[a-zA-Z]/g, " ").replace(/[^a-zA-Záéíóúñü0-9]+/gi, " ");
+  return catalogItemFromDensity(entry.density, undefined, regexBits);
+}
+
+export function catalogItemFromDensity(
+  density: FoodDensity,
+  id?: string,
+  extraSearch = ""
+): FoodCatalogItem {
+  const defaults = catalogPortionDefaults(density);
+  return {
+    id: id ?? slugFromName(density.name),
+    name: density.name,
+    density,
+    defaultAmount: defaults.amount,
+    defaultUnit: defaults.unit,
+    units: unitsForDensity(density),
+    searchText: normalizeForMatch(`${density.name} ${extraSearch}`)
+  };
+}
+
+const FEATURED_CATALOG_IDS = [
+  "cafe",
+  "cafe-con-leche",
+  "avena",
+  "platano",
+  "huevo",
+  "arroz",
+  "pollo",
+  "yogur-griego",
+  "pan",
+  "leche"
+];
+
+let catalogCache: FoodCatalogItem[] | null = null;
+
+export function listFoodCatalog(): FoodCatalogItem[] {
+  if (catalogCache) return catalogCache;
+  const seen = new Set<string>();
+  const items: FoodCatalogItem[] = [];
+  for (const entry of FOOD_DENSITIES) {
+    const item = toCatalogItem(entry);
+    if (seen.has(item.id)) continue;
+    seen.add(item.id);
+    items.push(item);
+  }
+  catalogCache = items;
+  return items;
+}
+
+export function getFoodCatalogItem(id: string): FoodCatalogItem | null {
+  return listFoodCatalog().find((item) => item.id === id) ?? null;
+}
+
+export function searchFoodCatalog(query: string): FoodCatalogItem[] {
+  const all = listFoodCatalog();
+  const q = normalizeForMatch(query);
+  if (!q) {
+    const featured = FEATURED_CATALOG_IDS.map((id) => all.find((item) => item.id === id)).filter(
+      (item): item is FoodCatalogItem => Boolean(item)
+    );
+    const rest = all.filter((item) => !FEATURED_CATALOG_IDS.includes(item.id));
+    return [...featured, ...rest].slice(0, 12);
+  }
+  return all.filter((item) => item.searchText.includes(q)).slice(0, 20);
 }
 
 export function normalizeFoodUnit(raw: string | null | undefined): string {
@@ -385,7 +598,7 @@ export function portionToGrams(
     case "cdta":
       return safeAmount * (density.gramsPerTsp ?? 5);
     case "taza":
-      return safeAmount * (density.gramsPerCup ?? 150);
+      return safeAmount * (density.gramsPerCup ?? (density.defaultUnit === "ml" ? 240 : 150));
     case "porción":
       return safeAmount * density.defaultGrams;
     default:
@@ -421,9 +634,10 @@ export function macrosForFoodPortion(input: {
   nombre: string;
   cantidad: number;
   unidad: string;
+  density?: FoodDensity | null;
   fallback?: { cantidad: number; unidad: string; calorias: number; proteinas_g: number };
 }): MacroPortion | null {
-  const density = findFoodDensity(input.nombre);
+  const density = input.density ?? findFoodDensity(input.nombre);
   if (density) {
     return macrosFromDensity(density, input.cantidad, input.unidad);
   }
