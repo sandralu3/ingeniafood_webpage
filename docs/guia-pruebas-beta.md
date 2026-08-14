@@ -1,7 +1,36 @@
 # 📱 Guía de Pruebas Beta — IngeniaFood
 
 > Documento para testers. Lenguaje de **pantalla**: lo que ves, tocas y experimentas.  
-> Última actualización: **14 agosto 2026** (racha: agua, comida registrada y escáner)
+> Última actualización: **14 agosto 2026** (novedades por despliegue)
+
+---
+
+### 📣 Novedades por despliegue
+
+#### 14 agosto 2026
+
+**Racha (Hoy)**
+- Un día de racha ya no exige completar un **reto**.
+- Cuenta si haces **cualquiera** de esto: un **vaso de agua**, **registrar una comida o snack**, usar el **Escáner** de despensa, o marcar un reto.
+- Al tocar el primer vaso, el número naranja de **Racha** debe subir (si ese día aún no contaba).
+- El aviso de **racha en riesgo** (por la tarde) también usa esta regla.
+
+**Registrar lo que comí (Plan)**
+- **Describir lo que comí** vuelve a ser **texto libre** (escribe y separa con comas; ya no hay catálogo de alimentos para elegir).
+- Debajo del cuadro hay el enlace **«Cómo escribir lo que comí»** con ejemplos (cantidad, casera, sin azúcar…).
+- En **Revisa los alimentos**, el **nombre del alimento no se puede editar**. Solo cantidad y unidad. Si las kcal no cuadran: **Atrás** y reescribe el texto.
+- Café solo / media taza ~1–5 kcal; café con leche es otro alimento. Galleta de paquete ≠ galleta casera ≠ galleta casera sin azúcar.
+- Al abrir el plato desde el plan, el detalle muestra las **mismas kcal** que la tarjeta (ya no salta a ~80).
+
+**Mover un plato**
+- En la tarjeta del plan, el botón de **flechas (mover)** pasa el plato a **Desayuno**, **Almuerzo** o **Cena** (si ya había uno, queda como complemento).
+
+**Qué probar de este despliegue**
+- [ ] Un vaso, registrar comida o un escaneo suben la **Racha** aunque no marques un reto
+- [ ] Texto libre + comas + **Analizar alimentos**; el nombre no se edita en la revisión
+- [ ] Enlace **«Cómo escribir lo que comí»**
+- [ ] **Mover** un plato de Desayuno a Almuerzo (o Cena)
+- [ ] Detalle del plato: mismas kcal que la tarjeta
 
 ---
 

@@ -19,6 +19,14 @@ Tras **cualquier cambio de producto/UX** (features, flujos, límites, copy visib
 2. Checklists **«Qué probar»** de la sección
 3. **Ruta sugerida de sesión** si cambia el recorrido típico
 4. Fecha **«Última actualización»** al inicio del doc
+5. **Novedades por despliegue** (`### 📣 Novedades por despliegue`, debajo de la cabecera):
+   - En la **web** se ve como botones de fecha: al pulsar una, solo aparecen los cambios de ese día. El Objetivo y el resto de la guía **no se alargan**.
+   - Un bloque `#### DD mes AAAA` por publicación (el más reciente **arriba**)
+   - Si ya existe el bloque de **hoy**, añade ahí las viñetas nuevas (no dupliques la fecha)
+   - Si es otro día, crea un `#### DD mes AAAA` nuevo encima del anterior
+   - Título corto por tema + viñetas de lo que el tester **ve y toca**
+   - Checklist **«Qué probar de este despliegue»** con lo nuevo
+   - No listes refactors internos, correcciones de tipos ni detalles de código
 
 ## Criterios
 
@@ -30,5 +38,6 @@ Tras **cualquier cambio de producto/UX** (features, flujos, límites, copy visib
 ## Checklist al cerrar un cambio
 
 - [ ] `docs/guia-pruebas-beta.md` refleja el comportamiento nuevo
+- [ ] **Novedades por despliegue** incluye lo nuevo de esta publicación (fecha de hoy, arriba)
 - [ ] No quedan instrucciones obsoletas del flujo anterior
 - [ ] Fecha de actualización renovada

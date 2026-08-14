@@ -41,6 +41,94 @@ export type GuideTocItem = {
   level: 2 | 3;
 };
 
+export type GuideRelease = {
+  id: string;
+  dateLabel: string;
+  html: string;
+};
+
+const NOVEDADES_HEADING = /^###\s+.*Novedades por despliegue\s*$/;
+const DATE_HEADING = /^####\s+(.+)$/;
+const SECTION_HEADING = /^###\s+/;
+
+/**
+ * Saca el bloque de novedades del markdown para mostrarlo aparte (fechas clicables).
+ * El resto de la guía (Objetivo, pasos…) no se alarga con el historial.
+ */
+export function extractGuideReleases(markdown: string): {
+  releases: GuideRelease[];
+  bodyMarkdown: string;
+} {
+  const lines = markdown.replace(/\r\n/g, "\n").split("\n");
+  const start = lines.findIndex((line) => NOVEDADES_HEADING.test(line.trim()));
+  if (start < 0) {
+    return { releases: [], bodyMarkdown: markdown };
+  }
+
+  let end = lines.length;
+  for (let index = start + 1; index < lines.length; index += 1) {
+    if (SECTION_HEADING.test(lines[index] ?? "")) {
+      end = index;
+      break;
+    }
+  }
+
+  const sectionLines = lines.slice(start + 1, end);
+  const releases: GuideRelease[] = [];
+  let currentDate: string | null = null;
+  let buffer: string[] = [];
+
+  const flush = () => {
+    if (!currentDate) return;
+    const chunk = buffer.join("\n").trim();
+    const { html } = markdownGuideToHtml(chunk);
+    releases.push({
+      id: slugify(currentDate) || `despliegue-${releases.length + 1}`,
+      dateLabel: currentDate,
+      html
+    });
+    buffer = [];
+  };
+
+  for (const line of sectionLines) {
+    const dateMatch = DATE_HEADING.exec(line);
+    if (dateMatch) {
+      flush();
+      currentDate = dateMatch[1].trim();
+      continue;
+    }
+    if (currentDate) {
+      buffer.push(line);
+    }
+  }
+  flush();
+
+  const before = lines.slice(0, start);
+  const after = lines.slice(end);
+  while (before.length > 0 && before[before.length - 1]?.trim() === "") {
+    before.pop();
+  }
+  if (before[before.length - 1]?.trim() === "---") {
+    before.pop();
+    while (before.length > 0 && before[before.length - 1]?.trim() === "") {
+      before.pop();
+    }
+  }
+  let afterStart = 0;
+  while (afterStart < after.length && after[afterStart]?.trim() === "") {
+    afterStart += 1;
+  }
+  if (after[afterStart]?.trim() === "---") {
+    afterStart += 1;
+    while (afterStart < after.length && after[afterStart]?.trim() === "") {
+      afterStart += 1;
+    }
+  }
+
+  const bodyMarkdown = [...before, "", "---", "", ...after.slice(afterStart)].join("\n");
+  return { releases, bodyMarkdown };
+}
+
 /**
  * Convierte el markdown de la guía (subconjunto usado en docs) a HTML seguro.
  */

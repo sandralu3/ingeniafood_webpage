@@ -4,8 +4,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import {
   BETA_GUIDE_PUBLIC_PATH,
+  extractGuideReleases,
   markdownGuideToHtml
 } from "@/lib/marketing/beta-guide";
+import { GuideReleasesPanel } from "@/components/beta-guide/guide-releases-panel";
 
 export const metadata: Metadata = {
   title: "Guía de Pruebas Beta | IngeniaFood",
@@ -24,7 +26,9 @@ export const metadata: Metadata = {
 async function loadGuide() {
   const filePath = path.join(process.cwd(), "docs", "guia-pruebas-beta.md");
   const markdown = await readFile(filePath, "utf8");
-  return markdownGuideToHtml(markdown);
+  const { releases, bodyMarkdown } = extractGuideReleases(markdown);
+  const { html, toc } = markdownGuideToHtml(bodyMarkdown);
+  return { html, toc, releases };
 }
 
 function TocNav({
@@ -48,9 +52,14 @@ function TocNav({
 }
 
 export default async function BetaTesterGuidePage() {
-  const { html, toc } = await loadGuide();
+  const { html, toc, releases } = await loadGuide();
   // Solo secciones principales (### del doc → level 3).
-  const sectionToc = toc.filter((item) => item.level === 3);
+  const sectionToc = [
+    ...(releases.length > 0
+      ? [{ id: "novedades-por-despliegue", label: "Novedades por despliegue" }]
+      : []),
+    ...toc.filter((item) => item.level === 3)
+  ];
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#fdfcfb] text-stone-800">
@@ -159,6 +168,8 @@ export default async function BetaTesterGuidePage() {
               </a>
             </div>
           </div>
+
+          <GuideReleasesPanel releases={releases} />
 
           <div
             className="guide-prose max-w-full overflow-x-hidden rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm sm:rounded-[1.5rem] sm:p-8"
