@@ -21,7 +21,7 @@ export type DishPhotoAccess =
  * - Free (sin Premium) → NUNCA (ni una sola vez)
  * - admin → ilimitado
  * - Premium (Stripe, código 24h, tester) → 1 foto lifetime
- * - Si has_generated_real_photo → bloqueo (excepto admin)
+ * - Si has_generated_real_photo O credits <= 0 → bloqueo (excepto admin)
  */
 export async function resolveDishPhotoAccess(
   supabase: AppSupabaseClient,
@@ -58,7 +58,8 @@ export async function resolveDishPhotoAccess(
     return { allowed: true, mode: "unlimited" };
   }
 
-  if (access.hasGeneratedRealPhoto) {
+  // Doble candado: flag lifetime + créditos (hard limit OpenAI).
+  if (access.hasGeneratedRealPhoto || access.openaiPhotoCredits <= 0) {
     return { allowed: false, reason: "PHOTO_USED" };
   }
 

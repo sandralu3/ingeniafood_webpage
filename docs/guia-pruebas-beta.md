@@ -1,12 +1,38 @@
 # 📱 Guía de Pruebas Beta — IngeniaFood
 
 > Documento para testers. Lenguaje de **pantalla**: lo que ves, tocas y experimentas.  
-> Última actualización: **14 agosto 2026** (novedades por despliegue)
+> Última actualización: **15 agosto 2026** (escáner: cupo antes de detectar; tope foto OpenAI)
 
 ---
 
 ### 📣 Novedades por despliegue
 
+#### 15 agosto 2026
+
+**Escáner · cupo antes de detectar**
+- Si no te quedan escaneos hoy, **no puedes abrir la cámara/galería** ni lanzar la detección de ingredientes.
+- Aparece el aviso de escaneos agotados (igual que al generar receta).
+- Así no se gasta Gemini en fotos de prueba cuando el cupo ya está a cero.
+
+**Foto real OpenAI (Premium)**
+- Sigue siendo **1 foto de prueba lifetime** (Free: ninguna).
+- El servidor bloquea con más rigor si ya se usó o no quedan créditos (no llama a OpenAI).
+
+**Administración · Uso de IA (solo admin)**
+- En **Administración** aparece **Uso de IA (costes)**.
+- Ves el **coste estimado** del periodo, con desglose **OpenAI** (fotos) y Gemini.
+- Elige un **día** para ver gasto por **función** y por **usuario**, más el bloque **Gasto fotos OpenAI** del día.
+- Bloque **Límites Gemini (nivel gratuito)**: RPM / TPM / RPD con aviso en rojo si se supera el tope.
+- Bloque **Suscripción · análisis**: peticiones recomendadas **Gratis vs Premium** y precio mensual sugerido para cubrir el gasto OpenAI (con margen).
+- Empieza a registrar datos **después** de aplicar la migración y del uso nuevo (no hay historial anterior).
+
+**Qué probar de este despliegue**
+- [ ] Con 0 escaneos: el botón **Escanear ahora** no abre cámara; sale el modal de límite
+- [ ] Con escaneos: foto → detección → generar resta 1 (como antes)
+- [ ] Premium: tras usar la foto real, no se vuelve a llamar a OpenAI
+- [ ] Menú → **Administración** → **Uso de IA (costes)**
+- [ ] Cambiar de día actualiza usuarios, funciones, OpenAI del día y el análisis
+- [ ] Se ven barras Gemini RPM / TPM / RPD y el bloque de precio / cuotas Free–Premium
 #### 14 agosto 2026
 
 **Racha (Hoy)**
@@ -218,7 +244,7 @@ En la lista, cada tarjeta debería mostrar:
 9. En **Recetas → Cocinar**, la receta nueva debería filtrar por la **dieta de tus parámetros** (y por tipo de comida si el escáner lo indicó).
 
 > El Escáner **solo** sirve para generar recetas con tu despensa. Las recetas de Instagram están en **Recetas → Sandra** (apartado B).  
-> **Límite diario de escaneos:** cuenta **Free → 5**/día · **Premium o pase 24h → 20**/día. Si se agotan, verás el aviso de límite.
+> **Límite diario de escaneos:** cuenta **Free → 5**/día · **Premium o pase 24h → 20**/día. Si se agotan, verás el aviso de límite y **no podrás abrir la cámara** ni detectar ingredientes hasta mañana (o hasta tener más cupo).
 
 #### B) Recetas de Sandra (incluye Instagram)
 1. Ve a **Recetas** → sección **Sandra** (o **Ver más** en esa fila).
@@ -280,6 +306,7 @@ Disponible desde el **Plan**, al elegir o cambiar un plato (en **hoy** o **días
 - [ ] Despensa manual sin foto
 - [ ] Escáner **sin** pestaña «Desde Instagram» (solo despensa)
 - [ ] Límite diario: Free **5** / Premium o pase 24h **20**
+- [ ] Con 0 escaneos: **Escanear ahora** no abre cámara; modal de límite (sin llamar a Gemini)
 - [ ] Recetas → Sandra: mismas tarjetas + detalle + «Ver en Instagram» sobre la foto
 - [ ] Plan → Mis recetas / Recetas → Sandra → asignar al hueco
 - [ ] Escaneo de plato servido (con y sin Premium) desde **¿Ya comiste? Regístralo aquí**
@@ -505,11 +532,21 @@ El panel **ya no está en Perfil**. Acceso:
 1. Abre el **menú hamburguesa** (arriba a la izquierda).
 2. Debes ver el ítem **Administración** (solo visible para la cuenta admin).
 3. Entra al hub:
-   - **Herramientas**: Administrar usuarios, **Recetas por usuario**, Importar receta, Banco de imágenes, Editar catálogo (Instagram).
+   - **Herramientas**: Administrar usuarios, **Uso de IA (costes)**, **Recetas por usuario**, Importar receta, Banco de imágenes, Editar catálogo (Instagram).
    - **Recetas de Sandra**: listado del catálogo oficial.
 4. Desde las herramientas `/admin/…`, el enlace **Volver** regresa a **Administración**, no a Perfil.
 
 > Los pases Premium de **24h** caducados se limpian en segundo plano (junto al cron de notificaciones, 2×/día) y al usar la app: `is_premium` vuelve a Free si no hay suscripción Paddle. El código canjeado (`WELCOME`, etc.) se conserva en historial.
+
+#### Uso de IA / costes (admin)
+1. Menú → **Administración** → **Uso de IA (costes)**.
+2. Arriba: coste del periodo, gasto OpenAI, nº de fotos y llamadas.
+3. **Límites Gemini**: RPM / TPM / RPD del día (rojo si se pasó el tope free).
+4. **Gasto fotos OpenAI** del día elegido ($ / imagen calibrado con tu factura).
+5. **Suscripción · análisis**: cuotas recomendadas Gratis vs Premium y precio mensual sugerido.
+6. En **Por día**, pulsa una fecha para filtrar.
+7. Debajo: desglose por **función** y por **usuario**.
+8. Nota: cifras orientativas; hace falta uso **después** de activar el registro en la base de datos.
 
 #### Administrar usuarios
 1. Menú → **Administración** → **Administrar usuarios**.
@@ -546,6 +583,8 @@ El panel **ya no está en Perfil**. Acceso:
 **Qué probar**
 - [ ] Como admin: el ítem **Administración** aparece en el menú
 - [ ] Como usuaria normal: ese ítem **no** aparece
+- [ ] Hub: **Uso de IA (costes)** abre el panel de consumo diario
+- [ ] En Uso de IA: Gemini RPM/TPM/RPD, gasto OpenAI del día y análisis de suscripción
 - [ ] Perfil **ya no** muestra el bloque «Panel de administración»
 - [ ] Los accesos de herramientas abren bien y vuelven al hub
 - [ ] **Administrar usuarios**: columna Pase 24h + filtros Solo testers / Solo usaron pase 24h

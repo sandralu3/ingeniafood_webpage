@@ -249,7 +249,9 @@ export async function POST(request: Request) {
       }
     }
 
-    const { report, source } = await generateIntelligentDoseReport(context);
+    const { report, source } = await generateIntelligentDoseReport(context, {
+      userId: user.id
+    });
 
     return jsonResponse({
       ok: true,

@@ -2,6 +2,7 @@ import { resolveDishImageMatch } from "@/lib/recipes/resolve-dish-image-match";
 import type { RecipeCuisineStyle, RecipeMealType } from "@/lib/recipes/premium-recipe-filters";
 import { isOpenAiDishPhotosEnabled } from "@/lib/recipes/can-generate-openai-dish-photo";
 import { getOpenAI } from "@/lib/openai";
+import { logAiUsage } from "@/lib/ai/log-ai-usage";
 import { randomUUID } from "crypto";
 import { getSupabaseAdminClient } from "@/lib/supabaseAdmin";
 import { DEFAULT_DISH_HERO_FALLBACK } from "@/lib/recipes/dish-image-fallback";
@@ -345,6 +346,14 @@ async function generateWithOpenAI(input: GenerateRecipeImageInput): Promise<stri
       buffer,
       mimeType: "image/png"
     });
+    void logAiUsage({
+      userId: input.userId,
+      feature: "dish_photo",
+      provider: "openai",
+      model,
+      imageCount: 1,
+      meta: { format: "b64" }
+    });
     console.info("[recipe-image] OpenAI OK (b64)", {
       userId: input.userId,
       title: input.title.slice(0, 80)
@@ -355,6 +364,14 @@ async function generateWithOpenAI(input: GenerateRecipeImageInput): Promise<stri
   if (first?.url) {
     const { buffer, mimeType } = await fetchImageAsBuffer(first.url);
     const imageUrl = await uploadImageBuffer({ userId: input.userId, buffer, mimeType });
+    void logAiUsage({
+      userId: input.userId,
+      feature: "dish_photo",
+      provider: "openai",
+      model,
+      imageCount: 1,
+      meta: { format: "url" }
+    });
     console.info("[recipe-image] OpenAI OK (url)", {
       userId: input.userId,
       title: input.title.slice(0, 80)

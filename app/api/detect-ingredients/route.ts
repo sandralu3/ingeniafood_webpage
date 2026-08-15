@@ -2,6 +2,8 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from "next/server";
 import { createSupabaseRouteClient } from "@/lib/supabaseRoute";
 import { getRouteUser } from "@/lib/auth/get-route-user";
+import { extractGeminiTokenUsage, logAiUsage } from "@/lib/ai/log-ai-usage";
+import { getGenerationsLeft } from "@/lib/generations/quota";
 import {
   createDetectedIngredient,
   type DetectedIngredient
@@ -115,6 +117,30 @@ export async function POST(request: Request) {
       return jsonResponse({ error: "No autenticado.", code: "UNAUTHORIZED" }, 401);
     }
 
+    // Mismo cupo que generate-recipe: no quemar Gemini si no quedan escaneos.
+    // No consumimos aquí (el usuario puede cancelar); solo se resta al generar receta.
+    const generationsLeft = await getGenerationsLeft(auth.user.id, auth.user.email);
+    if (generationsLeft === null) {
+      return jsonResponse(
+        {
+          error: "No pudimos verificar tu cuota de escaneos. Inténtalo de nuevo.",
+          code: "QUOTA_CHECK_FAILED"
+        },
+        503
+      );
+    }
+    if (generationsLeft <= 0) {
+      return jsonResponse(
+        {
+          error:
+            "Has agotado tus escaneos de hoy. Vuelve mañana o contacta con soporte si necesitas más.",
+          code: "GENERATIONS_EXHAUSTED",
+          generationsLeft: 0
+        },
+        403
+      );
+    }
+
     const body = (await request.json()) as DetectPayload;
     const imageBase64 =
       typeof body.imageBase64 === "string" ? body.imageBase64.replace(/^data:[^;]+;base64,/, "") : "";
@@ -166,8 +192,12 @@ export async function POST(request: Request) {
 
     let text = "";
     let lastError: unknown = null;
+    let usedModelName: string | null = null;
+    let lastTriedModel: string | null = null;
+    let tokens = { inputTokens: 0, outputTokens: 0 };
 
     for (const modelName of modelCandidates) {
+      lastTriedModel = modelName;
       try {
         const model = genAI.getGenerativeModel({
           model: modelName,
@@ -186,7 +216,11 @@ export async function POST(request: Request) {
           }
         ]);
         text = result.response.text()?.trim() ?? "";
-        if (text) break;
+        if (text) {
+          usedModelName = modelName;
+          tokens = extractGeminiTokenUsage(result.response);
+          break;
+        }
       } catch (error) {
         lastError = error;
         console.warn(`[detect-ingredients] modelo ${modelName} falló:`, error);
@@ -196,6 +230,14 @@ export async function POST(request: Request) {
     if (!text) {
       console.error("[detect-ingredients] sin respuesta:", lastError);
       if (isQuotaError(lastError)) {
+        void logAiUsage({
+          userId: auth.user.id,
+          feature: "detect_ingredients",
+          provider: "gemini",
+          model: usedModelName || lastTriedModel || undefined,
+          status: "error",
+          meta: { reason: "quota" }
+        });
         return jsonResponse(
           {
             error:
@@ -205,6 +247,14 @@ export async function POST(request: Request) {
           429
         );
       }
+      void logAiUsage({
+        userId: auth.user.id,
+        feature: "detect_ingredients",
+        provider: "gemini",
+        model: usedModelName || lastTriedModel || undefined,
+        status: "error",
+        meta: { reason: "no_response" }
+      });
       return jsonResponse({ error: "No pudimos detectar ingredientes en la imagen." }, 502);
     }
 
@@ -240,6 +290,16 @@ export async function POST(request: Request) {
         422
       );
     }
+
+    void logAiUsage({
+      userId: auth.user.id,
+      feature: "detect_ingredients",
+      provider: "gemini",
+      model: usedModelName,
+      inputTokens: tokens.inputTokens,
+      outputTokens: tokens.outputTokens,
+      meta: { ingredientCount: ingredients.length }
+    });
 
     return jsonResponse({ ingredients });
   } catch (error) {

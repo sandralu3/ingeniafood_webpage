@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI, type Part } from "@google/generative-ai";
 import { NextResponse } from "next/server";
+import { extractGeminiTokenUsage, logAiUsage } from "@/lib/ai/log-ai-usage";
 import { createSupabaseRouteClient } from "@/lib/supabaseRoute";
 import { isSandraAdmin } from "@/lib/auth/sandra-admin";
 import { getRouteUser } from "@/lib/auth/get-route-user";
@@ -906,6 +907,7 @@ export async function POST(request: Request) {
           continue;
         }
         lastRawText = rawText;
+        const tokens = extractGeminiTokenUsage(result.response);
 
         const parsed = parseLooseJson(rawText);
         if (parsed && typeof parsed === "object" && looksLikeNonFoodEstimate(parsed)) {
@@ -917,6 +919,16 @@ export async function POST(request: Request) {
             );
             lastError = new Error(`Modelo ${modelName} marcó NOT_FOOD con texto comestible`);
             lastRawText = rawText;
+            void logAiUsage({
+              userId: auth.user.id,
+              feature: "estimate_external_meal",
+              provider: "gemini",
+              model: modelName,
+              status: "error",
+              inputTokens: tokens.inputTokens,
+              outputTokens: tokens.outputTokens,
+              meta: { mode, context, reason: "not_food_ignored" }
+            });
             break;
           }
 
@@ -930,6 +942,16 @@ export async function POST(request: Request) {
             (typeof record.message === "string" && record.message.trim()) ||
             (typeof record.mensaje === "string" && record.mensaje.trim()) ||
             foodDescriptionRejectionMessage(context, mode);
+          void logAiUsage({
+            userId: auth.user.id,
+            feature: "estimate_external_meal",
+            provider: "gemini",
+            model: modelName,
+            status: "error",
+            inputTokens: tokens.inputTokens,
+            outputTokens: tokens.outputTokens,
+            meta: { mode, context, reason: "not_food" }
+          });
           return jsonResponse(
             {
               error: "NOT_FOOD",
@@ -945,6 +967,15 @@ export async function POST(request: Request) {
         if (normalized) {
           estimate = normalized;
           hadModelEstimate = true;
+          void logAiUsage({
+            userId: auth.user.id,
+            feature: "estimate_external_meal",
+            provider: "gemini",
+            model: modelName,
+            inputTokens: tokens.inputTokens,
+            outputTokens: tokens.outputTokens,
+            meta: { mode, context }
+          });
           break;
         }
 
@@ -962,6 +993,14 @@ export async function POST(request: Request) {
         console.warn(`[estimate-external-meal] modelo ${modelName}: ${message.slice(0, 280)}`);
         // Cuota agotada: no tiene sentido seguir quemando modelos del mismo free-tier.
         if (isQuotaExhaustedError(error)) {
+          void logAiUsage({
+            userId: auth.user.id,
+            feature: "estimate_external_meal",
+            provider: "gemini",
+            model: modelName,
+            status: "error",
+            meta: { mode, context, reason: "quota" }
+          });
           break;
         }
         if (isRetryableModelError(error)) continue;

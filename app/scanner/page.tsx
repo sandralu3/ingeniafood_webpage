@@ -488,6 +488,12 @@ export default function ScannerPage() {
 
   const runIngredientDetection = useCallback(
     async (file: File) => {
+      if (generationsLeft !== null && generationsLeft <= 0) {
+        setShowGenerationsModal(true);
+        exitConfirmStep();
+        return;
+      }
+
       detectAbortRef.current?.abort();
       const controller = new AbortController();
       detectAbortRef.current = controller;
@@ -520,6 +526,13 @@ export default function ScannerPage() {
         }
         if (controller.signal.aborted) return;
 
+        if (payload.code === "GENERATIONS_EXHAUSTED") {
+          setGenerationsLeft(0);
+          exitConfirmStep();
+          setShowGenerationsModal(true);
+          return;
+        }
+
         if (payload.code === "NOT_FOOD" || payload.error === "NOT_FOOD") {
           exitConfirmStep();
           setShowNotFoodGuidance(true);
@@ -551,7 +564,7 @@ export default function ScannerPage() {
         if (!controller.signal.aborted) setIsDetecting(false);
       }
     },
-    [exitConfirmStep, locale]
+    [exitConfirmStep, generationsLeft, locale]
   );
 
   const handlePantryImageChange = (file: File | null) => {
@@ -566,6 +579,11 @@ export default function ScannerPage() {
 
     if (!file) {
       exitConfirmStep();
+      return;
+    }
+
+    if (generationsLeft !== null && generationsLeft <= 0) {
+      setShowGenerationsModal(true);
       return;
     }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpen, Pencil, ScanLine, Users, Wand2 } from "lucide-react";
+import { BookOpen, Pencil, ScanLine, Sparkles, Users, Wand2 } from "lucide-react";
 import { AdminHubSkeleton } from "@/components/skeletons/admin-skeleton";
 import { useSandraAdminGate } from "@/hooks/use-sandra-admin-gate";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
@@ -51,19 +51,23 @@ export function AdminHubView() {
       <section className="rounded-2xl border border-[#4C6B3F]/15 bg-gradient-to-br from-[#F0F4ED] to-white p-4 shadow-sm">
         <h2 className="text-sm font-semibold text-stone-900">Herramientas</h2>
         <p className="mt-1 text-xs leading-relaxed text-stone-500">
-          Usuarios, uso de recetas/escáner, importación, banco de imágenes y catálogo de
-          Instagram.
+          Usuarios, uso de IA/costes, recetas/escáner, importación, banco de imágenes y
+          catálogo de Instagram.
         </p>
         <div className="mt-4 space-y-2">
           <Link href="/admin/usuarios" className={toolLinkClassName}>
             <Users className="h-4 w-4" />
             Administrar usuarios
           </Link>
+          <Link href="/admin/uso-ia" className={primaryToolLinkClassName}>
+            <Sparkles className="h-4 w-4" />
+            Uso de IA (costes)
+          </Link>
           <Link href="/admin/uso-recetas" className={toolLinkClassName}>
             <ScanLine className="h-4 w-4" />
             Recetas por usuario
           </Link>
-          <Link href="/admin/importar-receta" className={primaryToolLinkClassName}>
+          <Link href="/admin/importar-receta" className={toolLinkClassName}>
             <Wand2 className="h-4 w-4" />
             Importar receta
           </Link>

@@ -166,7 +166,8 @@ export function resolvePremiumAccess(
     ? 0
     : Math.max(
         0,
-        profile?.openai_photo_credits ?? (isPermanentPremium || isTester ? 1 : 0)
+        profile?.openai_photo_credits ??
+          (isPermanentPremium || isTester || isCodePremium || isFlagPremium ? 1 : 0)
       );
 
   return {

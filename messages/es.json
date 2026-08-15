@@ -338,6 +338,7 @@
     "externalMealDescriptionCommaError": "Para varios alimentos, sepáralos por comas (no solo con «y»). Ejemplo: pechuga, arroz, ensalada",
     "externalMealNeedPhoto": "Toma o elige una foto del plato.",
     "externalMealEstimateError": "No pudimos estimar la comida. Inténtalo de nuevo.",
+    "externalMealNetworkError": "Se cortó la conexión al analizar. Espera un momento y pulsa otra vez «Analizar alimentos».",
     "externalMealAnalyzing": "Analizando plato…",
     "externalMealAnalyzeCta": "Analizar alimentos",
     "externalMealReviewTitle": "Revisa los alimentos",

@@ -383,10 +383,17 @@ export function ExternalMealRegisterModal({
       setStep("review");
     } catch (err) {
       console.error("[external-meal] analyze", err);
+      const message = err instanceof Error ? err.message : String(err ?? "");
+      const isNetworkFail =
+        /failed to fetch|networkerror|load failed|aborted/i.test(message);
       setError(
-        t.has("externalMealEstimateError")
-          ? t("externalMealEstimateError")
-          : "No pudimos analizar la comida."
+        isNetworkFail
+          ? t.has("externalMealNetworkError")
+            ? t("externalMealNetworkError")
+            : "Se cortó la conexión al analizar. Si acabas de guardar cambios en el código, espera un momento y pulsa otra vez «Analizar alimentos»."
+          : t.has("externalMealEstimateError")
+            ? t("externalMealEstimateError")
+            : "No pudimos analizar la comida."
       );
     } finally {
       setIsAnalyzing(false);

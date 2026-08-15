@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from "next/server";
+import { extractGeminiTokenUsage, logAiUsage } from "@/lib/ai/log-ai-usage";
 import { getUserIsPremium } from "@/lib/auth/user-premium";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
 import { buildFallbackPremiumStories } from "@/lib/premium-stories/fallback-stories";
@@ -234,6 +235,15 @@ No inventes ingredientes fuera de la lista. Sé concreta, motivadora y breve.`;
       });
       const result = await model.generateContent(prompt);
       const text = result.response.text();
+      const tokens = extractGeminiTokenUsage(result.response);
+      void logAiUsage({
+        userId: user.id,
+        feature: "premium_stories",
+        provider: "gemini",
+        model: modelName,
+        inputTokens: tokens.inputTokens,
+        outputTokens: tokens.outputTokens
+      });
       const jsonText = extractJsonObject(text) ?? text;
       const parsed = JSON.parse(jsonText) as unknown;
       stories = normalizeStories(parsed, fallback);

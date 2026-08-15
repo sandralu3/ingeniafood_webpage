@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI, type Part } from "@google/generative-ai";
 import { NextResponse } from "next/server";
+import { extractGeminiTokenUsage, logAiUsage } from "@/lib/ai/log-ai-usage";
 import { normalizeRecipeSteps } from "@/lib/recipes/sentence-case";
 import { normalizeRecipeTags } from "@/lib/recipes/recipe-tags";
 import { normalizeRecipeMacros, type RecipeMacros } from "@/lib/recipes/recipe-macros";
@@ -694,6 +695,9 @@ export async function POST(request: Request) {
       "DIETA DEL USUARIO: sin restricciones específicas (estándar). Respeta igual el sentido común gastronómico.";
     const configuredModel = process.env.GOOGLE_GENERATIVE_AI_MODEL?.trim();
     const modelCandidates = buildModelCandidates(configuredModel);
+    let usedModelName: string | null = null;
+    let lastGeminiTokens = { inputTokens: 0, outputTokens: 0 };
+    const geminiStartedAt = Date.now();
     const recipeIdea =
       typeof body.recipeIdea === "string" ? body.recipeIdea.trim().slice(0, 160) : "";
     const recipeIdeaClause = recipeIdea
@@ -839,6 +843,8 @@ export async function POST(request: Request) {
               timeout: GEMINI_REQUEST_TIMEOUT_MS
             });
             text = result.response.text();
+            usedModelName = candidateModel;
+            lastGeminiTokens = extractGeminiTokenUsage(result.response);
             break;
           } catch (error) {
             failure = `${candidateModel}: ${formatGeminiFailure(error)}`;
@@ -956,6 +962,16 @@ export async function POST(request: Request) {
       }
 
       const statusCode = quotaHit ? 429 : 502;
+      if (quotaHit) {
+        void logAiUsage({
+          userId: user.id,
+          feature: "generate_recipe",
+          provider: "gemini",
+          model: lastTriedModel || undefined,
+          status: "error",
+          meta: { reason: "quota" }
+        });
+      }
       return jsonResponse(
         {
           error: authConfigHit
@@ -1088,6 +1104,17 @@ export async function POST(request: Request) {
         403
       );
     }
+
+    void logAiUsage({
+      userId: user.id,
+      feature: "generate_recipe",
+      provider: "gemini",
+      model: usedModelName,
+      inputTokens: lastGeminiTokens.inputTokens,
+      outputTokens: lastGeminiTokens.outputTokens,
+      latencyMs: Date.now() - geminiStartedAt,
+      meta: { recipeCount: safeRecipes.length }
+    });
 
     // Banco de fotos: cualquier Premium vigente (Stripe, 24h, admin/tester).
     // OpenAI: Free = nunca; Premium = 1x lifetime; admin = ilimitado.

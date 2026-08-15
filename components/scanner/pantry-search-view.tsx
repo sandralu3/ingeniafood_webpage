@@ -183,8 +183,12 @@ export function PantrySearchView({
 
   const openSourceModal = useCallback(() => {
     if (isBusy) return;
+    if (scansExhausted) {
+      onGenerationsExhausted?.();
+      return;
+    }
     setShowSourceModal(true);
-  }, [isBusy]);
+  }, [isBusy, onGenerationsExhausted, scansExhausted]);
 
   const closeSourceModal = useCallback(() => {
     setShowSourceModal(false);
@@ -378,7 +382,7 @@ export function PantrySearchView({
               <button
                 type="button"
                 onClick={openSourceModal}
-                disabled={isBusy}
+                disabled={isBusy || scansExhausted}
                 className="relative mt-3 inline-flex w-fit items-center gap-2 rounded-full bg-gradient-to-br from-[#5C7A54] via-[#3E5A3A] to-[#2F452C] px-4 py-2.5 text-sm font-bold leading-none text-white shadow-md shadow-[#3E5A3A]/30 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:brightness-100"
               >
                 <Camera className="h-4 w-4" strokeWidth={2.25} aria-hidden />

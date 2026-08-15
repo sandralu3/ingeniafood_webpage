@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { extractGeminiTokenUsage, logAiUsage } from "@/lib/ai/log-ai-usage";
 import { normalizeRecipeTags } from "@/lib/recipes/recipe-tags";
 
 export const INSTAGRAM_RECIPE_SYSTEM_PROMPT =
@@ -102,6 +103,14 @@ export async function extractRecipeFromInstagramText(
       );
 
       const rawText = result.response.text();
+      const tokens = extractGeminiTokenUsage(result.response);
+      void logAiUsage({
+        feature: "admin_instagram_structure",
+        provider: "gemini",
+        model: modelName,
+        inputTokens: tokens.inputTokens,
+        outputTokens: tokens.outputTokens
+      });
       const jsonString = extractJsonObject(rawText);
 
       let parsed: unknown;

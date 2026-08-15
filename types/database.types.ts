@@ -901,6 +901,62 @@ export type Database = {
           }
         ];
       };
+      ai_usage_events: {
+        Row: {
+          id: string;
+          created_at: string;
+          user_id: string | null;
+          feature: string;
+          provider: string;
+          model: string | null;
+          status: string;
+          input_tokens: number;
+          output_tokens: number;
+          image_count: number;
+          estimated_cost_usd: number;
+          latency_ms: number | null;
+          meta: Json;
+        };
+        Insert: {
+          id?: string;
+          created_at?: string;
+          user_id?: string | null;
+          feature: string;
+          provider: string;
+          model?: string | null;
+          status?: string;
+          input_tokens?: number;
+          output_tokens?: number;
+          image_count?: number;
+          estimated_cost_usd?: number;
+          latency_ms?: number | null;
+          meta?: Json;
+        };
+        Update: {
+          id?: string;
+          created_at?: string;
+          user_id?: string | null;
+          feature?: string;
+          provider?: string;
+          model?: string | null;
+          status?: string;
+          input_tokens?: number;
+          output_tokens?: number;
+          image_count?: number;
+          estimated_cost_usd?: number;
+          latency_ms?: number | null;
+          meta?: Json;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "ai_usage_events_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

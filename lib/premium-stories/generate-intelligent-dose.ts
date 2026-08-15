@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { extractGeminiTokenUsage, logAiUsage } from "@/lib/ai/log-ai-usage";
 import { buildDeterministicIntelligentDose } from "@/lib/premium-stories/build-deterministic-intelligent-dose";
 import {
   buildNutritionFactsForPrompt,
@@ -284,7 +285,8 @@ function normalizeAiReport(
 }
 
 export async function generateIntelligentDoseReport(
-  context: IntelligentDoseUserContext
+  context: IntelligentDoseUserContext,
+  options?: { userId?: string | null }
 ): Promise<{ report: IntelligentDoseReport; source: "ai" | "fallback" }> {
   const fallback = buildDeterministicIntelligentDose(context);
   const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY?.trim();
@@ -306,6 +308,15 @@ export async function generateIntelligentDoseReport(
     });
     const result = await model.generateContent(buildPrompt(context));
     const text = result.response.text();
+    const tokens = extractGeminiTokenUsage(result.response);
+    void logAiUsage({
+      userId: options?.userId,
+      feature: "intelligent_dose",
+      provider: "gemini",
+      model: modelName,
+      inputTokens: tokens.inputTokens,
+      outputTokens: tokens.outputTokens
+    });
     const jsonText = extractJsonObject(text) ?? text;
     const parsed = JSON.parse(jsonText) as unknown;
     return {

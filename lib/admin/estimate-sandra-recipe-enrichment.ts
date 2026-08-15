@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { extractGeminiTokenUsage, logAiUsage } from "@/lib/ai/log-ai-usage";
 import {
   ASSIGNABLE_RECIPE_DIETS,
   parsePreferredDietList,
@@ -113,6 +114,14 @@ export async function estimateSandraRecipeDietsAndMacros(params: {
       );
 
       const rawText = result.response.text();
+      const tokens = extractGeminiTokenUsage(result.response);
+      void logAiUsage({
+        feature: "admin_sandra_enrich",
+        provider: "gemini",
+        model: modelName,
+        inputTokens: tokens.inputTokens,
+        outputTokens: tokens.outputTokens
+      });
       let parsed: unknown;
       try {
         parsed = JSON.parse(extractJsonObject(rawText));

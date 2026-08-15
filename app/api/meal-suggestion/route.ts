@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { extractGeminiTokenUsage, logAiUsage } from "@/lib/ai/log-ai-usage";
 import { getUserIsPremium } from "@/lib/auth/user-premium";
 import { fetchUserNutritionGoals } from "@/lib/nutrition/nutrition-profile";
 import {
@@ -50,7 +51,8 @@ async function rankWithGemini(
   shortlist: MealSuggestionCandidate[],
   mealType: MealType,
   remaining: RemainingMacros,
-  preferredDiet: PreferredDiet
+  preferredDiet: PreferredDiet,
+  userId?: string | null
 ): Promise<string | null> {
   const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY?.trim();
   if (!apiKey || shortlist.length === 0) return null;
@@ -95,6 +97,15 @@ El recipeId DEBE ser uno de la lista.`;
 
     const result = await model.generateContent(prompt);
     const text = result.response.text().trim();
+    const tokens = extractGeminiTokenUsage(result.response);
+    void logAiUsage({
+      userId,
+      feature: "meal_suggestion",
+      provider: "gemini",
+      model: modelName,
+      inputTokens: tokens.inputTokens,
+      outputTokens: tokens.outputTokens
+    });
     const match = text.match(/\{[\s\S]*\}/);
     if (!match) return null;
     const parsed = JSON.parse(match[0]) as { recipeId?: string };
@@ -207,7 +218,13 @@ export async function POST(request: Request) {
     const preferAi = body.preferAi !== false;
     if (preferAi) {
       const shortlist = ranked.slice(0, 8);
-      const aiId = await rankWithGemini(shortlist, mealType, remaining, preferredDiet);
+      const aiId = await rankWithGemini(
+        shortlist,
+        mealType,
+        remaining,
+        preferredDiet,
+        user.id
+      );
       const aiPick = aiId ? shortlist.find((item) => item.id === aiId) : null;
       if (aiPick) {
         suggestion = toMealSuggestion(aiPick, mealType, "ai-ranked");

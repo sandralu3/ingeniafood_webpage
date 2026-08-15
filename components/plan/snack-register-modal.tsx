@@ -456,10 +456,17 @@ export function SnackRegisterModal({
       setStep("review");
     } catch (err) {
       console.error("[snack-register] analyze", err);
+      const message = err instanceof Error ? err.message : String(err ?? "");
+      const isNetworkFail =
+        /failed to fetch|networkerror|load failed|aborted/i.test(message);
       setError(
-        t.has("externalMealEstimateError")
-          ? t("externalMealEstimateError")
-          : "No pudimos analizar el snack."
+        isNetworkFail
+          ? t.has("externalMealNetworkError")
+            ? t("externalMealNetworkError")
+            : "Se cortó la conexión al analizar. Espera un momento y pulsa otra vez «Analizar alimentos»."
+          : t.has("externalMealEstimateError")
+            ? t("externalMealEstimateError")
+            : "No pudimos analizar el snack."
       );
     } finally {
       setIsAnalyzing(false);
