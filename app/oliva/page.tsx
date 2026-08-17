@@ -1,6 +1,5 @@
 import { AccessSection } from "@/components/oliva/access";
 import { ChangeSection } from "@/components/oliva/change";
-import { ClosingSection } from "@/components/oliva/closing";
 import { FaqSection } from "@/components/oliva/faq";
 import { Footer } from "@/components/oliva/Footer";
 import { OlivaHeader } from "@/components/oliva/Header";
@@ -20,9 +19,11 @@ export default function OlivaLandingPage() {
         <ChangeSection />
         <WhySection />
         <AccessSection />
-        <FaqSection />
-        <ClosingSection />
-        <Footer />
+        {/* One snap target for the end — FAQ without snap was unreachable with mandatory snap */}
+        <div className="oliva-landing-end">
+          <FaqSection />
+          <Footer />
+        </div>
       </main>
     </>
   );

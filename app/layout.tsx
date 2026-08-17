@@ -6,9 +6,11 @@ import { SupabaseAuthRedirect } from "@/components/auth/supabase-auth-redirect";
 import { AppUpdateBanner } from "@/components/shared/app-update-banner";
 import { ChunkLoadRecovery } from "@/components/shared/chunk-load-recovery";
 import { APP_ICON_METADATA } from "@/lib/metadata/app-icons";
+import { METADATA_BASE } from "@/lib/metadata/site-url";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: METADATA_BASE,
   title: "IngeniaFood",
   description: "App de recetas inteligentes con IA. Tu ingeniero culinario personal.",
   applicationName: "IngeniaFood",

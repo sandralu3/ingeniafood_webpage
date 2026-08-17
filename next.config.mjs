@@ -17,7 +17,7 @@ const nextConfig = {
 
   // Fotos del plato / escáner llegan como base64; el default (~10MB) corta el JSON.
   experimental: {
-    middlewareClientMaxBodySize: "16mb"
+    proxyClientMaxBodySize: "16mb"
   },
 
   onDemandEntries: {

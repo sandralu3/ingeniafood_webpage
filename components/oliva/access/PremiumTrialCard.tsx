@@ -11,24 +11,24 @@ export function PremiumTrialCard() {
   return (
     <div className="relative">
       <div
-        className="oliva-access-glow pointer-events-none absolute -inset-10 sm:-inset-14"
+        className="oliva-access-glow pointer-events-none absolute -inset-8 sm:-inset-10"
         aria-hidden="true"
       />
 
-      <article className="oliva-access-card relative overflow-hidden rounded-2xl border border-[#e0d9cc] bg-[#fffcf7] p-8 sm:p-9">
+      <article className="oliva-access-card relative overflow-hidden rounded-2xl border border-[#e8e0d2] bg-[#fffcf7] p-6 sm:p-7">
         <span className="oliva-access-badge inline-flex items-center rounded-full border border-[#556B2F]/25 bg-[#556B2F]/[0.07] px-3 py-1 text-[11px] font-semibold tracking-[0.1em] text-[#556B2F]">
           Premium Experience
         </span>
 
-        <h3 className="mt-5 font-sans text-2xl font-semibold leading-snug tracking-tight text-[#1b1c19] sm:text-[1.65rem]">
+        <h3 className="mt-4 font-sans text-xl font-semibold leading-snug tracking-tight text-[#1b1c19] sm:text-[1.4rem]">
           24 horas para descubrir todo IngeniaFood
         </h3>
 
-        <ul className="mt-7 space-y-3.5">
+        <ul className="mt-5 space-y-2.5">
           {BENEFITS.map((benefit) => (
             <li
               key={benefit}
-              className="flex items-start gap-3 text-[0.9375rem] leading-snug text-[#53433e]"
+              className="flex items-start gap-2.5 text-[0.9rem] leading-snug text-[#53433e]"
             >
               <span
                 className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center text-[#556B2F]"
@@ -49,11 +49,11 @@ export function PremiumTrialCard() {
           ))}
         </ul>
 
-        <TryCta className="oliva-access-cta mt-8 w-full" variant="primary" size="md">
+        <TryCta className="oliva-access-cta mt-6 w-full" variant="primary" size="md">
           Activar cuando yo quiera
         </TryCta>
 
-        <div className="mt-5 space-y-1 text-center text-sm leading-relaxed text-[#86736d]">
+        <div className="mt-4 space-y-0.5 text-center text-sm leading-relaxed text-[#86736d]">
           <p>No necesitas tarjeta de crédito.</p>
           <p>La prueba solo comienza cuando tú decidas.</p>
         </div>

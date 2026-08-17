@@ -1,6 +1,8 @@
-import { SectionHeader, SectionShell } from "@/components/oliva/motion";
+import { ScrollReveal, SectionShell } from "@/components/oliva/motion";
 import { FounderQuote } from "./FounderQuote";
-import { WhyBlock } from "./WhyBlock";
+import { WhyAtmosphere } from "./WhyAtmosphere";
+import { WhyContrastStrip } from "./WhyContrastStrip";
+import { WhyPillarCard } from "./WhyPillarCard";
 import {
   DailyCompanionVisual,
   PantryToRecipeVisual,
@@ -10,58 +12,74 @@ import "./why.css";
 
 export function WhySection() {
   return (
-    <SectionShell id="por-que" variant="paper" glow="right" divider align="start">
-      <div className="mx-auto max-w-6xl px-6 lg:px-10">
-        <SectionHeader
-          title="Más que recetas. Una forma más inteligente de cocinar."
-          subtitle="IngeniaFood no empieza con una receta. Empieza contigo, con tu despensa y con tu día."
-        />
+    <SectionShell
+      id="por-que"
+      variant="paper"
+      glow="none"
+      divider
+      align="start"
+      className="oliva-why-section"
+      contentClassName="oliva-why-inner"
+    >
+      <WhyAtmosphere />
 
-        <div className="mt-20 space-y-28 sm:mt-24 lg:mt-32 lg:space-y-36">
-          <WhyBlock
-            title="Tu despensa es el punto de partida."
-            visual={<PantryToRecipeVisual />}
-            delay={0}
-          >
-            <p>En la mayoría de aplicaciones buscas una receta.</p>
-            <p>
-              En IngeniaFood empiezas por los ingredientes que ya tienes.
-            </p>
-          </WhyBlock>
+      <div className="oliva-why-content mx-auto max-w-6xl px-5 sm:px-6 lg:px-10">
+        <ScrollReveal className="oliva-why-header mx-auto max-w-3xl text-center">
+          <p className="oliva-why-eyebrow">Por qué IngeniaFood</p>
+          <h2 className="oliva-why-title">
+            Más que recetas. Una forma más inteligente de cocinar.
+          </h2>
+          <p className="oliva-why-subtitle">
+            IngeniaFood no empieza con una receta. Empieza contigo, con tu
+            despensa y con tu día.
+          </p>
+        </ScrollReveal>
 
-          <WhyBlock
-            title="Pensada para la vida real."
-            visual={<RealLifeVisual />}
-            reverse
-            delay={60}
-          >
-            <p>No necesitas ingredientes difíciles.</p>
-            <p>No necesitas dedicar horas a cocinar.</p>
-            <p>No necesitas planificar con días de antelación.</p>
-            <p className="font-medium text-[#1b1c19]">
-              Solo abrir la aplicación y empezar.
-            </p>
-          </WhyBlock>
-
-          <WhyBlock
-            title="Te acompaña cada día."
-            visual={<DailyCompanionVisual />}
-            delay={120}
-          >
-            <p>No es un recetario.</p>
-            <p>No es un buscador.</p>
-            <p>
-              Es una aplicación que se adapta a tus preferencias y te ayuda a
-              convertir la cocina en un hábito más sencillo.
-            </p>
-          </WhyBlock>
+        <div className="oliva-why-intro-extra">
+          <WhyContrastStrip />
         </div>
 
-        <div className="relative mt-28 sm:mt-32 lg:mt-40">
-          <div
-            className="mx-auto mb-12 h-px w-16 bg-[#d9d2c4]"
-            aria-hidden="true"
-          />
+        <div className="oliva-why-bento">
+          <WhyPillarCard
+            index="01"
+            title="Tu despensa es el punto de partida."
+            visual={<PantryToRecipeVisual />}
+            delay={60}
+          >
+            <p>
+              En la mayoría de apps buscas una receta. Aquí empiezas por lo que
+              ya tienes.
+            </p>
+          </WhyPillarCard>
+
+          <WhyPillarCard
+            index="02"
+            title="Pensada para la vida real."
+            visual={<RealLifeVisual />}
+            delay={100}
+          >
+            <p>
+              Sin ingredientes difíciles ni horas de cocina.{" "}
+              <span className="oliva-why-card-highlight">
+                Solo abrir y empezar.
+              </span>
+            </p>
+          </WhyPillarCard>
+
+          <WhyPillarCard
+            index="03"
+            title="Te acompaña cada día."
+            visual={<DailyCompanionVisual />}
+            delay={140}
+          >
+            <p>
+              No es un recetario: se adapta a ti y convierte la cocina en un
+              hábito sencillo.
+            </p>
+          </WhyPillarCard>
+        </div>
+
+        <div className="oliva-why-founder-wrap">
           <FounderQuote />
         </div>
       </div>

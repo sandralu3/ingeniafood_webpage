@@ -35,6 +35,18 @@ html:has(.oliva-landing) {
   }
 }
 
+/* Mobile: free scroll — mandatory snap skips tall sections like #cambio */
+@media (max-width: 1023px) {
+  html:has(.oliva-landing) {
+    scroll-snap-type: none;
+  }
+
+  .oliva-snap-section {
+    scroll-snap-align: none;
+    scroll-snap-stop: normal;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html:has(.oliva-landing) {
     scroll-snap-type: none;
@@ -90,18 +102,17 @@ html:has(.oliva-landing) {
 .oliva-scroll-reveal {
   opacity: 0;
   transition:
-    opacity 0.95s cubic-bezier(0.22, 1, 0.36, 1),
-    transform 0.95s cubic-bezier(0.22, 1, 0.36, 1);
+    opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
   transition-delay: var(--reveal-delay, 0ms);
-  will-change: opacity, transform;
 }
 
 .oliva-scroll-reveal--up {
-  transform: translateY(32px);
+  transform: translateY(16px);
 }
 
 .oliva-scroll-reveal--scale {
-  transform: translateY(24px) scale(0.97);
+  transform: translateY(12px) scale(0.985);
 }
 
 .oliva-scroll-reveal--fade {
@@ -109,11 +120,11 @@ html:has(.oliva-landing) {
 }
 
 .oliva-scroll-reveal--left {
-  transform: translateX(-28px);
+  transform: translateX(-14px);
 }
 
 .oliva-scroll-reveal--right {
-  transform: translateX(28px);
+  transform: translateX(14px);
 }
 
 .oliva-scroll-reveal.oliva-revealed {

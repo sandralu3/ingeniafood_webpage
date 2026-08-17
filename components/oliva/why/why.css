@@ -1,38 +1,914 @@
-/* Oliva — Why IngeniaFood (Sprint 1.6) */
+/* Oliva — Por qué IngeniaFood (editorial bento) */
 
-.oliva-why-enter {
-  opacity: 0;
-  transform: translateY(14px);
-  animation: oliva-why-fade-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-  animation-delay: var(--why-delay, 0ms);
+.oliva-why-section {
+  --why-ink: #1b1c19;
+  --why-muted: #53433e;
+  --why-olive: #556b2f;
+  --why-olive-deep: #3d4f24;
+  --why-cream: #fffcf7;
+  --why-paper: #f7f2e8;
+  --why-line: rgb(85 107 47 / 0.14);
+  --why-shadow: 0 24px 60px rgb(27 28 25 / 0.07);
+  --why-shadow-hover: 0 32px 72px rgb(27 28 25 / 0.11);
+  overflow-x: hidden;
+  overflow-y: visible;
+  /* Paper (#fffcf7) con degradado casi imperceptible */
+  background: linear-gradient(
+    180deg,
+    #fffcf7 0%,
+    #fefbf6 48%,
+    #fdf9f2 100%
+  ) !important;
 }
 
-@keyframes oliva-why-fade-in {
+.oliva-why-section::after {
+  opacity: 0.022;
+}
+
+.oliva-why-inner {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  /* Beat .oliva-snap-inner default 3–4rem padding */
+  padding-top: 4.5rem !important;
+  padding-bottom: 1.25rem !important;
+}
+
+@media (min-width: 1024px) {
+  /*
+   * Lock to one snap viewport and pin the founder quote at the bottom
+   * so it cannot fall below the fold.
+   */
+  .oliva-snap-section.oliva-why-section {
+    display: flex;
+    min-height: 100svh;
+    min-height: 100dvh;
+    height: 100svh;
+    height: 100dvh;
+    max-height: 100svh;
+    max-height: 100dvh;
+    flex-direction: column;
+    justify-content: stretch;
+    overflow: hidden;
+  }
+
+  .oliva-why-inner {
+    display: flex;
+    box-sizing: border-box;
+    height: 100%;
+    min-height: 0;
+    max-height: 100%;
+    flex: 1 1 auto;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 0.65rem;
+    padding-top: 4.5rem !important;
+    padding-bottom: 1rem !important;
+  }
+
+  .oliva-why-content {
+    display: flex;
+    height: 100%;
+    min-height: 0;
+    flex: 1 1 auto;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 0.65rem;
+  }
+
+  .oliva-why-header,
+  .oliva-why-intro-extra,
+  .oliva-why-founder-wrap {
+    flex: 0 0 auto;
+  }
+
+  .oliva-why-bento {
+    flex: 1 1 auto;
+    min-height: 0;
+    margin-top: 0;
+    align-content: stretch;
+  }
+
+  .oliva-why-intro-extra {
+    margin-top: 0;
+  }
+
+  .oliva-why-founder-wrap {
+    margin-top: 0;
+  }
+}
+
+/* Tall section: free scroll on mobile */
+@media (max-width: 1023px) {
+  .oliva-snap-section.oliva-why-section {
+    scroll-snap-align: none !important;
+    scroll-snap-stop: normal !important;
+    min-height: auto !important;
+    height: auto !important;
+  }
+}
+
+/* ── Atmosphere ── */
+
+.oliva-why-atmosphere {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  transform: translate3d(0, calc(var(--why-parallax, 0) * -18px), 0);
+}
+
+.oliva-why-drift {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(72px);
+  will-change: transform, opacity;
+}
+
+.oliva-why-drift--a {
+  width: min(52vw, 26rem);
+  height: min(52vw, 26rem);
+  left: -10%;
+  top: 6%;
+  background: rgb(85 107 47 / 0.11);
+  animation: oliva-why-drift-a 26s ease-in-out infinite;
+}
+
+.oliva-why-drift--b {
+  width: min(44vw, 22rem);
+  height: min(44vw, 22rem);
+  right: -6%;
+  top: 28%;
+  background: rgb(143 76 53 / 0.07);
+  animation: oliva-why-drift-b 32s ease-in-out infinite;
+}
+
+.oliva-why-drift--c {
+  width: min(38vw, 18rem);
+  height: min(38vw, 18rem);
+  left: 38%;
+  bottom: 8%;
+  background: rgb(85 107 47 / 0.08);
+  animation: oliva-why-drift-c 22s ease-in-out infinite;
+}
+
+@keyframes oliva-why-drift-a {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(4%, 6%) scale(1.06);
+  }
+}
+
+@keyframes oliva-why-drift-b {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(-5%, 4%);
+  }
+}
+
+@keyframes oliva-why-drift-c {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(3%, -5%);
+  }
+}
+
+.oliva-why-watermark {
+  position: absolute;
+  left: 50%;
+  top: 0.5rem;
+  margin: 0;
+  font-family: var(--font-family-headline, Georgia, serif);
+  font-size: clamp(5rem, 18vw, 11rem);
+  font-weight: 400;
+  line-height: 0.85;
+  letter-spacing: -0.04em;
+  color: rgb(85 107 47 / 0.045);
+  white-space: nowrap;
+  transform: translateX(-50%);
+  user-select: none;
+}
+
+/* ── Header ── */
+
+.oliva-why-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+}
+
+@media (min-width: 1024px) {
+  .oliva-why-watermark {
+    font-size: clamp(3.5rem, 9vw, 6rem);
+    top: 0;
+    opacity: 0.85;
+  }
+}
+
+/* Extra-tight for shorter laptop viewports */
+@media (min-width: 1024px) and (max-height: 860px) {
+  .oliva-why-title {
+    font-size: clamp(1.25rem, 2vw, 1.6rem);
+  }
+
+  .oliva-why-subtitle {
+    margin-top: 0.3rem;
+    font-size: 0.82rem;
+  }
+
+  .oliva-why-eyebrow {
+    margin-bottom: 0.35rem;
+  }
+
+  .oliva-why-card {
+    padding: 0.75rem 0.85rem 0.8rem;
+  }
+
+  .oliva-why-card-visual {
+    min-height: 5.5rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .oliva-why-card-title {
+    font-size: 1rem;
+  }
+
+  .oliva-why-card-copy {
+    font-size: 0.75rem;
+  }
+
+  .oliva-why-founder {
+    padding: 0.9rem 1.2rem;
+  }
+
+  .oliva-why-founder-quote p {
+    font-size: 0.95rem;
+    line-height: 1.4;
+  }
+}
+
+.oliva-why-header {
+  flex-shrink: 0;
+}
+
+.oliva-why-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.55rem;
+  padding: 0.32rem 0.75rem;
+  border: 1px solid var(--why-line);
+  border-radius: 999px;
+  background: rgb(255 252 247 / 0.72);
+  backdrop-filter: blur(8px);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--why-olive);
+}
+
+.oliva-why-eyebrow::before {
+  content: "";
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 50%;
+  background: var(--why-olive);
+  box-shadow: 0 0 0 3px rgb(85 107 47 / 0.14);
+}
+
+.oliva-why-title {
+  margin: 0;
+  font-family: inherit;
+  font-size: clamp(1.55rem, 2.6vw, 2.15rem);
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+  color: var(--why-ink);
+  text-wrap: balance;
+}
+
+.oliva-why-subtitle {
+  margin: 0.55rem auto 0;
+  max-width: 36rem;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  color: var(--why-muted);
+}
+
+/* ── Contrast strip ── */
+
+.oliva-why-intro-extra {
+  flex-shrink: 0;
+  margin-top: 1rem;
+}
+
+@media (min-width: 1024px) {
+  .oliva-why-intro-extra {
+    margin-top: 0.85rem;
+  }
+}
+
+.oliva-why-contrast-wrap {
+  max-width: 48rem;
+  margin-inline: auto;
+}
+
+.oliva-why-contrast {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.55rem;
+  border: 1px solid var(--why-line);
+  border-radius: 1rem;
+  background: rgb(255 252 247 / 0.78);
+  box-shadow: 0 8px 28px rgb(27 28 25 / 0.035);
+  backdrop-filter: blur(10px);
+}
+
+@media (min-width: 768px) {
+  .oliva-why-contrast {
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.45rem 0.65rem;
+  }
+}
+
+.oliva-why-contrast-side {
+  padding: 0.55rem 0.75rem;
+  border-radius: 0.75rem;
+}
+
+.oliva-why-contrast-side p {
+  margin: 0.2rem 0 0;
+  font-size: 0.85rem;
+  line-height: 1.35;
+}
+
+.oliva-why-contrast-label {
+  display: block;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.oliva-why-contrast-side--old {
+  background: rgb(83 67 62 / 0.05);
+  color: var(--why-muted);
+}
+
+.oliva-why-contrast-side--old p {
+  text-decoration: line-through;
+  text-decoration-color: rgb(83 67 62 / 0.35);
+  text-decoration-thickness: 1.5px;
+}
+
+.oliva-why-contrast-side--old .oliva-why-contrast-label {
+  color: rgb(83 67 62 / 0.55);
+}
+
+.oliva-why-contrast-side--new {
+  background: linear-gradient(
+    135deg,
+    rgb(85 107 47 / 0.12) 0%,
+    rgb(85 107 47 / 0.06) 100%
+  );
+  color: var(--why-ink);
+  box-shadow: inset 0 0 0 1px rgb(85 107 47 / 0.12);
+}
+
+.oliva-why-contrast-side--new .oliva-why-contrast-label {
+  color: var(--why-olive);
+}
+
+.oliva-why-contrast-side--new p {
+  font-weight: 600;
+}
+
+.oliva-why-contrast-bridge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  color: var(--why-olive);
+}
+
+.oliva-why-contrast-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: var(--why-olive);
+  animation: oliva-why-dot-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes oliva-why-dot-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.65;
+  }
+  50% {
+    transform: scale(1.35);
+    opacity: 1;
+  }
+}
+
+.oliva-why-contrast-arrow {
+  width: 3rem;
+  height: 0.75rem;
+}
+
+@media (max-width: 767px) {
+  .oliva-why-contrast-bridge {
+    transform: rotate(90deg);
+  }
+}
+
+/* ── Equal cards ── */
+
+.oliva-why-bento {
+  display: grid;
+  gap: 0.85rem;
+  margin-top: 1.1rem;
+  align-items: stretch;
+  flex: 0 0 auto;
+}
+
+@media (min-width: 640px) {
+  .oliva-why-bento {
+    gap: 1rem;
+    margin-top: 1.15rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .oliva-why-bento {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.85rem;
+    margin-top: 0;
+  }
+
+  .oliva-why-card {
+    min-height: 0;
+  }
+
+  .oliva-why-card-visual {
+    min-height: 0;
+    flex: 1 1 auto;
+    max-height: 8.5rem;
+  }
+}
+
+.oliva-why-card {
+  position: relative;
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0.9rem 1rem 0.95rem;
+  border: 1px solid var(--why-line);
+  border-radius: 1.15rem;
+  background:
+    linear-gradient(165deg, rgb(255 252 247 / 0.96) 0%, rgb(247 242 232 / 0.88) 100%);
+  box-shadow: var(--why-shadow);
+  transition:
+    transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.45s ease;
+}
+
+@media (min-width: 640px) {
+  .oliva-why-card {
+    padding: 0.95rem 1.05rem 1rem;
+  }
+}
+
+.oliva-why-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse 80% 55% at 100% 0%,
+    rgb(85 107 47 / 0.07) 0%,
+    transparent 62%
+  );
+  pointer-events: none;
+}
+
+.oliva-why-card:hover {
+  transform: translateY(-3px);
+  border-color: rgb(85 107 47 / 0.22);
+  box-shadow: var(--why-shadow-hover);
+}
+
+.oliva-why-card-index {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.75rem;
+  font-family: var(--font-family-headline, Georgia, serif);
+  font-size: clamp(2rem, 3.5vw, 2.75rem);
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: rgb(85 107 47 / 0.08);
+  pointer-events: none;
+}
+
+.oliva-why-card-visual {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-height: 7rem;
+  margin-bottom: 0.75rem;
+  padding: 0.5rem;
+  border-radius: 0.9rem;
+  background: rgb(85 107 47 / 0.04);
+}
+
+@media (min-width: 1024px) {
+  .oliva-why-card-visual {
+    min-height: 7.25rem;
+    max-height: none;
+  }
+}
+
+.oliva-why-card-body {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+}
+
+.oliva-why-card-title {
+  margin: 0;
+  font-family: var(--font-family-headline, Georgia, serif);
+  font-size: clamp(1.05rem, 1.35vw, 1.25rem);
+  font-weight: 500;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  color: var(--why-ink);
+  text-wrap: balance;
+}
+
+.oliva-why-card-copy {
+  margin-top: 0.4rem;
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  color: var(--why-muted);
+}
+
+.oliva-why-card-copy p {
+  margin: 0;
+}
+
+.oliva-why-card-highlight {
+  font-weight: 600;
+  color: var(--why-ink) !important;
+}
+
+/* ── Visuals ── */
+
+.oliva-why-visual {
+  width: 100%;
+}
+
+.oliva-why-visual--pantry {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 0;
+  width: 100%;
+}
+
+/* ── Scan panel ── */
+
+.oliva-why-scan-panel {
+  width: 100%;
+  padding: 0.5rem 0.55rem 0.55rem;
+  border-radius: 0.85rem;
+  border: 1px solid rgb(85 107 47 / 0.16);
+  background:
+    linear-gradient(165deg, rgb(255 252 247 / 0.98) 0%, rgb(247 250 242 / 0.92) 100%);
+  box-shadow:
+    0 6px 18px rgb(27 28 25 / 0.04),
+    inset 0 1px 0 rgb(255 255 255 / 0.85);
+}
+
+.oliva-why-scan-head {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 0.4rem;
+}
+
+.oliva-why-scan-icon {
+  display: grid;
+  place-items: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 0.35rem;
+  background: rgb(85 107 47 / 0.1);
+  color: var(--why-olive);
+}
+
+.oliva-why-scan-icon svg {
+  width: 0.8rem;
+  height: 0.8rem;
+}
+
+.oliva-why-scan-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgb(85 107 47 / 0.72);
+}
+
+.oliva-why-scan-live {
+  padding: 0.12rem 0.35rem;
+  border-radius: 999px;
+  background: rgb(224 90 79 / 0.12);
+  font-size: 0.52rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #c44a3f;
+  animation: oliva-why-live-pulse 2.2s ease-in-out infinite;
+}
+
+@keyframes oliva-why-live-pulse {
+  0%,
+  100% {
+    opacity: 0.72;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.oliva-why-scan-stage {
+  position: relative;
+  overflow: hidden;
+  min-height: 3.1rem;
+  padding: 0.3rem 0.3rem;
+  border-radius: 0.55rem;
+  background:
+    radial-gradient(circle at 50% 40%, rgb(85 107 47 / 0.07) 0%, transparent 62%),
+    rgb(85 107 47 / 0.04);
+}
+
+.oliva-why-scan-corner {
+  position: absolute;
+  width: 1rem;
+  height: 1rem;
+  border-color: rgb(85 107 47 / 0.45);
+  border-style: solid;
+}
+
+.oliva-why-scan-corner--tl {
+  top: 0.45rem;
+  left: 0.45rem;
+  border-width: 2px 0 0 2px;
+  border-radius: 0.25rem 0 0 0;
+}
+
+.oliva-why-scan-corner--tr {
+  top: 0.45rem;
+  right: 0.45rem;
+  border-width: 2px 2px 0 0;
+  border-radius: 0 0.25rem 0 0;
+}
+
+.oliva-why-scan-corner--bl {
+  bottom: 0.45rem;
+  left: 0.45rem;
+  border-width: 0 0 2px 2px;
+  border-radius: 0 0 0 0.25rem;
+}
+
+.oliva-why-scan-corner--br {
+  bottom: 0.45rem;
+  right: 0.45rem;
+  border-width: 0 2px 2px 0;
+  border-radius: 0 0 0.25rem 0;
+}
+
+.oliva-why-scan-beam {
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  z-index: 3;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgb(85 107 47 / 0.15) 20%,
+    rgb(85 107 47 / 0.55) 50%,
+    rgb(85 107 47 / 0.15) 80%,
+    transparent 100%
+  );
+  box-shadow: 0 0 12px rgb(85 107 47 / 0.25);
+  pointer-events: none;
+  animation: oliva-why-scan-beam 3.2s ease-in-out infinite;
+}
+
+@keyframes oliva-why-scan-beam {
+  0% {
+    top: 18%;
+    opacity: 0.35;
+  }
+  45% {
+    opacity: 0.95;
+  }
+  100% {
+    top: 78%;
+    opacity: 0.35;
+  }
+}
+
+.oliva-why-ing-grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.35rem;
+  max-width: none;
+  margin-inline: 0;
+}
+
+.oliva-why-ing {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  border-radius: 999px;
+  background: rgb(255 252 247 / 0.92);
+  box-shadow:
+    0 8px 20px rgb(27 28 25 / 0.07),
+    inset 0 0 0 1px rgb(255 255 255 / 0.8);
+  animation: oliva-why-ing-float 4.8s ease-in-out infinite;
+}
+
+.oliva-why-ing img,
+.oliva-why-ing svg {
+  width: 68%;
+  height: 68%;
+  object-fit: contain;
+}
+
+.oliva-why-ing--egg {
+  animation-delay: 0s;
+  box-shadow:
+    0 8px 20px rgb(255 180 70 / 0.18),
+    inset 0 0 0 1px rgb(255 255 255 / 0.85);
+}
+
+.oliva-why-ing--tomato {
+  animation-delay: 0.6s;
+  box-shadow:
+    0 8px 20px rgb(232 90 79 / 0.16),
+    inset 0 0 0 1px rgb(255 255 255 / 0.85);
+}
+
+.oliva-why-ing--broccoli {
+  animation-delay: 1.2s;
+  box-shadow:
+    0 8px 20px rgb(85 107 47 / 0.14),
+    inset 0 0 0 1px rgb(255 255 255 / 0.85);
+}
+
+.oliva-why-ing--rice {
+  animation-delay: 1.8s;
+}
+
+@keyframes oliva-why-ing-float {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-4px) scale(1.03);
+  }
+}
+
+.oliva-why-detected {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.28rem;
+  margin-top: 0.5rem;
+}
+
+.oliva-why-detected-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  padding: 0.28rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid rgb(85 107 47 / 0.16);
+  background: rgb(255 252 247 / 0.95);
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: rgb(85 107 47 / 0.88);
+  opacity: 0;
+  transform: translateY(6px);
+  animation: oliva-why-chip-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.oliva-why-detected-chip svg {
+  width: 0.65rem;
+  height: 0.65rem;
+  color: #4a9e55;
+}
+
+.oliva-why-detected-chip--1 {
+  animation-delay: 0.4s;
+}
+
+.oliva-why-detected-chip--2 {
+  animation-delay: 0.75s;
+}
+
+.oliva-why-detected-chip--3 {
+  animation-delay: 1.1s;
+}
+
+@keyframes oliva-why-chip-in {
   to {
     opacity: 1;
     transform: translateY(0);
   }
 }
 
-.oliva-why-arrow {
-  animation: oliva-why-arrow-pulse 2.8s ease-in-out infinite;
+/* ── Recipe result ── */
+
+.oliva-why-recipe-result {
+  width: 100%;
+  margin-top: 0.4rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: 0.65rem;
+  border: 1px solid rgb(85 107 47 / 0.16);
+  background: rgb(255 252 247 / 0.95);
+  text-align: center;
 }
 
-@keyframes oliva-why-arrow-pulse {
-  0%,
-  100% {
-    opacity: 0.35;
-    transform: translateY(0);
-  }
-  50% {
-    opacity: 0.7;
-    transform: translateY(3px);
-  }
+.oliva-why-recipe-spark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--why-olive);
+}
+
+.oliva-why-visual--clock {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.85rem;
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+.oliva-why-clock-ring {
+  flex-shrink: 0;
+}
+
+.oliva-why-clock-svg {
+  width: 3.5rem;
+  height: 3.5rem;
 }
 
 .oliva-why-clock-hand {
-  transform-origin: 40px 32px;
-  animation: oliva-why-clock 12s linear infinite;
+  transform-origin: 44px 44px;
+  animation: oliva-why-clock 14s linear infinite;
 }
 
 @keyframes oliva-why-clock {
@@ -41,38 +917,270 @@
   }
 }
 
+.oliva-why-time-chip {
+  padding: 0.55rem 0.75rem;
+  border-radius: 0.85rem;
+  border: 1px solid rgb(85 107 47 / 0.18);
+  background: var(--why-cream);
+  text-align: left;
+  box-shadow: 0 6px 16px rgb(27 28 25 / 0.04);
+}
+
+.oliva-why-time-label {
+  margin: 0;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgb(85 107 47 / 0.58);
+}
+
+.oliva-why-time-value {
+  margin: 0.1rem 0 0;
+  font-size: 1.4rem;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: var(--why-ink);
+}
+
+.oliva-why-time-value span {
+  margin-left: 0.2rem;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--why-muted);
+}
+
+.oliva-why-time-note {
+  margin: 0.25rem 0 0;
+  font-size: 0.72rem;
+  color: var(--why-muted);
+}
+
+.oliva-why-visual--week {
+  width: 100%;
+  max-width: none;
+}
+
+.oliva-why-week-card {
+  width: 100%;
+  padding: 0.7rem 0.8rem;
+  border-radius: 0.85rem;
+  border: 1px solid rgb(85 107 47 / 0.16);
+  background: var(--why-cream);
+  box-shadow: 0 6px 16px rgb(27 28 25 / 0.04);
+}
+
+.oliva-why-week-label {
+  margin: 0 0 0.55rem;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgb(85 107 47 / 0.55);
+}
+
+.oliva-why-week-bars {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.45rem;
+}
+
+.oliva-why-week-day {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.oliva-why-week-day span {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--why-muted);
+}
+
 .oliva-why-meal {
+  width: 100%;
+  border-radius: 0.45rem;
+  background: var(--why-olive);
   animation: oliva-why-meal-soft 4s ease-in-out infinite;
 }
 
-.oliva-why-meal:nth-child(2) {
-  animation-delay: 0.4s;
+.oliva-why-week-day:nth-child(2) .oliva-why-meal {
+  animation-delay: 0.35s;
 }
 
-.oliva-why-meal:nth-child(3) {
-  animation-delay: 0.8s;
+.oliva-why-week-day:nth-child(3) .oliva-why-meal {
+  animation-delay: 0.7s;
+}
+
+.oliva-why-week-day:nth-child(4) .oliva-why-meal {
+  animation-delay: 1.05s;
+}
+
+.oliva-why-week-day:nth-child(5) .oliva-why-meal {
+  animation-delay: 1.4s;
 }
 
 @keyframes oliva-why-meal-soft {
   0%,
   100% {
-    opacity: 0.45;
+    filter: brightness(0.92);
   }
   50% {
-    opacity: 0.85;
+    filter: brightness(1.12);
   }
 }
 
+.oliva-why-week-note {
+  margin: 0.55rem 0 0;
+  text-align: center;
+  font-size: 0.7rem;
+  line-height: 1.3;
+  color: rgb(83 67 62 / 0.78);
+}
+
+/* ── Founder quote ── */
+
+.oliva-why-founder-wrap {
+  flex-shrink: 0;
+  margin-top: 1.15rem;
+}
+
+@media (min-width: 1024px) {
+  .oliva-why-founder-wrap {
+    margin-top: 1.1rem;
+  }
+}
+
+.oliva-why-founder {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  overflow: visible;
+  width: 100%;
+  max-width: 58rem;
+  margin-inline: auto;
+  padding: 1.15rem 1.35rem;
+  border-radius: 1.25rem;
+  background:
+    linear-gradient(145deg, #4a5f2c 0%, var(--why-olive-deep) 48%, #2f3d1c 100%);
+  box-shadow:
+    0 18px 40px rgb(27 28 25 / 0.16),
+    inset 0 1px 0 rgb(255 255 255 / 0.08);
+  color: #f7f2e8;
+}
+
+@media (min-width: 768px) {
+  .oliva-why-founder {
+    flex-direction: row;
+    align-items: center;
+    gap: 1.4rem;
+    padding: 1.2rem 1.55rem;
+  }
+}
+
+.oliva-why-founder-glow {
+  position: absolute;
+  inset: -30% auto auto -8%;
+  width: 40%;
+  height: 120%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgb(255 252 247 / 0.12) 0%, transparent 68%);
+  pointer-events: none;
+}
+
+.oliva-why-founder-quote {
+  position: relative;
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+}
+
+.oliva-why-founder-quote p {
+  margin: 0;
+  font-family: var(--font-family-headline, Georgia, serif);
+  font-size: clamp(1.05rem, 1.55vw, 1.28rem);
+  line-height: 1.5;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+.oliva-why-founder-caption {
+  position: relative;
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgb(255 252 247 / 0.12);
+}
+
+@media (min-width: 768px) {
+  .oliva-why-founder-caption {
+    padding-top: 0;
+    padding-left: 1.25rem;
+    border-top: none;
+    border-left: 1px solid rgb(255 252 247 / 0.14);
+  }
+}
+
+.oliva-why-founder-avatar {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 50%;
+  background: rgb(255 252 247 / 0.12);
+  border: 1px solid rgb(255 252 247 / 0.18);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #fbf9f4;
+}
+
+.oliva-why-founder-caption strong {
+  display: block;
+  font-size: 0.98rem;
+  font-weight: 600;
+  color: #fbf9f4;
+}
+
+.oliva-why-founder-caption span span {
+  display: block;
+  margin-top: 0.12rem;
+  font-size: 0.78rem;
+  color: rgb(251 249 244 / 0.72);
+}
+
+/* ── Reduced motion ── */
+
 @media (prefers-reduced-motion: reduce) {
-  .oliva-why-enter {
-    opacity: 1;
-    transform: none;
-    animation: none;
+  .oliva-why-drift,
+  .oliva-why-clock-hand,
+  .oliva-why-meal,
+  .oliva-why-scan-beam,
+  .oliva-why-ing,
+  .oliva-why-detected-chip,
+  .oliva-why-scan-live,
+  .oliva-why-contrast-dot {
+    animation: none !important;
   }
 
-  .oliva-why-arrow,
-  .oliva-why-clock-hand,
-  .oliva-why-meal {
-    animation: none;
+  .oliva-why-detected-chip {
+    opacity: 1;
+    transform: none;
+  }
+
+  .oliva-why-card:hover {
+    transform: none;
+  }
+
+  .oliva-why-atmosphere {
+    transform: none;
   }
 }

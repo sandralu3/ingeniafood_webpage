@@ -5,7 +5,6 @@ import type { LucideIcon } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useRef } from "react";
 import { ScrollReveal } from "@/components/oliva/motion";
-import { TryCta } from "@/components/oliva/try";
 import "./process-section.css";
 
 const INTRO_PATH = [
@@ -170,9 +169,9 @@ export function ProcessFlow() {
       el.style.setProperty("--progress", value.toFixed(4));
     };
 
-    const setCloserEnter = (value: number) => {
+    const setCloserInView = (inView: boolean) => {
       if (!closer) return;
-      closer.style.setProperty("--enter", value.toFixed(4));
+      closer.classList.toggle("is-inview", inView);
     };
 
     const resetIntroWatermarks = () => {
@@ -205,7 +204,7 @@ export function ProcessFlow() {
         setProgress(step, 1);
         step.style.setProperty("--depth", "0");
       });
-      setCloserEnter(1);
+      setCloserInView(true);
       if (fill) fill.style.transform = "scaleY(1)";
       resetFlyWatermarks();
       stepWatermarks.forEach((el) => {
@@ -214,6 +213,18 @@ export function ProcessFlow() {
         el.classList.add("is-landed");
       });
       return;
+    }
+
+    // Closer mark/ring: play enter animation on snap-in (scrub is invisible with snap)
+    let closerObserver: IntersectionObserver | null = null;
+    if (closer) {
+      closerObserver = new IntersectionObserver(
+        ([entry]) => {
+          setCloserInView(entry.isIntersecting && entry.intersectionRatio >= 0.45);
+        },
+        { threshold: [0, 0.35, 0.45, 0.6, 0.85] }
+      );
+      closerObserver.observe(closer);
     }
 
     let frame = 0;
@@ -226,14 +237,6 @@ export function ProcessFlow() {
       const flowRect = root.getBoundingClientRect();
       const stepRects = steps.map((step) => step.getBoundingClientRect());
 
-      if (closer) {
-        const closerRect = closer.getBoundingClientRect();
-        const rawEnter =
-          closerRect.top >= 0
-            ? 1 - closerRect.top / viewH
-            : 1;
-        setCloserEnter(smoothstep(Math.min(1, Math.max(0, rawEnter))));
-      }
       for (let i = 0; i < steps.length; i++) {
         const rect = stepRects[i];
         // Mobile: keep content fully settled; desktop keeps scrub motion
@@ -348,11 +351,13 @@ export function ProcessFlow() {
 
     return () => {
       if (frame) window.cancelAnimationFrame(frame);
+      closerObserver?.disconnect();
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onScroll);
       resetIntroWatermarks();
       resetStepWatermarks();
       resetFlyWatermarks();
+      setCloserInView(false);
     };
   }, []);
 
@@ -486,10 +491,7 @@ export function ProcessFlow() {
         })}
       </div>
 
-      <div
-        className="oliva-process-closer"
-        style={{ ["--enter" as string]: 0 }}
-      >
+      <div className="oliva-process-closer">
         <div className="oliva-process-closer-atmosphere" aria-hidden="true">
           <div className="oliva-process-closer-drift oliva-process-closer-drift--a" />
           <div className="oliva-process-closer-drift oliva-process-closer-drift--b" />
@@ -539,14 +541,6 @@ export function ProcessFlow() {
               </li>
             ))}
           </ul>
-
-          <TryCta
-            variant="primary"
-            size="md"
-            className="oliva-process-closer-cta"
-          >
-            Probar gratis
-          </TryCta>
         </ScrollReveal>
       </div>
     </div>

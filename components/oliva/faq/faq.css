@@ -1,5 +1,35 @@
 /* Oliva — FAQ (Sprint 1.8) */
 
+/*
+ * End of landing: .oliva-landing-end is the snap destination after #empieza.
+ * FAQ itself must NOT use snap-align:none as a lone sibling — mandatory snap
+ * traps the viewport on the previous section and FAQ becomes unreachable.
+ */
+.oliva-landing-end {
+  scroll-snap-align: start;
+  scroll-snap-stop: normal;
+}
+
+.oliva-landing-end .oliva-snap-section.oliva-faq-section {
+  scroll-snap-align: none !important;
+  scroll-snap-stop: normal !important;
+  min-height: auto !important;
+  height: auto !important;
+  justify-content: flex-start !important;
+}
+
+.oliva-faq-inner {
+  padding-top: 4.5rem !important;
+  padding-bottom: 2rem !important;
+}
+
+@media (min-width: 1024px) {
+  .oliva-faq-inner {
+    padding-top: 5rem !important;
+    padding-bottom: 2.25rem !important;
+  }
+}
+
 .oliva-faq-item {
   border-bottom: 1px solid rgb(217 210 196 / 0.7);
   transition: background-color 220ms ease;

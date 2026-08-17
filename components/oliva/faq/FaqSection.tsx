@@ -74,7 +74,14 @@ export function FaqSection() {
   }
 
   return (
-    <SectionShell id="faq" variant="cream" divider align="start">
+    <SectionShell
+      id="faq"
+      variant="cream"
+      divider
+      align="start"
+      className="oliva-faq-section"
+      contentClassName="oliva-faq-inner"
+    >
       <div className="mx-auto max-w-[900px] px-6 lg:px-10">
         <SectionHeader
           title={
@@ -87,9 +94,9 @@ export function FaqSection() {
           subtitle="Todo lo que necesitas saber antes de empezar con IngeniaFood."
         />
 
-        <div className="mt-14 sm:mt-16 lg:mt-20">
+        <div className="mt-10 sm:mt-12 lg:mt-14">
           {FAQ_ITEMS.map((item, index) => (
-            <ScrollReveal key={item.id} delay={80 + index * 50} variant="fade">
+            <ScrollReveal key={item.id} delay={60 + index * 40} variant="fade">
               <FaqItem
                 id={item.id}
                 question={item.question}

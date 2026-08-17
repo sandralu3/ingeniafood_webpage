@@ -48,28 +48,21 @@ export function OlivaHeader() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
-    const hero = document.getElementById("inicio");
-    if (!hero) return;
-
     let frame = 0;
     let onHero = true;
 
     const updateHeroMode = () => {
       frame = 0;
       const viewH = window.innerHeight || 1;
-      const rect = hero.getBoundingClientRect();
-      // How much of the viewport the hero still covers
-      const visible = Math.min(rect.bottom, viewH) - Math.max(rect.top, 0);
-      const coverage = Math.max(0, visible) / viewH;
+      const y = window.scrollY || document.documentElement.scrollTop || 0;
 
-      // Hysteresis: avoid pill ↔ hero flicker during scroll-snap
+      // scrollY is stable with nested snap panels; coverage flickers mid-snap.
+      // Leave hero after leaving the first screen; return only at the very top.
       let next = onHero;
       if (onHero) {
-        // Stay in hero mode until hero no longer dominates the viewport
-        next = coverage >= 0.55 && rect.bottom > viewH * 0.4;
+        next = y < viewH * 0.5;
       } else {
-        // Restore hero mode only when hero clearly fills the screen again
-        next = coverage >= 0.78 && rect.top > -viewH * 0.05;
+        next = y < 32;
       }
 
       if (next !== onHero) {
@@ -204,16 +197,18 @@ export function OlivaHeader() {
           </a>
 
           <div className="relative flex items-center gap-1">
-            {!isOnHero && (
-              <button
-                type="button"
-                className="oliva-header-menu-btn oliva-header-menu-btn--icon oliva-header-home-btn"
-                aria-label="Ir al inicio"
-                onClick={() => navigateTo("inicio")}
-              >
-                <HomeIcon />
-              </button>
-            )}
+            <button
+              type="button"
+              className={`oliva-header-menu-btn oliva-header-menu-btn--icon oliva-header-home-btn ${
+                isOnHero ? "oliva-header-home-btn--hidden" : ""
+              }`}
+              aria-label="Ir al inicio"
+              tabIndex={isOnHero ? -1 : 0}
+              aria-hidden={isOnHero}
+              onClick={() => navigateTo("inicio")}
+            >
+              <HomeIcon />
+            </button>
             <button
               type="button"
               className={`oliva-header-menu-btn oliva-header-menu-btn--icon ${

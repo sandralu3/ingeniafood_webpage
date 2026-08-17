@@ -1,4 +1,308 @@
-/* Oliva — Access / Premium trial (Sprint 1.7) */
+/* Oliva — Empieza hoy (dark olive, one viewport) */
+
+.oliva-access-section {
+  --access-ink: #f4f0e6;
+  --access-muted: rgb(244 240 230 / 0.72);
+  --access-soft: rgb(244 240 230 / 0.55);
+  --access-accent: #c5d4a0;
+  --access-bg: #2a3522;
+  --access-bg-deep: #1e2618;
+  --access-bg-mid: #334028;
+  overflow-x: hidden;
+  background:
+    radial-gradient(
+      ellipse 70% 50% at 85% 20%,
+      rgb(197 212 160 / 0.08) 0%,
+      transparent 55%
+    ),
+    radial-gradient(
+      ellipse 55% 45% at 10% 80%,
+      rgb(90 110 55 / 0.18) 0%,
+      transparent 60%
+    ),
+    linear-gradient(
+      165deg,
+      var(--access-bg-mid) 0%,
+      var(--access-bg) 45%,
+      var(--access-bg-deep) 100%
+    ) !important;
+  color: var(--access-ink);
+}
+
+.oliva-access-section.oliva-section--sand::after {
+  opacity: 0.03;
+}
+
+.oliva-access-inner {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-top: 4.5rem !important;
+  padding-bottom: 1.5rem !important;
+}
+
+@media (min-width: 1024px) {
+  .oliva-snap-section.oliva-access-section {
+    display: flex;
+    min-height: 100svh;
+    min-height: 100dvh;
+    height: 100svh;
+    height: 100dvh;
+    max-height: 100svh;
+    max-height: 100dvh;
+    flex-direction: column;
+    justify-content: stretch;
+    overflow: hidden;
+    /* Allow leaving this panel toward FAQ (next snap is .oliva-landing-end) */
+    scroll-snap-stop: always;
+  }
+
+  .oliva-access-inner {
+    display: flex;
+    box-sizing: border-box;
+    height: 100%;
+    min-height: 0;
+    max-height: 100%;
+    flex: 1 1 auto;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0;
+    padding-top: 4.5rem !important;
+    padding-bottom: 1.15rem !important;
+  }
+}
+
+@media (max-width: 1023px) {
+  .oliva-snap-section.oliva-access-section {
+    scroll-snap-align: none !important;
+    scroll-snap-stop: normal !important;
+    min-height: auto !important;
+    height: auto !important;
+  }
+}
+
+/* ── Atmosphere ── */
+
+.oliva-access-atmosphere {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.oliva-access-drift {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(70px);
+}
+
+.oliva-access-drift--a {
+  width: min(48vw, 22rem);
+  height: min(48vw, 22rem);
+  left: -8%;
+  top: 12%;
+  background: rgb(197 212 160 / 0.1);
+  animation: oliva-access-drift-a 28s ease-in-out infinite;
+}
+
+.oliva-access-drift--b {
+  width: min(40vw, 18rem);
+  height: min(40vw, 18rem);
+  right: -4%;
+  bottom: 10%;
+  background: rgb(143 76 53 / 0.1);
+  animation: oliva-access-drift-b 32s ease-in-out infinite;
+}
+
+@keyframes oliva-access-drift-a {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(4%, 5%);
+  }
+}
+
+@keyframes oliva-access-drift-b {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(-4%, -3%);
+  }
+}
+
+/* ── Content layout ── */
+
+.oliva-access-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+@media (min-width: 1024px) {
+  .oliva-access-content {
+    height: 100%;
+    min-height: 0;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+}
+
+.oliva-access-header {
+  flex-shrink: 0;
+}
+
+.oliva-access-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.5rem;
+  padding: 0.32rem 0.75rem;
+  border: 1px solid rgb(197 212 160 / 0.28);
+  border-radius: 999px;
+  background: rgb(255 252 247 / 0.06);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--access-accent);
+}
+
+.oliva-access-eyebrow::before {
+  content: "";
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 50%;
+  background: var(--access-accent);
+  box-shadow: 0 0 0 3px rgb(197 212 160 / 0.2);
+}
+
+.oliva-access-title {
+  margin: 0;
+  font-size: clamp(1.55rem, 2.8vw, 2.25rem);
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+  color: var(--access-ink);
+  text-wrap: balance;
+}
+
+.oliva-access-subtitle {
+  margin: 0.55rem auto 0;
+  max-width: 34rem;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  color: var(--access-muted);
+}
+
+/* ── Grid ── */
+
+.oliva-access-grid {
+  display: grid;
+  gap: 1.25rem;
+  align-items: center;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+@media (min-width: 1024px) {
+  .oliva-access-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 1.75rem;
+    align-items: center;
+  }
+}
+
+.oliva-access-kicker {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--access-accent);
+}
+
+.oliva-access-copy-body {
+  margin-top: 0.75rem;
+  display: grid;
+  gap: 0.65rem;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--access-muted);
+}
+
+.oliva-access-copy-body p {
+  margin: 0;
+}
+
+.oliva-access-copy-emphasis {
+  font-weight: 600;
+  color: var(--access-ink) !important;
+}
+
+.oliva-access-card-wrap {
+  width: 100%;
+  max-width: 26rem;
+  margin-inline: auto;
+}
+
+@media (min-width: 1024px) {
+  .oliva-access-card-wrap {
+    margin-inline: 0 0;
+    margin-left: auto;
+  }
+}
+
+/* ── Pills ── */
+
+.oliva-access-pills {
+  display: grid;
+  gap: 0.65rem;
+  flex-shrink: 0;
+}
+
+@media (min-width: 640px) {
+  .oliva-access-pills {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    max-width: 42rem;
+    margin-inline: auto;
+    width: 100%;
+  }
+}
+
+.oliva-access-pill {
+  padding: 0.85rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid rgb(244 240 230 / 0.12);
+  background: rgb(255 252 247 / 0.06);
+  backdrop-filter: blur(8px);
+}
+
+.oliva-access-pill-label {
+  margin: 0;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--access-accent);
+}
+
+.oliva-access-pill-desc {
+  margin: 0.35rem 0 0;
+  font-size: 0.84rem;
+  line-height: 1.4;
+  color: var(--access-muted);
+}
+
+/* ── Premium card (cream on dark) ── */
 
 .oliva-access-card {
   --access-lift: 0px;
@@ -7,17 +311,17 @@
     box-shadow 0.45s cubic-bezier(0.22, 1, 0.36, 1);
   transform: translateY(var(--access-lift));
   box-shadow:
-    0 1px 2px rgb(27 28 25 / 0.03),
-    0 12px 32px rgb(27 28 25 / 0.05);
+    0 1px 2px rgb(0 0 0 / 0.12),
+    0 18px 40px rgb(0 0 0 / 0.22);
 }
 
 .oliva-access-card:hover {
   --access-lift: -3px;
   box-shadow:
-    0 2px 4px rgb(27 28 25 / 0.04),
-    0 20px 48px rgb(27 28 25 / 0.08),
-    0 0 0 1px rgb(85 107 47 / 0.08),
-    0 0 60px rgb(85 107 47 / 0.1);
+    0 2px 4px rgb(0 0 0 / 0.14),
+    0 24px 52px rgb(0 0 0 / 0.28),
+    0 0 0 1px rgb(197 212 160 / 0.2),
+    0 0 48px rgb(197 212 160 / 0.12);
 }
 
 .oliva-access-cta {
@@ -36,7 +340,6 @@
   transform: translateY(0);
 }
 
-/* Badge shimmer — soft light sweep every ~9s */
 .oliva-access-badge {
   position: relative;
   overflow: hidden;
@@ -70,23 +373,60 @@
 .oliva-access-glow {
   background: radial-gradient(
     ellipse 70% 65% at 50% 45%,
-    rgb(85 107 47 / 0.09) 0%,
-    rgb(85 107 47 / 0.03) 45%,
+    rgb(197 212 160 / 0.18) 0%,
+    rgb(197 212 160 / 0.05) 45%,
     transparent 70%
   );
 }
 
-.oliva-access-enter {
-  opacity: 0;
-  transform: translateY(14px);
-  animation: oliva-access-fade-in 0.85s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-  animation-delay: var(--access-delay, 0ms);
+/* Fade-only reveals on dark (avoid fighting transforms) */
+.oliva-access-section .oliva-scroll-reveal {
+  transition: opacity 0.75s cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: var(--reveal-delay, 0ms);
 }
 
-@keyframes oliva-access-fade-in {
-  to {
-    opacity: 1;
-    transform: translateY(0);
+.oliva-access-section .oliva-scroll-reveal--up,
+.oliva-access-section .oliva-scroll-reveal--scale,
+.oliva-access-section .oliva-scroll-reveal--left,
+.oliva-access-section .oliva-scroll-reveal--right,
+.oliva-access-section .oliva-scroll-reveal--fade {
+  transform: none;
+}
+
+.oliva-access-section .oliva-scroll-reveal.oliva-revealed {
+  transform: none;
+}
+
+/* Shorter laptops */
+@media (min-width: 1024px) and (max-height: 860px) {
+  .oliva-access-title {
+    font-size: clamp(1.35rem, 2.2vw, 1.75rem);
+  }
+
+  .oliva-access-subtitle {
+    margin-top: 0.35rem;
+    font-size: 0.88rem;
+  }
+
+  .oliva-access-copy-body {
+    gap: 0.45rem;
+    font-size: 0.88rem;
+  }
+
+  .oliva-access-card {
+    padding: 1.15rem 1.25rem !important;
+  }
+
+  .oliva-access-card h3 {
+    font-size: 1.2rem !important;
+  }
+
+  .oliva-access-card ul {
+    margin-top: 0.85rem !important;
+  }
+
+  .oliva-access-pill {
+    padding: 0.65rem 0.85rem;
   }
 }
 
@@ -109,9 +449,7 @@
     display: none;
   }
 
-  .oliva-access-enter {
-    opacity: 1;
-    transform: none;
+  .oliva-access-drift {
     animation: none;
   }
 }

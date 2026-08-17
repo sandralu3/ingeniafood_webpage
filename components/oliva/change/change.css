@@ -1,107 +1,1037 @@
-/* Oliva — Change section (Sprint 1.5) */
+/* Oliva — Tu cocina (narrative Antes / Durante / Después) */
 
-.oliva-change-card {
-  --change-lift: 0px;
-  --change-illust-shift: 0px;
-  transition:
-    transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 0.45s cubic-bezier(0.22, 1, 0.36, 1),
-    border-color 0.45s ease;
-  transform: translateY(var(--change-lift));
+/* Contrasts with proceso (sand): terracotta field + cream/salmon ink */
+.oliva-change-section {
+  --change-bg: #8f4c35;
+  --change-ink: #fbf9f4;
+  --change-muted: rgb(251 249 244 / 0.74);
+  --change-accent: #f2c2ad;
+  --change-glow: #e9967a;
+  --change-deep: #6d3928;
+  background-color: var(--change-bg) !important;
+  color: var(--change-ink);
 }
 
-.oliva-change-card:hover {
-  --change-lift: -2px;
-  --change-illust-shift: -3px;
+.oliva-change-section-inner {
+  width: 100%;
+  max-width: none;
+  padding-top: 0;
+  padding-bottom: 0;
 }
 
-.oliva-change-card:hover {
-  border-color: #cfc7b8;
-  box-shadow:
-    0 1px 2px rgb(27 28 25 / 0.03),
-    0 8px 24px rgb(27 28 25 / 0.05);
+.oliva-change-flow {
+  --parallax: 0;
+  position: relative;
+  width: 100%;
 }
 
-.oliva-change-illust {
-  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
-  transform: translateY(var(--change-illust-shift));
+/* ── Intro band (full-bleed gradient at section start) ── */
+
+.oliva-change-intro {
+  position: relative;
+  display: flex;
+  width: 100%;
+  min-height: min(42svh, 22rem);
+  align-items: center;
+  justify-content: center;
+  padding: 5.5rem 1.5rem 3.25rem;
+  text-align: center;
+  overflow: hidden;
+  /* Soft depth within terracotta — same hue family, no chalky cream clash */
+  background:
+    radial-gradient(
+      ellipse 85% 100% at 50% -20%,
+      rgb(233 150 122 / 0.28) 0%,
+      transparent 55%
+    ),
+    radial-gradient(
+      ellipse 55% 95% at 8% 40%,
+      rgb(109 57 40 / 0.55) 0%,
+      transparent 62%
+    ),
+    radial-gradient(
+      ellipse 50% 90% at 92% 60%,
+      rgb(196 112 80 / 0.35) 0%,
+      transparent 64%
+    ),
+    radial-gradient(
+      ellipse 70% 80% at 50% 100%,
+      rgb(143 76 53 / 0.45) 0%,
+      transparent 70%
+    );
 }
 
-.oliva-change-enter {
-  opacity: 0;
-  transform: translateY(16px) scale(0.985);
-  animation: oliva-change-fade-in 0.85s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-  animation-delay: var(--change-delay, 0ms);
+.oliva-change-intro-atmosphere {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  transform: translate3d(0, calc(var(--parallax) * -20px), 0);
 }
 
-@keyframes oliva-change-fade-in {
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
+.oliva-change-drift {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(72px);
+}
+
+.oliva-change-drift--a {
+  width: min(58vw, 26rem);
+  height: min(58vw, 26rem);
+  left: -10%;
+  top: 8%;
+  background: rgb(196 112 80 / 0.45);
+}
+
+.oliva-change-drift--b {
+  width: min(50vw, 22rem);
+  height: min(50vw, 22rem);
+  right: -8%;
+  bottom: 0%;
+  background: rgb(90 45 32 / 0.55);
+}
+
+.oliva-change-drift--c {
+  width: min(48vw, 20rem);
+  height: min(48vw, 20rem);
+  left: 50%;
+  top: 30%;
+  background: rgb(233 150 122 / 0.22);
+  transform: translateX(-50%);
+}
+
+.oliva-change-watermark {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  font-size: clamp(4.5rem, 16vw, 9rem);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: var(--change-ink);
+  opacity: 0.055;
+  transform: translate(-50%, calc(-50% + var(--parallax) * -12px));
+  user-select: none;
+}
+
+.oliva-change-intro-content {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 36rem;
+  margin-inline: auto;
+}
+
+.oliva-change-eyebrow {
+  margin: 0;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--change-accent);
+}
+
+.oliva-change-intro-title {
+  margin: 0.9rem 0 0;
+  font-size: clamp(1.85rem, 5vw, 2.75rem);
+  font-weight: 600;
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+  color: var(--change-ink);
+}
+
+.oliva-change-intro-sub {
+  margin: 1rem 0 0;
+  font-size: clamp(1rem, 2.8vw, 1.125rem);
+  line-height: 1.55;
+  color: var(--change-muted);
+}
+
+.oliva-change-main {
+  position: relative;
+  width: 100%;
+}
+
+/* ── Acts ── */
+
+.oliva-change-act {
+  position: relative;
+  padding: 3.5rem 1.5rem 1rem;
+}
+
+@media (min-width: 1024px) {
+  .oliva-change-act {
+    padding: 4.5rem 3rem 1.5rem;
   }
 }
 
-/* Illustration micro-motions on hover */
-.oliva-change-card:hover .oliva-illust-bookmark {
-  transform: translateY(-2px);
+.oliva-change-act-header {
+  max-width: 28rem;
+  margin: 0 auto 2.5rem;
+  text-align: center;
 }
 
-.oliva-change-card:hover .oliva-illust-cal-dot {
-  transform: scale(1.15);
+.oliva-change-act-phase {
+  margin: 0;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--change-accent);
 }
 
-.oliva-change-card:hover .oliva-illust-ing {
-  transform: translateY(-2px);
+.oliva-change-act-line {
+  margin: 0.55rem 0 0;
+  font-size: clamp(1.25rem, 3.2vw, 1.65rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--change-ink);
 }
 
-.oliva-change-card:hover .oliva-illust-stack-1 {
-  transform: translate(1px, -2px) rotate(-1deg);
+.oliva-change-act-beats {
+  display: flex;
+  flex-direction: column;
+  gap: 3.5rem;
+  max-width: 64rem;
+  margin-inline: auto;
 }
 
-.oliva-change-card:hover .oliva-illust-stack-2 {
-  transform: translate(-1px, -1px) rotate(1deg);
+@media (min-width: 1024px) {
+  .oliva-change-act-beats {
+    gap: 5rem;
+  }
 }
 
-.oliva-change-card:hover .oliva-illust-check {
-  transform: scale(1.06);
+/* ── Beats (no cards) ── */
+
+.oliva-change-beat {
+  --beat: 1;
+  display: grid;
+  gap: 1.5rem;
+  align-items: center;
+  grid-template-columns: 1fr;
+  grid-template-areas:
+    "visual"
+    "copy";
 }
 
-.oliva-change-card:hover .oliva-illust-bar {
-  transform: scaleY(1.08);
+@media (min-width: 1024px) {
+  .oliva-change-beat {
+    grid-template-columns: 1fr 1fr;
+    gap: 3.5rem 4rem;
+    grid-template-areas: "visual copy";
+  }
+
+  .oliva-change-beat--flip {
+    grid-template-areas: "copy visual";
+  }
+}
+
+.oliva-change-beat-visual {
+  grid-area: visual;
+  display: flex;
+  justify-content: center;
+  transform: none;
+}
+
+.oliva-change-beat-copy {
+  grid-area: copy;
+  text-align: center;
+  transform: none;
+}
+
+@media (min-width: 1024px) {
+  .oliva-change-beat-copy {
+    text-align: left;
+  }
+
+  .oliva-change-beat--flip .oliva-change-beat-copy {
+    text-align: right;
+  }
+
+  .oliva-change-beat-visual,
+  .oliva-change-beat--flip .oliva-change-beat-visual {
+    transform: none;
+  }
+}
+
+.oliva-change-illust-frame {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: min(100%, 18rem);
+  height: min(42vw, 14rem);
+}
+
+@media (min-width: 1024px) {
+  .oliva-change-illust-frame {
+    width: min(100%, 22rem);
+    height: 16rem;
+  }
+}
+
+.oliva-change-illust-svg {
+  width: 100%;
+  height: 100%;
+  max-width: 22rem;
+  color: var(--change-ink);
+}
+
+.oliva-change-beat-title {
+  margin: 0;
+  font-size: clamp(1.35rem, 3.4vw, 1.85rem);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: var(--change-ink);
+}
+
+.oliva-change-beat-body {
+  margin: 0.85rem 0 0;
+  max-width: 26rem;
+  font-size: clamp(0.975rem, 2.4vw, 1.0625rem);
+  line-height: 1.55;
+  color: var(--change-muted);
+}
+
+@media (min-width: 1024px) {
+  .oliva-change-beat--flip .oliva-change-beat-body {
+    margin-left: auto;
+  }
+
+  .oliva-change-beat:not(.oliva-change-beat--flip) .oliva-change-beat-body {
+    margin-right: auto;
+  }
+}
+
+/* ── Closer band (full-bleed gradient at section end) ── */
+
+.oliva-change-closer {
+  position: relative;
+  display: flex;
+  width: 100%;
+  overflow: hidden;
+  min-height: min(42svh, 22rem);
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 1.5rem 5rem;
+  text-align: center;
+  /* Same terracotta-family wash as intro, mirrored for the bottom band */
+  background:
+    radial-gradient(
+      ellipse 85% 100% at 50% 120%,
+      rgb(233 150 122 / 0.28) 0%,
+      transparent 55%
+    ),
+    radial-gradient(
+      ellipse 55% 95% at 92% 45%,
+      rgb(109 57 40 / 0.55) 0%,
+      transparent 62%
+    ),
+    radial-gradient(
+      ellipse 50% 90% at 8% 50%,
+      rgb(196 112 80 / 0.35) 0%,
+      transparent 64%
+    ),
+    radial-gradient(
+      ellipse 70% 80% at 50% 0%,
+      rgb(143 76 53 / 0.45) 0%,
+      transparent 70%
+    );
+}
+
+.oliva-change-closer-atmosphere {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.oliva-change-closer .oliva-change-drift--a {
+  left: auto;
+  right: -10%;
+  top: auto;
+  bottom: 8%;
+}
+
+.oliva-change-closer .oliva-change-drift--b {
+  right: auto;
+  left: -8%;
+  bottom: auto;
+  top: 0%;
+}
+
+.oliva-change-closer-content {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 40rem;
+  margin-inline: auto;
+}
+
+.oliva-change-closer-title {
+  margin: 0;
+  font-size: clamp(1.75rem, 5vw, 2.75rem);
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: var(--change-ink);
+}
+
+.oliva-change-closer-sub {
+  margin: 1rem 0 0;
+  font-size: clamp(1.05rem, 2.8vw, 1.25rem);
+  line-height: 1.5;
+  color: var(--change-muted);
+}
+
+/* ── Idle micro-motion on illustrations ── */
+
+@keyframes oliva-change-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -5px, 0);
+  }
+}
+
+@keyframes oliva-change-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.08);
+  }
+}
+
+@keyframes oliva-change-bar {
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+  50% {
+    transform: scaleY(1.1);
+  }
+}
+
+.oliva-change-illust-frame .oliva-illust-bookmark {
+  animation: oliva-change-float 5.5s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center top;
+}
+
+.oliva-change-illust-frame .oliva-illust-cal-dot {
+  animation: oliva-change-pulse 3.8s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.oliva-change-illust-frame .oliva-illust-ing {
+  animation: oliva-change-float 6.2s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.oliva-change-illust-frame .oliva-illust-egg {
+  opacity: 1;
+}
+
+.oliva-change-illust-frame .oliva-illust-ing:nth-of-type(2) {
+  animation-delay: 0.4s;
+}
+
+.oliva-change-illust-frame .oliva-illust-stack-1 {
+  animation: oliva-change-float 7s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.oliva-change-illust-frame .oliva-illust-stack-2 {
+  animation: oliva-change-float 7s ease-in-out infinite 0.35s;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.oliva-change-illust-frame .oliva-illust-check {
+  animation: oliva-change-pulse 4.5s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.oliva-change-illust-frame .oliva-illust-bar {
+  animation: oliva-change-bar 3.6s ease-in-out infinite;
+  transform-box: fill-box;
   transform-origin: bottom center;
 }
 
-.oliva-illust-bookmark,
-.oliva-illust-cal-dot,
-.oliva-illust-ing,
-.oliva-illust-stack-1,
-.oliva-illust-stack-2,
-.oliva-illust-check,
-.oliva-illust-bar {
-  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+.oliva-change-illust-frame .oliva-illust-bar-chart {
+  animation: oliva-change-float 5.8s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.oliva-change-illust-frame .oliva-illust-bar:nth-of-type(2) {
+  animation-delay: 0.15s;
+}
+
+.oliva-change-illust-frame .oliva-illust-bar:nth-of-type(3) {
+  animation-delay: 0.3s;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .oliva-change-card,
-  .oliva-change-illust,
-  .oliva-illust-bookmark,
-  .oliva-illust-cal-dot,
-  .oliva-illust-ing,
-  .oliva-illust-stack-1,
-  .oliva-illust-stack-2,
-  .oliva-illust-check,
-  .oliva-illust-bar {
-    transition: none;
+  .oliva-change-intro-atmosphere,
+  .oliva-change-watermark,
+  .oliva-change-beat-visual,
+  .oliva-change-beat-copy {
+    transform: none !important;
+    will-change: auto;
   }
 
-  .oliva-change-card:hover {
-    --change-lift: 0px;
-    --change-illust-shift: 0px;
-  }
-
-  .oliva-change-enter {
-    opacity: 1;
-    transform: none;
+  .oliva-change-illust-frame .oliva-illust-bookmark,
+  .oliva-change-illust-frame .oliva-illust-cal-dot,
+  .oliva-change-illust-frame .oliva-illust-ing,
+  .oliva-change-illust-frame .oliva-illust-stack-1,
+  .oliva-change-illust-frame .oliva-illust-stack-2,
+  .oliva-change-illust-frame .oliva-illust-check,
+  .oliva-change-illust-frame .oliva-illust-bar,
+  .oliva-change-illust-frame .oliva-illust-bar-chart {
     animation: none;
+  }
+}
+
+/* ── Desktop: one unified section (single viewport) ── */
+
+@media (min-width: 1024px) {
+  .oliva-change-section {
+    justify-content: flex-start !important;
+  }
+
+  .oliva-change-section-inner {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  .oliva-change-flow {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    width: 100%;
+    max-width: none;
+    margin-inline: 0;
+    padding-inline: 0;
+    gap: 0;
+  }
+
+  /* Full-bleed gradient band pinned to section top */
+  .oliva-change-intro {
+    flex-shrink: 0;
+    width: 100%;
+    min-height: clamp(10.5rem, 22vh, 14rem);
+    padding: 4.75rem 3rem 2.25rem;
+  }
+
+  .oliva-change-intro-atmosphere,
+  .oliva-change-watermark {
+    transform: none;
+    will-change: auto;
+  }
+
+  .oliva-change-watermark {
+    top: 50%;
+    font-size: clamp(3.5rem, 7vw, 6.5rem);
+    opacity: 0.05;
+  }
+
+  .oliva-change-intro-content {
+    max-width: 36rem;
+  }
+
+  .oliva-change-intro-title {
+    margin-top: 0.65rem;
+    font-size: clamp(1.65rem, 2.4vw, 2.15rem);
+  }
+
+  .oliva-change-intro-sub {
+    margin-top: 0.65rem;
+    font-size: clamp(0.95rem, 1.35vw, 1.05rem);
+  }
+
+  .oliva-change-main {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    justify-content: center;
+    width: 100%;
+    max-width: 76rem;
+    margin-inline: auto;
+    padding: 1.75rem 3rem 1.5rem;
+  }
+
+  .oliva-change-acts {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: clamp(1.25rem, 2.4vw, 2rem);
+    align-items: start;
+  }
+
+  .oliva-change-act {
+    display: flex;
+    flex-direction: column;
+    gap: 1.15rem;
+    padding: 0;
+  }
+
+  .oliva-change-act:not(:first-child) {
+    padding-left: clamp(1rem, 2vw, 1.75rem);
+    border-left: 1px solid rgb(251 249 244 / 0.2);
+  }
+
+  .oliva-change-act-header {
+    max-width: none;
+    margin: 0;
+    text-align: left;
+  }
+
+  .oliva-change-act-line {
+    margin-top: 0.35rem;
+    font-size: clamp(1.05rem, 1.5vw, 1.25rem);
+  }
+
+  .oliva-change-act-beats {
+    gap: clamp(1.25rem, 2.2vh, 1.75rem);
+    max-width: none;
+    margin-inline: 0;
+  }
+
+  .oliva-change-beat,
+  .oliva-change-beat--flip {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "visual"
+      "copy";
+    gap: 0.65rem;
+  }
+
+  .oliva-change-beat-visual,
+  .oliva-change-beat--flip .oliva-change-beat-visual {
+    transform: none;
+    will-change: auto;
+  }
+
+  .oliva-change-beat-copy,
+  .oliva-change-beat--flip .oliva-change-beat-copy {
+    text-align: left;
+    transform: none;
+    will-change: auto;
+  }
+
+  .oliva-change-illust-frame {
+    width: min(100%, 10.5rem);
+    height: clamp(5.5rem, 9vh, 7.25rem);
+    margin-inline: 0;
+  }
+
+  .oliva-change-beat-title {
+    font-size: clamp(0.98rem, 1.25vw, 1.12rem);
+    line-height: 1.25;
+  }
+
+  .oliva-change-beat-body {
+    margin-top: 0.45rem;
+    max-width: none;
+    font-size: clamp(0.84rem, 1.05vw, 0.94rem);
+    line-height: 1.45;
+  }
+
+  .oliva-change-beat:not(.oliva-change-beat--flip) .oliva-change-beat-body,
+  .oliva-change-beat--flip .oliva-change-beat-body {
+    margin-inline: 0;
+  }
+
+  /* Full-bleed gradient band pinned to section bottom */
+  .oliva-change-closer {
+    flex-shrink: 0;
+    width: 100%;
+    min-height: clamp(9.5rem, 18vh, 12.5rem);
+    padding: 2rem 3rem 2.75rem;
+    margin: 0;
+  }
+
+  .oliva-change-closer-content {
+    max-width: 42rem;
+  }
+
+  .oliva-change-closer-title {
+    font-size: clamp(1.35rem, 2.1vw, 1.75rem);
+  }
+
+  .oliva-change-closer-sub {
+    margin-top: 0.55rem;
+    font-size: clamp(0.95rem, 1.25vw, 1.1rem);
+  }
+}
+
+@media (min-width: 1024px) and (max-height: 760px) {
+  .oliva-change-intro {
+    min-height: 9.5rem;
+    padding-top: 4.25rem;
+    padding-bottom: 1.5rem;
+  }
+
+  .oliva-change-main {
+    padding-top: 1.1rem;
+    padding-bottom: 1rem;
+  }
+
+  .oliva-change-illust-frame {
+    height: 5rem;
+  }
+
+  .oliva-change-closer {
+    min-height: 8rem;
+    padding-top: 1.35rem;
+    padding-bottom: 1.75rem;
+  }
+}
+
+/* ── Mobile / tablet: one viewport — intro + 3 acts (2-col beats) + closer ── */
+
+@media (max-width: 1023px) {
+  .oliva-snap-section.oliva-change-section {
+    box-sizing: border-box;
+    min-height: 100svh;
+    min-height: 100dvh;
+    height: 100svh;
+    height: 100dvh;
+    max-height: 100svh;
+    max-height: 100dvh;
+    overflow: hidden;
+    justify-content: flex-start !important;
+  }
+
+  .oliva-change-section-inner {
+    display: flex;
+    box-sizing: border-box;
+    height: 100%;
+    min-height: 0;
+    max-height: 100%;
+    flex: 1 1 auto;
+    flex-direction: column;
+    padding-top: 0 !important;
+    padding-bottom: 0.15rem !important;
+  }
+
+  .oliva-change-flow {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    width: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .oliva-change-act:not(:first-child) {
+    border-left: none;
+    padding-left: 0;
+  }
+
+  .oliva-change-illust-frame {
+    overflow: hidden;
+  }
+
+  .oliva-change-intro {
+    flex-shrink: 0;
+    width: 100%;
+    min-height: 0;
+    align-items: flex-start;
+    padding: calc(env(safe-area-inset-top, 0px) + 3.15rem) 1.15rem 0.4rem;
+    overflow: hidden;
+  }
+
+  .oliva-change-watermark {
+    font-size: clamp(2.75rem, 16vw, 4.25rem);
+    opacity: 0.04;
+  }
+
+  .oliva-change-drift {
+    filter: blur(40px);
+  }
+
+  .oliva-change-intro-title {
+    margin-top: 0.45rem;
+    font-size: clamp(1.25rem, 5.2vw, 1.55rem);
+    line-height: 1.15;
+  }
+
+  .oliva-change-intro-sub {
+    margin-top: 0.45rem;
+    font-size: clamp(0.82rem, 3vw, 0.92rem);
+    line-height: 1.4;
+  }
+
+  .oliva-change-main {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    flex-direction: column;
+    justify-content: center;
+    width: 100%;
+    padding: 0 0.85rem;
+    overflow: hidden;
+  }
+
+  .oliva-change-acts {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    justify-content: space-evenly;
+    gap: clamp(0.35rem, 1.4vh, 0.7rem);
+    width: 100%;
+    min-height: 0;
+  }
+
+  .oliva-change-act {
+    flex-shrink: 0;
+    padding: 0;
+  }
+
+  .oliva-change-act + .oliva-change-act {
+    margin-top: 0;
+    padding-top: clamp(0.4rem, 1.1vh, 0.6rem);
+    border-top: 1px solid rgb(251 249 244 / 0.12);
+  }
+
+  .oliva-change-act-header {
+    max-width: none;
+    margin: 0 0 clamp(0.35rem, 1vh, 0.5rem);
+    text-align: left;
+  }
+
+  .oliva-change-act-line {
+    margin-top: 0.2rem;
+    font-size: clamp(0.92rem, 3.4vw, 1.05rem);
+    line-height: 1.2;
+  }
+
+  .oliva-change-act-beats {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: clamp(0.35rem, 1.4vw, 0.65rem) clamp(0.45rem, 2.2vw, 0.75rem);
+    max-width: none;
+    margin-inline: 0;
+  }
+
+  .oliva-change-beat,
+  .oliva-change-beat--flip {
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "visual"
+      "copy";
+    gap: 0.3rem;
+    align-items: start;
+    justify-items: center;
+    padding: 0;
+  }
+
+  .oliva-change-beat-visual,
+  .oliva-change-beat--flip .oliva-change-beat-visual {
+    width: 100%;
+    justify-content: center;
+    align-items: center;
+    transform: none;
+  }
+
+  .oliva-change-beat-copy,
+  .oliva-change-beat--flip .oliva-change-beat-copy {
+    width: 100%;
+    max-width: none;
+    text-align: center;
+    transform: none;
+  }
+
+  .oliva-change-illust-frame {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: clamp(2.85rem, 10.5vw, 4rem);
+    height: clamp(2.85rem, 10.5vw, 4rem);
+    margin-inline: auto;
+    flex-shrink: 0;
+  }
+
+  .oliva-change-illust-svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    margin: 0;
+  }
+
+  .oliva-change-beat-title {
+    font-size: clamp(0.76rem, 2.9vw, 0.88rem);
+    line-height: 1.2;
+  }
+
+  .oliva-change-beat-body {
+    margin-top: 0.2rem;
+    margin-inline: auto;
+    max-width: none;
+    font-size: clamp(0.66rem, 2.4vw, 0.76rem);
+    line-height: 1.35;
+  }
+
+  .oliva-change-closer {
+    flex-shrink: 0;
+    width: 100%;
+    min-height: 0;
+    padding: 0.4rem 1.15rem 0.2rem;
+    margin-top: 0;
+  }
+
+  .oliva-change-closer-content {
+    max-width: 22rem;
+  }
+
+  .oliva-change-closer-title {
+    font-size: clamp(1.05rem, 4.2vw, 1.25rem);
+    line-height: 1.2;
+  }
+
+  .oliva-change-closer-sub {
+    margin-top: 0.35rem;
+    font-size: clamp(0.82rem, 3vw, 0.92rem);
+    line-height: 1.35;
+  }
+}
+
+@media (max-width: 379px) {
+  .oliva-change-intro {
+    padding-top: calc(env(safe-area-inset-top, 0px) + 3rem);
+    padding-inline: 0.95rem;
+  }
+
+  .oliva-change-main {
+    padding-inline: 0.65rem;
+  }
+
+  .oliva-change-illust-frame {
+    width: 2.65rem;
+    height: 2.65rem;
+  }
+
+  .oliva-change-beat-title {
+    font-size: 0.72rem;
+  }
+
+  .oliva-change-beat-body {
+    font-size: 0.64rem;
+  }
+}
+
+@media (max-width: 1023px) and (max-height: 480px) {
+  .oliva-change-section-inner {
+    padding-bottom: 0.1rem !important;
+  }
+
+  .oliva-change-intro {
+    padding-top: calc(env(safe-area-inset-top, 0px) + 2.85rem);
+    padding-bottom: 0.35rem;
+  }
+
+  .oliva-change-intro-title {
+    font-size: 1.1rem;
+  }
+
+  .oliva-change-intro-sub {
+    display: none;
+  }
+
+  .oliva-change-acts {
+    gap: 0.25rem;
+  }
+
+  .oliva-change-act + .oliva-change-act {
+    padding-top: 0.3rem;
+  }
+
+  .oliva-change-act-header {
+    margin-bottom: 0.25rem;
+  }
+
+  .oliva-change-illust-frame {
+    width: 2.35rem;
+    height: 2.35rem;
+  }
+
+  .oliva-change-closer {
+    padding-block: 0.45rem 0.55rem;
+  }
+
+  .oliva-change-closer-sub {
+    display: none;
+  }
+}
+
+@media (max-width: 1023px) and (prefers-reduced-motion: no-preference) {
+  .oliva-change-intro-atmosphere {
+    transform: translate3d(0, calc(var(--parallax) * -8px), 0);
+  }
+
+  .oliva-change-watermark {
+    transform: translate(-50%, calc(-50% + var(--parallax) * -4px));
+  }
+
+  .oliva-change-illust-frame .oliva-illust-bookmark,
+  .oliva-change-illust-frame .oliva-illust-cal-dot,
+  .oliva-change-illust-frame .oliva-illust-ing,
+  .oliva-change-illust-frame .oliva-illust-stack-1,
+  .oliva-change-illust-frame .oliva-illust-stack-2,
+  .oliva-change-illust-frame .oliva-illust-check,
+  .oliva-change-illust-frame .oliva-illust-bar,
+  .oliva-change-illust-frame .oliva-illust-bar-chart {
+    animation-duration: 8.5s;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 1023px) {
+  .oliva-change-intro {
+    padding-inline: 1.75rem;
+    padding-top: calc(env(safe-area-inset-top, 0px) + 3.25rem);
+  }
+
+  .oliva-change-main {
+    padding-inline: 1.5rem;
+  }
+
+  .oliva-change-act-beats {
+    gap: 0.55rem 0.85rem;
+  }
+
+  .oliva-change-illust-frame {
+    width: clamp(3.25rem, 8vw, 4.5rem);
+    height: clamp(3.25rem, 8vw, 4.5rem);
+  }
+
+  .oliva-change-beat-title {
+    font-size: clamp(0.82rem, 2.2vw, 0.92rem);
+  }
+
+  .oliva-change-beat-body {
+    font-size: clamp(0.72rem, 1.8vw, 0.8rem);
+  }
+
+  .oliva-change-closer {
+    padding-inline: 1.75rem;
+  }
+
+  .oliva-change-closer-content {
+    max-width: 28rem;
   }
 }

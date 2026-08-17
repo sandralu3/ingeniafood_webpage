@@ -14,57 +14,53 @@ const LEGAL_LINKS = [
 
 export function Footer() {
   return (
-    <footer className="oliva-snap-section border-t border-[#e8e2d6]/80 bg-[#fbf9f4]">
-      <div className="oliva-snap-inner">
-        <div className="mx-auto w-full max-w-6xl px-6 lg:px-10">
-          <div className="grid gap-14 text-center sm:gap-16 md:grid-cols-3 md:gap-10 md:text-left">
-            <div className="flex flex-col items-center md:items-start">
-              <a href="/oliva" className="oliva-footer-logo inline-block">
-                <span className="text-base tracking-[0.04em] lg:text-lg">
-                  <span className="font-light text-[#444444]">Ingenia</span>
-                  <span className="font-bold text-[#556B2F]">Food</span>
-                </span>
-              </a>
-              <p className="mt-4 max-w-xs text-sm leading-relaxed text-[#53433e]">
-                Cocinar mejor empieza con una mejor decisión.
-              </p>
-            </div>
-
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#556B2F]">
-                Producto
-              </p>
-              <ul className="mt-5 space-y-3.5">
-                {PRODUCT_LINKS.map((link) => (
-                  <li key={link.href}>
-                    <a href={link.href} className="oliva-footer-link text-sm">
-                      {link.label}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#556B2F]">
-                Legal
-              </p>
-              <ul className="mt-5 space-y-3.5">
-                {LEGAL_LINKS.map((link) => (
-                  <li key={link.href}>
-                    <a href={link.href} className="oliva-footer-link text-sm">
-                      {link.label}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
+    <footer className="oliva-footer">
+      <div className="oliva-footer-inner mx-auto w-full max-w-6xl px-6 lg:px-10">
+        <div className="oliva-footer-top">
+          <div className="oliva-footer-brand">
+            <a href="/oliva" className="oliva-footer-logo inline-block">
+              <span className="text-base tracking-[0.04em]">
+                <span className="font-light text-[#444444]">Ingenia</span>
+                <span className="font-bold text-[#556B2F]">Food</span>
+              </span>
+            </a>
+            <p className="oliva-footer-tagline">
+              Cocinar mejor empieza con una mejor decisión.
+            </p>
           </div>
 
-          <p className="mt-16 text-center text-xs text-[#86736d] sm:mt-20">
-            © {new Date().getFullYear()} IngeniaFood
-          </p>
+          <nav className="oliva-footer-nav" aria-label="Enlaces del pie">
+            <div className="oliva-footer-col">
+              <p className="oliva-footer-heading">Producto</p>
+              <ul>
+                {PRODUCT_LINKS.map((link) => (
+                  <li key={link.href}>
+                    <a href={link.href} className="oliva-footer-link">
+                      {link.label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="oliva-footer-col">
+              <p className="oliva-footer-heading">Legal</p>
+              <ul>
+                {LEGAL_LINKS.map((link) => (
+                  <li key={link.href}>
+                    <a href={link.href} className="oliva-footer-link">
+                      {link.label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </nav>
         </div>
+
+        <p className="oliva-footer-copy">
+          © {new Date().getFullYear()} IngeniaFood
+        </p>
       </div>
     </footer>
   );
