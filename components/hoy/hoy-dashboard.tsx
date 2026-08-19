@@ -17,6 +17,7 @@ import {
   HoyTodayMenuSkeleton
 } from "@/components/skeletons/hoy-dashboard-skeleton";
 import { useHoyPageData } from "@/hooks/use-hoy-page-data";
+import { OnboardingOverlay } from "@/components/onboarding/onboarding-overlay";
 import { APP_ROUTES } from "@/lib/navigation/app-routes";
 
 /** Nevera / despensa — asset local (evita Unsplash en PWA / móvil). */
@@ -48,6 +49,7 @@ export function HoyDashboard() {
         ) : (
           <Link
             href={APP_ROUTES.scanner}
+            data-onboarding="hoy-scan-banner"
             className="relative flex min-h-[148px] items-center overflow-hidden rounded-[22px] bg-gradient-to-r from-[#E8EDE3] via-[#E3E8DC] to-[#D5DFD0] p-4 shadow-sm shadow-stone-200/50 transition hover:brightness-[0.99]"
           >
             <div className="relative z-10 flex min-w-0 max-w-[58%] items-start gap-3 pr-2">
@@ -129,8 +131,11 @@ export function HoyDashboard() {
           />
         )}
 
-        <WaterGlassesTracker userId={userId} />
+        <div data-onboarding="hoy-water">
+          <WaterGlassesTracker userId={userId} />
+        </div>
 
+        <div data-onboarding="hoy-challenges">
         {showPageSkeleton ? (
           <HoyDailyChallengesSkeleton />
         ) : (
@@ -142,7 +147,10 @@ export function HoyDashboard() {
             onDataChange={() => void refresh({ force: true })}
           />
         )}
+        </div>
       </section>
+
+      <OnboardingOverlay page="hoy" />
     </div>
   );
 }

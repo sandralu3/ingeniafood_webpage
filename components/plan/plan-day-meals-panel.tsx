@@ -239,6 +239,7 @@ export function PlanDayMealsPanel({
                 <PlanMealDroppable
                   dayLabel={day.label}
                   mealType={mealType}
+                  data-onboarding={mealType === "Almuerzo" ? "plan-meals-almuerzo" : undefined}
                   className="space-y-1.5 p-0.5"
                 >
                   <PlanSectionDivider
@@ -326,15 +327,17 @@ export function PlanDayMealsPanel({
           })}
 
           <li>
-            <PlanSnacksSection
-              dayLabel={day.label}
-              weekStartISO={resolvedWeekStart}
-              snacks={day.snacks ?? []}
-              onSnackAdded={(snack) => onSnackAdded?.(day.label, snack)}
-              onSnackRemoved={(snackId) => onSnackRemoved?.(day.label, snackId)}
-              onOpenRegister={onOpenSnackRegister}
-              onError={onRemoveError}
-            />
+            <div data-onboarding="plan-snacks">
+              <PlanSnacksSection
+                dayLabel={day.label}
+                weekStartISO={resolvedWeekStart}
+                snacks={day.snacks ?? []}
+                onSnackAdded={(snack) => onSnackAdded?.(day.label, snack)}
+                onSnackRemoved={(snackId) => onSnackRemoved?.(day.label, snackId)}
+                onOpenRegister={onOpenSnackRegister}
+                onError={onRemoveError}
+              />
+            </div>
           </li>
         </ul>
       </PlanSlotsDndProvider>

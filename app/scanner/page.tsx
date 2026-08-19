@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import { OnboardingOverlay } from "@/components/onboarding/onboarding-overlay";
 import { PantrySearchView } from "@/components/scanner/pantry-search-view";
 import { ConfirmIngredientsView } from "@/components/scanner/confirm-ingredients-view";
 import { GenerationsLimitModal } from "@/components/scanner/generations-limit-modal";
@@ -1862,6 +1863,8 @@ export default function ScannerPage() {
           {securityWarning}
         </p>
       ) : null}
+
+      {isPantryIdleView && <OnboardingOverlay page="scanner" />}
     </div>
   );
 }

@@ -397,6 +397,7 @@ export function ProgressBoard({
             <button
               type="button"
               onClick={() => setStreakOpen(true)}
+              data-onboarding="hoy-streak"
               className="flex min-w-0 flex-col gap-1 px-3.5 py-3 text-left transition hover:opacity-90 sm:px-4 sm:py-3.5"
             >
               <p className="flex items-center gap-1 text-[12px] font-semibold text-stone-800">
@@ -421,6 +422,7 @@ export function ProgressBoard({
             <button
               type="button"
               onClick={handleDoseCardClick}
+              data-onboarding="hoy-dose"
               className="flex min-w-0 flex-col gap-1 border-l border-stone-100 px-3.5 py-3 text-left transition hover:opacity-90 sm:px-4 sm:py-3.5"
             >
               <p className="flex items-center gap-1 text-[12px] font-semibold text-stone-800">

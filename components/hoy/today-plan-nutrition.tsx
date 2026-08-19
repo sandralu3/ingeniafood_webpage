@@ -514,7 +514,7 @@ function TodayMenuSection({
   };
 
   return (
-    <section className={cn("space-y-2.5", className)}>
+    <section className={cn("space-y-2.5", className)} data-onboarding="hoy-add-meals">
       <div className="flex items-center justify-between gap-2 px-0.5">
         <div className="min-w-0">
           <h2 className="text-base font-bold text-[#3E5A3A]">{title}</h2>

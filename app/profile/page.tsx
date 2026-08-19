@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
+import { useRouter } from "next/navigation";
 import { Camera, ChevronDown, LogOut } from "lucide-react";
 import { AvatarCropModal } from "@/components/profile/avatar-crop-modal";
 import { LanguageSelector } from "@/components/profile/language-selector";
@@ -11,8 +12,10 @@ import { PremiumLabel } from "@/components/premium/premium-label";
 import { ProfileSkeleton } from "@/components/skeletons/profile-skeleton";
 import { usePremium } from "@/hooks/use-premium";
 import { signOutUser } from "@/lib/auth/sign-out";
+import { APP_ROUTES } from "@/lib/navigation/app-routes";
 import { PROFILE_COUNTRIES } from "@/lib/profile/profile-countries";
 import { createSupabaseClient } from "@/lib/supabaseClient";
+import { resetAllOnboarding } from "@/lib/onboarding/onboarding-state";
 import {
   getPersonNameValidationError,
   sanitizePersonNameInput
@@ -68,6 +71,7 @@ function getInitials(name?: string | null, email?: string | null): string {
 export default function ProfilePage() {
   const t = useTranslations("Profile");
   const { isPremium, refresh: refreshPremium } = usePremium();
+  const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
@@ -89,6 +93,11 @@ export default function ProfilePage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const cropObjectUrlRef = useRef<string | null>(null);
   const previewObjectUrlRef = useRef<string | null>(null);
+
+  const handleShowOnboarding = () => {
+    resetAllOnboarding();
+    router.push(APP_ROUTES.hoy);
+  };
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -537,6 +546,15 @@ export default function ProfilePage() {
             <PremiumBillingActions />
 
             <TesterPromoResetButton />
+
+            <button
+              type="button"
+              onClick={handleShowOnboarding}
+              disabled={isSaving || isUploadingAvatar || isSigningOut}
+              className={secondaryButtonClassName}
+            >
+              Ver guía de inicio
+            </button>
 
             {errorMessage ? (
               <p className="rounded-xl border border-red-100 bg-red-50/80 px-3 py-2.5 text-sm text-red-700">

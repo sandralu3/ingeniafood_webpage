@@ -1,11 +1,33 @@
 # 📱 Guía de Pruebas Beta — IngeniaFood
 
 > Documento para testers. Lenguaje de **pantalla**: lo que ves, tocas y experimentas.  
-> Última actualización: **15 agosto 2026** (escáner: cupo antes de detectar; tope foto OpenAI)
+> Última actualización: **19 agosto 2026** (onboarding animado en las 4 pantallas principales)
 
 ---
 
 ### 📣 Novedades por despliegue
+
+#### 19 agosto 2026
+
+**Onboarding animado (primer uso)**
+- La primera vez que entras a **Hoy**, **Plan**, **Escáner** o **Recetas** aparece una guía paso a paso con spotlight y tooltip.
+- Se resaltan los elementos clave de cada pantalla (banner de escaneo, hidratación, retos, racha y dosis nutricional en Hoy, días del plan, almuerzo y snacks / tentempié, lista de compra y copiar semana anterior en Plan, botón de cámara, ingredientes, secciones de recetas con «Ver más» y filtro por tipo de comida).
+- El tooltip queda centrado sobre el elemento resaltado (incluye elementos dentro de menús desplegables como “Copiar semana anterior”), se re-ancora si el target aparece tarde y centra el elemento si está fuera del viewport.
+- En **Perfil** hay un botón para **re-ver** el onboarding (reinicia la guía en las pantallas principales).
+- Puedes avanzar tocando «Siguiente» o el fondo oscuro, o cerrar con la ✕.
+- Cada pantalla recuerda que ya la viste (localStorage) y no vuelve a aparecer.
+- **No** aparece en Perfil.
+
+**Qué probar de este despliegue**
+- [ ] Primera visita a **Hoy**: aparece la guía con pasos (bienvenida → escanea → agrega comidas → racha → dosis nutricional → hidratación → retos)
+- [ ] Primera visita a **Plan**: guía con pasos (intro → días → almuerzo → snacks / tentempié → lista de compra → copiar semana anterior)
+- [ ] En **Plan**, “Copiar semana anterior” debe enfocarse correctamente dentro del menú de acciones
+- [ ] Primera visita a **Escáner**: guía con 3 pasos (intro → cámara → ingredientes)
+- [ ] Primera visita a **Recetas**: guía con pasos (intro → Cocinar → Sandra → Favoritas → Registradas → filtro por tipo de comida)
+- [ ] En **Perfil** → botón “Ver guía de inicio”: vuelve a mostrarse el onboarding en las pantallas principales
+- [ ] Al volver a la misma pantalla **no** vuelve a aparecer la guía
+- [ ] En **Perfil** nunca aparece guía
+- [ ] Cerrar con ✕ también marca la pantalla como completada
 
 #### 15 agosto 2026
 

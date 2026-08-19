@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Loader2, MoreVertical, ShoppingBag } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { OnboardingOverlay } from "@/components/onboarding/onboarding-overlay";
 import { PlanDayCarousel } from "@/components/plan/plan-day-carousel";
 import { PlanDayMealsPanel } from "@/components/plan/plan-day-meals-panel";
 import { PlanRecipePickerModal } from "@/components/plan/plan-recipe-picker-modal";
@@ -707,6 +708,7 @@ export function WeeklyPlanView() {
             type="button"
             onClick={() => void openShoppingList()}
             disabled={isLoading || isShoppingListLoading}
+            data-onboarding="plan-shopping-list"
             className={cn(
               "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-stone-200/60 bg-white text-[#556B2F] shadow-sm transition",
               "hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
@@ -740,6 +742,7 @@ export function WeeklyPlanView() {
                 <button
                   type="button"
                   onClick={() => void clonePreviousWeek()}
+                  data-onboarding="plan-copy-previous-week"
                   disabled={
                     isCloningWeek ||
                     isCheckingCloneAvailability ||
@@ -783,9 +786,12 @@ export function WeeklyPlanView() {
 
         {!isLoading ? (
           <>
-            <PlanDayCarousel days={days} selectedDay={selectedDay} onSelectDay={setSelectedDay} />
+            <div data-onboarding="plan-day-carousel">
+              <PlanDayCarousel days={days} selectedDay={selectedDay} onSelectDay={setSelectedDay} />
+            </div>
 
             {selectedDayData ? (
+              <div data-onboarding="plan-meals">
               <PlanDayMealsPanel
                 day={selectedDayData}
                 weekStartISO={toISODateString(weekStartDate)}
@@ -840,6 +846,7 @@ export function WeeklyPlanView() {
                 isProposingDayMenu={isProposingDayMenu}
                 isPremium={isPremium && !isPremiumLoading}
               />
+              </div>
             ) : null}
           </>
         ) : null}
@@ -981,6 +988,8 @@ export function WeeklyPlanView() {
           animation: fade-in 280ms ease-out;
         }
       `}</style>
+
+      <OnboardingOverlay page="plan" />
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { ArrowLeft, ChevronRight, Search, SlidersHorizontal } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
+import { OnboardingOverlay } from "@/components/onboarding/onboarding-overlay";
 import { RecipeCard } from "@/components/recipes/RecipeCard";
 import { RecipesFilterSheet } from "@/components/recipes/recipes-filter-sheet";
 import {
@@ -938,7 +939,7 @@ export default function RecipesPage() {
     }
 
     return (
-      <div className="space-y-4">
+      <div className="space-y-4" data-onboarding="recetas-tabs">
         {librarySections.map((section) => {
           if (section.recipes.length === 0) {
             if (section.id !== "saved" && section.id !== "sandra") return null;
@@ -971,6 +972,7 @@ export default function RecipesPage() {
                   <button
                     type="button"
                     onClick={() => openSection(section.id)}
+                    data-onboarding={`recetas-view-more-${section.id}`}
                     className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-[#4C6B3F]/18 bg-white/90 px-2.5 py-1 text-[10px] font-semibold tracking-wide text-[#4C6B3F] shadow-[0_1px_2px_rgba(76,107,63,0.06)] transition hover:border-[#4C6B3F]/35 hover:bg-[#F7F9F4]"
                   >
                     {t.has("viewSection") ? t("viewSection") : "Ver más"}
@@ -980,6 +982,7 @@ export default function RecipesPage() {
                   <button
                     type="button"
                     onClick={() => openSection(section.id)}
+                    data-onboarding={`recetas-view-more-${section.id}`}
                     className="inline-flex shrink-0 items-center gap-0.5 text-[10px] font-semibold tracking-wide text-[#556B2F]/80 transition hover:text-[#3e5219]"
                   >
                     {t.has("viewSection") ? t("viewSection") : "Ver todas"}
@@ -1095,7 +1098,7 @@ export default function RecipesPage() {
         ) : null}
 
         {browseSection ? (
-          <div className="relative z-20 space-y-2.5 pb-1">
+          <div className="relative z-20 space-y-2.5 pb-1" data-onboarding="recetas-search">
             <div className="flex w-full items-center gap-2">
               <label className="relative flex-1">
                 <Search
@@ -1123,6 +1126,7 @@ export default function RecipesPage() {
                 )}
                 aria-label={t("filterAria")}
                 aria-expanded={isFilterSheetOpen}
+                data-onboarding="recetas-filter-types"
               >
                 <SlidersHorizontal size={16} strokeWidth={1.75} />
                 {activeFilterCount > 0 ? (
@@ -1226,6 +1230,8 @@ export default function RecipesPage() {
         }
       `}</style>
       </section>
+
+      <OnboardingOverlay page="recetas" />
     </div>
   );
 }

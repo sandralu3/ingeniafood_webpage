@@ -383,6 +383,7 @@ export function PantrySearchView({
                 type="button"
                 onClick={openSourceModal}
                 disabled={isBusy || scansExhausted}
+                data-onboarding="scanner-camera-btn"
                 className="relative mt-3 inline-flex w-fit items-center gap-2 rounded-full bg-gradient-to-br from-[#5C7A54] via-[#3E5A3A] to-[#2F452C] px-4 py-2.5 text-sm font-bold leading-none text-white shadow-md shadow-[#3E5A3A]/30 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:brightness-100"
               >
                 <Camera className="h-4 w-4" strokeWidth={2.25} aria-hidden />
@@ -437,7 +438,7 @@ export function PantrySearchView({
         {/* Ingredientes a la mano */}
         <section className="mb-3 space-y-2 rounded-[20px] border border-stone-100 bg-white p-3 shadow-sm shadow-stone-200/50">
           <div className="mb-2">
-            <h2 className="text-sm font-bold text-stone-800">
+            <h2 className="text-sm font-bold text-stone-800" data-onboarding="scanner-ingredients">
               {t.has("livePantryTitle") ? t("livePantryTitle") : "Ingredientes a la mano"}
             </h2>
             <p className="mt-0.5 text-[11px] text-stone-500">
