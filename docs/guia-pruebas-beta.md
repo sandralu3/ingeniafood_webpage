@@ -1,12 +1,36 @@
 # 📱 Guía de Pruebas Beta — IngeniaFood
 
 > Documento para testers. Lenguaje de **pantalla**: lo que ves, tocas y experimentas.  
-> Última actualización: **19 agosto 2026** (onboarding animado en las 4 pantallas principales)
+> Última actualización: **20 agosto 2026** (comidas escaneadas: info/warning, no Tip de Sandra)
 
 ---
 
 ### 📣 Novedades por despliegue
 
+#### 20 agosto 2026
+
+**Comidas escaneadas / registradas · aviso nutricional**
+- En platos **escaneados** o **registrados**, el mensaje ya no se etiqueta como **Tip de Sandra**.
+- Se muestra como **Información** o **Advertencia** (según el tono), igual que el icono del detalle.
+- **Tip de Sandra** solo aparece en recetas **generadas** (Escáner de despensa / generación).
+
+**Compartir receta · macros**
+- La imagen al **compartir** ya no usa las barras antiguas de macronutrientes.
+- Los macros salen como **chips** (igual que en el detalle de la receta): proteínas, carbs, grasas y calorías.
+
+**Compartir receta · etiquetas**
+- Las pills de la imagen ya no muestran claves técnicas (`COMIDA_FUERA`, `DIET:ALTO_PROTEINA`…).
+- Se ven textos claros (p. ej. **Escaneado**, **Almuerzo**, **Alto en proteína**), alineados con el detalle.
+- En platos registrados/escaneados no se duplican badges internos (p. ej. no sale «Registrada» junto a «Escaneado»).
+
+**Qué probar de este despliegue**
+- [ ] Abre un plato **escaneado** → el aviso es **Información** o **Advertencia**, no «Tip de Sandra»
+- [ ] Comparte ese plato → en la imagen tampoco dice Tip de Sandra
+- [ ] Genera una receta en el **Escáner** → ahí sí aparece **Tip de Sandra**
+- [ ] Abre una receta → **Compartir** → la imagen muestra macros en chips, sin barras verdes
+- [ ] Los valores coinciden con los del detalle (kcal / proteínas, etc.)
+- [ ] Comparte un plato **escaneado** o **registrado**: las etiquetas son legibles (sin guiones bajos ni `DIET:…`)
+- [ ] Comparte una receta normal: comida / dieta salen con el mismo tipo de texto que en pantalla
 #### 19 agosto 2026
 
 **Onboarding animado (primer uso)**

@@ -156,25 +156,25 @@ export function RecipeDetailMagazine({
         {showAppliedFilters && appliedFilters ? (
           <p className="mb-2 text-[10px] font-medium text-stone-500">{t("perServing")}</p>
         ) : null}
-        <div className="space-y-2.5">
-          {macroData.map((macro, index) => (
-            <div key={MACRO_LABEL_KEYS[index] ?? macro.label} className="space-y-1.5">
-              <div className="flex items-baseline justify-between gap-3">
-                <span className="text-[11px] font-medium text-stone-500">
-                  {MACRO_LABEL_KEYS[index] ? t(MACRO_LABEL_KEYS[index]) : macro.label}
-                </span>
-                <span className="text-[11px] font-semibold tabular-nums text-stone-800">
-                  {macro.value}
-                </span>
-              </div>
-              <div className="h-1 overflow-hidden rounded-full bg-stone-100">
-                <div
-                  className="h-full rounded-full bg-[#88ab75] transition-all"
-                  style={{ width: `${macro.progress}%` }}
-                />
-              </div>
-            </div>
-          ))}
+        {/* Misma estética de chips que el detalle (RecipeResultHeroCard), sin barras antiguas */}
+        <div className="flex flex-wrap gap-1.5">
+          {macroData.map((macro, index) => {
+            const label = MACRO_LABEL_KEYS[index]
+              ? t(MACRO_LABEL_KEYS[index])
+              : macro.label;
+            const emoji =
+              index === 0 ? "💪" : index === 1 ? "🌾" : index === 2 ? "🥑" : "🥗";
+            return (
+              <span
+                key={MACRO_LABEL_KEYS[index] ?? macro.label}
+                className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-stone-100 px-2.5 py-1 text-[11px] font-semibold tabular-nums text-stone-700"
+              >
+                <span aria-hidden>{emoji}</span>
+                <span className="font-medium text-stone-500">{label}</span>
+                <span className="text-stone-800">{macro.value}</span>
+              </span>
+            );
+          })}
         </div>
       </section>
 
@@ -217,7 +217,18 @@ export function RecipeDetailMagazine({
         </div>
       </section>
 
-      <SandraTipCard tip={recipe.tip_sandra ?? ""} hideOnShareCapture={hideInlineTipOnShare} />
+      <SandraTipCard
+        tip={
+          isExternalMeal(recipe.tags)
+            ? mealTypeAdvisory?.trim() ||
+              recipe.meal_type_advisory?.trim() ||
+              recipe.tip_sandra ||
+              ""
+            : recipe.tip_sandra ?? ""
+        }
+        hideOnShareCapture={hideInlineTipOnShare}
+        variant={isExternalMeal(recipe.tags) ? "advisory" : "sandra"}
+      />
     </div>
   );
 }

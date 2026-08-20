@@ -2,6 +2,11 @@ const FLOURLESS_PATTERN = /sin\s+harinas?/i;
 const AIRFRYER_PATTERN = /air\s*fryer|airfryer/i;
 const MEAL_MOMENT_TAG_PATTERN = /^(desayuno|cena|snack|almuerzo|postre)$/i;
 
+/** Claves internas del plan (mismas que en lib/plan/external-meal). */
+const EXTERNAL_MEAL_TAG = "comida_fuera";
+const SCANNED_MEAL_TAG = "escaneado";
+const HAS_VEGETABLES_TAG = "tiene_vegetales";
+
 export function normalizeRecipeTags(raw: unknown): string[] {
   if (!Array.isArray(raw)) return [];
 
@@ -56,10 +61,32 @@ export function isShareExcludedTag(tag: string): boolean {
   return FLOURLESS_PATTERN.test(tag) || AIRFRYER_PATTERN.test(tag);
 }
 
+/** Etiquetas internas que no deben verse como pills (detalle / compartir). */
+const HIDDEN_DISPLAY_TAG_PATTERN =
+  /^(diet:estandar|estandar)$/i;
+
 export function filterRecipeTagsForDisplay(
   tags: string[],
   options?: { hideMealMomentTags?: boolean }
 ): string[] {
-  if (!options?.hideMealMomentTags) return tags;
-  return tags.filter((tag) => !MEAL_MOMENT_TAG_PATTERN.test(tag.trim()));
+  const lower = tags.map((tag) => tag.trim().toLowerCase());
+  const hasScanned = lower.includes(SCANNED_MEAL_TAG);
+
+  const withoutHidden = tags.filter((tag) => {
+    const key = tag.trim().toLowerCase();
+    if (!key || HIDDEN_DISPLAY_TAG_PATTERN.test(key)) return false;
+    // Flag interno de nutrición del plan; el detalle no lo muestra como pill.
+    if (key === HAS_VEGETABLES_TAG) return false;
+    // Un solo badge de origen, como en detalle: Escaneado pisa Registrada.
+    if (
+      hasScanned &&
+      (key === EXTERNAL_MEAL_TAG || key === "comida fuera")
+    ) {
+      return false;
+    }
+    return true;
+  });
+
+  if (!options?.hideMealMomentTags) return withoutHidden;
+  return withoutHidden.filter((tag) => !MEAL_MOMENT_TAG_PATTERN.test(tag.trim()));
 }

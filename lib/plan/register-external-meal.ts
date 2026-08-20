@@ -79,7 +79,11 @@ export async function registerExternalMealToPlan(params: {
       .map((step) => step.trim())
   );
   const hasCookingSteps = cookingSteps.length >= 2;
-  const tipSandra = params.estimate.tip_sandra?.trim() || adviceText || "";
+  // tip_sandra solo para tips de cocina (p. ej. publicar como Sandra).
+  // El aviso nutricional va en meal_type_advisory (info/warning), no como Tip de Sandra.
+  const tipSandra = hasCookingSteps
+    ? params.estimate.tip_sandra?.trim() || ""
+    : "";
   const cookingMinutes = params.estimate.tiempo_preparacion
     ? parseCookingMinutesFromLabel(params.estimate.tiempo_preparacion)
     : null;

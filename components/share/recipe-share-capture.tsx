@@ -4,6 +4,7 @@ import { forwardRef } from "react";
 import { RecipeShareBranding } from "@/components/scanner/recipe-share-branding";
 import { RecipeDetailMagazine } from "@/components/recipes/recipe-detail-magazine";
 import { IngeniaFoodLogo } from "@/components/shared/ingenia-food-logo";
+import { isExternalMeal } from "@/lib/plan/external-meal";
 import type { ShareableRecipe } from "@/lib/share/recipe-share-image";
 import type { AppliedRecipeFilters } from "@/lib/recipes/premium-recipe-filters";
 
@@ -27,6 +28,14 @@ export const RecipeShareCapture = forwardRef<HTMLDivElement, Props>(function Rec
   },
   ref
 ) {
+  const loggedMeal = isExternalMeal(recipe.tags);
+  const insightMessage =
+    (loggedMeal
+      ? recipe.meal_type_advisory?.trim() ||
+        mealTypeAdvisory?.trim() ||
+        recipe.tip_sandra?.trim()
+      : recipe.tip_sandra?.trim()) || "";
+
   return (
     <div
       id="recipe-container"
@@ -43,11 +52,16 @@ export const RecipeShareCapture = forwardRef<HTMLDivElement, Props>(function Rec
         hideInlineTipOnShare
         appliedFilters={appliedFilters}
         showAppliedFilters={showAppliedFilters}
-        mealTypeAdvisory={mealTypeAdvisory}
+        mealTypeAdvisory={
+          mealTypeAdvisory ?? recipe.meal_type_advisory ?? null
+        }
         isGeneratingPhoto={isGeneratingPhoto}
       />
 
-      <RecipeShareBranding tipSandra={recipe.tip_sandra ?? ""} />
+      <RecipeShareBranding
+        tipSandra={insightMessage}
+        variant={loggedMeal ? "advisory" : "sandra"}
+      />
     </div>
   );
 });

@@ -6,6 +6,8 @@ export type ShareableRecipe = {
   ingredientes_detallados: string[];
   pasos_ordenados?: string[];
   tip_sandra?: string;
+  /** Aviso nutricional (comidas escaneadas/registradas). */
+  meal_type_advisory?: string | null;
   tags?: string[];
   macronutrientes?: RecipeMacros | null;
   imageUrl?: string | null;

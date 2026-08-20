@@ -79,7 +79,7 @@ const RECIPE_LIST_SELECT_FALLBACK =
   "id,title,description,cooking_time,is_airfryer,is_flourless,is_public,created_at,user_id,image_url";
 
 const RECIPE_SHARE_SELECT =
-  "id,title,description,cooking_time,is_airfryer,is_flourless,is_public,created_at,user_id,ingredients,steps,instructions,image_url,reference_image_url,tip_sandra,instagram_url,meal_type,tags,macros,is_system_recipe,is_sandra_recipe";
+  "id,title,description,cooking_time,is_airfryer,is_flourless,is_public,created_at,user_id,ingredients,steps,instructions,image_url,reference_image_url,tip_sandra,instagram_url,meal_type,tags,macros,is_system_recipe,is_sandra_recipe,meal_type_advisory";
 
 function notScannerDraftFilter() {
   return `description.is.null,description.neq.${SCANNER_DRAFT_DESCRIPTION}`;

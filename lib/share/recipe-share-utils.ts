@@ -82,6 +82,7 @@ type SavedRecipeSource = {
   instructions: string;
   cooking_time: number | null;
   tip_sandra?: string | null;
+  meal_type_advisory?: string | null;
   is_airfryer?: boolean;
   is_flourless?: boolean;
   is_sandra_recipe?: boolean | null;
@@ -152,6 +153,7 @@ export function savedRecipeToShareable(recipe: SavedRecipeSource): ShareableReci
     ingredientes_detallados: ingredientes,
     pasos_ordenados: pasos,
     tip_sandra: recipe.tip_sandra ?? "",
+    meal_type_advisory: recipe.meal_type_advisory?.trim() || null,
     tags,
     macronutrientes: parseMacrosFromJson(recipe.macros),
     imageUrl: isExternalPlateOnly ? storedImage : imageUrl,

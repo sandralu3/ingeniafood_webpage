@@ -514,10 +514,18 @@ export function RecipeResultHeroCard({
             )}
 
             {recipe.tip_sandra ? (
-              <p className="mt-2 rounded-2xl bg-[#F0F4ED]/70 px-3 py-2 text-[11px] leading-relaxed text-[#3e5219]">
-                <span className="font-semibold">Tip de Sandra: </span>
-                {recipe.tip_sandra.replace(/^Tip de Sandra:\s*/i, "")}
-              </p>
+              isExternalMeal(recipe.tags) ? (
+                <ExternalTipInline message={recipe.tip_sandra} />
+              ) : (
+                <p className="mt-2 rounded-2xl bg-[#F0F4ED]/70 px-3 py-2 text-[11px] leading-relaxed text-[#3e5219]">
+                  <span className="font-semibold">
+                    {tDetail.has("sandraTipEyebrow")
+                      ? `${tDetail("sandraTipEyebrow")}: `
+                      : "Tip de Sandra: "}
+                  </span>
+                  {recipe.tip_sandra.replace(/^Tip de Sandra:\s*/i, "")}
+                </p>
+              )
             ) : null}
           </div>
         )}
@@ -601,5 +609,33 @@ function TabButton({
     >
       {label}
     </button>
+  );
+}
+
+/** Tip inline para comidas fuera/escaneadas (info o warning, nunca Tip de Sandra). */
+function ExternalTipInline({ message }: { message: string }) {
+  const tDetail = useTranslations("RecipeDetail");
+  const tone = inferAdvisoryTone(message);
+  const isWarning = tone === "warning";
+  const label = isWarning
+    ? tDetail.has("advisoryWarningEyebrow")
+      ? tDetail("advisoryWarningEyebrow")
+      : "Advertencia"
+    : tDetail.has("advisoryInfoEyebrow")
+      ? tDetail("advisoryInfoEyebrow")
+      : "Información";
+
+  return (
+    <p
+      className={cn(
+        "mt-2 rounded-2xl px-3 py-2 text-[11px] leading-relaxed",
+        isWarning
+          ? "bg-amber-50 text-amber-950"
+          : "bg-sky-50 text-sky-950"
+      )}
+    >
+      <span className="font-semibold">{label}: </span>
+      {message.replace(/^(Tip de Sandra|Advertencia|Información):\s*/i, "")}
+    </p>
   );
 }
