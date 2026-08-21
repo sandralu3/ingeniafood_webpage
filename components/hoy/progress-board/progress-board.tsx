@@ -546,6 +546,7 @@ export function ProgressBoard({
         firstName={firstName}
         isLoading={isDoseLoading}
         waterStatus={waterStatus}
+        userId={userId}
       />
 
       <NutritionCoachTeaserModal

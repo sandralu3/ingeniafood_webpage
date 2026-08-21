@@ -1,11 +1,41 @@
 # 📱 Guía de Pruebas Beta — IngeniaFood
 
 > Documento para testers. Lenguaje de **pantalla**: lo que ves, tocas y experimentas.  
-> Última actualización: **20 agosto 2026** (comidas escaneadas: info/warning, no Tip de Sandra)
+> Última actualización: **21 agosto 2026** (admin: reordenar pasos + informe semanal)
 
 ---
 
 ### 📣 Novedades por despliegue
+
+#### 21 agosto 2026
+
+**Admin · orden de pasos**
+- En **Editar receta (Admin)** puedes **reordenar los pasos** de preparación: arrastra el asa ⋮⋮ o usa las flechas ↑ ↓.
+- Guarda con **Guardar cambios** para aplicar el nuevo orden (útil antes de publicar como Receta de Sandra).
+
+**Informe nutricional semanal**
+- En **Plan** aparece un botón compacto **Informe semanal** (pill, bajo el selector de semana).
+- También desde el modal de **dosis nutricional** (Ver informe en Hoy): botón verde **Informe semanal** (CTA, no se confunde con las tarjetas del análisis).
+- El informe muestra medias diarias de kcal / proteínas / carbs / grasas frente a tus objetivos, un resumen día a día y **recomendaciones** para acercarte a la meta.
+- Si marcaste platos con **Ya comí**, usa eso; si no, se basa en el plan y te lo indica.
+- Desde el informe puedes ir a **Parámetros**, **Plan** o **Escáner**.
+- En **Hoy** no ocupa espacio propio en el scroll (el acceso vive en **Plan** y en la dosis).
+
+**Hoy · Ver plan**
+- En **Plan de hoy**, el enlace **Ver plan** pasa a ser un botón verde compacto (pill), más fácil de ver junto a las kcal.
+- Las kcal del día siguen a la izquierda del botón, sin mezclarse con el CTA.
+- Se quita la leyenda bajo el título («Toca un plato…»); eso ya se explica en el **Plan** semanal.
+
+**Qué probar de este despliegue**
+- [ ] Admin: en **Editar receta**, reordena pasos arrastrando el asa o con ↑ ↓ y guarda
+- [ ] En **Plan**, toca **Informe semanal** → se abre el modal con barras vs objetivos y recomendaciones
+- [ ] En **Hoy** → **Ver informe** (dosis) → botón verde **Informe semanal** abre el mismo modal
+- [ ] El informe respeta la semana seleccionada en el Plan
+- [ ] Si no hay «Ya comí», el texto indica que usa el plan; tras marcar comidas, usa lo consumido
+- [ ] Sin perfil completo: aparece consejo de ir a Parámetros
+- [ ] En **Hoy** no aparece la tarjeta grande de informe semanal en el scroll
+- [ ] En **Hoy**, **Ver plan** se ve como botón verde y abre **Plan**
+- [ ] Bajo «Plan de hoy» ya no aparece la leyenda de check / lápiz / papelera
 
 #### 20 agosto 2026
 

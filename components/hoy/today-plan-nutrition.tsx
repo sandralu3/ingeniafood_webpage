@@ -518,27 +518,20 @@ function TodayMenuSection({
       <div className="flex items-center justify-between gap-2 px-0.5">
         <div className="min-w-0">
           <h2 className="text-base font-bold text-[#3E5A3A]">{title}</h2>
-          {plannedCountLocal > 0 ? (
-            <p className="text-[10px] text-stone-400">
-              {t.has("dragToReorderHint")
-                ? t("dragToReorderHint")
-                : "Toca un plato para verlo, o usa el lápiz y la papelera para editarlo"}
-            </p>
-          ) : null}
         </div>
-        <Link
-          href={APP_ROUTES.plan}
-          className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap text-xs font-semibold text-stone-500 transition hover:text-[#3E5A3A]"
-        >
-          <span className="inline-flex items-center gap-0.5">
+        <div className="flex shrink-0 items-center gap-2">
+          <span className="inline-flex items-center gap-0.5 whitespace-nowrap text-xs font-semibold text-stone-500">
             <Flame className="h-3.5 w-3.5 shrink-0 text-[#F9A825]" strokeWidth={2} />
             {displayKcal}&nbsp;kcal
           </span>
-          <span className="inline-flex items-center gap-0.5 text-[#3E5A3A]">
+          <Link
+            href={APP_ROUTES.plan}
+            className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-[#556B2F] px-2.5 py-1 text-[11px] font-bold text-white shadow-sm shadow-[#556B2F]/20 transition hover:bg-[#3e5219] active:scale-[0.98]"
+          >
             {t("viewPlan")}
-            <ArrowRight className="h-3.5 w-3.5 shrink-0" />
-          </span>
-        </Link>
+            <ArrowRight className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} />
+          </Link>
+        </div>
       </div>
 
       {hasEmptySlots ? (

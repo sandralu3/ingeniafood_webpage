@@ -1,7 +1,31 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { useEffect, useId, useMemo, useState } from "react";
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import {
+  ChevronDown,
+  ChevronUp,
+  GripVertical,
+  Loader2,
+  Plus,
+  Trash2
+} from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
   RECIPE_MEAL_TYPES,
@@ -29,8 +53,122 @@ type Props = {
   }) => void;
 };
 
+type StepRow = { id: string; text: string };
+
 function normalizeList(items: string[]): string[] {
   return items.map((item) => item.trim()).filter((item) => item.length > 0);
+}
+
+function createStepId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `step-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function toStepRows(items: string[]): StepRow[] {
+  const source = items.length > 0 ? items : [""];
+  return source.map((text) => ({ id: createStepId(), text }));
+}
+
+function SortableStepRow({
+  step,
+  index,
+  total,
+  disabled,
+  onChange,
+  onRemove,
+  onMoveUp,
+  onMoveDown,
+  stepPlaceholder,
+  removeAria,
+  moveUpAria,
+  moveDownAria,
+  dragAria
+}: {
+  step: StepRow;
+  index: number;
+  total: number;
+  disabled: boolean;
+  onChange: (value: string) => void;
+  onRemove: () => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  stepPlaceholder: string;
+  removeAria: string;
+  moveUpAria: string;
+  moveDownAria: string;
+  dragAria: string;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: step.id, disabled });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition
+  };
+
+  return (
+    <li
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "flex items-start gap-1.5 rounded-lg",
+        isDragging && "z-10 opacity-90 shadow-md ring-1 ring-[#556B2F]/25"
+      )}
+    >
+      <button
+        type="button"
+        disabled={disabled}
+        className="mt-1.5 touch-none rounded-md p-1 text-stone-400 transition hover:bg-stone-100 hover:text-stone-600 disabled:opacity-40"
+        aria-label={dragAria}
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical className="h-4 w-4" strokeWidth={2} />
+      </button>
+      <span className="mt-1.5 w-5 shrink-0 text-center text-[10px] font-bold text-[#556B2F]">
+        {index + 1}
+      </span>
+      <textarea
+        value={step.text}
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={stepPlaceholder}
+        rows={2}
+        className="min-w-0 flex-1 resize-y rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-[12px] leading-snug text-stone-800 outline-none focus:border-[#556B2F] focus:ring-1 focus:ring-[#556B2F]/30 disabled:opacity-60"
+      />
+      <div className="mt-0.5 flex shrink-0 flex-col gap-0.5">
+        <button
+          type="button"
+          disabled={disabled || index === 0}
+          onClick={onMoveUp}
+          aria-label={moveUpAria}
+          className="rounded-md p-1 text-stone-400 transition hover:bg-stone-100 hover:text-stone-700 disabled:opacity-30"
+        >
+          <ChevronUp className="h-3.5 w-3.5" strokeWidth={2.25} />
+        </button>
+        <button
+          type="button"
+          disabled={disabled || index >= total - 1}
+          onClick={onMoveDown}
+          aria-label={moveDownAria}
+          className="rounded-md p-1 text-stone-400 transition hover:bg-stone-100 hover:text-stone-700 disabled:opacity-30"
+        >
+          <ChevronDown className="h-3.5 w-3.5" strokeWidth={2.25} />
+        </button>
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={onRemove}
+          aria-label={removeAria}
+          className="rounded-md p-1 text-stone-400 transition hover:bg-rose-50 hover:text-rose-600 disabled:opacity-40"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </div>
+    </li>
+  );
 }
 
 export function SandraRecipeContentEditor({
@@ -43,12 +181,11 @@ export function SandraRecipeContentEditor({
   onSaved
 }: Props) {
   const t = useTranslations("RecipeDetail");
+  const dndId = useId();
   const [ingredients, setIngredients] = useState<string[]>(
     initialIngredients.length > 0 ? initialIngredients : [""]
   );
-  const [steps, setSteps] = useState<string[]>(
-    initialSteps.length > 0 ? initialSteps : [""]
-  );
+  const [steps, setSteps] = useState<StepRow[]>(() => toStepRows(initialSteps));
   const [mealType, setMealType] = useState<RecipeMealType>(
     () => parseRecipeMealType(initialMealType) ?? "almuerzo"
   );
@@ -58,16 +195,25 @@ export function SandraRecipeContentEditor({
 
   useEffect(() => {
     setIngredients(initialIngredients.length > 0 ? initialIngredients : [""]);
-    setSteps(initialSteps.length > 0 ? initialSteps : [""]);
+    setSteps(toStepRows(initialSteps));
     setMealType(parseRecipeMealType(initialMealType) ?? "almuerzo");
   }, [initialIngredients, initialSteps, initialMealType, recipeId]);
+
+  const stepIds = useMemo(() => steps.map((step) => step.id), [steps]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
 
   const updateIngredient = (index: number, value: string) => {
     setIngredients((current) => current.map((item, i) => (i === index ? value : item)));
   };
 
-  const updateStep = (index: number, value: string) => {
-    setSteps((current) => current.map((item, i) => (i === index ? value : item)));
+  const updateStepText = (id: string, value: string) => {
+    setSteps((current) =>
+      current.map((step) => (step.id === id ? { ...step, text: value } : step))
+    );
   };
 
   const removeIngredient = (index: number) => {
@@ -76,16 +222,37 @@ export function SandraRecipeContentEditor({
     );
   };
 
-  const removeStep = (index: number) => {
+  const removeStep = (id: string) => {
     setSteps((current) =>
-      current.length <= 1 ? [""] : current.filter((_, i) => i !== index)
+      current.length <= 1
+        ? [{ id: createStepId(), text: "" }]
+        : current.filter((step) => step.id !== id)
     );
+  };
+
+  const moveStep = (index: number, direction: -1 | 1) => {
+    setSteps((current) => {
+      const nextIndex = index + direction;
+      if (nextIndex < 0 || nextIndex >= current.length) return current;
+      return arrayMove(current, index, nextIndex);
+    });
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    setSteps((current) => {
+      const oldIndex = current.findIndex((step) => step.id === active.id);
+      const newIndex = current.findIndex((step) => step.id === over.id);
+      if (oldIndex < 0 || newIndex < 0) return current;
+      return arrayMove(current, oldIndex, newIndex);
+    });
   };
 
   const handleSave = async () => {
     if (isSaving || disabled) return;
     const nextIngredients = normalizeList(ingredients);
-    const nextSteps = normalizeList(steps);
+    const nextSteps = normalizeList(steps.map((step) => step.text));
 
     if (nextIngredients.length === 0) {
       setError(t("adminEditNeedIngredients"));
@@ -124,7 +291,7 @@ export function SandraRecipeContentEditor({
 
       const savedMealType = parseRecipeMealType(payload.mealType) ?? mealType;
       setIngredients(nextIngredients);
-      setSteps(nextSteps);
+      setSteps(toStepRows(nextSteps));
       setMealType(savedMealType);
       setSuccess(payload.message || t("adminEditSuccess"));
       onSaved?.({
@@ -139,6 +306,8 @@ export function SandraRecipeContentEditor({
       setIsSaving(false);
     }
   };
+
+  const busy = disabled || isSaving;
 
   return (
     <section
@@ -160,7 +329,7 @@ export function SandraRecipeContentEditor({
         </span>
         <select
           value={mealType}
-          disabled={disabled || isSaving}
+          disabled={busy}
           onChange={(event) => {
             const next = parseRecipeMealType(event.target.value);
             if (next) setMealType(next);
@@ -182,7 +351,7 @@ export function SandraRecipeContentEditor({
           </p>
           <button
             type="button"
-            disabled={disabled || isSaving}
+            disabled={busy}
             onClick={() => setIngredients((current) => [...current, ""])}
             className="inline-flex items-center gap-1 rounded-full border border-[#556B2F]/25 bg-white px-2 py-1 text-[10px] font-semibold text-[#3e5219] transition hover:bg-[#eef4e6] disabled:opacity-50"
           >
@@ -196,14 +365,14 @@ export function SandraRecipeContentEditor({
               <input
                 type="text"
                 value={item}
-                disabled={disabled || isSaving}
+                disabled={busy}
                 onChange={(event) => updateIngredient(index, event.target.value)}
                 placeholder={t("adminEditIngredientPlaceholder")}
                 className="min-w-0 flex-1 rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-[12px] text-stone-800 outline-none focus:border-[#556B2F] focus:ring-1 focus:ring-[#556B2F]/30 disabled:opacity-60"
               />
               <button
                 type="button"
-                disabled={disabled || isSaving}
+                disabled={busy}
                 onClick={() => removeIngredient(index)}
                 aria-label={t("adminEditRemoveIngredient")}
                 className="mt-0.5 rounded-md p-1.5 text-stone-400 transition hover:bg-rose-50 hover:text-rose-600 disabled:opacity-40"
@@ -217,45 +386,69 @@ export function SandraRecipeContentEditor({
 
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-2">
-          <p className="text-[10px] font-bold uppercase tracking-wide text-[#556B2F]">
-            {t("preparation")}
-          </p>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-[#556B2F]">
+              {t("preparation")}
+            </p>
+            <p className="text-[10px] text-stone-400">
+              {t.has("adminEditReorderHint")
+                ? t("adminEditReorderHint")
+                : "Arrastra el asa o usa ↑ ↓ para cambiar el orden"}
+            </p>
+          </div>
           <button
             type="button"
-            disabled={disabled || isSaving}
-            onClick={() => setSteps((current) => [...current, ""])}
+            disabled={busy}
+            onClick={() =>
+              setSteps((current) => [...current, { id: createStepId(), text: "" }])
+            }
             className="inline-flex items-center gap-1 rounded-full border border-[#556B2F]/25 bg-white px-2 py-1 text-[10px] font-semibold text-[#3e5219] transition hover:bg-[#eef4e6] disabled:opacity-50"
           >
             <Plus className="h-3 w-3" strokeWidth={2} />
             {t("adminEditAddStep")}
           </button>
         </div>
-        <ol className="space-y-1.5">
-          {steps.map((item, index) => (
-            <li key={`step-${index}`} className="flex items-start gap-1.5">
-              <span className="mt-1.5 w-5 shrink-0 text-center text-[10px] font-bold text-[#556B2F]">
-                {index + 1}
-              </span>
-              <textarea
-                value={item}
-                disabled={disabled || isSaving}
-                onChange={(event) => updateStep(index, event.target.value)}
-                placeholder={t("adminEditStepPlaceholder")}
-                rows={2}
-                className="min-w-0 flex-1 resize-y rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-[12px] leading-snug text-stone-800 outline-none focus:border-[#556B2F] focus:ring-1 focus:ring-[#556B2F]/30 disabled:opacity-60"
-              />
-              <button
-                type="button"
-                disabled={disabled || isSaving}
-                onClick={() => removeStep(index)}
-                aria-label={t("adminEditRemoveStep")}
-                className="mt-0.5 rounded-md p-1.5 text-stone-400 transition hover:bg-rose-50 hover:text-rose-600 disabled:opacity-40"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
-            </li>
-          ))}
-        </ol>
+        <DndContext
+          id={dndId}
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext items={stepIds} strategy={verticalListSortingStrategy}>
+            <ol className="space-y-1.5">
+              {steps.map((step, index) => (
+                <SortableStepRow
+                  key={step.id}
+                  step={step}
+                  index={index}
+                  total={steps.length}
+                  disabled={busy}
+                  onChange={(value) => updateStepText(step.id, value)}
+                  onRemove={() => removeStep(step.id)}
+                  onMoveUp={() => moveStep(index, -1)}
+                  onMoveDown={() => moveStep(index, 1)}
+                  stepPlaceholder={t("adminEditStepPlaceholder")}
+                  removeAria={t("adminEditRemoveStep")}
+                  moveUpAria={
+                    t.has("adminEditMoveStepUp")
+                      ? t("adminEditMoveStepUp")
+                      : "Subir paso"
+                  }
+                  moveDownAria={
+                    t.has("adminEditMoveStepDown")
+                      ? t("adminEditMoveStepDown")
+                      : "Bajar paso"
+                  }
+                  dragAria={
+                    t.has("adminEditDragStep")
+                      ? t("adminEditDragStep")
+                      : "Arrastrar para reordenar"
+                  }
+                />
+              ))}
+            </ol>
+          </SortableContext>
+        </DndContext>
       </div>
 
       {error ? <p className="text-xs text-red-600">{error}</p> : null}
@@ -264,7 +457,7 @@ export function SandraRecipeContentEditor({
       <button
         type="button"
         onClick={() => void handleSave()}
-        disabled={disabled || isSaving}
+        disabled={busy}
         className={cn(
           "inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#556B2F] px-4 py-2.5 text-sm font-semibold text-white transition hover:brightness-110",
           "disabled:cursor-not-allowed disabled:opacity-60"

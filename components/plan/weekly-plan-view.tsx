@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Loader2, MoreVertical, ShoppingBag } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { OnboardingOverlay } from "@/components/onboarding/onboarding-overlay";
+import { WeeklyNutritionReportEntry } from "@/components/hoy/weekly-nutrition-report-entry";
 import { PlanDayCarousel } from "@/components/plan/plan-day-carousel";
 import { PlanDayMealsPanel } from "@/components/plan/plan-day-meals-panel";
 import { PlanRecipePickerModal } from "@/components/plan/plan-recipe-picker-modal";
@@ -768,6 +769,15 @@ export function WeeklyPlanView() {
             ) : null}
           </div>
         </header>
+
+        {userId ? (
+          <WeeklyNutritionReportEntry
+            userId={userId}
+            weekStart={weekStartDate}
+            variant="pill"
+            className="self-start"
+          />
+        ) : null}
 
         {isLoading ? <WeeklyPlanSkeleton /> : null}
 
