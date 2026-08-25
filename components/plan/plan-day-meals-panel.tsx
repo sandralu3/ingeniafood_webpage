@@ -52,7 +52,7 @@ type PlanDayMealsPanelProps = {
 };
 
 const PLAN_CARD_CLASS =
-  "rounded-2xl bg-[#FCFBFA] px-2.5 py-2 shadow-sm shadow-stone-200/25";
+  "rounded-2xl bg-[#FCFBFA] px-2 py-1.5 shadow-sm shadow-stone-200/25";
 
 const MEAL_SECTION_EMOJI: Record<MealType, string> = {
   Desayuno: "☀️",
@@ -82,10 +82,6 @@ export function PlanDayMealsPanel({
   const assignedMealTypes = MEAL_TYPES.filter(
     (type) => (day.slots[type]?.length ?? 0) > 0
   ).length;
-  const assignedItems = MEAL_TYPES.reduce(
-    (sum, type) => sum + (day.slots[type]?.length ?? 0),
-    0
-  );
   const hasEmptySlots = assignedMealTypes < MEAL_TYPES.length;
   const showPropose = Boolean(onProposeDayMenu) && hasEmptySlots;
   const resolvedWeekStart = weekStartISO ?? toISODateString(getMondayOfWeek());
@@ -171,13 +167,6 @@ export function PlanDayMealsPanel({
     ]
   );
 
-  const dragHint =
-    assignedItems > 0
-      ? t.has("dragToReorderHint")
-        ? t("dragToReorderHint")
-        : "Toca un plato para verlo. Usa el check, mover, el lápiz o la papelera"
-      : null;
-
   return (
     <section key={day.label} className={cn("animate-fade-in", PLAN_CARD_CLASS, className)}>
       <PlanDayProgressHeader
@@ -188,12 +177,13 @@ export function PlanDayMealsPanel({
         totalMeals={MEAL_TYPES.length}
         consumedKcal={day.nutrition.totalKcal}
         targetKcal={calorieTarget}
-        dragHint={dragHint}
+        dragHint={null}
       />
 
       {showPropose ? (
-        <div className="mb-2.5">
+        <div className="mb-1.5">
           <ProposeDayMenuBanner
+            variant="pill"
             isGenerating={isProposingDayMenu}
             isPremium={isPremium}
             hasPartialPlan={assignedMealTypes > 0}
@@ -251,76 +241,82 @@ export function PlanDayMealsPanel({
                     accent={accent}
                   />
 
-                  {meals.map((meal, index) => {
-                    const isComplement = index > 0;
-                    return (
-                      <PlanMealDraggable
-                        key={meal.id}
-                        data={{
-                          dayLabel: day.label,
-                          mealType,
-                          planEntryId: meal.id,
-                          title: meal.title,
-                          imageUrl: meal.imageUrl
-                        }}
-                        disabled={isMoving || isProposingDayMenu}
-                        className={isComplement ? "pl-4" : undefined}
-                      >
-                        <div
-                          className={cn(
-                            "w-full",
-                            isComplement
-                              ? "rounded-xl border border-stone-200/70 bg-[#FBF8F3] px-2.5 py-2 shadow-none"
-                              : "rounded-xl border border-stone-100/90 bg-white p-2.5 shadow-sm shadow-stone-100/20"
-                          )}
-                        >
-                          <PlanMealCard
-                            meal={meal}
-                            variant="panel"
-                            isComplement={isComplement}
-                            onMealRemoved={(removedMealType, planEntryId) =>
-                              onMealRemoved?.(day.label, removedMealType, planEntryId)
-                            }
-                            onRemoveError={onRemoveError ?? onSwapError}
-                            onChangeMeal={
-                              onChangeMeal
-                                ? (selected) => onChangeMeal(day.label, selected)
-                                : undefined
-                            }
-                            onMoveToMealType={(toMealType) =>
-                              void handleMove(
-                                {
-                                  dayLabel: day.label,
-                                  mealType,
-                                  planEntryId: meal.id,
-                                  title: meal.title,
-                                  imageUrl: meal.imageUrl
-                                },
-                                { dayLabel: day.label, mealType: toMealType }
-                              )
-                            }
-                            moveDisabled={isMoving || isProposingDayMenu}
-                            canMarkConsumed={canMarkConsumed}
-                            onConsumedChange={
-                              onConsumedChange
-                                ? (mealType, planEntryId, consumido) =>
-                                    onConsumedChange(day.label, mealType, planEntryId, consumido)
-                                : undefined
-                            }
-                          />
-                        </div>
-                      </PlanMealDraggable>
-                    );
-                  })}
-
-                  <div className={meals.length > 0 ? "pl-4" : undefined}>
+                  {meals.length === 0 ? (
                     <EmptyMealSlot
                       mealType={mealType}
                       isGenerating={slotGenerating}
-                      addComplement={meals.length > 0}
                       onAdd={() => onAddMeal?.(day.label, mealType)}
                     />
-                  </div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      <div className="-mx-1 flex gap-2 overflow-x-auto px-0.5 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                        {meals.map((meal, index) => {
+                          const isComplement = index > 0;
+                          return (
+                            <PlanMealDraggable
+                              key={meal.id}
+                              data={{
+                                dayLabel: day.label,
+                                mealType,
+                                planEntryId: meal.id,
+                                title: meal.title,
+                                imageUrl: meal.imageUrl
+                              }}
+                              disabled={isMoving || isProposingDayMenu}
+                              className="w-[30%] max-w-[8rem] shrink-0 sm:w-[8.5rem]"
+                            >
+                              <PlanMealCard
+                                meal={meal}
+                                variant="tile"
+                                isComplement={isComplement}
+                                onMealRemoved={(removedMealType, planEntryId) =>
+                                  onMealRemoved?.(day.label, removedMealType, planEntryId)
+                                }
+                                onRemoveError={onRemoveError ?? onSwapError}
+                                onChangeMeal={
+                                  onChangeMeal
+                                    ? (selected) => onChangeMeal(day.label, selected)
+                                    : undefined
+                                }
+                                onMoveToMealType={(toMealType) =>
+                                  void handleMove(
+                                    {
+                                      dayLabel: day.label,
+                                      mealType,
+                                      planEntryId: meal.id,
+                                      title: meal.title,
+                                      imageUrl: meal.imageUrl
+                                    },
+                                    { dayLabel: day.label, mealType: toMealType }
+                                  )
+                                }
+                                moveDisabled={isMoving || isProposingDayMenu}
+                                canMarkConsumed={canMarkConsumed}
+                                onConsumedChange={
+                                  onConsumedChange
+                                    ? (movedMealType, planEntryId, consumido) =>
+                                        onConsumedChange(
+                                          day.label,
+                                          movedMealType,
+                                          planEntryId,
+                                          consumido
+                                        )
+                                    : undefined
+                                }
+                              />
+                            </PlanMealDraggable>
+                          );
+                        })}
+                      </div>
+
+                      <EmptyMealSlot
+                        mealType={mealType}
+                        isGenerating={slotGenerating}
+                        addComplement
+                        onAdd={() => onAddMeal?.(day.label, mealType)}
+                      />
+                    </div>
+                  )}
                 </PlanMealDroppable>
               </li>
             );

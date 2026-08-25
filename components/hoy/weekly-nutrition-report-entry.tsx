@@ -14,10 +14,11 @@ type Props = {
   className?: string;
   /**
    * pill — compacto (Plan)
+   * icon — solo icono (cabecera estrecha)
    * card — bloque con leyenda
    * cta — botón de acción (dosis / modales)
    */
-  variant?: "card" | "pill" | "cta";
+  variant?: "card" | "pill" | "cta" | "icon";
 };
 
 export function WeeklyNutritionReportEntry({
@@ -46,7 +47,20 @@ export function WeeklyNutritionReportEntry({
 
   return (
     <>
-      {variant === "pill" ? (
+      {variant === "icon" ? (
+        <button
+          type="button"
+          onClick={openReport}
+          aria-label={label}
+          title={label}
+          className={cn(
+            "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[#556B2F]/25 bg-[#eef4e6] text-[#3e5219] transition hover:bg-[#e0ebd4]",
+            className
+          )}
+        >
+          <BarChart3 className="h-3.5 w-3.5" strokeWidth={2.25} />
+        </button>
+      ) : variant === "pill" ? (
         <button
           type="button"
           onClick={openReport}

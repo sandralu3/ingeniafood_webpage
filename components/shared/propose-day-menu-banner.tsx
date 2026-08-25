@@ -17,6 +17,8 @@ type ProposeDayMenuBannerProps = {
   onUnlockPremium?: () => void;
   /** Si no hay usuario, el banner actúa como enlace (solo Hoy). */
   hrefWhenUnauthenticated?: string;
+  /** pill = CTA bajo (Plan); default = banner ancho (Hoy). */
+  variant?: "banner" | "pill";
   className?: string;
 };
 
@@ -31,6 +33,7 @@ export function ProposeDayMenuBanner({
   onGenerate,
   onUnlockPremium,
   hrefWhenUnauthenticated,
+  variant = "banner",
   className
 }: ProposeDayMenuBannerProps) {
   const tHoy = useTranslations("Hoy");
@@ -63,6 +66,47 @@ export function ProposeDayMenuBanner({
         : tPlan.has("proposeDayMenu")
           ? tPlan("proposeDayMenu").replace(/✨/g, "").trim()
           : "Proponer menú del día";
+
+  if (variant === "pill") {
+    const pillClass = cn(
+      "inline-flex w-full items-center justify-center gap-1.5 rounded-full border border-[#e8d4b0] bg-[#F6E2C3]/90 px-3 py-1.5 text-[11px] font-semibold text-[#3D2E1F] transition hover:brightness-[0.98] disabled:cursor-wait disabled:opacity-70",
+      className
+    );
+    const pillBody = (
+      <>
+        {isGenerating ? (
+          <Loader2 className="h-3 w-3 animate-spin text-[#C27803]" />
+        ) : (
+          <Sparkles className="h-3 w-3 text-[#C27803]" strokeWidth={2} />
+        )}
+        <span className="truncate">{title}</span>
+        {!premiumReady && !isGenerating ? (
+          <span className="shrink-0 rounded-md bg-[#EDE5D4] px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wide text-[#5C4A32]">
+            Pro
+          </span>
+        ) : null}
+      </>
+    );
+
+    if (hrefWhenUnauthenticated) {
+      return (
+        <Link href={hrefWhenUnauthenticated} className={pillClass}>
+          {pillBody}
+        </Link>
+      );
+    }
+
+    return (
+      <button
+        type="button"
+        onClick={handleClick}
+        disabled={isGenerating || isPremiumLoading}
+        className={pillClass}
+      >
+        {pillBody}
+      </button>
+    );
+  }
 
   const sharedClass = cn(
     "flex w-full items-center gap-2 rounded-[18px] bg-[#F6E2C3] px-3 py-2 text-left transition hover:brightness-[0.98] disabled:cursor-wait disabled:opacity-70",

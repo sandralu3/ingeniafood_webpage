@@ -1,11 +1,27 @@
 # 📱 Guía de Pruebas Beta — IngeniaFood
 
 > Documento para testers. Lenguaje de **pantalla**: lo que ves, tocas y experimentas.  
-> Última actualización: **21 agosto 2026** (admin: reordenar pasos + informe semanal)
+> Última actualización: **25 agosto 2026** (plan: cabecera compacta + carrusel)
 
 ---
 
 ### 📣 Novedades por despliegue
+
+#### 25 agosto 2026
+
+**Plan · cabecera más compacta**
+- Encima de las comidas hay menos espacio: el título **Tu plan semanal** se ve completo; el informe es un icono en la cabecera; el selector de días es más bajo.
+- **Sugerir comidas que faltan** pasa a ser una **píldora baja** (no un banner alto).
+- Así el carrusel de platos queda más arriba y con más protagonismo.
+
+**Plan · receta y complementos en carrusel**
+- En cada comida del día, los platos se muestran en **fila horizontal** (carrusel).
+- Principal y complementos van **uno al lado del otro**; debajo, píldora **Agregar complemento**.
+
+**Qué probar de este despliegue**
+- [ ] En **Plan**, el título se lee **Tu plan semanal** (sin «…»)
+- [ ] **Informe semanal** abre desde el icono de gráfico en la cabecera
+- [ ] **Sugerir comidas que faltan** es una píldora fina (no un bloque alto)
 
 #### 21 agosto 2026
 
@@ -14,7 +30,7 @@
 - Guarda con **Guardar cambios** para aplicar el nuevo orden (útil antes de publicar como Receta de Sandra).
 
 **Informe nutricional semanal**
-- En **Plan** aparece un botón compacto **Informe semanal** (pill, bajo el selector de semana).
+- En **Plan** aparece el acceso al **Informe semanal** como icono (gráfico) en la fila del título.
 - También desde el modal de **dosis nutricional** (Ver informe en Hoy): botón verde **Informe semanal** (CTA, no se confunde con las tarjetas del análisis).
 - El informe muestra medias diarias de kcal / proteínas / carbs / grasas frente a tus objetivos, un resumen día a día y **recomendaciones** para acercarte a la meta.
 - Si marcaste platos con **Ya comí**, usa eso; si no, se basa en el plan y te lo indica.
@@ -431,10 +447,10 @@ Disponible desde el **Plan**, al elegir o cambiar un plato (en **hoy** o **días
    - **kcal** (icono llama) y **tiempo** (reloj)
    - **Badges de macros**: `…g P` (verde), `…g C` (naranja), `…g G` (rosa), si hay datos
    - Botones circulares de **check (Ya comí)**, **mover** (flechas), **lápiz** y **papelera** (el check solo en **hoy** o **días pasados**)
-5. Con una comida ya puesta, pulsa el botón píldora con borde punteado **«Agregar complemento»**.
-6. El complemento debe verse **anidado debajo** (fondo crema claro):
-   - Etiqueta **«Agregado de Complemento:»**
-   - Miniatura, nombre, kcal y acciones editar/eliminar
+5. Con una comida ya puesta, pulsa el botón píldora **«Agregar complemento»** debajo del carrusel.
+6. El complemento debe verse **al lado** de la receta principal (misma fila, deslizable):
+   - Badge **«Complemento»** sobre la foto
+   - Título, kcal y acciones (check / mover / editar / eliminar)
 
 #### Cambiar, eliminar, mover o marcar «Ya comí»
 1. **Lápiz** → **Cambiar plato** → elige otra receta.
@@ -464,8 +480,8 @@ Disponible desde el **Plan**, al elegir o cambiar un plato (en **hoy** o **días
 - [ ] Macros visibles en las tarjetas de comida (si la receta los tiene)
 - [ ] Picker: rejilla 3 cols + skeleton al cargar + pie con 3 acciones + aviso (i) ámbar
 - [ ] Escanear despensa → diálogo Continuar → al Guardar: **Añadir al plan** vs **Solo guardar**
-- [ ] Complemento anidado debajo del plato principal
-- [ ] Botón «Agregar complemento» en estilo píldora
+- [ ] Complemento al lado del plato principal en carrusel horizontal
+- [ ] Botón «Agregar complemento» visible debajo del carrusel (píldora)
 - [ ] CTA de snacks verde musgo con ✨ y kcal
 - [ ] Proponer menú del día (Premium vs Free)
 - [ ] **Mover** un plato (p. ej. de Desayuno a Almuerzo): desaparece del origen y aparece en el destino

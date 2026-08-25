@@ -62,7 +62,7 @@ type PlanMealCardProps = {
     planEntryId: string,
     consumido: boolean
   ) => void;
-  variant?: "default" | "slot" | "panel";
+  variant?: "default" | "slot" | "panel" | "tile";
   /** Segundo+ plato del mismo bloque: UI secundaria / anidada. */
   isComplement?: boolean;
   className?: string;
@@ -916,6 +916,128 @@ export function PlanMealCard({
     ) : null}
     </>
   );
+
+  if (variant === "tile") {
+    const accent = getMealTypeSubtleAccent(meal.mealType);
+    const hasImage = Boolean(meal.imageUrl) || hasReel;
+
+    return (
+      <>
+        <article
+          className={cn(
+            "flex h-full w-full flex-col overflow-hidden rounded-lg border border-stone-100/90 bg-white shadow-sm shadow-stone-200/25",
+            className
+          )}
+        >
+          <div className="relative aspect-[5/4] w-full shrink-0 bg-stone-100">
+            <Link
+              href={recipeDetailHref(meal.recipeId)}
+              data-no-dnd="true"
+              className="absolute inset-0 block"
+              aria-label={viewRecipeAria}
+            >
+              {hasImage ? (
+                <RecipeMedia
+                  imageUrl={meal.imageUrl}
+                  isSocialVideo={hasReel}
+                  variant="fill"
+                  className="absolute inset-0 h-full w-full"
+                />
+              ) : (
+                <span
+                  className={cn(
+                    "flex h-full w-full items-center justify-center",
+                    accent.iconCircleBg,
+                    accent.iconText
+                  )}
+                >
+                  {(() => {
+                    const Icon = getMealTypeIcon(meal.mealType);
+                    return <Icon className="h-6 w-6" strokeWidth={1.75} />;
+                  })()}
+                </span>
+              )}
+            </Link>
+            {isComplement ? (
+              <span className="pointer-events-none absolute left-1 top-1 z-10 rounded-md bg-white/90 px-1 py-0.5 text-[7px] font-bold uppercase tracking-wide text-stone-600 shadow-sm ring-1 ring-stone-200/80">
+                {t.has("complementBadge") ? t("complementBadge") : "Complemento"}
+              </span>
+            ) : null}
+            {meal.instagramUrl ? (
+              <div className="absolute right-0.5 top-0.5 z-10 scale-[0.8]" data-no-dnd="true">
+                <RecipeInstagramLink url={meal.instagramUrl} variant="icon" />
+              </div>
+            ) : null}
+          </div>
+
+          <div className="flex min-h-0 flex-1 flex-col gap-0.5 px-1.5 pb-1 pt-1" data-no-dnd="true">
+            <Link href={recipeDetailHref(meal.recipeId)} className="block min-w-0" aria-label={viewRecipeAria}>
+              <h3 className="line-clamp-2 text-[9px] font-bold leading-snug text-stone-800">
+                {meal.title}
+              </h3>
+            </Link>
+
+            <div className="flex min-w-0 flex-wrap items-center gap-0.5">
+              {!isComplement ? (
+                <span
+                  className={cn(
+                    "inline-flex shrink-0 rounded-md px-1 py-0.5 text-[7px] font-bold uppercase tracking-wide",
+                    accent.iconCircleBg,
+                    accent.iconText
+                  )}
+                >
+                  {mealTypeLabel}
+                </span>
+              ) : null}
+              {meal.externalBadge ? (
+                <ExternalMealBadgePill badge={meal.externalBadge} compact inline />
+              ) : null}
+              {meal.consumido ? (
+                <span className="inline-flex shrink-0 items-center rounded-md bg-[#eef4e6] px-1 py-0.5 text-[7px] font-bold uppercase tracking-wide text-[#3e5219] ring-1 ring-[#556B2F]/20">
+                  {consumedBadgeLabel}
+                </span>
+              ) : null}
+              {meal.kcal ? (
+                <span className="shrink-0 text-[8px] font-semibold tabular-nums text-stone-400">
+                  {meal.kcal} kcal
+                </span>
+              ) : null}
+            </div>
+
+            <div className="mt-auto flex justify-end">
+              <CompactActionButtons
+                compact
+                mini
+                isRemoving={isRemoving}
+                removeDisabled={removeDisabled}
+                changeDisabled={removeDisabled}
+                onRemove={requestRemove}
+                onChange={onChangeMeal ? handleChange : undefined}
+                onMove={
+                  onMoveToMealType
+                    ? () => {
+                        if (removeDisabled) return;
+                        setIsMoveDialogOpen(true);
+                      }
+                    : undefined
+                }
+                onToggleConsumed={allowMarkConsumed ? () => void handleToggleConsumed() : undefined}
+                canMarkConsumed={allowMarkConsumed}
+                isConsumed={Boolean(meal.consumido)}
+                isTogglingConsumed={isTogglingConsumed}
+                removeAria={removeAria}
+                changeAria={changeAria}
+                moveAria={moveAria}
+                markConsumedAria={markConsumedAria}
+                undoConsumedAria={undoConsumedAria}
+              />
+            </div>
+          </div>
+        </article>
+        {confirmDialog}
+      </>
+    );
+  }
 
   if (isPanel || variant === "default") {
     return (

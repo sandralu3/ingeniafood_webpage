@@ -666,118 +666,121 @@ export function WeeklyPlanView() {
   const shoppingListTitle = `${formatWeekDateLabel(weekStart)} - ${formatWeekDateLabel(weekEnd)}`;
 
   return (
-    <div className="-mx-4 min-h-full bg-gradient-to-b from-stone-50 via-amber-50/20 to-sv-surface px-4 pb-2 pt-1">
-      <section className="space-y-2">
-        <header className="mb-1 flex items-center gap-1.5">
-          <h1 className="min-w-0 flex-1 truncate font-serif text-base font-semibold text-stone-900">
-            {t("title")}
-          </h1>
+    <div className="-mx-4 min-h-full bg-gradient-to-b from-stone-50 via-amber-50/20 to-sv-surface px-4 pb-2 pt-0.5">
+      <section className="space-y-1.5">
+        <header className="flex flex-col gap-1">
+          <div className="flex items-center gap-1.5">
+            <h1 className="shrink-0 font-serif text-[15px] font-semibold leading-tight text-stone-900 sm:text-base">
+              {t("title")}
+            </h1>
 
-          <div className="flex shrink-0 items-center rounded-full border border-stone-100 bg-white p-0.5 shadow-sm">
-            <button
-              type="button"
-              onClick={goPrevWeek}
-              disabled={isLoading || isCloningWeek}
-              className={cn(
-                "rounded-full p-1 text-stone-500 transition-colors hover:bg-stone-50",
-                isLoading || isCloningWeek ? "cursor-not-allowed opacity-50" : ""
-              )}
-              aria-label={t("prevWeek")}
-            >
-              <ChevronLeft className="h-3.5 w-3.5" strokeWidth={2.25} />
-            </button>
-
-            <span className="w-[4.75rem] select-none truncate text-center text-[10px] font-semibold text-stone-700">
-              {weekRangeLabel}
-            </span>
-
-            <button
-              type="button"
-              onClick={goNextWeek}
-              disabled={isLoading || isCloningWeek}
-              className={cn(
-                "rounded-full p-1 text-stone-500 transition-colors hover:bg-stone-50",
-                isLoading || isCloningWeek ? "cursor-not-allowed opacity-50" : ""
-              )}
-              aria-label={t("nextWeek")}
-            >
-              <ChevronRight className="h-3.5 w-3.5" strokeWidth={2.25} />
-            </button>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => void openShoppingList()}
-            disabled={isLoading || isShoppingListLoading}
-            data-onboarding="plan-shopping-list"
-            className={cn(
-              "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-stone-200/60 bg-white text-[#556B2F] shadow-sm transition",
-              "hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
-            )}
-            aria-label={t("shoppingListButton")}
-            title={t("shoppingListButton")}
-          >
-            {isShoppingListLoading ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2} />
-            ) : (
-              <ShoppingBag className="h-3.5 w-3.5" strokeWidth={2} />
-            )}
-          </button>
-
-          <div className="relative shrink-0">
-            <button
-              type="button"
-              onClick={() => setActionsOpen((current) => !current)}
-              disabled={isLoading || isCloningWeek}
-              className={cn(
-                "flex h-8 w-8 items-center justify-center rounded-full border border-stone-200/60 bg-stone-100 text-stone-600 transition hover:bg-stone-200/50",
-                isLoading || isCloningWeek ? "cursor-not-allowed opacity-60" : ""
-              )}
-              aria-label={t("actionsAria")}
-            >
-              <MoreVertical className="h-3.5 w-3.5" strokeWidth={2.25} />
-            </button>
-
-            {actionsOpen ? (
-              <div className="absolute right-0 z-30 mt-2 w-64 overflow-hidden rounded-2xl border border-stone-100 bg-white shadow-lg">
+            <div className="ml-auto flex min-w-0 shrink-0 items-center gap-1">
+              <div className="flex items-center rounded-full border border-stone-100 bg-white p-0.5 shadow-sm">
                 <button
                   type="button"
-                  onClick={() => void clonePreviousWeek()}
-                  data-onboarding="plan-copy-previous-week"
-                  disabled={
-                    isCloningWeek ||
-                    isCheckingCloneAvailability ||
-                    canClonePreviousWeek === false
-                  }
+                  onClick={goPrevWeek}
+                  disabled={isLoading || isCloningWeek}
                   className={cn(
-                    "flex w-full items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-stone-800 transition",
-                    "hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
+                    "rounded-full p-1 text-stone-500 transition-colors hover:bg-stone-50",
+                    isLoading || isCloningWeek ? "cursor-not-allowed opacity-50" : ""
                   )}
+                  aria-label={t("prevWeek")}
                 >
-                  <span>
-                    {isCheckingCloneAvailability
-                      ? t("checkingClone")
-                      : canClonePreviousWeek
-                        ? t("copyPreviousWeek")
-                        : t("noPreviousWeek")}
-                  </span>
-                  {isCloningWeek || isCheckingCloneAvailability ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : null}
+                  <ChevronLeft className="h-3.5 w-3.5" strokeWidth={2.25} />
+                </button>
+
+                <span className="w-[4.75rem] select-none truncate text-center text-[10px] font-semibold text-stone-700">
+                  {weekRangeLabel}
+                </span>
+
+                <button
+                  type="button"
+                  onClick={goNextWeek}
+                  disabled={isLoading || isCloningWeek}
+                  className={cn(
+                    "rounded-full p-1 text-stone-500 transition-colors hover:bg-stone-50",
+                    isLoading || isCloningWeek ? "cursor-not-allowed opacity-50" : ""
+                  )}
+                  aria-label={t("nextWeek")}
+                >
+                  <ChevronRight className="h-3.5 w-3.5" strokeWidth={2.25} />
                 </button>
               </div>
-            ) : null}
+
+              {userId ? (
+                <WeeklyNutritionReportEntry
+                  userId={userId}
+                  weekStart={weekStartDate}
+                  variant="icon"
+                />
+              ) : null}
+
+              <button
+                type="button"
+                onClick={() => void openShoppingList()}
+                disabled={isLoading || isShoppingListLoading}
+                data-onboarding="plan-shopping-list"
+                className={cn(
+                  "flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-stone-200/60 bg-white text-[#556B2F] shadow-sm transition",
+                  "hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
+                )}
+                aria-label={t("shoppingListButton")}
+                title={t("shoppingListButton")}
+              >
+                {isShoppingListLoading ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2} />
+                ) : (
+                  <ShoppingBag className="h-3.5 w-3.5" strokeWidth={2} />
+                )}
+              </button>
+
+              <div className="relative shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setActionsOpen((current) => !current)}
+                  disabled={isLoading || isCloningWeek}
+                  className={cn(
+                    "flex h-7 w-7 items-center justify-center rounded-full border border-stone-200/60 bg-stone-100 text-stone-600 transition hover:bg-stone-200/50",
+                    isLoading || isCloningWeek ? "cursor-not-allowed opacity-60" : ""
+                  )}
+                  aria-label={t("actionsAria")}
+                >
+                  <MoreVertical className="h-3.5 w-3.5" strokeWidth={2.25} />
+                </button>
+
+                {actionsOpen ? (
+                  <div className="absolute right-0 z-30 mt-2 w-64 overflow-hidden rounded-2xl border border-stone-100 bg-white shadow-lg">
+                    <button
+                      type="button"
+                      onClick={() => void clonePreviousWeek()}
+                      data-onboarding="plan-copy-previous-week"
+                      disabled={
+                        isCloningWeek ||
+                        isCheckingCloneAvailability ||
+                        canClonePreviousWeek === false
+                      }
+                      className={cn(
+                        "flex w-full items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-stone-800 transition",
+                        "hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
+                      )}
+                    >
+                      <span>
+                        {isCheckingCloneAvailability
+                          ? t("checkingClone")
+                          : canClonePreviousWeek
+                            ? t("copyPreviousWeek")
+                            : t("noPreviousWeek")}
+                      </span>
+                      {isCloningWeek || isCheckingCloneAvailability ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : null}
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            </div>
           </div>
         </header>
-
-        {userId ? (
-          <WeeklyNutritionReportEntry
-            userId={userId}
-            weekStart={weekStartDate}
-            variant="pill"
-            className="self-start"
-          />
-        ) : null}
 
         {isLoading ? <WeeklyPlanSkeleton /> : null}
 

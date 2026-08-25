@@ -36,8 +36,8 @@ export function PlanDayCarousel({
   }, [selectedDay]);
 
   return (
-    <section className={cn("w-full py-0.5", className)}>
-      <div className="grid w-full grid-cols-7 gap-1">
+    <section className={cn("w-full", className)}>
+      <div className="grid w-full grid-cols-7 gap-0.5">
         {days.map((day) => {
           const isSelected = day.label === selectedDay;
           const assignedCount = MEAL_TYPES.filter(
@@ -55,7 +55,7 @@ export function PlanDayCarousel({
               aria-current={isSelected ? "date" : undefined}
               aria-label={`${t(`days.${day.label}`)} ${day.dateLabel}${day.isToday ? ` · ${t("today")}` : ""}`}
               className={cn(
-                "flex w-full min-w-0 flex-col items-center gap-1 rounded-2xl px-0.5 pb-1.5 pt-1.5 transition-colors",
+                "flex w-full min-w-0 flex-col items-center gap-0.5 rounded-xl px-0.5 py-1 transition-colors",
                 isSelected
                   ? "border border-[#88ab75]/45 bg-[#F0F4ED] shadow-sm shadow-[#88ab75]/15"
                   : "border border-transparent bg-white/80 hover:bg-stone-50"
@@ -63,7 +63,7 @@ export function PlanDayCarousel({
             >
               <span
                 className={cn(
-                  "text-[10px] font-medium uppercase tracking-wide",
+                  "text-[9px] font-medium uppercase tracking-wide",
                   isSelected ? "text-[#5A7843]" : "text-stone-400"
                 )}
               >
@@ -71,14 +71,14 @@ export function PlanDayCarousel({
               </span>
               <span
                 className={cn(
-                  "text-sm font-bold tabular-nums leading-none",
+                  "text-[13px] font-bold tabular-nums leading-none",
                   isSelected ? "text-[#3E5A3A]" : "text-stone-700"
                 )}
               >
                 {dayNumberFromLabel(day.dateLabel)}
               </span>
               <div
-                className="mx-auto mb-0.5 h-1 w-6 max-w-[70%] overflow-hidden rounded-full bg-stone-200"
+                className="mx-auto h-0.5 w-5 max-w-[70%] overflow-hidden rounded-full bg-stone-200"
                 aria-hidden
               >
                 <div

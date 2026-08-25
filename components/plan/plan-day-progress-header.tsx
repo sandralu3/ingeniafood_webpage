@@ -94,30 +94,30 @@ export function PlanDayProgressHeader({
   );
 
   return (
-    <div className={cn("mb-3 flex items-center gap-3", className)}>
+    <div className={cn("mb-1.5 flex items-center gap-2", className)}>
       <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
-          <h2 className="font-serif text-sm font-semibold text-stone-900">{dayTitle}</h2>
+        <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0">
+          <h2 className="font-serif text-[13px] font-semibold text-stone-900">{dayTitle}</h2>
           {isToday ? (
             <span className="text-[10px] font-semibold text-[#556B2F]">
               · {t("today")}
             </span>
           ) : null}
-          <span className="text-[11px] text-stone-500">{dateLabel}</span>
+          <span className="text-[10px] text-stone-500">{dateLabel}</span>
         </div>
         {dragHint ? (
-          <p className="mt-0.5 text-[10px] leading-snug text-stone-400">{dragHint}</p>
+          <p className="mt-0.5 line-clamp-1 text-[9px] leading-snug text-stone-400">{dragHint}</p>
         ) : null}
       </div>
 
-      <DonutProgress value={completedMeals} max={totalMeals} />
+      <DonutProgress value={completedMeals} max={totalMeals} size={44} stroke={5} />
 
       <div className="shrink-0 text-right">
-        <p className="text-base font-bold leading-none text-orange-600">
+        <p className="text-sm font-bold leading-none text-orange-600">
           {formattedConsumed}{" "}
-          <span className="text-[11px] font-semibold">kcal</span>
+          <span className="text-[10px] font-semibold">kcal</span>
         </p>
-        <p className="mt-1 text-[10px] font-medium text-stone-400">
+        <p className="mt-0.5 text-[9px] font-medium text-stone-400">
           {t("calorieGoalLabel", { kcal: formattedTarget })}
         </p>
       </div>
