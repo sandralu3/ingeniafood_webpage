@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { AdvancedRecipeFilters } from "@/components/scanner/advanced-recipe-filters";
 import { IngredientCombobox } from "@/components/scanner/ingredient-combobox";
-import { PhotoSourcePicker } from "@/components/ui/photo-source-picker";
+import { MealPhotoSourceCards } from "@/components/ui/meal-photo-source-cards";
 import { SwipeToCloseHandle } from "@/components/ui/swipe-to-close-handle";
 import type {
   RecipeCuisineStyle,
@@ -599,18 +599,42 @@ export function PantrySearchView({
             className="fixed inset-x-0 bottom-0 z-[80] rounded-t-3xl border-t border-stone-100 bg-white p-3 pb-5 shadow-2xl"
           >
             <SwipeToCloseHandle onClose={closeSourceModal} disabled={false} thresholdPx={70} />
-            <PhotoSourcePicker
-              titleId="source-modal-title"
-              title={
+            <div id="source-modal-title" className="sr-only">
+              {t.has("addPantryPhotoTitle")
+                ? t("addPantryPhotoTitle")
+                : "Añadir foto de tu despensa"}
+            </div>
+            <MealPhotoSourceCards
+              showCancel
+              takePhotoLabel={
+                t.has("takePhotoLabel") ? t("takePhotoLabel") : "Tomar foto"
+              }
+              galleryLabel={
+                t.has("chooseGalleryLabel")
+                  ? t("chooseGalleryLabel")
+                  : "Elegir de galería"
+              }
+              takePhotoHint={
+                t.has("photoCameraHint")
+                  ? t("photoCameraHint")
+                  : "Abre la cámara ahora"
+              }
+              galleryHint={
+                t.has("photoGalleryHint")
+                  ? t("photoGalleryHint")
+                  : "Usa una foto que ya tengas"
+              }
+              sectionLabel={
                 t.has("addPantryPhotoTitle")
                   ? t("addPantryPhotoTitle")
                   : "Añadir foto de tu despensa"
               }
+              cancelLabel={
+                t.has("cancelPhotoSource") ? t("cancelPhotoSource") : "Cancelar"
+              }
               onTakePhoto={openCameraInput}
               onChooseGallery={openGalleryInput}
-              showCancel
               onCancel={closeSourceModal}
-              className="border-0 p-0"
             />
           </div>
         </>

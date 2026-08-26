@@ -54,6 +54,9 @@ type PlanDayMealsPanelProps = {
 const PLAN_CARD_CLASS =
   "rounded-2xl bg-[#FCFBFA] px-2 py-1.5 shadow-sm shadow-stone-200/25";
 
+/** Ancho alineado con PlanMealCard variant=tile */
+const PLAN_MEAL_TILE_WIDTH = "w-[30%] max-w-[8rem] shrink-0 sm:w-[8.5rem]";
+
 const MEAL_SECTION_EMOJI: Record<MealType, string> = {
   Desayuno: "☀️",
   Almuerzo: "🌤️",
@@ -242,11 +245,26 @@ export function PlanDayMealsPanel({
                   />
 
                   {meals.length === 0 ? (
-                    <EmptyMealSlot
-                      mealType={mealType}
-                      isGenerating={slotGenerating}
-                      onAdd={() => onAddMeal?.(day.label, mealType)}
-                    />
+                    <div className="-mx-1 flex gap-2 overflow-x-auto px-0.5 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                      <div className={PLAN_MEAL_TILE_WIDTH}>
+                        <EmptyMealSlot
+                          mealType={mealType}
+                          variant="ghost-tile"
+                          isGenerating={slotGenerating}
+                          onAdd={() => onAddMeal?.(day.label, mealType)}
+                        />
+                      </div>
+                      <div className={PLAN_MEAL_TILE_WIDTH}>
+                        <EmptyMealSlot
+                          mealType={mealType}
+                          variant="ghost-tile"
+                          addComplement
+                          interactive={false}
+                          isGenerating={slotGenerating}
+                          onAdd={() => onAddMeal?.(day.label, mealType)}
+                        />
+                      </div>
+                    </div>
                   ) : (
                     <div className="space-y-1.5">
                       <div className="-mx-1 flex gap-2 overflow-x-auto px-0.5 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -263,7 +281,7 @@ export function PlanDayMealsPanel({
                                 imageUrl: meal.imageUrl
                               }}
                               disabled={isMoving || isProposingDayMenu}
-                              className="w-[30%] max-w-[8rem] shrink-0 sm:w-[8.5rem]"
+                              className={PLAN_MEAL_TILE_WIDTH}
                             >
                               <PlanMealCard
                                 meal={meal}
@@ -307,14 +325,27 @@ export function PlanDayMealsPanel({
                             </PlanMealDraggable>
                           );
                         })}
+                        {meals.length === 1 ? (
+                          <div className={PLAN_MEAL_TILE_WIDTH}>
+                            <EmptyMealSlot
+                              mealType={mealType}
+                              variant="ghost-tile"
+                              addComplement
+                              isGenerating={slotGenerating}
+                              onAdd={() => onAddMeal?.(day.label, mealType)}
+                            />
+                          </div>
+                        ) : null}
                       </div>
 
-                      <EmptyMealSlot
-                        mealType={mealType}
-                        isGenerating={slotGenerating}
-                        addComplement
-                        onAdd={() => onAddMeal?.(day.label, mealType)}
-                      />
+                      {meals.length >= 2 ? (
+                        <EmptyMealSlot
+                          mealType={mealType}
+                          isGenerating={slotGenerating}
+                          addComplement
+                          onAdd={() => onAddMeal?.(day.label, mealType)}
+                        />
+                      ) : null}
                     </div>
                   )}
                 </PlanMealDroppable>

@@ -1,11 +1,36 @@
 # 📱 Guía de Pruebas Beta — IngeniaFood
 
 > Documento para testers. Lenguaje de **pantalla**: lo que ves, tocas y experimentas.  
-> Última actualización: **25 agosto 2026** (plan: cabecera compacta + carrusel)
+> Última actualización: **26 agosto 2026** (plan + escáner foto)
 
 ---
 
 ### 📣 Novedades por despliegue
+
+#### 26 agosto 2026
+
+**Plan · mocks del tamaño de la tarjeta**
+- Si **no hay** plato, ves dos mocks: **Elegir receta** (táctil) + **Complemento** (solo visual, más apagado; no se puede añadir aún).
+- Si solo hay **una** receta, el mock **Complemento** se activa y al tocarlo abre el flujo de añadir.
+- Las tarjetas del carrusel son **más bajas** (foto más compacta, título en una línea).
+- Con **dos o más** platos, el mock desaparece y vuelve la píldora **Agregar complemento** debajo.
+
+**Plan · badges en tarjetas del carrusel**
+- En las tiles **no** se repite Desayuno / Almuerzo / Cena (ya está en el título de sección).
+- **Escaneado** se muestra más pequeño (icono + texto compacto).
+- Las **recetas de Sandra** muestran el badge ✨ Sandra (también en complementos).
+- Si un complemento no es Sandra ni escaneado, se ve la etiqueta **Complemento** junto a las kcal.
+
+**Escáner · selector de foto como en Plan**
+- Al pulsar **Escanear ahora**, el sheet muestra las **dos tarjetas** (cámara / galería) en bloque crema, igual que al registrar comida o snack en **Plan**.
+
+**Qué probar de este despliegue**
+- [ ] Hueco vacío: mock Complemento visible pero **no** abre el picker al tocarlo
+- [ ] Con 1 plato: mock Complemento **sí** abre el flujo de añadir
+- [ ] Tarjetas más bajas que antes
+- [ ] Badge **Escaneado** pequeño; Sandra / Complemento rellenan el hueco junto a kcal
+- [ ] Con 2+ platos: píldora debajo, sin mock
+- [ ] Escáner: sheet de foto con tarjetas cámara/galería (estilo Plan), no la lista antigua
 
 #### 25 agosto 2026
 
@@ -16,7 +41,7 @@
 
 **Plan · receta y complementos en carrusel**
 - En cada comida del día, los platos se muestran en **fila horizontal** (carrusel).
-- Principal y complementos van **uno al lado del otro**; debajo, píldora **Agregar complemento**.
+- Principal y complementos van **uno al lado del otro**; debajo, píldora **Agregar complemento** (si ya hay más de un plato).
 
 **Qué probar de este despliegue**
 - [ ] En **Plan**, el título se lee **Tu plan semanal** (sin «…»)
@@ -324,7 +349,7 @@ En la lista, cada tarjeta debería mostrar:
 1. Abre la pestaña **Escáner**.
 2. Lee el mensaje tipo **«Escanea tu despensa»** o **«Escanear Nevera o Despensa»**.
 3. Prueba:
-   - **«📷 Tomar foto a mi nevera»** / **«Escanear ahora»**, **o**
+   - **«📷 Tomar foto a mi nevera»** / **«Escanear ahora»** → sheet con **dos tarjetas** (**Tomar foto** / **Elegir de galería**) en bloque crema (igual que Plan), **o**
    - Añadir ingredientes a mano en **«Ingredientes a la mano»** / **«Tu Despensa»**.
 4. En **«Confirmar ingredientes»**, revisa la lista, corrige si hace falta y continúa.
 5. Pulsa **«✨ Generar Recetas…»** / **«✨ Buscar Recetas»** / **«Generar receta con mi despensa»**.
@@ -394,7 +419,7 @@ Disponible desde el **Plan**, al elegir o cambiar un plato (en **hoy** o **días
 6. Elimina un snack con la **X** y confirma que desaparece.
 
 **Qué probar**
-- [ ] Foto de despensa → ingredientes → receta generada
+- [ ] Foto de despensa: tarjetas cámara/galería (estilo Plan) → ingredientes → receta generada
 - [ ] Despensa manual sin foto
 - [ ] Escáner **sin** pestaña «Desde Instagram» (solo despensa)
 - [ ] Límite diario: Free **5** / Premium o pase 24h **20**
@@ -426,7 +451,7 @@ Disponible desde el **Plan**, al elegir o cambiar un plato (en **hoy** o **días
    - **Calorías consumidas** a la derecha (ej. `915 kcal`) y debajo **«Objetivo: … kcal»**
 
 #### Asignar recetas
-1. En un hueco vacío de **☀️ Desayuno**, **🌤️ Almuerzo** o **🌙 Cena**, pulsa **«Elegir receta»**.
+1. En un hueco vacío de **☀️ Desayuno**, **🌤️ Almuerzo** o **🌙 Cena**, toca la tarjeta mock **«Elegir receta»** (misma forma que un plato; al lado verás el mock **Complemento**).
 2. En el sheet verás el título del hueco (ej. **«Almuerzo del Martes»**) y:
    - Pestañas **«Sugeridas»** / **«Mis recetas»**
    - Buscador + icono de filtros
@@ -447,8 +472,9 @@ Disponible desde el **Plan**, al elegir o cambiar un plato (en **hoy** o **días
    - **kcal** (icono llama) y **tiempo** (reloj)
    - **Badges de macros**: `…g P` (verde), `…g C` (naranja), `…g G` (rosa), si hay datos
    - Botones circulares de **check (Ya comí)**, **mover** (flechas), **lápiz** y **papelera** (el check solo en **hoy** o **días pasados**)
-5. Con una comida ya puesta, pulsa el botón píldora **«Agregar complemento»** debajo del carrusel.
-6. El complemento debe verse **al lado** de la receta principal (misma fila, deslizable):
+5. Con **una** comida ya puesta, toca la tarjeta semitransparente **«Complemento»** al lado del plato.
+6. Con **dos o más** platos, usa la píldora **«Agregar complemento»** debajo del carrusel.
+7. El complemento debe verse **al lado** de la receta principal (misma fila, deslizable):
    - Badge **«Complemento»** sobre la foto
    - Título, kcal y acciones (check / mover / editar / eliminar)
 
@@ -480,8 +506,10 @@ Disponible desde el **Plan**, al elegir o cambiar un plato (en **hoy** o **días
 - [ ] Macros visibles en las tarjetas de comida (si la receta los tiene)
 - [ ] Picker: rejilla 3 cols + skeleton al cargar + pie con 3 acciones + aviso (i) ámbar
 - [ ] Escanear despensa → diálogo Continuar → al Guardar: **Añadir al plan** vs **Solo guardar**
+- [ ] Hueco vacío: dos mocks; Complemento **no** táctil hasta tener plato
 - [ ] Complemento al lado del plato principal en carrusel horizontal
-- [ ] Botón «Agregar complemento» visible debajo del carrusel (píldora)
+- [ ] Con 1 plato: mock **Complemento** a la derecha (táctil)
+- [ ] Con 2+ platos: píldora «Agregar complemento» debajo del carrusel
 - [ ] CTA de snacks verde musgo con ✨ y kcal
 - [ ] Proponer menú del día (Premium vs Free)
 - [ ] **Mover** un plato (p. ej. de Desayuno a Almuerzo): desaparece del origen y aparece en el destino

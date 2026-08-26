@@ -2,11 +2,12 @@
 
 import { useState, type HTMLAttributes } from "react";
 import Link from "next/link";
-import { ArrowRightLeft, Coffee, Clock3, Check, Flame, GripVertical, Loader2, Pencil, Soup, Trash2, Utensils } from "lucide-react";
+import { ArrowRightLeft, Camera, Coffee, Clock3, Check, Flame, GripVertical, Loader2, MapPin, Pencil, Soup, Trash2, Utensils } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { MoveMealSlotDialog } from "@/components/plan/move-meal-slot-dialog";
 import { RecipeInstagramLink } from "@/components/recipes/recipe-instagram-link";
 import { RecipeMedia } from "@/components/recipes/recipe-media";
+import { SandraRecipeBadge } from "@/components/recipes/sandra-recipe-badge";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { removePlanMeal, setPlanMealConsumed } from "@/lib/plan/plan-service";
 import type { MealType } from "@/lib/plan/constants";
@@ -42,6 +43,8 @@ export type PlanMeal = {
   isFlourless?: boolean;
   /** Comida registrada (foto/texto); ya consumida. */
   externalBadge?: ExternalMealBadge | null;
+  /** Receta de Sandra (catálogo). */
+  isSandraRecipe?: boolean;
   /** Plato del plan marcado como ya comido (sale de la lista de compra). */
   consumido?: boolean;
 };
@@ -82,20 +85,29 @@ function ExternalMealBadgePill({
   /** Sin margen superior; para filas horizontales de metadatos. */
   inline?: boolean;
 }) {
+  const BadgeIcon = badge === "escaneado" ? Camera : MapPin;
+  const shortLabel = badge === "escaneado" ? "Escaneado" : "Registrada";
+  const useCompactChrome = compact || inline;
+
   return (
     <span
       className={cn(
-        "inline-flex w-fit shrink-0 items-center rounded-md font-bold uppercase tracking-wide",
-        inline || compact
-          ? "px-1.5 py-0.5 text-[10px]"
-          : "mt-1 px-1.5 py-0.5 text-[9px]",
+        "inline-flex w-fit shrink-0 items-center font-bold uppercase tracking-wide",
+        useCompactChrome
+          ? "gap-0.5 rounded-md px-1 py-0.5 text-[7px] leading-none"
+          : "mt-1 gap-0.5 rounded-md px-1.5 py-0.5 text-[9px]",
         !inline && compact && "opacity-90",
         badge === "escaneado"
           ? "bg-sky-50 text-sky-800 ring-1 ring-sky-200/70"
           : "bg-violet-50 text-violet-800 ring-1 ring-violet-200/70"
       )}
     >
-      {externalMealBadgeLabel(badge)}
+      <BadgeIcon
+        className={useCompactChrome ? "h-2 w-2 shrink-0" : "h-2.5 w-2.5 shrink-0"}
+        strokeWidth={2.25}
+        aria-hidden
+      />
+      <span>{shortLabel}</span>
     </span>
   );
 }
@@ -929,7 +941,7 @@ export function PlanMealCard({
             className
           )}
         >
-          <div className="relative aspect-[5/4] w-full shrink-0 bg-stone-100">
+          <div className="relative aspect-[3/2] w-full shrink-0 bg-stone-100">
             <Link
               href={recipeDetailHref(meal.recipeId)}
               data-no-dnd="true"
@@ -953,7 +965,7 @@ export function PlanMealCard({
                 >
                   {(() => {
                     const Icon = getMealTypeIcon(meal.mealType);
-                    return <Icon className="h-6 w-6" strokeWidth={1.75} />;
+                    return <Icon className="h-5 w-5" strokeWidth={1.75} />;
                   })()}
                 </span>
               )}
@@ -970,27 +982,22 @@ export function PlanMealCard({
             ) : null}
           </div>
 
-          <div className="flex min-h-0 flex-1 flex-col gap-0.5 px-1.5 pb-1 pt-1" data-no-dnd="true">
+          <div className="flex min-h-0 flex-col gap-0.5 px-1.5 pb-1 pt-0.5" data-no-dnd="true">
             <Link href={recipeDetailHref(meal.recipeId)} className="block min-w-0" aria-label={viewRecipeAria}>
-              <h3 className="line-clamp-2 text-[9px] font-bold leading-snug text-stone-800">
+              <h3 className="line-clamp-1 text-[9px] font-bold leading-tight text-stone-800">
                 {meal.title}
               </h3>
             </Link>
 
             <div className="flex min-w-0 flex-wrap items-center gap-0.5">
-              {!isComplement ? (
-                <span
-                  className={cn(
-                    "inline-flex shrink-0 rounded-md px-1 py-0.5 text-[7px] font-bold uppercase tracking-wide",
-                    accent.iconCircleBg,
-                    accent.iconText
-                  )}
-                >
-                  {mealTypeLabel}
-                </span>
-              ) : null}
               {meal.externalBadge ? (
                 <ExternalMealBadgePill badge={meal.externalBadge} compact inline />
+              ) : meal.isSandraRecipe ? (
+                <SandraRecipeBadge compact className="text-[7px] px-1 py-0.5" />
+              ) : isComplement ? (
+                <span className="inline-flex shrink-0 rounded-md bg-stone-100 px-1 py-0.5 text-[7px] font-bold uppercase tracking-wide text-stone-500 ring-1 ring-stone-200/70">
+                  {t.has("complementBadge") ? t("complementBadge") : "Complemento"}
+                </span>
               ) : null}
               {meal.consumido ? (
                 <span className="inline-flex shrink-0 items-center rounded-md bg-[#eef4e6] px-1 py-0.5 text-[7px] font-bold uppercase tracking-wide text-[#3e5219] ring-1 ring-[#556B2F]/20">
@@ -1004,7 +1011,7 @@ export function PlanMealCard({
               ) : null}
             </div>
 
-            <div className="mt-auto flex justify-end">
+            <div className="flex justify-end">
               <CompactActionButtons
                 compact
                 mini

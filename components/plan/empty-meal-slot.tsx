@@ -9,11 +9,16 @@ import { cn } from "@/lib/utils";
 type EmptyMealSlotProps = {
   mealType: MealType;
   onAdd: () => void;
-  /** panel = fila horizontal; slot = tarjeta vertical en carrusel */
-  variant?: "panel" | "slot";
+  /** panel = fila; slot = vacío vertical; ghost-tile = mock tamaño tarjeta en carrusel */
+  variant?: "panel" | "slot" | "ghost-tile";
   isGenerating?: boolean;
   /** true cuando ya hay comida principal: el CTA añade un complemento */
   addComplement?: boolean;
+  /**
+   * Solo ghost-tile + addComplement: si false, el mock se ve pero no se puede tocar
+   * (p. ej. hueco vacío sin plato principal).
+   */
+  interactive?: boolean;
   className?: string;
 };
 
@@ -23,6 +28,7 @@ export function EmptyMealSlot({
   variant = "panel",
   isGenerating = false,
   addComplement = false,
+  interactive = true,
   className
 }: EmptyMealSlotProps) {
   const t = useTranslations("Plan");
@@ -43,6 +49,126 @@ export function EmptyMealSlot({
       ? t("addComplementAria", { meal: mealLabel })
       : `Agregar complemento a ${mealLabel}`
     : t("chooseRecipeAria", { meal: mealLabel });
+
+  if (variant === "ghost-tile") {
+    const complementLabel = t.has("complementBadge") ? t("complementBadge") : "Complemento";
+    const titleText = isGenerating ? label : addComplement ? complementLabel : t("chooseRecipe");
+    const canInteract = interactive && !isGenerating;
+    const shellClass = cn(
+      "flex h-full w-full flex-col overflow-hidden rounded-lg shadow-sm shadow-stone-200/20 transition",
+      addComplement
+        ? canInteract
+          ? "border border-dashed border-stone-300/80 bg-white/55 opacity-85 hover:border-stone-400/70 hover:bg-white/80 hover:opacity-100"
+          : "cursor-default border border-dashed border-stone-200/70 bg-stone-50/50 opacity-55"
+        : "border border-stone-200/90 bg-white hover:border-stone-300 hover:shadow-md hover:shadow-stone-200/30",
+      !canInteract && !addComplement ? "disabled:cursor-wait disabled:opacity-50" : null,
+      className
+    );
+
+    const media = (
+      <span
+        className={cn(
+          "relative flex aspect-[3/2] w-full shrink-0 items-center justify-center overflow-hidden",
+          accent.iconCircleBg
+        )}
+      >
+        <span
+          aria-hidden
+          className="absolute inset-0 opacity-[0.35]"
+          style={{
+            backgroundImage:
+              "repeating-linear-gradient(-32deg, transparent, transparent 6px, rgba(255,255,255,0.45) 6px, rgba(255,255,255,0.45) 7px)"
+          }}
+        />
+        <span
+          aria-hidden
+          className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-white/50 to-transparent"
+        />
+
+        {addComplement ? (
+          <span className="pointer-events-none absolute left-1 top-1 z-10 rounded-md bg-white/90 px-1 py-0.5 text-[7px] font-bold uppercase tracking-wide text-stone-500 shadow-sm ring-1 ring-stone-200/80">
+            {complementLabel}
+          </span>
+        ) : null}
+
+        <span
+          className={cn(
+            "relative z-10 flex h-6 w-6 items-center justify-center rounded-full bg-white/95 shadow-sm ring-1",
+            accent.iconRing,
+            accent.iconText,
+            canInteract && "transition group-hover:scale-105"
+          )}
+        >
+          {isGenerating ? (
+            <Loader2 className="h-3 w-3 animate-spin" strokeWidth={2} />
+          ) : addComplement && canInteract ? (
+            <Plus className="h-3 w-3" strokeWidth={2.25} />
+          ) : addComplement ? (
+            <Plus className="h-3 w-3 opacity-40" strokeWidth={2} />
+          ) : (
+            <MealIcon className="h-3 w-3" strokeWidth={1.75} />
+          )}
+        </span>
+      </span>
+    );
+
+    const body = (
+      <span className="flex flex-col gap-0.5 px-1.5 pb-1 pt-1 text-left">
+        <span
+          className={cn(
+            "line-clamp-1 text-[9px] font-bold leading-tight",
+            addComplement ? "text-stone-500" : "text-stone-700"
+          )}
+        >
+          {titleText}
+        </span>
+
+        {!isGenerating && addComplement ? (
+          <span aria-hidden className="mt-0.5 h-1.5 w-[70%] rounded-full bg-stone-200/70" />
+        ) : null}
+
+        {!isGenerating && canInteract ? (
+          <span className="mt-0.5 flex justify-end">
+            <span className="flex h-4 w-4 items-center justify-center rounded-full border border-[#88ab75] bg-white text-[#556B2F] transition group-hover:bg-olive-50">
+              <Plus className="h-2 w-2" strokeWidth={2.5} />
+            </span>
+          </span>
+        ) : null}
+      </span>
+    );
+
+    if (!canInteract && addComplement) {
+      return (
+        <div
+          aria-hidden
+          className={shellClass}
+          title={
+            t.has("addComplementNeedsMain")
+              ? t("addComplementNeedsMain")
+              : "Primero elige la comida principal"
+          }
+        >
+          {media}
+          {body}
+        </div>
+      );
+    }
+
+    return (
+      <button
+        type="button"
+        onClick={onAdd}
+        disabled={!canInteract}
+        aria-busy={isGenerating}
+        aria-label={ariaLabel}
+        data-no-dnd="true"
+        className={cn("group", shellClass)}
+      >
+        {media}
+        {body}
+      </button>
+    );
+  }
 
   if (variant === "slot") {
     return (

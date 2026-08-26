@@ -78,13 +78,16 @@ type PlanRecipeBase = Pick<
   | "cooking_time"
   | "is_airfryer"
   | "is_flourless"
->;
+> & {
+  is_sandra_recipe?: boolean | null;
+};
 
 type PlanRecipeNutrition = Pick<
   RecipeRow,
   "id" | "title" | "macros" | "ingredients" | "is_airfryer" | "is_flourless"
 > & {
   tags?: Json | null;
+  is_sandra_recipe?: boolean | null;
 };
 
 type PlanRowWithRecipe = Omit<PlanRow, "orden" | "consumido"> & {
@@ -162,7 +165,7 @@ async function fetchRecipeNutritionByIds(
 
   const full = await supabase
     .from("recipes")
-    .select("id, title, macros, ingredients, tags, is_airfryer, is_flourless")
+    .select("id, title, macros, ingredients, tags, is_airfryer, is_flourless, is_sandra_recipe")
     .in("id", recipeIds);
 
   if (!full.error) {
@@ -170,6 +173,17 @@ async function fetchRecipeNutritionByIds(
   }
 
   if (isMissingColumnError(full.error)) {
+    const withoutSandra = await supabase
+      .from("recipes")
+      .select("id, title, macros, ingredients, tags, is_airfryer, is_flourless")
+      .in("id", recipeIds);
+
+    if (!withoutSandra.error) {
+      return new Map(
+        (withoutSandra.data ?? []).map((row) => [row.id, row as PlanRecipeNutrition])
+      );
+    }
+
     const withoutTags = await supabase
       .from("recipes")
       .select("id, title, macros, ingredients, is_airfryer, is_flourless")
@@ -194,7 +208,7 @@ async function fetchRecipeNutritionByIds(
 
     console.warn(
       "[plan] No se pudieron cargar campos nutricionales de recetas:",
-      withoutTags.error?.message ?? full.error.message
+      withoutTags.error?.message ?? withoutSandra.error?.message ?? full.error.message
     );
     return new Map();
   }
@@ -237,6 +251,7 @@ function toPlanMeal(row: PlanRowWithRecipe): PlanMeal {
     calories: recipe?.cooking_time ?? undefined,
     isAirfryer: recipe?.is_airfryer ?? false,
     isFlourless: recipe?.is_flourless ?? false,
+    isSandraRecipe: Boolean(recipe?.is_sandra_recipe),
     consumido: Boolean(row.consumido)
   };
 
@@ -253,13 +268,15 @@ function toPlanMeal(row: PlanRowWithRecipe): PlanMeal {
     });
     return {
       ...enriched,
-      externalBadge: resolveExternalMealBadge(recipe.tags)
+      externalBadge: resolveExternalMealBadge(recipe.tags),
+      isSandraRecipe: Boolean(recipe.is_sandra_recipe)
     };
   } catch (error) {
     console.warn("[plan] Error analizando nutrición de receta:", recipe.id, error);
     return {
       ...baseMeal,
-      externalBadge: resolveExternalMealBadge(recipe.tags)
+      externalBadge: resolveExternalMealBadge(recipe.tags),
+      isSandraRecipe: Boolean(recipe.is_sandra_recipe)
     };
   }
 }
