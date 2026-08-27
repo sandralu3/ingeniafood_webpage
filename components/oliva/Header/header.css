@@ -139,6 +139,14 @@
   color: #682e19;
 }
 
+@media (max-width: 1023px) {
+  .oliva-header--hero .oliva-header-bar {
+    padding-top: calc(env(safe-area-inset-top, 0px) + 0.75rem) !important;
+    padding-bottom: 0.75rem !important;
+    padding-inline: 1.15rem !important;
+  }
+}
+
 .oliva-header-menu-btn--hero:hover {
   background: rgb(233 150 122 / 0.55);
   border-color: #d9d2c4;

@@ -177,7 +177,7 @@ export function OlivaHeader() {
       >
         <div
           className={`oliva-header-bar mx-auto flex max-w-6xl items-center justify-between ${
-            isOnHero ? "px-6 py-5 lg:px-10 lg:py-6" : ""
+            isOnHero ? "px-[1.15rem] py-3 lg:px-10 lg:py-6" : ""
           }`}
         >
           <a

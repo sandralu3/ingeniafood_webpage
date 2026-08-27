@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Closed door front — clean yellow face matching IngeniaFood palette -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 660 1440" width="660" height="1440" preserveAspectRatio="xMidYMid meet">
+  <defs>
+    <linearGradient id="doorFace" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#ffe27a"/>
+      <stop offset="35%" stop-color="#fcc226"/>
+      <stop offset="100%" stop-color="#e1a215"/>
+    </linearGradient>
+    <linearGradient id="doorHandle" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#d2e0e1"/>
+      <stop offset="100%" stop-color="#91a9a9"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Main door slab -->
+  <rect x="2" y="2" width="656" height="1436" rx="28" ry="28" fill="url(#doorFace)"/>
+
+  <!-- Soft left highlight -->
+  <rect x="2" y="2" width="48" height="1436" rx="28" ry="0" fill="#fff6c8" opacity="0.28"/>
+
+  <!-- Top lip -->
+  <path d="M30 2 H630 Q658 2 658 30 V48 H2 V30 Q2 2 30 2 Z" fill="#f0b31c" opacity="0.35"/>
+
+  <!-- Bottom lip -->
+  <path d="M2 1392 H658 V1410 Q658 1438 630 1438 H30 Q2 1438 2 1410 Z" fill="#d29412" opacity="0.4"/>
+
+  <!-- Freezer / fridge divide -->
+  <rect x="36" y="1036" width="588" height="10" rx="5" fill="#c68610" opacity="0.45"/>
+
+  <!-- Handle -->
+  <rect x="48" y="610" width="40" height="156" rx="20" fill="url(#doorHandle)"/>
+  <rect x="52" y="616" width="32" height="144" rx="16" fill="#ffffff" opacity="0.22"/>
+
+  <!-- Hinge-side seam -->
+  <rect x="632" y="24" width="10" height="1392" rx="5" fill="#000000" opacity="0.08"/>
+</svg>

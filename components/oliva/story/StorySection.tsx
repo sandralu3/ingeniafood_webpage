@@ -14,17 +14,17 @@ export function StorySection() {
         <div className="oliva-dilema-grain" />
       </div>
 
-      <div className="oliva-snap-inner relative z-[1]">
-        <div className="mx-auto grid w-full max-w-6xl items-center gap-14 px-6 lg:grid-cols-2 lg:gap-16 lg:px-10">
-          <div className="mx-auto w-full max-w-[560px] lg:mx-0">
+      <div className="oliva-snap-inner oliva-dilema-inner relative z-[1]">
+        <div className="oliva-dilema-grid mx-auto grid w-full max-w-6xl items-center gap-14 px-6 lg:grid-cols-2 lg:gap-16 lg:px-10">
+          <div className="oliva-dilema-copy mx-auto w-full max-w-[560px] lg:mx-0">
             <ScrollReveal delay={0} variant="up">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#e9967a] sm:text-xs">
+              <p className="oliva-dilema-eyebrow text-[11px] font-semibold uppercase tracking-[0.16em] text-[#e9967a] sm:text-xs">
                 El dilema
               </p>
             </ScrollReveal>
 
             <ScrollReveal delay={60} variant="up">
-              <h2 className="mt-4 font-sans text-3xl font-semibold leading-[1.12] tracking-tight text-[#fbf9f4] sm:text-4xl lg:text-[2.75rem]">
+              <h2 className="oliva-dilema-title mt-4 font-sans text-3xl font-semibold leading-[1.12] tracking-tight text-[#fbf9f4] sm:text-4xl lg:text-[2.75rem]">
                 Llegas a casa.
                 <br />
                 Abres la nevera.
@@ -32,7 +32,7 @@ export function StorySection() {
             </ScrollReveal>
 
             <ScrollReveal delay={120} variant="up">
-              <ul className="mt-7 space-y-1.5 text-base leading-relaxed text-[#d5d0c4] sm:text-lg">
+              <ul className="oliva-dilema-list mt-7 space-y-1.5 text-base leading-relaxed text-[#d5d0c4] sm:text-lg">
                 <li>Hay huevos.</li>
                 <li>Un tomate.</li>
                 <li>Un aguacate.</li>
@@ -41,13 +41,13 @@ export function StorySection() {
             </ScrollReveal>
 
             <ScrollReveal delay={180} variant="scale">
-              <p className="mt-9 font-sans text-3xl font-semibold leading-snug tracking-tight text-[#e9967a] sm:text-4xl">
+              <p className="oliva-dilema-question mt-9 font-sans text-3xl font-semibold leading-snug tracking-tight text-[#e9967a] sm:text-4xl">
                 ¿Qué cocino hoy?
               </p>
             </ScrollReveal>
 
             <ScrollReveal delay={240} variant="up">
-              <div className="mt-7 max-w-md space-y-3 text-base leading-relaxed text-[#c4beb2] sm:text-lg">
+              <div className="oliva-dilema-body mt-7 max-w-md space-y-3 text-base leading-relaxed text-[#c4beb2] sm:text-lg">
                 <p>
                   Otra vez la misma pregunta. El cansancio. Los minutos que se
                   van mirando sin decidir.
@@ -57,7 +57,7 @@ export function StorySection() {
             </ScrollReveal>
 
             <ScrollReveal delay={300} variant="fade">
-              <div className="mt-10">
+              <div className="oliva-dilema-outro mt-10">
                 <p className="text-base font-medium text-[#fbf9f4] sm:text-lg">
                   Hay otra forma de empezar.
                 </p>
@@ -74,7 +74,7 @@ export function StorySection() {
           <ScrollReveal
             variant="left"
             delay={100}
-            className="flex w-full justify-center lg:justify-end"
+            className="oliva-dilema-visual flex w-full justify-center lg:justify-end"
           >
             <StoryAnimation />
           </ScrollReveal>

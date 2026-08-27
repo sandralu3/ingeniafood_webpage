@@ -142,7 +142,9 @@ export function PhoneMockup({ className }: PhoneMockupProps) {
           <div className="relative h-full w-full overflow-hidden rounded-[2.5rem] border border-[#d9d2c4] bg-[#1b1c19] p-[10px]">
             <div className="relative h-full w-full overflow-hidden rounded-[2rem] bg-[#FAF7F2]">
               <div className="absolute left-1/2 top-2.5 z-20 h-5 w-20 -translate-x-1/2 rounded-full bg-[#1b1c19]" />
-              <MockupAppScreen />
+              <div className="oliva-mockup-screen">
+                <MockupAppScreen />
+              </div>
             </div>
           </div>
         </div>

@@ -54,6 +54,7 @@
   margin-inline: auto;
   isolation: isolate;
   contain: layout style;
+  overflow: visible;
 }
 
 .oliva-dilema-fridge-scene {
@@ -62,44 +63,25 @@
   will-change: transform, opacity;
 }
 
-/* Warm spill when door is open */
-.oliva-dilema-fridge-glow {
+/* Atmosphere light — soft, never louder than content */
+.oliva-dilema-fridge-light {
   position: absolute;
-  left: 8%;
-  top: 18%;
+  left: 10%;
+  top: 16%;
   z-index: 0;
-  width: 70%;
-  height: 58%;
+  width: 55%;
+  height: 55%;
   border-radius: 50%;
   background: radial-gradient(
     circle,
-    rgb(252 194 36 / 0.28) 0%,
-    rgb(233 150 122 / 0.12) 42%,
-    transparent 70%
+    rgb(255 248 230 / 0.28) 0%,
+    rgb(252 194 36 / 0.08) 45%,
+    transparent 72%
   );
-  filter: blur(28px);
+  filter: blur(36px);
   opacity: 0;
   pointer-events: none;
   will-change: opacity;
-}
-
-.oliva-dilema-fridge-bloom {
-  position: absolute;
-  left: 12%;
-  top: 16%;
-  z-index: 1;
-  width: 48%;
-  height: 58%;
-  border-radius: 50%;
-  background: radial-gradient(
-    circle,
-    rgb(255 252 247 / 0.55) 0%,
-    rgb(255 236 210 / 0.18) 40%,
-    transparent 72%
-  );
-  pointer-events: none;
-  filter: blur(12px);
-  will-change: transform, opacity;
 }
 
 .oliva-dilema-fridge-frame {
@@ -109,127 +91,135 @@
   height: 100%;
 }
 
+/* Soft ground shadow — reacts lightly to door open */
+.oliva-dilema-fridge-shadow {
+  position: absolute;
+  left: 8%;
+  right: 22%;
+  bottom: -0.5%;
+  z-index: 0;
+  height: 5%;
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse at center,
+    rgb(40 36 28 / 0.32) 0%,
+    rgb(40 36 28 / 0) 72%
+  );
+  filter: blur(8px);
+  transform-origin: 40% 50%;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
 .oliva-dilema-fridge-art {
   position: absolute;
   inset: 0;
-  perspective: 920px;
-  perspective-origin: 48% 46%;
-  transform-style: preserve-3d;
-  /* drop-shadow on this node flattens 3D / paints a ghost door — keep it off */
+  overflow: visible;
   user-select: none;
   pointer-events: none;
   will-change: transform;
+  /* Same moderate perspective as the reference demo */
+  perspective: 1200px;
+  perspective-origin: 55% 45%;
+  transform-style: preserve-3d;
 }
 
 .oliva-dilema-fridge-full {
   display: block;
   width: 100%;
   height: 100%;
-  object-fit: contain;
-  object-position: center;
-  filter: drop-shadow(0 22px 40px rgb(0 0 0 / 0.45));
+  object-fit: fill;
+  /*
+    Permanent crop: hide the illustrated open-door wing (right ~38%).
+    Visible body ≈ left 62.5% — door dimensions must match that face.
+  */
+  clip-path: inset(0 37.5% 0 0);
 }
 
-/* Same color as section bg — hides open door wing without a 2nd yellow door */
-.oliva-dilema-fridge-wing-mask {
+/*
+  Door flush with the visible fridge body (left cavity).
+  Geometry from Fridge.svg viewBox 24 50 1070 1490:
+  - hinge ≈ x 686 → ~61.9% of width
+  - body top/bottom ≈ 2.8% / 94% of height
+*/
+.oliva-dilema-fridge-door {
   position: absolute;
-  left: 61.8%;
-  top: 0;
-  z-index: 2;
-  width: 38.2%;
-  height: 100%;
-  background: #3a432c;
-  pointer-events: none;
-  will-change: opacity;
+  left: 1.6%;
+  top: 2.6%;
+  z-index: 3;
+  width: 60.4%;
+  height: 94.2%;
+  transform-origin: right center;
+  transform-style: preserve-3d;
+  border-radius: 12px;
+  will-change: transform;
+  box-shadow:
+    2px 0 5px rgb(0 0 0 / 0.08),
+    -4px 6px 14px rgb(0 0 0 / 0.18);
 }
 
-.oliva-dilema-fridge-closed {
+.oliva-dilema-fridge-door-front,
+.oliva-dilema-fridge-door-back {
   position: absolute;
   inset: 0;
-  z-index: 3;
-  transform-origin: 61.8% 48%;
-  transform-style: preserve-3d;
-  will-change: transform, opacity;
   backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  border-radius: 12px;
+  overflow: hidden;
 }
 
-.oliva-dilema-fridge-closed-face {
-  position: absolute;
-  left: 1.2%;
-  top: 2.2%;
-  width: 60.2%;
-  height: 94%;
-  border-radius: 5% / 2.2%;
+.oliva-dilema-fridge-door-front {
+  transform: translateZ(1px);
   background:
     linear-gradient(
-      105deg,
-      rgb(255 220 90 / 0.4) 0%,
-      transparent 30%
+      90deg,
+      rgb(255 255 255 / 0.18) 0%,
+      transparent 22%,
+      rgb(0 0 0 / 0.06) 78%,
+      rgb(0 0 0 / 0.14) 100%
     ),
-    linear-gradient(
-      160deg,
-      rgb(252 194 36) 0%,
-      rgb(240 179 28) 48%,
-      rgb(225 162 21) 100%
-    );
-  box-shadow:
-    inset -8px 0 16px rgb(0 0 0 / 0.16),
-    inset 5px 0 12px rgb(255 255 255 / 0.22),
-    inset 0 -10px 18px rgb(0 0 0 / 0.08);
+    linear-gradient(160deg, #ffe27a 0%, #fcc226 48%, #e1a215 100%);
 }
 
-.oliva-dilema-fridge-closed-seam {
-  position: absolute;
-  left: 58.5%;
-  top: 4%;
-  width: 1.4%;
-  height: 90%;
-  border-radius: 999px;
-  background: linear-gradient(
-    180deg,
-    rgb(0 0 0 / 0.05),
-    rgb(0 0 0 / 0.18),
-    rgb(0 0 0 / 0.05)
-  );
-  opacity: 0.55;
-}
-
-.oliva-dilema-fridge-closed-handle {
-  position: absolute;
-  left: 6.5%;
-  top: 42%;
-  width: 2.2%;
-  height: 11%;
-  border-radius: 999px;
-  background: linear-gradient(
-    180deg,
-    rgb(200 214 216),
-    rgb(145 169 169)
-  );
-  box-shadow:
-    1px 2px 5px rgb(0 0 0 / 0.28),
-    inset 0 1px 0 rgb(255 255 255 / 0.45);
-  will-change: transform;
-}
-
-/* Soft gaze band */
-.oliva-dilema-fridge-scan {
-  position: absolute;
-  left: 8%;
-  top: 14%;
-  z-index: 3;
-  width: 48%;
-  height: 12%;
-  border-radius: 50%;
-  background: linear-gradient(
-    180deg,
-    rgb(255 252 247 / 0) 0%,
-    rgb(255 252 247 / 0.32) 50%,
-    rgb(255 252 247 / 0) 100%
-  );
+.oliva-dilema-fridge-door-front img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
   pointer-events: none;
-  mix-blend-mode: soft-light;
-  will-change: transform, opacity;
+  user-select: none;
+}
+
+/* Inner face — teal from the illustration, not a cropped wing */
+.oliva-dilema-fridge-door-back {
+  transform: rotateY(180deg) translateZ(1px);
+  background: linear-gradient(
+    90deg,
+    #91a9a9 0%,
+    #b3d1d4 22%,
+    #c8dcde 100%
+  );
+  box-shadow: inset 0 0 20px rgb(0 0 0 / 0.14);
+}
+
+/*
+  Physical edge — same technique as the reference:
+  left: -1px overlap (no light seam), rotateY(-90deg), matching corner radius.
+*/
+.oliva-dilema-fridge-door-edge {
+  position: absolute;
+  top: 0;
+  left: -1px;
+  width: 14px;
+  height: 100%;
+  transform-origin: left center;
+  transform: rotateY(-90deg);
+  background: linear-gradient(to bottom, #f0b31c, #c68610 55%, #a86e0c);
+  border-left: 1px solid rgb(255 255 255 / 0.22);
+  border-top-right-radius: 12px;
+  border-bottom-right-radius: 12px;
+  box-shadow: inset 0 0 6px rgb(0 0 0 / 0.2);
 }
 
 .oliva-dilema-links {
@@ -243,7 +233,7 @@
 }
 
 .oliva-dilema-link {
-  opacity: 0.85;
+  opacity: 0.55;
 }
 
 .oliva-dilema-spot {
@@ -262,11 +252,9 @@
   position: absolute;
   inset: 0;
   border-radius: 9999px;
-  border: 1.5px solid rgb(255 252 247 / 0.95);
-  background: rgb(255 252 247 / 0.92);
-  box-shadow:
-    0 0 0 3px rgb(85 107 47 / 0.18),
-    0 8px 18px -8px rgb(0 0 0 / 0.4);
+  border: 1px solid rgb(255 252 247 / 0.88);
+  background: rgb(255 252 247 / 0.88);
+  box-shadow: 0 4px 12px -6px rgb(0 0 0 / 0.28);
 }
 
 .oliva-dilema-spot-emoji {
@@ -276,168 +264,346 @@
   line-height: 1;
 }
 
-.oliva-dilema-doubt {
-  position: absolute;
-  right: 2%;
-  top: 2%;
-  z-index: 7;
-  width: 7rem;
-  height: 6rem;
-  pointer-events: none;
-  will-change: opacity;
-}
-
+/* Single soft doubt mark — idea, not decoration */
 .oliva-dilema-doubt-mark {
   position: absolute;
-  left: 50%;
-  top: 42%;
-  margin-left: -0.45rem;
-  margin-top: -0.7rem;
-  font-size: 1.55rem;
-  font-weight: 600;
+  right: 10%;
+  top: 7%;
+  z-index: 7;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(1.05rem, 3.8vw, 1.35rem);
+  font-weight: 400;
   line-height: 1;
-  color: #e9967a;
-  text-shadow: 0 2px 12px rgb(0 0 0 / 0.35);
+  color: rgb(233 150 122 / 0.55);
+  text-shadow: none;
+  pointer-events: none;
   will-change: transform, opacity;
   opacity: 0;
 }
 
-.oliva-dilema-doubt-mark--a {
-  font-size: 1.85rem;
-}
-
-.oliva-dilema-doubt-mark--b {
-  font-size: 1.25rem;
-  color: rgb(233 150 122 / 0.75);
-}
-
-.oliva-dilema-doubt-mark--c {
-  font-size: 1.4rem;
-  color: rgb(251 249 244 / 0.55);
-}
-
-.oliva-dilema-doubt-mark--d {
-  font-size: 1.1rem;
-  color: rgb(233 150 122 / 0.55);
-}
-
-.oliva-dilema-doubt-label {
+/* Recipe payoff — more present than individual spots */
+.oliva-dilema-recipe {
   position: absolute;
-  left: 50%;
-  bottom: 0;
-  margin: 0;
-  transform: translateX(-50%);
-  font-size: 0.8125rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  white-space: nowrap;
-  color: rgb(251 249 244 / 0.78);
-  text-shadow: 0 1px 10px rgb(0 0 0 / 0.4);
-  will-change: transform, opacity;
-}
-
-.oliva-dilema-ideas {
-  position: absolute;
-  inset: 0;
+  right: 2%;
+  top: 8%;
   z-index: 6;
+  max-width: 58%;
   pointer-events: none;
-}
-
-.oliva-dilema-idea {
-  position: absolute;
-  display: inline-flex;
-  flex-direction: column;
   will-change: transform, opacity;
+  opacity: 0;
 }
 
-.oliva-dilema-idea--tl {
-  left: 1%;
-  top: 1%;
-}
-
-.oliva-dilema-idea--tr {
-  right: 1%;
-  top: 14%;
-}
-
-.oliva-dilema-idea--bl {
-  left: 1%;
-  bottom: 6%;
-}
-
-.oliva-dilema-idea-label {
-  font-size: 0.875rem;
+.oliva-dilema-recipe-label {
+  display: inline-block;
+  padding: 0.45rem 0.75rem;
+  border-radius: 0.55rem;
+  background: rgb(251 249 244 / 0.94);
+  box-shadow:
+    0 10px 28px -14px rgb(0 0 0 / 0.45),
+    0 1px 0 rgb(255 255 255 / 0.5);
+  font-size: clamp(0.8125rem, 2.8vw, 0.9375rem);
   font-weight: 600;
   letter-spacing: 0.01em;
+  color: #3d4a28;
+  white-space: nowrap;
+}
+
+.oliva-dilema-badge {
+  position: absolute;
+  left: 50%;
+  bottom: 3%;
+  z-index: 6;
+  transform: translateX(-50%);
+  pointer-events: none;
+  will-change: transform, opacity;
+  opacity: 0;
+}
+
+.oliva-dilema-badge-text {
+  display: inline-block;
+  padding: 0.22rem 0.55rem;
+  border-radius: 999px;
+  background: rgb(61 74 40 / 0.42);
+  border: 1px solid rgb(251 249 244 / 0.1);
+  font-size: clamp(0.6rem, 2vw, 0.7rem);
+  font-weight: 500;
+  letter-spacing: 0.02em;
   color: rgb(251 249 244 / 0.72);
   white-space: nowrap;
-  text-shadow: 0 1px 8px rgb(0 0 0 / 0.35);
+  backdrop-filter: blur(6px);
 }
 
-.oliva-dilema-idea-svg {
-  display: block;
-  width: 100%;
-  height: 11px;
-  margin-top: -1px;
-  overflow: visible;
-}
-
-.oliva-dilema-strike {
-  opacity: 0.9;
-}
-
-/* Reduced motion — static open fridge */
+/* Reduced motion — static open fridge + recipe story */
 .oliva-dilema-stage[data-reduced="true"] .oliva-dilema-fridge-scene {
   opacity: 1;
   transform: none;
 }
 
-.oliva-dilema-stage[data-reduced="true"] .oliva-dilema-fridge-wing-mask,
-.oliva-dilema-stage[data-reduced="true"] .oliva-dilema-fridge-closed {
-  display: none;
+.oliva-dilema-stage[data-reduced="true"] .oliva-dilema-fridge-door {
+  transform: rotateY(110deg);
 }
 
-.oliva-dilema-stage[data-reduced="true"] .oliva-dilema-fridge-bloom,
-.oliva-dilema-stage[data-reduced="true"] .oliva-dilema-fridge-glow {
-  opacity: 0.4;
+.oliva-dilema-stage[data-reduced="true"] .oliva-dilema-fridge-light {
+  opacity: 0.2;
+}
+
+.oliva-dilema-stage[data-reduced="true"] .oliva-dilema-fridge-shadow {
+  opacity: 0.28;
+  transform: scaleX(1.28) translateX(18px);
 }
 
 .oliva-dilema-stage[data-reduced="true"] .oliva-dilema-spot,
-.oliva-dilema-stage[data-reduced="true"] .oliva-dilema-doubt,
-.oliva-dilema-stage[data-reduced="true"] .oliva-dilema-doubt-mark,
-.oliva-dilema-stage[data-reduced="true"] .oliva-dilema-doubt-label {
+.oliva-dilema-stage[data-reduced="true"] .oliva-dilema-recipe,
+.oliva-dilema-stage[data-reduced="true"] .oliva-dilema-badge {
   opacity: 1;
   transform: none;
 }
 
-.oliva-dilema-stage[data-reduced="true"] .oliva-dilema-doubt-mark--a {
-  transform: translate(-12px, -18px);
-}
-.oliva-dilema-stage[data-reduced="true"] .oliva-dilema-doubt-mark--b {
-  transform: translate(14px, -28px);
-}
-.oliva-dilema-stage[data-reduced="true"] .oliva-dilema-doubt-mark--c {
-  transform: translate(-20px, -36px) rotate(-8deg);
-}
-.oliva-dilema-stage[data-reduced="true"] .oliva-dilema-doubt-mark--d {
-  transform: translate(18px, -10px) rotate(8deg);
+.oliva-dilema-stage[data-reduced="true"] .oliva-dilema-badge {
+  transform: translateX(-50%);
 }
 
-.oliva-dilema-stage[data-reduced="true"] .oliva-dilema-idea {
-  opacity: 0.4;
-}
-
-.oliva-dilema-stage[data-reduced="true"] .oliva-dilema-idea-label {
-  text-decoration: line-through;
-  text-decoration-color: rgb(233 150 122 / 0.65);
-}
-
-.oliva-dilema-stage[data-reduced="true"] .oliva-dilema-fridge-scan {
+.oliva-dilema-stage[data-reduced="true"] .oliva-dilema-doubt-mark,
+.oliva-dilema-stage[data-reduced="true"] .oliva-dilema-links {
   display: none;
 }
 
 @media (min-width: 1024px) {
   .oliva-dilema-stage {
     max-width: 520px;
+  }
+}
+
+/* ── Mobile: compact layout, smaller type + fridge scene ── */
+
+@media (max-width: 1023px) {
+  .oliva-dilema-fridge-art {
+    perspective: 1000px;
+    perspective-origin: 55% 50%;
+  }
+
+  .oliva-dilema-fridge-door {
+    width: 59.5%;
+    border-radius: 10px;
+  }
+
+  .oliva-dilema-fridge-door-front,
+  .oliva-dilema-fridge-door-back {
+    border-radius: 10px;
+  }
+
+  .oliva-dilema-fridge-door-edge {
+    width: 11px;
+    border-top-left-radius: 10px;
+    border-bottom-left-radius: 10px;
+  }
+
+  .oliva-dilema.oliva-snap-section {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    min-height: 100svh;
+    min-height: 100dvh;
+    height: 100svh;
+    height: 100dvh;
+    max-height: 100svh;
+    max-height: 100dvh;
+    overflow: hidden;
+    justify-content: flex-start;
+  }
+
+  .oliva-dilema-inner {
+    display: flex;
+    box-sizing: border-box;
+    flex: 1 1 auto;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    max-height: 100%;
+    padding-top: calc(env(safe-area-inset-top, 0px) + 3.15rem) !important;
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.85rem) !important;
+  }
+
+  .oliva-dilema-grid {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 0.85rem;
+    width: 100%;
+    min-height: 0;
+    padding-inline: 1.15rem;
+  }
+
+  /* Animation first on mobile — grows to fill available height */
+  .oliva-dilema-visual {
+    order: -1;
+    display: flex;
+    flex: 1 1 auto;
+    min-height: 0;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .oliva-dilema-visual.oliva-scroll-reveal {
+    width: 100%;
+  }
+
+  .oliva-dilema-copy {
+    flex-shrink: 0;
+    max-width: none;
+  }
+
+  .oliva-dilema-title {
+    margin-top: 0.5rem;
+    font-size: clamp(1.45rem, 6.2vw, 1.85rem);
+    line-height: 1.12;
+  }
+
+  .oliva-dilema-list {
+    margin-top: 0.65rem;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.2rem 0.75rem;
+    font-size: clamp(0.82rem, 3.2vw, 0.92rem);
+    line-height: 1.35;
+  }
+
+  .oliva-dilema-list li {
+    margin: 0;
+  }
+
+  .oliva-dilema-question {
+    margin-top: 0.75rem;
+    font-size: clamp(1.2rem, 5vw, 1.45rem);
+    line-height: 1.15;
+  }
+
+  .oliva-dilema-body {
+    margin-top: 0.65rem;
+    font-size: clamp(0.84rem, 3.2vw, 0.94rem);
+    line-height: 1.45;
+  }
+
+  .oliva-dilema-body p + p {
+    margin-top: 0.45rem;
+  }
+
+  .oliva-dilema-outro {
+    margin-top: 0.85rem;
+  }
+
+  .oliva-dilema-outro p {
+    font-size: clamp(0.88rem, 3.2vw, 0.98rem);
+  }
+
+  .oliva-dilema-outro a {
+    margin-top: 0.35rem;
+    font-size: 0.82rem;
+  }
+
+  .oliva-dilema-stage {
+    width: min(72vw, 17rem);
+    height: auto;
+    max-width: 100%;
+    max-height: 100%;
+    aspect-ratio: 1070 / 1490;
+    margin-inline: auto;
+  }
+
+  .oliva-dilema-spot {
+    width: clamp(1.35rem, 6%, 1.75rem);
+    height: clamp(1.35rem, 6%, 1.75rem);
+    margin-left: calc(clamp(1.35rem, 6%, 1.75rem) / -2);
+    margin-top: calc(clamp(1.35rem, 6%, 1.75rem) / -2);
+  }
+
+  .oliva-dilema-spot-emoji {
+    font-size: clamp(0.68rem, 2.8vw, 0.82rem);
+  }
+
+  .oliva-dilema-doubt-mark {
+    right: 6%;
+    top: 4%;
+    font-size: 1.1rem;
+  }
+
+  .oliva-dilema-recipe-label {
+    padding: 0.35rem 0.55rem;
+    font-size: 0.7rem;
+  }
+
+  .oliva-dilema-badge-text {
+    font-size: 0.6rem;
+    padding: 0.22rem 0.5rem;
+  }
+
+  .oliva-dilema-glow--a {
+    width: min(48vw, 16rem);
+    height: min(48vw, 16rem);
+  }
+
+  .oliva-dilema-glow--b {
+    width: min(40vw, 14rem);
+    height: min(40vw, 14rem);
+  }
+}
+
+@media (max-width: 379px) {
+  .oliva-dilema-inner {
+    padding-top: calc(env(safe-area-inset-top, 0px) + 3rem) !important;
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.65rem) !important;
+  }
+
+  .oliva-dilema-stage {
+    width: min(70vw, 15.5rem);
+  }
+
+  .oliva-dilema-title {
+    font-size: 1.35rem;
+  }
+
+  .oliva-dilema-list {
+    grid-template-columns: 1fr;
+    gap: 0.15rem;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 1023px) {
+  .oliva-dilema-grid {
+    gap: 1rem;
+    padding-inline: 1.5rem;
+  }
+
+  .oliva-dilema-stage {
+    width: min(46vw, 19rem);
+  }
+
+  .oliva-dilema-title {
+    font-size: clamp(1.65rem, 4.5vw, 2rem);
+  }
+}
+
+@media (max-width: 1023px) and (max-height: 480px) {
+  .oliva-dilema-inner {
+    padding-top: calc(env(safe-area-inset-top, 0px) + 2.85rem) !important;
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.5rem) !important;
+  }
+
+  .oliva-dilema-grid {
+    gap: 0.55rem;
+  }
+
+  .oliva-dilema-body {
+    display: none;
+  }
+
+  .oliva-dilema-outro {
+    margin-top: 0.55rem;
+  }
+
+  .oliva-dilema-stage {
+    width: min(32vw, 11.5rem);
   }
 }

@@ -168,6 +168,17 @@
   animation: oliva-light-sweep 5.5s ease-in-out 2.35s 1 forwards;
 }
 
+/* Scale down in-phone UI so it reads closer to the real app density */
+.oliva-mockup-screen {
+  --oliva-mockup-scale: 0.88;
+  position: absolute;
+  inset: 0;
+  width: calc(100% / var(--oliva-mockup-scale));
+  height: calc(100% / var(--oliva-mockup-scale));
+  transform: scale(var(--oliva-mockup-scale));
+  transform-origin: top left;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .oliva-phone-shadow,
   .oliva-phone-device,

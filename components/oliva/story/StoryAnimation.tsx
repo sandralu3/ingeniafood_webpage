@@ -1,34 +1,42 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { createTimeline, createDrawable, utils } from "animejs";
+import { createTimeline, createDrawable, utils, cubicBezier } from "animejs";
 import "./story-animation.css";
 
 /**
- * “El dilema” — cinematic fridge open → gaze → almost-meals → close.
- * One Fridge.svg + a single swinging closed door (no double-door layers).
+ * “El dilema” — physical fridge door + editorial story.
+ *
+ * Architecture:
+ * - Fridge.svg = original open illustration, permanently cropped to body/interior
+ *   (right wing never shown — avoids a second “open door” competing with ours)
+ * - One 3D door (front + edge + solid back) rotates on its right hinge via rotateY
+ * - No crossfade, no door opacity trick, no animated clip-as-door
  */
 
 const HOTSPOTS = [
-  /* Calibrated to Fridge.svg shelves (viewBox crop). */
-  { id: "egg", emoji: "🥚", left: "26%", top: "17%" },
-  { id: "cheese", emoji: "🧀", left: "30%", top: "28%" },
   { id: "tomato", emoji: "🍅", left: "37%", top: "54%" },
-  { id: "avocado", emoji: "🥑", left: "78%", top: "62%" }
+  { id: "egg", emoji: "🥚", left: "26%", top: "17%" },
+  { id: "avocado", emoji: "🥑", left: "78%", top: "62%" },
+  { id: "cheese", emoji: "🧀", left: "30%", top: "28%" }
 ] as const;
 
-type Idea = {
-  id: string;
-  label: string;
-  from: string[];
-  anchor: "tl" | "tr" | "bl";
-};
+const SPOT_MOTION = {
+  tomato: { x: -7, y: 2, rotate: "0deg" },
+  egg: { x: 0, y: 9, rotate: "0deg" },
+  avocado: { x: 3, y: 4, rotate: "-5deg" },
+  cheese: { x: 7, y: 2, rotate: "0deg" }
+} as const;
 
-const IDEAS: Idea[] = [
-  { id: "tortilla", label: "Tortilla", from: ["egg", "cheese"], anchor: "tl" },
-  { id: "ensalada", label: "Ensalada", from: ["tomato", "avocado"], anchor: "tr" },
-  { id: "pasta", label: "Pasta…", from: ["tomato", "cheese"], anchor: "bl" }
-];
+const RECIPE = {
+  id: "bowl",
+  label: "Bowl Mediterráneo"
+} as const;
+
+/** Open angle — right hinge, matches calibrated reference (110°) */
+const DOOR_OPEN_DEG = 110;
+/** Reference door easing: cubic-bezier(0.22, 1, 0.36, 1) */
+const DOOR_EASE = cubicBezier(0.22, 1, 0.36, 1);
 
 export function StoryAnimation() {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -44,528 +52,343 @@ export function StoryAnimation() {
 
     const scene = root.querySelector<HTMLElement>(".oliva-dilema-fridge-scene");
     const art = root.querySelector<HTMLElement>(".oliva-dilema-fridge-art");
-    const closed = root.querySelector<HTMLElement>(".oliva-dilema-fridge-closed");
-    const wingMask = root.querySelector<HTMLElement>(
-      ".oliva-dilema-fridge-wing-mask"
-    );
-    const bloom = root.querySelector<HTMLElement>(".oliva-dilema-fridge-bloom");
-    const glow = root.querySelector<HTMLElement>(".oliva-dilema-fridge-glow");
-    const scan = root.querySelector<HTMLElement>(".oliva-dilema-fridge-scan");
-    const handle = root.querySelector<HTMLElement>(
-      ".oliva-dilema-fridge-closed-handle"
-    );
+    const door = root.querySelector<HTMLElement>(".oliva-dilema-fridge-door");
+    const light = root.querySelector<HTMLElement>(".oliva-dilema-fridge-light");
+    const shadow = root.querySelector<HTMLElement>(".oliva-dilema-fridge-shadow");
+    const doubt = root.querySelector<HTMLElement>(".oliva-dilema-doubt-mark");
+    const recipe = root.querySelector<HTMLElement>(".oliva-dilema-recipe");
+    const badge = root.querySelector<HTMLElement>(".oliva-dilema-badge");
     const spots = Array.from(
       root.querySelectorAll<HTMLElement>(".oliva-dilema-spot")
-    );
-    const ideas = Array.from(
-      root.querySelectorAll<HTMLElement>(".oliva-dilema-idea")
-    );
-    const strikeEls = Array.from(
-      root.querySelectorAll<SVGGeometryElement>(".oliva-dilema-strike")
     );
     const linkEls = Array.from(
       root.querySelectorAll<SVGGeometryElement>(".oliva-dilema-link")
     );
-    const doubt = root.querySelector<HTMLElement>(".oliva-dilema-doubt");
-    const doubtLabel = root.querySelector<HTMLElement>(
-      ".oliva-dilema-doubt-label"
-    );
-    const doubtMarks = Array.from(
-      root.querySelectorAll<HTMLElement>(".oliva-dilema-doubt-mark")
-    );
 
-    if (!scene || !art || !closed || !bloom) return;
+    if (!scene || !art || !door) return;
 
-    // Initial state — closed, waiting
-    utils.set(scene, { opacity: 0, y: 36, scale: 0.94 });
-    utils.set(art, { rotate: "0deg", scale: 1 });
-    utils.set(bloom, { opacity: 0, scale: 0.7 });
-    if (glow) utils.set(glow, { opacity: 0 });
-    if (wingMask) utils.set(wingMask, { opacity: 1 });
-    utils.set(closed, { rotateY: "0deg", opacity: 1 });
-    if (handle) utils.set(handle, { x: 0, scaleX: 1 });
-    utils.set(spots, { opacity: 0, scale: 0.45 });
-    utils.set(ideas, { opacity: 0, y: 12 });
-    if (scan) utils.set(scan, { opacity: 0, y: "-40%" });
-    if (doubt) utils.set(doubt, { opacity: 0 });
-    utils.set(doubtMarks, {
-      opacity: 0,
-      scale: 0.4,
-      x: 0,
-      y: 12,
-      rotate: "0deg"
+    const isMobile = window.matchMedia("(max-width: 1023px)").matches;
+    const m = isMobile ? 0.65 : 1;
+
+    /*
+     * Narrative timeline (ms) — door is the protagonist beat
+     * quiet → nudge → open → hold → ingredients → links → recipe → badge → hold → fade → reset
+     */
+    const T = {
+      quiet: 0,
+      nudge: 700,
+      open: 1050,
+      openDone: 2450,
+      holdOpen: 2800,
+      spot0: 2800,
+      spot1: 2950,
+      spot2: 3100,
+      spot3: 3250,
+      link0: 3400,
+      link1: 3700,
+      link2: 4000,
+      recipe: 4300,
+      badge: 5000,
+      holdEnd: 6100,
+      fade: 7600,
+      reset: 8500
+    } as const;
+
+    const OPEN_MS = T.openDone - T.open; // 1400ms
+    const FADE_MS = T.reset - T.fade;
+
+    // ── Initial: closed door, dark interior, compact shadow ──
+    utils.set(scene, { opacity: 1, y: 0, scale: 1 });
+    utils.set(art, { y: 0, scale: 1 });
+    utils.set(door, { rotateY: "0deg" });
+    if (light) utils.set(light, { opacity: 0.04 });
+    if (shadow) utils.set(shadow, { opacity: 0.35, scaleX: 0.92, x: 0 });
+    if (doubt) utils.set(doubt, { opacity: 0, y: 4 * m, scale: 0.96 });
+    if (recipe) utils.set(recipe, { opacity: 0, y: 10 * m, scale: 0.98 });
+    if (badge) utils.set(badge, { opacity: 0, y: 4 * m });
+
+    spots.forEach((spot) => {
+      const id = spot.dataset.spot as keyof typeof SPOT_MOTION;
+      const motion = SPOT_MOTION[id] ?? SPOT_MOTION.tomato;
+      utils.set(spot, {
+        opacity: 0,
+        x: motion.x * m,
+        y: motion.y * m,
+        rotate: motion.rotate,
+        scale: 1
+      });
     });
-    if (doubtLabel) utils.set(doubtLabel, { opacity: 0, y: 10 });
 
-    const linkDraw =
-      linkEls.length > 0 ? createDrawable(linkEls, 0, 0) : [];
-    const strikeDraw =
-      strikeEls.length > 0 ? createDrawable(strikeEls, 0, 0) : [];
-    if (linkDraw.length) utils.set(linkDraw, { draw: "0 0", opacity: 1 });
-    if (strikeDraw.length) utils.set(strikeDraw, { draw: "0 0" });
+    const links = linkEls.length > 0 ? createDrawable(linkEls, 0, 0) : [];
+    if (links.length) utils.set(links, { draw: "0 0", opacity: 0.55 });
 
     const tl = createTimeline({
       loop: true,
-      loopDelay: 1100,
-      defaults: { ease: "outCubic" },
+      loopDelay: 900,
+      defaults: { ease: "inOutCubic" },
       autoplay: false
     });
 
-    // ── 1. Arrive ──────────────────────────────────────────────
-    tl.add(
-      scene,
-      {
-        opacity: [0, 1],
-        y: [36, 0],
-        scale: [0.94, 1],
-        duration: 1100,
-        ease: "outQuart"
-      },
-      0
-    );
+    // ── 0–700: quiet ──────────────────────────────────────────
 
-    if (handle) {
-      tl.add(
-        handle,
-        {
-          x: [0, 2.5, 0],
-          duration: 640,
-          ease: "inOutSine"
-        },
-        880
-      );
-    }
-
-    // ── 2. Open — single yellow door only (no second door layer) ─
-    const openAt = 1480;
-
-    if (handle) {
-      tl.add(
-        handle,
-        {
-          x: [0, 7],
-          scaleX: [1, 0.92],
-          duration: 280,
-          ease: "inQuad"
-        },
-        openAt
-      );
-    }
-
-    // ONE door swings and fades out while swinging (no lingering ghost)
-    tl.add(
-      closed,
-      {
-        rotateY: [
-          { to: "20deg", duration: 300, ease: "inQuad" },
-          { to: "102deg", duration: 920, ease: "outCubic" }
-        ],
-        opacity: [
-          { to: 1, duration: 180 },
-          { to: 0, duration: 780, ease: "inQuad" }
-        ]
-      },
-      openAt + 160
-    );
-
-    // Reveal the open-door wing of the SAME svg (mask only, never a 2nd door)
-    if (wingMask) {
-      tl.add(
-        wingMask,
-        {
-          opacity: [1, 0],
-          duration: 520,
-          ease: "outQuad"
-        },
-        openAt + 420
-      );
-    }
-
-    tl.add(
-      bloom,
-      {
-        opacity: [0, 0.78],
-        scale: [0.72, 1],
-        duration: 1000,
-        ease: "outQuad"
-      },
-      openAt + 360
-    );
-
-    if (glow) {
-      tl.add(
-        glow,
-        {
-          opacity: [0, 1],
-          duration: 950,
-          ease: "outQuad"
-        },
-        openAt + 400
-      );
-    }
-
+    // ── 700–1050: pre-nudge ───────────────────────────────────
     tl.add(
       art,
       {
-        rotate: ["0deg", "-0.4deg", "0.2deg", "0deg"],
-        duration: 520,
-        ease: "outQuad"
+        y: [0, -1.5 * m, 0],
+        duration: 340,
+        ease: "inOutCubic"
       },
-      openAt + 1100
+      T.nudge
     );
 
-    // ── 3. Gaze scan down the shelves ──────────────────────────
-    if (scan) {
-      tl.add(
-        scan,
-        {
-          opacity: [0, 0.55, 0.45, 0],
-          y: ["-40%", "10%", "55%", "78%"],
-          duration: 2200,
-          ease: "inOutSine"
-        },
-        openAt + 1450
-      );
-    }
-
-    // ── 4. Hotspots lock onto food ─────────────────────────────
-    const spotsAt = openAt + 2100;
-    spots.forEach((spot, i) => {
-      tl.add(
-        spot,
-        {
-          opacity: [0, 1],
-          scale: [0.45, 1.08, 1],
-          duration: 720,
-          ease: "outCubic"
-        },
-        spotsAt + i * 140
-      );
-    });
-
-    // Soft pulse while thinking
-    spots.forEach((spot, i) => {
-      tl.add(
-        spot,
-        {
-          scale: [1, 1.06, 1],
-          duration: 900,
-          ease: "inOutSine"
-        },
-        spotsAt + 900 + i * 50
-      );
-    });
-
-    // ── 5. Almost-meals form and die ───────────────────────────
-    IDEAS.forEach((idea, i) => {
-      const ideaEl = ideas[i];
-      const link = linkDraw[i];
-      const strike = strikeDraw[i];
-      if (!ideaEl) return;
-
-      const start = spotsAt + 1600 + i * 1500;
-      const related = spots.filter((s) =>
-        idea.from.includes(s.dataset.spot ?? "")
-      );
-
-      tl.add(
-        ideaEl,
-        {
-          opacity: [0, 0.95],
-          y: [12, 0],
-          duration: 480,
-          ease: "outQuad"
-        },
-        start
-      );
-
-      if (link) {
-        tl.add(
-          link,
-          {
-            draw: ["0 0", "0 1"],
-            duration: 580,
-            ease: "inOutQuad"
-          },
-          start + 160
-        );
-      }
-
-      related.forEach((spot) => {
-        tl.add(
-          spot,
-          {
-            scale: [1, 1.14, 1],
-            duration: 560,
-            ease: "inOutSine"
-          },
-          start + 180
-        );
-      });
-
-      if (strike) {
-        tl.add(
-          strike,
-          {
-            draw: ["0 0", "0 1"],
-            duration: 380,
-            ease: "inOutQuad"
-          },
-          start + 820
-        );
-      }
-
-      tl.add(
-        ideaEl,
-        {
-          opacity: 0,
-          y: -8,
-          duration: 420,
-          ease: "inOutQuad"
-        },
-        start + 1100
-      );
-
-      if (link) {
-        tl.add(
-          link,
-          {
-            opacity: 0,
-            duration: 320,
-            ease: "linear"
-          },
-          start + 1100
-        );
-      }
-    });
-
-    // ── 6. Unsettled sway ──────────────────────────────────────
-    const swayAt = spotsAt + 1600 + IDEAS.length * 1500 + 200;
-    spots.forEach((spot, i) => {
-      tl.add(
-        spot,
-        {
-          x: [0, -4, 4, -2, 0],
-          y: [0, 3, -2, 1, 0],
-          duration: 700,
-          ease: "inOutSine"
-        },
-        swayAt + i * 45
-      );
-    });
-
-    // ── 7. “¿Qué hago?” ────────────────────────────────────────
-    const doubtAt = swayAt + 500;
-
-    if (doubt) {
-      tl.add(
-        doubt,
-        {
-          opacity: [0, 1],
-          duration: 480,
-          ease: "outQuad"
-        },
-        doubtAt
-      );
-    }
-
-    doubtMarks.forEach((mark, i) => {
-      const driftX = (i % 2 === 0 ? -1 : 1) * (12 + i * 7);
-      const driftY = -16 - i * 9;
-      tl.add(
-        mark,
-        {
-          opacity: [0, 0.95],
-          scale: [0.4, 1.05, 1],
-          x: [0, driftX],
-          y: [14, driftY],
-          rotate: [
-            `${i % 2 === 0 ? -10 : 10}deg`,
-            `${i % 2 === 0 ? 7 : -12}deg`
-          ],
-          duration: 1200,
-          ease: "outCubic"
-        },
-        doubtAt + 80 + i * 100
-      );
-
-      tl.add(
-        mark,
-        {
-          y: [driftY, driftY - 8, driftY - 2],
-          opacity: [0.95, 0.7, 0.88],
-          duration: 1200,
-          ease: "inOutSine"
-        },
-        doubtAt + 1300
-      );
-    });
-
-    if (doubtLabel) {
-      tl.add(
-        doubtLabel,
-        {
-          opacity: [0, 0.9],
-          y: [10, 0],
-          duration: 760,
-          ease: "outCubic"
-        },
-        doubtAt + 320
-      );
-    }
-
-    // Bloom dims — the stare cools
     tl.add(
-      bloom,
+      door,
       {
-        opacity: [0.72, 0.35],
-        duration: 900,
-        ease: "inOutSine"
+        rotateY: ["0deg", "4deg", "0deg"],
+        duration: 340,
+        ease: "inOutCubic"
       },
-      doubtAt + 1400
-    );
-
-    // ── 8. Dissolve + close ────────────────────────────────────
-    const closeAt = doubtAt + 2400;
-
-    tl.add(
-      spots,
-      {
-        opacity: 0,
-        scale: 0.7,
-        duration: 560,
-        ease: "inOutQuad"
-      },
-      closeAt
+      T.nudge
     );
 
     if (doubt) {
       tl.add(
         doubt,
         {
-          opacity: 0,
-          duration: 520,
-          ease: "inOutQuad"
-        },
-        closeAt + 80
-      );
-    }
-
-    if (glow) {
-      tl.add(
-        glow,
-        {
-          opacity: 0,
-          duration: 520,
-          ease: "inQuad"
-        },
-        closeAt + 180
-      );
-    }
-
-    tl.add(
-      bloom,
-      {
-        opacity: 0,
-        scale: 0.82,
-        duration: 520,
-        ease: "inQuad"
-      },
-      closeAt + 180
-    );
-
-    // Cover door wing, then ONE yellow door swings shut
-    if (wingMask) {
-      tl.add(
-        wingMask,
-        {
-          opacity: [0, 1],
-          duration: 280,
-          ease: "inQuad"
-        },
-        closeAt + 340
-      );
-    }
-
-    tl.add(
-      closed,
-      {
-        rotateY: [
-          { to: "95deg", duration: 1 },
-          { to: "55deg", duration: 340, ease: "inQuad" },
-          { to: "-2deg", duration: 760, ease: "inCubic" },
-          { to: "0deg", duration: 240, ease: "outQuad" }
-        ],
-        opacity: [
-          { to: 1, duration: 160, ease: "outQuad" },
-          { to: 1, duration: 1200 }
-        ]
-      },
-      closeAt + 380
-    );
-
-    tl.add(
-      art,
-      {
-        scale: [1, 0.978, 1.01, 1],
-        duration: 480,
-        ease: "outQuad"
-      },
-      closeAt + 1400
-    );
-
-    if (handle) {
-      tl.add(
-        handle,
-        {
-          x: 0,
-          scaleX: 1,
+          opacity: [0, 0.45],
+          y: [4 * m, 0],
+          scale: [0.96, 1],
           duration: 320,
-          ease: "outQuad"
+          ease: "outCubic"
         },
-        closeAt + 1420
+        T.nudge
+      );
+      tl.add(
+        doubt,
+        {
+          opacity: [0.45, 0],
+          y: [0, -3 * m],
+          duration: 280,
+          ease: "inOutCubic"
+        },
+        T.open - 200
       );
     }
 
-    const resetAt = closeAt + 2000;
-    if (linkDraw.length) {
+    // ── 1050–2450: physical door open (single continuous rotateY) ──
+    // Reference: rotateY(110deg), cubic-bezier(0.22, 1, 0.36, 1)
+    tl.add(
+      door,
+      {
+        rotateY: [
+          { to: "12deg", duration: OPEN_MS * 0.14, ease: "inCubic" },
+          {
+            to: `${DOOR_OPEN_DEG}deg`,
+            duration: OPEN_MS * 0.86,
+            ease: DOOR_EASE
+          }
+        ]
+      },
+      T.open
+    );
+
+    // Light follows door angle
+    if (light) {
       tl.add(
-        linkDraw,
-        { opacity: 1, draw: "0 0", duration: 1 },
-        resetAt
+        light,
+        {
+          opacity: [0.04, 0.22],
+          duration: OPEN_MS,
+          ease: "inOutCubic"
+        },
+        T.open
       );
     }
-    if (strikeDraw.length) {
-      tl.add(strikeDraw, { draw: "0 0", duration: 1 }, resetAt);
-    }
-    if (doubtMarks.length) {
+
+    // Shadow widens / shifts like the reference suelo
+    if (shadow) {
       tl.add(
-        doubtMarks,
+        shadow,
         {
+          opacity: [0.35, 0.28],
+          scaleX: [0.92, 1.28],
+          x: [0, 18 * m],
+          duration: OPEN_MS,
+          ease: DOOR_EASE
+        },
+        T.open
+      );
+    }
+
+    // ── 2450–2800: hold open (door stays — never fades) ───────
+
+    // ── 2800–3400: ingredients ────────────────────────────────
+    const revealSpot = (spot: HTMLElement | undefined, at: number) => {
+      if (!spot) return;
+      tl.add(
+        spot,
+        {
+          opacity: [0, 1],
           x: 0,
           y: 0,
           rotate: "0deg",
-          scale: 0.4,
-          opacity: 0,
-          duration: 1
+          duration: 380,
+          ease: "outCubic"
         },
-        resetAt
+        at
+      );
+    };
+
+    revealSpot(spots[0], T.spot0);
+    revealSpot(spots[1], T.spot1);
+    revealSpot(spots[2], T.spot2);
+    revealSpot(spots[3], T.spot3);
+
+    // ── 3400–4300: connection lines ───────────────────────────
+    const drawLink = (link: unknown, at: number) => {
+      if (!link) return;
+      tl.add(
+        link as object,
+        {
+          draw: ["0 0", "0 1"],
+          duration: 420,
+          ease: "inOutSine"
+        },
+        at
+      );
+    };
+
+    drawLink(links[0], T.link0);
+    drawLink(links[1], T.link1);
+    drawLink(links[2], T.link2);
+
+    // ── 4300–5000: recipe payoff ──────────────────────────────
+    if (recipe) {
+      tl.add(
+        recipe,
+        {
+          opacity: [0, 1],
+          y: [10 * m, 0],
+          scale: [0.98, 1],
+          duration: 520,
+          ease: "outCubic"
+        },
+        T.recipe
       );
     }
-    if (handle) {
-      tl.add(handle, { x: 0, scaleX: 1, duration: 1 }, resetAt);
-    }
-    if (wingMask) {
-      tl.add(wingMask, { opacity: 1, duration: 1 }, resetAt);
-    }
-    tl.add(closed, { rotateY: "0deg", opacity: 1, duration: 1 }, resetAt);
 
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry?.isIntersecting) tl.play();
-        else tl.pause();
+    // ── 5000–6100: badge (secondary) ──────────────────────────
+    if (badge) {
+      tl.add(
+        badge,
+        {
+          opacity: [0, 0.85],
+          y: [4 * m, 0],
+          duration: 420,
+          ease: "outCubic"
+        },
+        T.badge
+      );
+    }
+
+    // ── 6100–7600: hold for reading ───────────────────────────
+
+    // ── 7600–8500: soft fade of narrative layer ────────────────
+    const narrativeFadeTargets = [
+      ...spots,
+      ...(recipe ? [recipe] : []),
+      ...(badge ? [badge] : []),
+      ...linkEls
+    ];
+
+    if (narrativeFadeTargets.length) {
+      tl.add(
+        narrativeFadeTargets,
+        {
+          opacity: 0,
+          duration: FADE_MS * 0.7,
+          ease: "inOutCubic"
+        },
+        T.fade
+      );
+    }
+
+    tl.add(
+      scene,
+      {
+        opacity: [1, 0],
+        duration: FADE_MS,
+        ease: "inOutCubic"
       },
-      { threshold: 0.28 }
+      T.fade
+    );
+
+    // ── Invisible reset while scene opacity is 0 ──────────────
+    tl.add(door, { rotateY: "0deg", duration: 1 }, T.reset);
+    if (light) tl.add(light, { opacity: 0.04, duration: 1 }, T.reset);
+    if (shadow) {
+      tl.add(
+        shadow,
+        { opacity: 0.35, scaleX: 0.92, x: 0, duration: 1 },
+        T.reset
+      );
+    }
+    if (doubt) {
+      tl.add(
+        doubt,
+        { opacity: 0, y: 4 * m, scale: 0.96, duration: 1 },
+        T.reset
+      );
+    }
+    if (recipe) {
+      tl.add(
+        recipe,
+        { opacity: 0, y: 10 * m, scale: 0.98, duration: 1 },
+        T.reset
+      );
+    }
+    if (badge) tl.add(badge, { opacity: 0, y: 4 * m, duration: 1 }, T.reset);
+
+    spots.forEach((spot) => {
+      const id = spot.dataset.spot as keyof typeof SPOT_MOTION;
+      const motion = SPOT_MOTION[id] ?? SPOT_MOTION.tomato;
+      tl.add(
+        spot,
+        {
+          opacity: 0,
+          x: motion.x * m,
+          y: motion.y * m,
+          rotate: motion.rotate,
+          duration: 1
+        },
+        T.reset
+      );
+    });
+
+    if (links.length) {
+      tl.add(links, { draw: "0 0", opacity: 0.55, duration: 1 }, T.reset);
+    }
+
+    tl.add(art, { y: 0, scale: 1, duration: 1 }, T.reset);
+    tl.add(scene, { opacity: 1, duration: 1 }, T.reset);
+
+    // ── IntersectionObserver ──────────────────────────────────
+    let visible = false;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (!entry) return;
+        const ratio = entry.intersectionRatio;
+        if (ratio >= 0.28 && !visible) {
+          visible = true;
+          tl.play();
+        } else if (ratio < 0.12 && visible) {
+          visible = false;
+          tl.pause();
+        }
+      },
+      { threshold: [0, 0.12, 0.28, 0.5] }
     );
 
     observer.observe(root);
@@ -579,11 +402,12 @@ export function StoryAnimation() {
   return (
     <div ref={rootRef} className="oliva-dilema-stage" aria-hidden="true">
       <div className="oliva-dilema-fridge-scene">
-        <div className="oliva-dilema-fridge-glow" />
-        <div className="oliva-dilema-fridge-bloom" />
+        <div className="oliva-dilema-fridge-shadow" />
+        <div className="oliva-dilema-fridge-light" />
 
         <div className="oliva-dilema-fridge-frame">
           <div className="oliva-dilema-fridge-art">
+            {/* Body + interior — always present behind the door */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/svg/Fridge.svg"
@@ -591,14 +415,24 @@ export function StoryAnimation() {
               className="oliva-dilema-fridge-full"
               draggable={false}
             />
-            {/* Hides the open-door wing while “closed” — not a second door */}
-            <div className="oliva-dilema-fridge-wing-mask" />
-            <div className="oliva-dilema-fridge-closed">
-              <span className="oliva-dilema-fridge-closed-face" />
-              <span className="oliva-dilema-fridge-closed-seam" />
-              <span className="oliva-dilema-fridge-closed-handle" />
+
+            {/*
+              ONE physical door. Front / edge / back move together.
+              Hinge = right edge (transform-origin: 100% 50%).
+            */}
+            <div className="oliva-dilema-fridge-door">
+              <div className="oliva-dilema-fridge-door-front">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/svg/FridgeDoorFront.svg"
+                  alt=""
+                  draggable={false}
+                />
+              </div>
+              <div className="oliva-dilema-fridge-door-edge" aria-hidden="true" />
+              {/* Solid inner face — no cropped wing SVG (that looked damaged) */}
+              <div className="oliva-dilema-fridge-door-back" aria-hidden="true" />
             </div>
-            <div className="oliva-dilema-fridge-scan" />
           </div>
 
           <svg
@@ -606,31 +440,28 @@ export function StoryAnimation() {
             viewBox="0 0 100 100"
             preserveAspectRatio="none"
           >
-            {/* Tortilla ← egg */}
             <path
               className="oliva-dilema-link"
-              d="M26 17 C 14 12, 7 8, 3 4"
+              d="M37 54 C 48 42, 62 28, 72 16"
               fill="none"
-              stroke="#e8d5c4"
-              strokeWidth="0.45"
+              stroke="#b7a88a"
+              strokeWidth="0.32"
               strokeLinecap="round"
             />
-            {/* Ensalada ← avocado */}
             <path
               className="oliva-dilema-link"
-              d="M78 62 C 88 50, 93 34, 95 20"
+              d="M26 17 C 40 14, 55 12, 72 14"
               fill="none"
-              stroke="#e8d5c4"
-              strokeWidth="0.45"
+              stroke="#b7a88a"
+              strokeWidth="0.32"
               strokeLinecap="round"
             />
-            {/* Pasta ← tomato */}
             <path
               className="oliva-dilema-link"
-              d="M37 54 C 22 62, 11 76, 5 90"
+              d="M78 62 C 82 44, 80 28, 74 16"
               fill="none"
-              stroke="#e8d5c4"
-              strokeWidth="0.45"
+              stroke="#b7a88a"
+              strokeWidth="0.32"
               strokeLinecap="round"
             />
           </svg>
@@ -647,48 +478,17 @@ export function StoryAnimation() {
             </span>
           ))}
 
-          <div className="oliva-dilema-ideas">
-            {IDEAS.map((idea) => (
-              <span
-                key={idea.id}
-                className={`oliva-dilema-idea oliva-dilema-idea--${idea.anchor}`}
-              >
-                <span className="oliva-dilema-idea-label">{idea.label}</span>
-                <svg
-                  className="oliva-dilema-idea-svg"
-                  viewBox="0 0 100 12"
-                  preserveAspectRatio="none"
-                >
-                  <line
-                    className="oliva-dilema-strike"
-                    x1="4"
-                    y1="6"
-                    x2="96"
-                    y2="6"
-                    stroke="#e9967a"
-                    strokeWidth="1.6"
-                    strokeLinecap="round"
-                  />
-                </svg>
-              </span>
-            ))}
+          <div className="oliva-dilema-recipe" data-recipe={RECIPE.id}>
+            <span className="oliva-dilema-recipe-label">{RECIPE.label}</span>
           </div>
 
-          <div className="oliva-dilema-doubt">
-            <span className="oliva-dilema-doubt-mark oliva-dilema-doubt-mark--a">
-              ?
+          <div className="oliva-dilema-badge">
+            <span className="oliva-dilema-badge-text">
+              ✨ IA encontró una receta perfecta
             </span>
-            <span className="oliva-dilema-doubt-mark oliva-dilema-doubt-mark--b">
-              ?
-            </span>
-            <span className="oliva-dilema-doubt-mark oliva-dilema-doubt-mark--c">
-              ¿
-            </span>
-            <span className="oliva-dilema-doubt-mark oliva-dilema-doubt-mark--d">
-              ?
-            </span>
-            <p className="oliva-dilema-doubt-label">¿Qué hago?</p>
           </div>
+
+          <span className="oliva-dilema-doubt-mark">?</span>
         </div>
       </div>
     </div>

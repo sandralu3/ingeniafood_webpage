@@ -14,7 +14,7 @@ export function Hero() {
     <section
       ref={sectionRef}
       id="inicio"
-      className="oliva-snap-section oliva-snap-section--start relative overflow-hidden bg-[#fbf9f4] text-[#1b1c19]"
+      className="oliva-hero oliva-snap-section oliva-snap-section--start relative overflow-hidden bg-[#fbf9f4] text-[#1b1c19]"
       style={{ ["--parallax" as string]: 0 }}
     >
       <div
@@ -31,46 +31,38 @@ export function Hero() {
 
       {/* Spacer for fixed header */}
       <div
-        className="relative z-[1] h-[4.5rem] shrink-0 lg:h-[5.25rem]"
+        className="oliva-hero-header-spacer relative z-[1] shrink-0"
         aria-hidden="true"
       />
 
-      <div className="oliva-snap-inner relative z-[1] flex flex-1 flex-col !pt-0 !pb-16 sm:!pb-20">
-        <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-6 lg:px-10">
-          <div className="grid items-center gap-12 lg:grid-cols-[10fr_12fr] lg:gap-10 xl:gap-14">
+      <div className="oliva-hero-inner oliva-snap-inner relative z-[1] flex flex-1 flex-col !pt-0 !pb-16 sm:!pb-20">
+        <div className="oliva-hero-shell mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-6 lg:px-10">
+          <div className="oliva-hero-grid grid items-center gap-12 lg:grid-cols-[10fr_12fr] lg:gap-10 xl:gap-14">
             <div className="oliva-hero-copy flex w-full max-w-[520px] flex-col items-start lg:max-w-none">
               <p
-                className="oliva-hero-enter text-base tracking-[0.04em] lg:text-lg"
+                className="oliva-hero-enter oliva-hero-eyebrow text-[11px] font-medium uppercase tracking-[0.14em] text-[#556B2F]/75 sm:text-xs"
                 style={{ ["--hero-delay" as string]: "0ms" }}
-              >
-                <span className="font-light text-[#444444]">Ingenia</span>
-                <span className="font-bold text-[#556B2F]">Food</span>
-              </p>
-
-              <p
-                className="oliva-hero-enter mt-4 text-[11px] font-medium uppercase tracking-[0.14em] text-[#556B2F]/75 sm:text-xs"
-                style={{ ["--hero-delay" as string]: "60ms" }}
               >
                 Lista en minutos
               </p>
 
               <h1
-                className="oliva-hero-enter mt-3 font-sans text-4xl font-semibold leading-[1.08] tracking-tight text-[#1b1c19] sm:text-5xl lg:text-[3.25rem] xl:text-[3.5rem]"
-                style={{ ["--hero-delay" as string]: "100ms" }}
+                className="oliva-hero-enter oliva-hero-title mt-3 font-sans text-4xl font-semibold leading-[1.08] tracking-tight text-[#1b1c19] sm:text-5xl lg:text-[3.25rem] xl:text-[3.5rem]"
+                style={{ ["--hero-delay" as string]: "60ms" }}
               >
                 Nunca vuelvas a preguntarte qué cocinar.
               </h1>
 
               <p
-                className="oliva-hero-enter mt-5 max-w-md text-base leading-relaxed text-[#53433e] sm:text-lg"
-                style={{ ["--hero-delay" as string]: "180ms" }}
+                className="oliva-hero-enter oliva-hero-lede mt-5 max-w-md text-base leading-relaxed text-[#53433e] sm:text-lg"
+                style={{ ["--hero-delay" as string]: "120ms" }}
               >
                 Abre la nevera. Nosotros encontramos qué preparar.
               </p>
 
               <div
-                className="oliva-hero-enter mt-9 flex flex-col items-start gap-4 sm:mt-10"
-                style={{ ["--hero-delay" as string]: "260ms" }}
+                className="oliva-hero-enter oliva-hero-actions mt-9 flex flex-col items-start gap-4 sm:mt-10"
+                style={{ ["--hero-delay" as string]: "200ms" }}
               >
                 <TryCta
                   variant="primary"
@@ -88,8 +80,8 @@ export function Hero() {
               </div>
 
               <p
-                className="oliva-hero-enter mt-5 max-w-xs text-sm leading-relaxed text-[#86736d]"
-                style={{ ["--hero-delay" as string]: "340ms" }}
+                className="oliva-hero-enter oliva-hero-note mt-5 max-w-xs text-sm leading-relaxed text-[#86736d]"
+                style={{ ["--hero-delay" as string]: "260ms" }}
               >
                 24 h Premium cuando tú quieras
               </p>
@@ -98,7 +90,7 @@ export function Hero() {
             <div className="oliva-hero-stage flex justify-center lg:justify-end">
               <div className="oliva-hero-phone-glow" aria-hidden="true" />
               <div className="oliva-hero-phone-enter">
-                <PhoneMockup className="w-[min(100%,380px)] sm:w-[400px] lg:w-[440px]" />
+                <PhoneMockup className="oliva-hero-phone w-[min(100%,380px)] sm:w-[400px] lg:w-[440px]" />
               </div>
             </div>
           </div>
