@@ -53,6 +53,9 @@ export function StoryAnimation() {
     const scene = root.querySelector<HTMLElement>(".oliva-dilema-fridge-scene");
     const art = root.querySelector<HTMLElement>(".oliva-dilema-fridge-art");
     const door = root.querySelector<HTMLElement>(".oliva-dilema-fridge-door");
+    const doorEdge = root.querySelector<HTMLElement>(
+      ".oliva-dilema-fridge-door-edge"
+    );
     const light = root.querySelector<HTMLElement>(".oliva-dilema-fridge-light");
     const shadow = root.querySelector<HTMLElement>(".oliva-dilema-fridge-shadow");
     const doubt = root.querySelector<HTMLElement>(".oliva-dilema-doubt-mark");
@@ -101,6 +104,7 @@ export function StoryAnimation() {
     utils.set(scene, { opacity: 1, y: 0, scale: 1 });
     utils.set(art, { y: 0, scale: 1 });
     utils.set(door, { rotateY: "0deg" });
+    if (doorEdge) utils.set(doorEdge, { opacity: 0 });
     if (light) utils.set(light, { opacity: 0.04 });
     if (shadow) utils.set(shadow, { opacity: 0.35, scaleX: 0.92, x: 0 });
     if (doubt) utils.set(doubt, { opacity: 0, y: 4 * m, scale: 0.96 });
@@ -192,6 +196,19 @@ export function StoryAnimation() {
       },
       T.open
     );
+
+    // Edge hidden when closed; fades in as the door swings open
+    if (doorEdge) {
+      tl.add(
+        doorEdge,
+        {
+          opacity: [0, 1],
+          duration: OPEN_MS,
+          ease: "inOutCubic"
+        },
+        T.open
+      );
+    }
 
     // Light follows door angle
     if (light) {
@@ -326,6 +343,7 @@ export function StoryAnimation() {
 
     // ── Invisible reset while scene opacity is 0 ──────────────
     tl.add(door, { rotateY: "0deg", duration: 1 }, T.reset);
+    if (doorEdge) tl.add(doorEdge, { opacity: 0, duration: 1 }, T.reset);
     if (light) tl.add(light, { opacity: 0.04, duration: 1 }, T.reset);
     if (shadow) {
       tl.add(

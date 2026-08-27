@@ -220,6 +220,8 @@
   border-top-right-radius: 12px;
   border-bottom-right-radius: 12px;
   box-shadow: inset 0 0 6px rgb(0 0 0 / 0.2);
+  opacity: 0;
+  will-change: opacity;
 }
 
 .oliva-dilema-links {
@@ -341,6 +343,10 @@
 
 .oliva-dilema-stage[data-reduced="true"] .oliva-dilema-fridge-door {
   transform: rotateY(110deg);
+}
+
+.oliva-dilema-stage[data-reduced="true"] .oliva-dilema-fridge-door-edge {
+  opacity: 1;
 }
 
 .oliva-dilema-stage[data-reduced="true"] .oliva-dilema-fridge-light {
