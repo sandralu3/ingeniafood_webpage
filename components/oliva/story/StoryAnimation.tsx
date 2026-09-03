@@ -15,22 +15,24 @@ import "./story-animation.css";
  */
 
 const HOTSPOTS = [
-  { id: "tomato", emoji: "🍅", left: "37%", top: "54%" },
-  { id: "egg", emoji: "🥚", left: "26%", top: "17%" },
-  { id: "avocado", emoji: "🥑", left: "78%", top: "62%" },
-  { id: "cheese", emoji: "🧀", left: "30%", top: "28%" }
+  { id: "tomato", emoji: "🍅", label: "Tomate", left: "37%", top: "54%" },
+  { id: "egg", emoji: "🥚", label: "Huevo", left: "26%", top: "17%" },
+  { id: "avocado", emoji: "🥑", label: "Aguacate", left: "48%", top: "68%" },
+  { id: "cheese", emoji: "🧀", label: "Queso", left: "30%", top: "28%" }
 ] as const;
 
+/** Entrance offset — settles to 0 when identified */
 const SPOT_MOTION = {
-  tomato: { x: -7, y: 2, rotate: "0deg" },
-  egg: { x: 0, y: 9, rotate: "0deg" },
-  avocado: { x: 3, y: 4, rotate: "-5deg" },
-  cheese: { x: 7, y: 2, rotate: "0deg" }
+  tomato: { x: -6, y: 4, rotate: "0deg" },
+  egg: { x: 0, y: 8, rotate: "0deg" },
+  avocado: { x: 5, y: 3, rotate: "-4deg" },
+  cheese: { x: 6, y: 2, rotate: "0deg" }
 } as const;
 
 const RECIPE = {
   id: "bowl",
-  label: "Bowl Mediterráneo"
+  label: "Bowl Mediterráneo",
+  meta: "12 min · Alto en proteína"
 } as const;
 
 /** Open angle — right hinge, matches calibrated reference (110°) */
@@ -82,19 +84,22 @@ export function StoryAnimation() {
       nudge: 700,
       open: 1050,
       openDone: 2450,
-      holdOpen: 2800,
-      spot0: 2800,
-      spot1: 2950,
-      spot2: 3100,
-      spot3: 3250,
-      link0: 3400,
-      link1: 3700,
-      link2: 4000,
-      recipe: 4300,
-      badge: 5000,
-      holdEnd: 6100,
-      fade: 7600,
-      reset: 8500
+      // ── Narrative (after door is fully open) ──
+      holdOpen: 2650,
+      spot0: 2650, // Tomate
+      spot1: 3150, // Huevo
+      spot2: 3650, // Aguacate
+      spot3: 4150, // Queso
+      link0: 4700,
+      link1: 4980,
+      link2: 5260,
+      link3: 5540,
+      silenceEnd: 6100, // 560ms pause after last link
+      recipe: 6100,
+      badge: 7000, // ~900ms after recipe
+      holdEnd: 8500, // ~1.5s reading hold
+      fade: 8600,
+      reset: 9600
     } as const;
 
     const OPEN_MS = T.openDone - T.open; // 1400ms
@@ -108,23 +113,25 @@ export function StoryAnimation() {
     if (light) utils.set(light, { opacity: 0.04 });
     if (shadow) utils.set(shadow, { opacity: 0.35, scaleX: 0.92, x: 0 });
     if (doubt) utils.set(doubt, { opacity: 0, y: 4 * m, scale: 0.96 });
-    if (recipe) utils.set(recipe, { opacity: 0, y: 10 * m, scale: 0.98 });
-    if (badge) utils.set(badge, { opacity: 0, y: 4 * m });
+    if (recipe) utils.set(recipe, { opacity: 0, y: 14 * m, scale: 0.96 });
+    if (badge) utils.set(badge, { opacity: 0, y: 6 * m });
 
     spots.forEach((spot) => {
       const id = spot.dataset.spot as keyof typeof SPOT_MOTION;
       const motion = SPOT_MOTION[id] ?? SPOT_MOTION.tomato;
+      const label = spot.querySelector<HTMLElement>(".oliva-dilema-spot-label");
       utils.set(spot, {
         opacity: 0,
         x: motion.x * m,
         y: motion.y * m,
         rotate: motion.rotate,
-        scale: 1
+        scale: 0.92
       });
+      if (label) utils.set(label, { opacity: 0, y: 4 });
     });
 
     const links = linkEls.length > 0 ? createDrawable(linkEls, 0, 0) : [];
-    if (links.length) utils.set(links, { draw: "0 0", opacity: 0.55 });
+    if (links.length) utils.set(links, { draw: "0 0", opacity: 0.9 });
 
     const tl = createTimeline({
       loop: true,
@@ -238,11 +245,14 @@ export function StoryAnimation() {
       );
     }
 
-    // ── 2450–2800: hold open (door stays — never fades) ───────
+    // ── 2450–2650: hold open (door stays — never fades) ───────
 
-    // ── 2800–3400: ingredients ────────────────────────────────
+    // ── FASE 2: Ingredients — each gets its own moment ────────
     const revealSpot = (spot: HTMLElement | undefined, at: number) => {
       if (!spot) return;
+      const label = spot.querySelector<HTMLElement>(".oliva-dilema-spot-label");
+
+      // Lift + identify
       tl.add(
         spot,
         {
@@ -250,11 +260,47 @@ export function StoryAnimation() {
           x: 0,
           y: 0,
           rotate: "0deg",
-          duration: 380,
+          scale: [0.92, 1.12],
+          duration: 280,
           ease: "outCubic"
         },
         at
       );
+
+      // Settle to stable presence
+      tl.add(
+        spot,
+        {
+          scale: [1.12, 1],
+          duration: 340,
+          ease: "inOutCubic"
+        },
+        at + 280
+      );
+
+      // Brief label while active — then fade (spot stays)
+      if (label) {
+        tl.add(
+          label,
+          {
+            opacity: [0, 1],
+            y: [4, 0],
+            duration: 220,
+            ease: "outCubic"
+          },
+          at + 60
+        );
+        tl.add(
+          label,
+          {
+            opacity: [1, 0],
+            y: [0, -3],
+            duration: 260,
+            ease: "inOutCubic"
+          },
+          at + 420
+        );
+      }
     };
 
     revealSpot(spots[0], T.spot0);
@@ -262,15 +308,15 @@ export function StoryAnimation() {
     revealSpot(spots[2], T.spot2);
     revealSpot(spots[3], T.spot3);
 
-    // ── 3400–4300: connection lines ───────────────────────────
+    // ── FASE 3: Connections — ingredient → result ─────────────
     const drawLink = (link: unknown, at: number) => {
       if (!link) return;
       tl.add(
         link as object,
         {
           draw: ["0 0", "0 1"],
-          duration: 420,
-          ease: "inOutSine"
+          duration: 380,
+          ease: "inOutCubic"
         },
         at
       );
@@ -279,39 +325,66 @@ export function StoryAnimation() {
     drawLink(links[0], T.link0);
     drawLink(links[1], T.link1);
     drawLink(links[2], T.link2);
+    drawLink(links[3], T.link3);
 
-    // ── 4300–5000: recipe payoff ──────────────────────────────
+    // ── FASE 4: Silence (silenceEnd − last link ≈ 560ms) ──────
+
+    // ── FASE 5: Recipe payoff ─────────────────────────────────
     if (recipe) {
       tl.add(
         recipe,
         {
           opacity: [0, 1],
-          y: [10 * m, 0],
-          scale: [0.98, 1],
-          duration: 520,
+          y: [14 * m, 0],
+          scale: [0.96, 1],
+          duration: 560,
           ease: "outCubic"
         },
         T.recipe
       );
     }
 
-    // ── 5000–6100: badge (secondary) ──────────────────────────
+    // Soften spots/links so recipe becomes the hero
+    if (spots.length) {
+      tl.add(
+        spots,
+        {
+          opacity: 0.72,
+          duration: 480,
+          ease: "inOutCubic"
+        },
+        T.recipe + 120
+      );
+    }
+    if (linkEls.length) {
+      tl.add(
+        linkEls,
+        {
+          opacity: 0.45,
+          duration: 480,
+          ease: "inOutCubic"
+        },
+        T.recipe + 120
+      );
+    }
+
+    // ── FASE 6: Badge confirmation (secondary) ────────────────
     if (badge) {
       tl.add(
         badge,
         {
-          opacity: [0, 0.85],
-          y: [4 * m, 0],
-          duration: 420,
+          opacity: [0, 0.78],
+          y: [6 * m, 0],
+          duration: 400,
           ease: "outCubic"
         },
         T.badge
       );
     }
 
-    // ── 6100–7600: hold for reading ───────────────────────────
+    // ── FASE 7: Hold for reading ──────────────────────────────
 
-    // ── 7600–8500: soft fade of narrative layer ────────────────
+    // ── Soft fade of narrative layer ──────────────────────────
     const narrativeFadeTargets = [
       ...spots,
       ...(recipe ? [recipe] : []),
@@ -362,15 +435,16 @@ export function StoryAnimation() {
     if (recipe) {
       tl.add(
         recipe,
-        { opacity: 0, y: 10 * m, scale: 0.98, duration: 1 },
+        { opacity: 0, y: 14 * m, scale: 0.96, duration: 1 },
         T.reset
       );
     }
-    if (badge) tl.add(badge, { opacity: 0, y: 4 * m, duration: 1 }, T.reset);
+    if (badge) tl.add(badge, { opacity: 0, y: 6 * m, duration: 1 }, T.reset);
 
     spots.forEach((spot) => {
       const id = spot.dataset.spot as keyof typeof SPOT_MOTION;
       const motion = SPOT_MOTION[id] ?? SPOT_MOTION.tomato;
+      const label = spot.querySelector<HTMLElement>(".oliva-dilema-spot-label");
       tl.add(
         spot,
         {
@@ -378,14 +452,16 @@ export function StoryAnimation() {
           x: motion.x * m,
           y: motion.y * m,
           rotate: motion.rotate,
+          scale: 0.92,
           duration: 1
         },
         T.reset
       );
+      if (label) tl.add(label, { opacity: 0, y: 4, duration: 1 }, T.reset);
     });
 
     if (links.length) {
-      tl.add(links, { draw: "0 0", opacity: 0.55, duration: 1 }, T.reset);
+      tl.add(links, { draw: "0 0", opacity: 0.9, duration: 1 }, T.reset);
     }
 
     tl.add(art, { y: 0, scale: 1, duration: 1 }, T.reset);
@@ -458,28 +534,40 @@ export function StoryAnimation() {
             viewBox="0 0 100 100"
             preserveAspectRatio="none"
           >
+            {/* tomato → recipe */}
             <path
               className="oliva-dilema-link"
-              d="M37 54 C 48 42, 62 28, 72 16"
+              d="M37 54 C 48 40, 60 22, 72 14"
               fill="none"
-              stroke="#b7a88a"
-              strokeWidth="0.32"
+              stroke="#7a8758"
+              strokeWidth="0.55"
               strokeLinecap="round"
             />
+            {/* egg → recipe */}
             <path
               className="oliva-dilema-link"
-              d="M26 17 C 40 14, 55 12, 72 14"
+              d="M26 17 C 40 14, 55 12, 72 13"
               fill="none"
-              stroke="#b7a88a"
-              strokeWidth="0.32"
+              stroke="#7a8758"
+              strokeWidth="0.55"
               strokeLinecap="round"
             />
+            {/* avocado → recipe */}
             <path
               className="oliva-dilema-link"
-              d="M78 62 C 82 44, 80 28, 74 16"
+              d="M48 68 C 55 48, 64 28, 72 15"
               fill="none"
-              stroke="#b7a88a"
-              strokeWidth="0.32"
+              stroke="#7a8758"
+              strokeWidth="0.55"
+              strokeLinecap="round"
+            />
+            {/* cheese → recipe */}
+            <path
+              className="oliva-dilema-link"
+              d="M30 28 C 44 22, 58 16, 72 14"
+              fill="none"
+              stroke="#7a8758"
+              strokeWidth="0.55"
               strokeLinecap="round"
             />
           </svg>
@@ -493,11 +581,20 @@ export function StoryAnimation() {
             >
               <span className="oliva-dilema-spot-ring" />
               <span className="oliva-dilema-spot-emoji">{spot.emoji}</span>
+              <span className="oliva-dilema-spot-label">{spot.label}</span>
             </span>
           ))}
 
           <div className="oliva-dilema-recipe" data-recipe={RECIPE.id}>
-            <span className="oliva-dilema-recipe-label">{RECIPE.label}</span>
+            <div className="oliva-dilema-recipe-card">
+              <div className="oliva-dilema-recipe-visual" aria-hidden="true">
+                <span className="oliva-dilema-recipe-bowl">🥗</span>
+              </div>
+              <div className="oliva-dilema-recipe-copy">
+                <span className="oliva-dilema-recipe-label">{RECIPE.label}</span>
+                <span className="oliva-dilema-recipe-meta">{RECIPE.meta}</span>
+              </div>
+            </div>
           </div>
 
           <div className="oliva-dilema-badge">

@@ -139,7 +139,7 @@ export function PhoneMockup({ className }: PhoneMockupProps) {
           <div className="absolute -left-[3px] top-[28%] z-20 h-14 w-[3px] rounded-l-sm bg-[#2a2b28]" />
           <div className="absolute -right-[3px] top-[24%] z-20 h-16 w-[3px] rounded-r-sm bg-[#2a2b28]" />
 
-          <div className="relative h-full w-full overflow-hidden rounded-[2.5rem] border border-[#d9d2c4] bg-[#1b1c19] p-[10px]">
+          <div className="oliva-phone-frame relative h-full w-full overflow-hidden rounded-[2.5rem] border border-[#d9d2c4] bg-[#1b1c19] p-[10px]">
             <div className="relative h-full w-full overflow-hidden rounded-[2rem] bg-[#FAF7F2]">
               <div className="absolute left-1/2 top-2.5 z-20 h-5 w-20 -translate-x-1/2 rounded-full bg-[#1b1c19]" />
               <div className="oliva-mockup-screen">

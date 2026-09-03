@@ -20,10 +20,11 @@
 @keyframes oliva-phone-breathe {
   0%,
   100% {
-    box-shadow: 0 22px 44px -18px rgba(27, 28, 25, 0.16);
+    filter: drop-shadow(0 16px 28px rgb(27 28 25 / 0.12));
   }
+
   50% {
-    box-shadow: 0 30px 56px -14px rgba(27, 28, 25, 0.28);
+    filter: drop-shadow(0 22px 40px rgb(27 28 25 / 0.2));
   }
 }
 
@@ -101,17 +102,17 @@
 .oliva-phone-shadow {
   position: absolute;
   left: 50%;
-  bottom: 10px;
+  bottom: 6px;
   z-index: 0;
-  width: 68%;
-  height: 18px;
+  width: 62%;
+  height: 14px;
   border-radius: 100%;
   background: radial-gradient(
     ellipse at center,
-    rgba(27, 28, 25, 0.28) 0%,
-    rgba(27, 28, 25, 0) 70%
+    rgb(27 28 25 / 0.18) 0%,
+    rgb(27 28 25 / 0) 72%
   );
-  filter: blur(6px);
+  filter: blur(8px);
   pointer-events: none;
   animation: oliva-shadow-float 9s ease-in-out infinite;
   will-change: transform, opacity;
@@ -120,6 +121,9 @@
 .oliva-phone-device {
   position: relative;
   z-index: 1;
+}
+
+.oliva-phone-frame {
   animation: oliva-phone-breathe 9s ease-in-out infinite;
 }
 
@@ -181,10 +185,14 @@
 
 @media (prefers-reduced-motion: reduce) {
   .oliva-phone-shadow,
-  .oliva-phone-device,
+  .oliva-phone-frame,
   .oliva-orbit-item,
   .oliva-halo {
     animation: none;
+  }
+
+  .oliva-phone-frame {
+    filter: drop-shadow(0 16px 28px rgb(27 28 25 / 0.14));
   }
 
   .oliva-chip-enter,

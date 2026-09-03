@@ -90,34 +90,34 @@ export function Hero() {
             <div className="oliva-hero-stage flex justify-center lg:justify-end">
               <div className="oliva-hero-phone-glow" aria-hidden="true" />
               <div className="oliva-hero-phone-enter">
-                <PhoneMockup className="oliva-hero-phone w-[min(100%,380px)] sm:w-[400px] lg:w-[440px]" />
+                <PhoneMockup className="oliva-hero-phone lg:w-[440px]" />
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <a
-        href="#dilema"
-        className="oliva-hero-scroll-hint"
-        aria-label="Seguir descubriendo"
-      >
-        <span>Descubre</span>
-        <svg
-          className="oliva-hero-scroll-chevron"
-          viewBox="0 0 16 16"
-          fill="none"
-          aria-hidden="true"
+        <a
+          href="#dilema"
+          className="oliva-hero-scroll-hint"
+          aria-label="Seguir descubriendo"
         >
-          <path
-            d="M4 6l4 4 4-4"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </a>
+          <span>Descubre</span>
+          <svg
+            className="oliva-hero-scroll-chevron"
+            viewBox="0 0 16 16"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              d="M4 6l4 4 4-4"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </a>
+      </div>
     </section>
   );
 }
