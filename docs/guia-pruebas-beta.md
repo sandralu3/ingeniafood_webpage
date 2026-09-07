@@ -1,11 +1,22 @@
 # 📱 Guía de Pruebas Beta — IngeniaFood
 
 > Documento para testers. Lenguaje de **pantalla**: lo que ves, tocas y experimentas.  
-> Última actualización: **26 agosto 2026** (plan + escáner foto)
+> Última actualización: **7 septiembre 2026** (plan: botón Analizar visible)
 
 ---
 
 ### 📣 Novedades por despliegue
+
+#### 7 septiembre 2026
+
+**Plan · botón Analizar alimentos siempre visible**
+- Al registrar comida por **foto** o **texto**, el botón **Analizar alimentos** (y **Atrás** / guardar) queda fijo abajo del sheet, sin quedar cortado en móviles altos o con teclado.
+- Tras elegir la foto, el panel blanco deja espacio suficiente para ver el CTA.
+
+**Qué probar de este despliegue**
+- [ ] Plan → Tomar foto del plato → cámara/galería → se ve **Analizar alimentos** sin hacer scroll raro
+- [ ] Plan → Describir lo que comí → con teclado abierto, el CTA sigue accesible (o con un scroll corto del cuerpo)
+- [ ] Mismo flujo en snacks por foto/texto
 
 #### 26 agosto 2026
 

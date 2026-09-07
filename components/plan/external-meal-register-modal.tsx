@@ -533,9 +533,10 @@ export function ExternalMealRegisterModal({
   const canAnalyze =
     mode === "text" ? description.trim().length >= 3 : Boolean(selectedFile);
 
-  // En modo texto no queremos que el cuerpo se estire (reduce el espacio en blanco).
+  // Cuerpo con scroll + footer fijo: evita que «Analizar alimentos» quede fuera
+  // de la vista en móviles (dvh/chrome) o con teclado en modo texto.
   const dialogNeedsTallBody =
-    step === "review" || (mode === "photo" && !isPhotoSourceStep);
+    step === "review" || mode === "text" || (mode === "photo" && !isPhotoSourceStep);
 
   /** Misma experiencia que el escáner de alimentos (foto redondeada + sheet). */
   const showScanPhotoLayout =
@@ -613,8 +614,8 @@ export function ExternalMealRegisterModal({
   const sheetFooter = (
     <div
       className={cn(
-        "shrink-0 border-t border-stone-100 px-5",
-        isPhotoSourceStep ? "py-3" : "py-4"
+        "shrink-0 border-t border-stone-100 px-5 pt-3",
+        "pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]"
       )}
     >
       {step === "input" ? (
@@ -687,8 +688,7 @@ export function ExternalMealRegisterModal({
   const sheetBody = (
     <div
       className={cn(
-        "min-h-0 space-y-3 overflow-y-auto overscroll-y-contain px-5 py-3 touch-pan-y [-webkit-overflow-scrolling:touch]",
-        dialogNeedsTallBody || showScanPhotoLayout ? "flex-1" : "shrink-0"
+        "min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-y-contain px-5 py-3 touch-pan-y [-webkit-overflow-scrolling:touch]"
       )}
     >
       {step === "input" && mode === "photo" && !showScanPhotoLayout ? (
@@ -981,7 +981,7 @@ export function ExternalMealRegisterModal({
 
   return (
     <div
-      className="fixed inset-0 z-[160] flex items-end justify-center bg-black/45 px-0 backdrop-blur-[2px] sm:items-center sm:px-4"
+      className="fixed inset-0 z-[160] flex items-end justify-center bg-black/45 px-0 pb-[env(safe-area-inset-bottom,0px)] backdrop-blur-[2px] sm:items-center sm:px-4 sm:pb-0"
       onClick={(event) => {
         if (event.target !== event.currentTarget) return;
         requestClose();
@@ -992,14 +992,15 @@ export function ExternalMealRegisterModal({
         aria-modal="true"
         aria-labelledby="external-meal-title"
         className={cn(
-          "self-end flex w-full max-w-lg flex-col overflow-hidden rounded-t-3xl shadow-2xl sm:rounded-3xl",
+          "flex w-full max-w-lg flex-col overflow-hidden rounded-t-3xl shadow-2xl sm:rounded-3xl",
+          "max-h-[min(90svh,90dvh)]",
           showScanPhotoLayout
-            ? "h-[90dvh] max-h-[90dvh] border-0 bg-black sm:h-[min(90dvh,52rem)]"
+            ? "h-[min(90svh,90dvh)] border-0 bg-black sm:h-[min(90svh,52rem)]"
             : cn(
                 "border border-stone-100 bg-white",
                 dialogNeedsTallBody
-                  ? "h-[90dvh] max-h-[90dvh] sm:h-auto sm:max-h-[85vh]"
-                  : "max-h-[90dvh] sm:max-h-[85vh]"
+                  ? "h-[min(90svh,90dvh)] sm:h-auto sm:max-h-[min(85svh,85vh)]"
+                  : "sm:max-h-[min(85svh,85vh)]"
               )
         )}
         onClick={(event) => event.stopPropagation()}
@@ -1011,7 +1012,7 @@ export function ExternalMealRegisterModal({
               imageUrl={previewUrl}
               imageAlt="Plato"
               className="min-h-0 flex-1"
-              sheetMaxClassName="max-h-[min(62dvh,32rem)]"
+              sheetMaxClassName="h-[min(52svh,28rem)] max-h-[min(52svh,28rem)]"
               overlay={
                 step === "review" && unhealthyAdvisory ? (
                   <RecipeAdvisoryPulseButton

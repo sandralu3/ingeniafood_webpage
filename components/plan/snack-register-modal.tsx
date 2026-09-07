@@ -651,7 +651,7 @@ export function SnackRegisterModal({
   return (
     <>
     <div
-      className="fixed inset-0 z-[160] flex items-end justify-center bg-black/45 px-0 backdrop-blur-[2px] sm:items-center sm:px-4"
+      className="fixed inset-0 z-[160] flex items-end justify-center bg-black/45 px-0 pb-[env(safe-area-inset-bottom,0px)] backdrop-blur-[2px] sm:items-center sm:px-4 sm:pb-0"
       onClick={(event) => {
         // Solo cerrar desde el menú vacío. Con texto/revisión un toque al fondo
         // (p. ej. al cerrar el teclado en móvil) perdía el snack sin guardar.
@@ -674,11 +674,17 @@ export function SnackRegisterModal({
         aria-labelledby="snack-register-title"
         className={cn(
           "flex w-full flex-col overflow-hidden rounded-t-3xl shadow-2xl sm:rounded-3xl",
+          "max-h-[min(90svh,90dvh)]",
           showScanPhotoLayout
-            ? "h-[90dvh] max-h-[90dvh] max-w-lg border-0 bg-black sm:h-[min(90dvh,52rem)]"
+            ? "h-[min(90svh,90dvh)] max-w-lg border-0 bg-black sm:h-[min(90svh,52rem)]"
             : mode === "menu" && step === "input"
-              ? "max-h-[92vh] max-w-2xl border border-neutral-100 bg-white"
-              : "max-h-[88vh] max-w-lg border border-neutral-100 bg-white"
+              ? "max-h-[min(92svh,92vh)] max-w-2xl border border-neutral-100 bg-white"
+              : cn(
+                  "max-w-lg border border-neutral-100 bg-white",
+                  dialogNeedsTallBody
+                    ? "h-[min(90svh,90dvh)] sm:h-auto sm:max-h-[min(88svh,88vh)]"
+                    : "sm:max-h-[min(88svh,88vh)]"
+                )
         )}
         onClick={(event) => event.stopPropagation()}
       >
@@ -687,7 +693,7 @@ export function SnackRegisterModal({
             imageUrl={previewUrl}
             imageAlt="Snack"
             className="min-h-0 flex-1"
-            sheetMaxClassName="max-h-[min(62dvh,32rem)]"
+            sheetMaxClassName="h-[min(52svh,28rem)] max-h-[min(52svh,28rem)]"
             overlay={
               step === "review" && unhealthyAdvisory ? (
                 <RecipeAdvisoryPulseButton
@@ -903,8 +909,8 @@ export function SnackRegisterModal({
 
             <div
               className={cn(
-                "shrink-0 border-t border-stone-100 px-5",
-                isPhotoSourceStep ? "py-3" : "py-4"
+                "shrink-0 border-t border-stone-100 px-5 pt-3",
+                "pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]"
               )}
             >
               {step === "input" ? (
@@ -999,12 +1005,7 @@ export function SnackRegisterModal({
           </button>
         </div>
 
-        <div
-          className={cn(
-            "min-h-0 space-y-3 overflow-y-auto overscroll-y-contain px-5 py-3 touch-pan-y [-webkit-overflow-scrolling:touch]",
-            dialogNeedsTallBody ? "flex-1" : "shrink-0"
-          )}
-        >
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-y-contain px-5 py-3 touch-pan-y [-webkit-overflow-scrolling:touch]">
           {!canRegister ? (
             <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-900">
               {t.has("snackFutureDayHint")
@@ -1457,8 +1458,8 @@ export function SnackRegisterModal({
         {mode === "text" || mode === "photo" || step === "review" ? (
           <div
             className={cn(
-              "shrink-0 border-t border-stone-100 px-5",
-              isPhotoSourceStep ? "py-3" : "py-4"
+              "shrink-0 border-t border-stone-100 px-5 pt-3",
+              "pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]"
             )}
           >
             {step === "input" ? (

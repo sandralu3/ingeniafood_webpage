@@ -18,6 +18,9 @@ type Props = {
 /**
  * Layout tipo comentarios Instagram: foto redondeada arriba (sobre fondo negro)
  * + bottom sheet blanco debajo que no tapa la imagen.
+ *
+ * El panel blanco es flex column con altura acotada (svh) para que el footer
+ * (p. ej. Analizar alimentos) no quede recortado en móviles con chrome del browser.
  */
 export function ScanPhotoSheetStage({
   imageUrl,
@@ -25,7 +28,7 @@ export function ScanPhotoSheetStage({
   children,
   overlay,
   className,
-  sheetMaxClassName = "max-h-[min(58dvh,28rem)]"
+  sheetMaxClassName = "max-h-[min(52svh,28rem)]"
 }: Props) {
   return (
     <div
@@ -34,7 +37,7 @@ export function ScanPhotoSheetStage({
         className
       )}
     >
-      <div className="relative flex min-h-[7.5rem] w-full flex-1 flex-col px-2.5 pb-1.5 pt-2">
+      <div className="relative flex min-h-[5.5rem] w-full flex-1 flex-col px-2.5 pb-1.5 pt-2">
         <div className="relative min-h-0 w-full flex-1 overflow-hidden rounded-[1.35rem] bg-stone-950 sm:rounded-[1.5rem]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img

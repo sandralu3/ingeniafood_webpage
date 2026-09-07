@@ -144,17 +144,20 @@ export function normalizeSearchText(value: string): string {
     .replace(/[\u0300-\u036f]/g, "");
 }
 
-function jsonToSearchableText(value: Json): string {
-  if (value === null) return "";
+function jsonToSearchableText(value: Json | undefined | unknown): string {
+  if (value == null) return "";
   if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
     return String(value);
   }
   if (Array.isArray(value)) {
-    return value.map(jsonToSearchableText).join(" ");
+    return value.map((entry) => jsonToSearchableText(entry)).join(" ");
   }
-  return Object.values(value)
-    .map((entry) => (entry === undefined ? "" : jsonToSearchableText(entry)))
-    .join(" ");
+  if (typeof value === "object") {
+    return Object.values(value as Record<string, unknown>)
+      .map((entry) => jsonToSearchableText(entry))
+      .join(" ");
+  }
+  return "";
 }
 
 function tagsToSearchableText(tags: unknown): string {
